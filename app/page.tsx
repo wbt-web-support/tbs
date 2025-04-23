@@ -1,11 +1,5 @@
-import Hero from "@/components/hero";
-import { hasEnvVars } from "@/utils/supabase/check-env-vars";
+import { redirect } from "next/navigation";
 
-export default async function Home() {
-  return (
-    <>
-      <Hero />
-      
-    </>
-  );
+export default function Home() {
+  redirect('/sign-in');
 }
