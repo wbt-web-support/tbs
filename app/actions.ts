@@ -8,18 +8,28 @@ import { redirect } from "next/navigation";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  const fullName = formData.get("fullName")?.toString();
+  const businessName = formData.get("businessName")?.toString();
+  const phoneNumber = formData.get("phoneNumber")?.toString();
+  const paymentOption = formData.get("paymentOption")?.toString();
+  const paymentRemaining = parseFloat(formData.get("paymentRemaining")?.toString() || "0");
+  const commandHqLink = formData.get("commandHqLink")?.toString();
+  const commandHqCreated = formData.get("commandHqCreated") === "on";
+  const gdFolderCreated = formData.get("gdFolderCreated") === "on";
+  const meetingScheduled = formData.get("meetingScheduled") === "on";
+  
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
-  if (!email || !password) {
+  if (!email || !password || !fullName || !businessName || !phoneNumber || !paymentOption) {
     return encodedRedirect(
       "error",
       "/sign-up",
-      "Email and password are required",
+      "All fields are required",
     );
   }
 
-  const { error } = await supabase.auth.signUp({
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -27,16 +37,39 @@ export const signUpAction = async (formData: FormData) => {
     },
   });
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
-  } else {
-    return encodedRedirect(
-      "success",
-      "/sign-up",
-      "Thanks for signing up! Please check your email for a verification link.",
-    );
+  if (authError) {
+    console.error(authError.code + " " + authError.message);
+    return encodedRedirect("error", "/sign-up", authError.message);
   }
+
+  if (authData.user) {
+    const { error: businessError } = await supabase
+      .from('business_info')
+      .insert({
+        user_id: authData.user.id,
+        full_name: fullName,
+        business_name: businessName,
+        email: email,
+        phone_number: phoneNumber,
+        payment_option: paymentOption,
+        payment_remaining: paymentRemaining,
+        command_hq_link: commandHqLink,
+        command_hq_created: commandHqCreated,
+        gd_folder_created: gdFolderCreated,
+        meeting_scheduled: meetingScheduled,
+      });
+
+    if (businessError) {
+      console.error(businessError.message);
+      return encodedRedirect("error", "/sign-up", "Failed to save business information");
+    }
+  }
+
+  return encodedRedirect(
+    "success",
+    "/sign-up",
+    "Thanks for signing up! Please check your email for a verification link.",
+  );
 };
 
 export const signInAction = async (formData: FormData) => {
@@ -53,7 +86,7 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  return redirect("/protected");
+  return redirect("/dashboard");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
