@@ -15,13 +15,13 @@ import { User, LogOut } from "lucide-react";
 
 export async function Navbar() {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (await supabase).auth.getUser();
 
   let profilePicture = null;
   let fullName = null;
 
   if (user) {
-    const { data: businessInfo } = await supabase
+    const { data: businessInfo } = await (await supabase)
       .from('business_info')
       .select('profile_picture_url, full_name')
       .eq('user_id', user.id)
