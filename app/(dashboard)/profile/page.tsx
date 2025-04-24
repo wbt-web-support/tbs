@@ -146,34 +146,33 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-8 max-w-[1400px] mx-auto">
-        <Card className="rounded-xl border border-gray-100 shadow-sm bg-white overflow-hidden h-fit">
-          <CardHeader className="bg-white border-b border-gray-100">
-            <CardTitle className="text-2xl font-semibold text-gray-900">Profile Information</CardTitle>
-            <CardDescription className="text-gray-500">Manage your business profile and personal information</CardDescription>
+    <div className="container mx-auto py-6 px-4">
+      <div className="max-w-4xl mx-auto">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-medium">Profile</CardTitle>
+            <CardDescription>Manage your business information</CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-8">
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-6">
               <div className="relative group">
                 <div className="relative">
-                  <Avatar className="h-32 w-32 rounded-full border-2 border-gray-100 shadow-sm">
+                  <Avatar className="h-24 w-24 rounded-full border border-gray-100">
                     <AvatarImage src={businessInfo?.profile_picture_url || ''} />
-                    <AvatarFallback className="text-2xl bg-blue-50 text-blue-900 rounded-xl">
+                    <AvatarFallback className="text-xl bg-blue-50 text-blue-900">
                       {businessInfo?.full_name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   {uploading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-xl">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
                       <LoadingSpinner size="sm" className="text-white" />
                     </div>
                   )}
-                </div>
-                <label
+                  <label
                   htmlFor="profile-picture"
-                  className="absolute bottom-0 right-0 bg-white text-gray-700 p-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors shadow-sm border border-gray-100"
+                  className="absolute bottom-0 right-0 bg-white p-1.5 rounded-full cursor-pointer hover:bg-gray-50 transition-colors shadow-sm border border-gray-100"
                 >
-                  <Upload className="h-4 w-4" />
+                  <Upload className="h-3.5 w-3.5" />
                 </label>
                 <input
                   id="profile-picture"
@@ -183,34 +182,36 @@ export default function ProfilePage() {
                   onChange={handleFileUpload}
                   disabled={uploading}
                 />
+                </div>
+                
               </div>
 
               <form onSubmit={handleSubmit} className="flex-1 space-y-4">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="full_name" className="text-gray-700 font-medium">Full Name</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="full_name" className="text-sm text-gray-600">Full Name</Label>
                     <Input
                       id="full_name"
                       name="full_name"
                       value={formData.full_name || ''}
                       onChange={handleInputChange}
                       disabled={!editing}
-                      className="rounded-lg border-gray-100 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="business_name" className="text-gray-700">Business Name</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="business_name" className="text-sm text-gray-600">Business Name</Label>
                     <Input
                       id="business_name"
                       name="business_name"
                       value={formData.business_name || ''}
                       onChange={handleInputChange}
                       disabled={!editing}
-                      className="rounded-lg border-gray-100 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-700">Email</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-sm text-gray-600">Email</Label>
                     <Input
                       id="email"
                       name="email"
@@ -218,33 +219,33 @@ export default function ProfilePage() {
                       value={formData.email || ''}
                       onChange={handleInputChange}
                       disabled={!editing}
-                      className="rounded-lg border-gray-100 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone_number" className="text-gray-700">Phone Number</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone_number" className="text-sm text-gray-600">Phone Number</Label>
                     <Input
                       id="phone_number"
                       name="phone_number"
                       value={formData.phone_number || ''}
                       onChange={handleInputChange}
                       disabled={!editing}
-                      className="rounded-lg border-gray-100 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_option" className="text-gray-700">Payment Option</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="payment_option" className="text-sm text-gray-600">Payment Option</Label>
                     <Input
                       id="payment_option"
                       name="payment_option"
                       value={formData.payment_option || ''}
                       onChange={handleInputChange}
                       disabled={!editing}
-                      className="rounded-lg border-gray-100 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_remaining" className="text-gray-700">Payment Remaining</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="payment_remaining" className="text-sm text-gray-600">Payment Remaining</Label>
                     <Input
                       id="payment_remaining"
                       name="payment_remaining"
@@ -253,33 +254,33 @@ export default function ProfilePage() {
                       value={formData.payment_remaining || 0}
                       onChange={handleInputChange}
                       disabled={!editing}
-                      className="rounded-lg border-gray-100 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="command_hq_link" className="text-gray-700">Command HQ Link</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="command_hq_link" className="text-sm text-gray-600">Command HQ Link</Label>
                     <Input
                       id="command_hq_link"
                       name="command_hq_link"
                       value={formData.command_hq_link || ''}
                       onChange={handleInputChange}
                       disabled={!editing}
-                      className="rounded-lg border-gray-100 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                      className="h-9"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 pt-6">
+                <div className="flex items-center gap-3 pt-4">
                   {editing ? (
                     <>
                       <SubmitButton 
                         type="submit" 
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        pendingText="Saving changes..."
+                        className="h-9 bg-blue-600 hover:bg-blue-700 text-white"
+                        pendingText="Saving..."
                         disabled={saving}
                       >
                         <Check className="h-4 w-4 mr-2" />
-                        Save Changes
+                        Save
                       </SubmitButton>
                       <Button
                         type="button"
@@ -289,6 +290,7 @@ export default function ProfilePage() {
                           setFormData(businessInfo || {});
                         }}
                         disabled={saving}
+                        className="h-9"
                       >
                         <X className="h-4 w-4 mr-2" />
                         Cancel
@@ -298,36 +300,13 @@ export default function ProfilePage() {
                     <Button
                       type="button"
                       onClick={() => setEditing(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="h-9 bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Edit Profile
                     </Button>
                   )}
                 </div>
               </form>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl border border-gray-100 shadow-sm bg-white overflow-hidden h-fit">
-          <CardHeader className="bg-white border-b border-gray-100">
-            <CardTitle className="text-2xl font-semibold text-gray-900">Progress Tracking</CardTitle>
-            <CardDescription className="text-gray-500">Monitor your business setup progress</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
-                <span className="text-gray-700 font-medium">Command HQ Created</span>
-                <div className={`h-3 w-3 rounded-full ${businessInfo?.command_hq_created ? 'bg-green-500' : 'bg-gray-200'}`} />
-              </div>
-              <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
-                <span className="text-gray-700 font-medium">GD Folder Created</span>
-                <div className={`h-3 w-3 rounded-full ${businessInfo?.gd_folder_created ? 'bg-green-500' : 'bg-gray-200'}`} />
-              </div>
-              <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
-                <span className="text-gray-700 font-medium">3-1 Meeting Scheduled</span>
-                <div className={`h-3 w-3 rounded-full ${businessInfo?.meeting_scheduled ? 'bg-green-500' : 'bg-gray-200'}`} />
-              </div>
             </div>
           </CardContent>
         </Card>
