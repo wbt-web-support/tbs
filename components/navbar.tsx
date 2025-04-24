@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, MessageSquare } from "lucide-react";
 
 export async function Navbar() {
   const supabase = createClient();
@@ -36,8 +36,13 @@ export async function Navbar() {
   return (
     <div className="border-b">
       <div className="flex h-16 items-center px-6">
-        <div className="flex-1">
-          {/* <h1 className="text-xl font-bold">Dashboard</h1> */}
+        <div className="flex-1 flex items-center gap-4">
+          <Link href="/chat">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
+              <MessageSquare className="h-4 w-4" />
+              <span>Chat</span>
+            </Button>
+          </Link>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
