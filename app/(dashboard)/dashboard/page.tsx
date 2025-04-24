@@ -242,66 +242,66 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen ">
-      <div className="">
-        <div >
+    <div className="min-h-screen">
+      <div>
+        <div>
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Dashboard</h1>
               <p className="text-sm text-gray-500 mt-1">Welcome back to your command center</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="w-full sm:w-auto">
               <input
                 type="search"
                 placeholder="Search..."
-                className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-64"
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <StatsCard title="Open Issues" value="05" icon={Package} />
             <StatsCard title="Team Members" value="27" icon={Users} />
             <StatsCard title="Tasks" value="147" icon={Clock} />
             <StatsCard title="Completion Rate" value="89.75%" icon={LineChart} />
           </div>
 
-          <div className="grid grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column */}
-            <div className="col-span-12 lg:col-span-8 grid grid-cols-12 gap-6">
+            <div className="lg:col-span-8 grid grid-cols-1 gap-6">
               {/* Resources Section */}
-              <div className="col-span-12 bg-white rounded-xl p-6 border border-gray-200 ">
+              <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
                 <SectionTitle title="RESOURCES" />
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
+                  <div className="lg:col-span-4">
                     <BentoItem item={sections.resources[0]} />
                   </div>
-                  <div className="col-span-4">
+                  <div className="lg:col-span-4">
                     <BentoItem item={sections.resources[1]} />
                   </div>
-                  <div className="col-span-4">
+                  <div className="lg:col-span-4">
                     <BentoItem item={sections.resources[2]} />
                   </div>
-                  <div className="col-span-12">
+                  <div className="lg:col-span-12">
                     <BentoItem item={sections.resources[3]} />
                   </div>
-                  <div className="col-span-6">
+                  <div className="sm:col-span-1 lg:col-span-6">
                     <BentoItem item={sections.resources[4]} />
                   </div>
-                  <div className="col-span-6">
+                  <div className="sm:col-span-1 lg:col-span-6">
                     <BentoItem item={sections.resources[5]} />
                   </div>
                 </div>
               </div>
 
               {/* Company Goals Section */}
-              <div className="col-span-12 bg-white rounded-xl p-6 border border-gray-200">
+              <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
                 <SectionTitle title="COMPANY GOALS" />
-                <div className="grid grid-cols-12 gap-4">
-                  {sections.companyGoals.map((item, index) => (
-                    <div key={item.href} className="col-span-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sections.companyGoals.map((item) => (
+                    <div key={item.href}>
                       <BentoItem item={item} />
                     </div>
                   ))}
@@ -309,11 +309,11 @@ export default function DashboardPage() {
               </div>
 
               {/* How We Work Section */}
-              <div className="col-span-12 bg-white rounded-xl p-6 border border-gray-200">
+              <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
                 <SectionTitle title="HOW WE WORK" />
-                <div className="grid grid-cols-12 gap-4">
-                  {sections.howWeWork.map((item, index) => (
-                    <div key={item.href} className="col-span-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {sections.howWeWork.map((item) => (
+                    <div key={item.href}>
                       <BentoItem item={item} />
                     </div>
                   ))}
@@ -322,9 +322,9 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Column */}
-            <div className="col-span-12 lg:col-span-4 grid grid-cols-1 gap-6">
+            <div className="lg:col-span-4 grid grid-cols-1 gap-6">
               {/* Who We Are Section */}
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
                 <SectionTitle title="WHO WE ARE" />
                 <div className="grid gap-4">
                   {sections.whoWeAre.map(item => (
@@ -334,7 +334,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Helpful Links Section */}
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
                 <SectionTitle title="HELPFUL LINKS" />
                 <div className="space-y-1">
                   {sections.helpfulLinks.map(item => (
@@ -344,7 +344,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Scorecards Section */}
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
                 <SectionTitle title="SCORECARDS" />
                 <div className="grid gap-4">
                   {sections.scorecards.map(item => (
@@ -356,7 +356,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      <ReadinessTracker />
+      <div className="mt-6">
+        <ReadinessTracker />
+      </div>
     </div>
   );
 } 

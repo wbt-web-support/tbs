@@ -1,4 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+"use client";
+
+import { createClient } from "@/utils/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,32 +13,51 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { User, LogOut, MessageSquare } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu } from "lucide-react";
+import { useEffect, useState } from "react";
 
-export async function Navbar() {
+interface NavbarProps {
+  onMenuClick: () => void;
+}
+
+export function Navbar({ onMenuClick }: NavbarProps) {
+  const [user, setUser] = useState<any>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
   const supabase = createClient();
-  const { data: { user } } = await (await supabase).auth.getUser();
 
-  let profilePicture = null;
-  let fullName = null;
+  useEffect(() => {
+    async function loadUserData() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
 
-  if (user) {
-    const { data: businessInfo } = await (await supabase)
-      .from('business_info')
-      .select('profile_picture_url, full_name')
-      .eq('user_id', user.id)
-      .single();
+      if (user) {
+        const { data: businessInfo } = await supabase
+          .from('business_info')
+          .select('profile_picture_url, full_name')
+          .eq('user_id', user.id)
+          .single();
 
-    if (businessInfo) {
-      profilePicture = businessInfo.profile_picture_url;
-      fullName = businessInfo.full_name;
+        if (businessInfo) {
+          setProfilePicture(businessInfo.profile_picture_url);
+          setFullName(businessInfo.full_name);
+        }
+      }
     }
-  }
+
+    loadUserData();
+  }, []);
 
   return (
     <div className="border-b">
       <div className="flex h-16 items-center px-6">
         <div className="flex-1 flex items-center gap-4">
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-md"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <Link href="/chat">
             <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
               <MessageSquare className="h-4 w-4" />

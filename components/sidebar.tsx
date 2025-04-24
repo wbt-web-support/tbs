@@ -17,7 +17,8 @@ import {
   BookText,
   Clock,
   Flag,
-  Compass
+  Compass,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -134,50 +135,81 @@ const navigationSections = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <div className="w-64 border-r bg-background flex flex-col">
-      <div className="flex h-16 items-center px-6 border-b">
-        <h1 className="text-lg font-semibold text-gray-900">Command HQ</h1>
-      </div>
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <div className="space-y-6">
-          {navigationSections.map((section, index) => (
-            <div key={section.title} className="space-y-2">
-              <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider">
-                {section.title}
-              </h2>
-              <div className="space-y-1">
-                {section.items.map((item) => {
-                  const isActive = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition-colors",
-                        "hover:bg-blue-50/80 hover:text-blue-700",
-                        isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600"
-                      )}
-                    >
-                      <item.icon 
-                        className={cn(
-                          "h-4 w-4 transition-transform group-hover:scale-110",
-                          isActive ? "text-blue-600" : "text-blue-500"
-                        )}
-                        strokeWidth={2}
-                      />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+    <>
+      {/* Backdrop for mobile */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div className={cn(
+        "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-background flex flex-col transform transition-transform duration-200 ease-in-out",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
+        <div className="flex h-16 items-center justify-between px-6 border-b">
+          <h1 className="text-lg font-semibold text-gray-900">Command HQ</h1>
+          <button 
+            onClick={onClose}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-md"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-      </nav>
-    </div>
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <div className="space-y-6">
+            {navigationSections.map((section, index) => (
+              <div key={section.title} className="space-y-2">
+                <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider">
+                  {section.title}
+                </h2>
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => {
+                          // Close sidebar on mobile when clicking a link
+                          if (window.innerWidth < 1024) {
+                            onClose();
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition-colors",
+                          "hover:bg-blue-50/80 hover:text-blue-700",
+                          isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600"
+                        )}
+                      >
+                        <item.icon 
+                          className={cn(
+                            "h-4 w-4 transition-transform group-hover:scale-110",
+                            isActive ? "text-blue-600" : "text-blue-500"
+                          )}
+                          strokeWidth={2}
+                        />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </nav>
+      </div>
+    </>
   );
 } 

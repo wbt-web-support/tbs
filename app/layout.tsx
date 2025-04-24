@@ -25,8 +25,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createClient();
-  const { data: { session } } = await (await supabase).auth.getSession();
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
   // If user is authenticated and tries to access root, redirect to dashboard
   if (session && typeof window !== 'undefined' && window.location.pathname === '/') {
