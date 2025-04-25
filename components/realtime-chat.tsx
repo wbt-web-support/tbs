@@ -25,6 +25,7 @@ import { Switch } from "./ui/switch";
 import { createClient } from "@/utils/supabase/client";
 import ReactMarkdown from 'react-markdown';
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant";
@@ -1097,40 +1098,38 @@ export function RealtimeChat() {
   // Modify the loadChatHistory function
   const loadChatHistory = async () => {
     try {
+      console.log('Loading chat history...');
       setIsLoadingHistory(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        console.log('No user found, skipping chat history load');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('User session in chat:', session, 'Error:', sessionError);
+
+      if (!session || !session.user) {
+        console.log('No user found in chat session');
         return;
       }
 
+      console.log('Fetching chat history for user:', session.user.id);
       const { data, error } = await supabase
         .from('chat_history')
-        .select('messages')
+        .select('*')
         .eq('user_id', session.user.id)
-        .single();
+        .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error loading chat history:', error);
-        return;
-      }
+      console.log('Chat history response:', data, 'Error:', error);
+      if (error) throw error;
 
-      if (data?.messages) {
-        setMessages(data.messages);
-      } else {
-        // If no history exists, set default welcome message
-        setMessages([
-          {
-            role: "assistant",
-            content: "Welcome. How can I help you?",
-            type: "text",
-            isComplete: true
-          }
-        ]);
+      if (data && data.length > 0) {
+        const formattedMessages = data.map(msg => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+          type: msg.type as "text" | "audio",
+          isComplete: msg.is_complete
+        }));
+        setMessages(formattedMessages);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
+      toast.error('Failed to load chat history');
     } finally {
       setIsLoadingHistory(false);
     }
@@ -1151,15 +1150,18 @@ export function RealtimeChat() {
         return;
       }
 
+      // Save each message individually
       const { error } = await supabase
         .from('chat_history')
-        .upsert({
-          user_id: session.user.id,
-          messages: messages,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
+        .insert(
+          messages.map(msg => ({
+            user_id: session.user.id,
+            role: msg.role,
+            content: msg.content,
+            type: msg.type,
+            is_complete: msg.isComplete
+          }))
+        );
 
       if (error) {
         console.error('Error saving chat history:', error);
@@ -1220,7 +1222,7 @@ export function RealtimeChat() {
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 rounded-xl border max-w-6xl mx-auto">
+    <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 rounded-xl border max-w-6xl mx-auto w-full">
       <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm rounded-t-xl">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
