@@ -85,6 +85,15 @@ interface AudioDevice {
   label: string;
 }
 
+interface ChatbotInstruction {
+  content: string;
+  content_type: string;
+  url: string | null;
+  updated_at: string;
+  created_at: string;
+  extraction_metadata: any;
+}
+
 // Constants for audio processing
 const BUFFER_THRESHOLD_SECONDS = 0.2; // Reduced from 0.3 to minimize latency
 const CROSSFADE_DURATION = 0.015; // Increased from 0.005 for smoother transitions
@@ -93,6 +102,7 @@ const MAX_BUFFER_SIZE = 8192; // Maximum buffer size to prevent delay
 
 export function RealtimeChat() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chatbotInstructions, setChatbotInstructions] = useState<ChatbotInstruction[]>([]);
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -141,6 +151,19 @@ export function RealtimeChat() {
         
         console.log("Initializing session for user:", userId);
         
+        // Fetch chatbot instructions with all fields
+        const { data: instructions, error: instructionsError } = await supabase
+          .from('chatbot_instructions')
+          .select('content, content_type, url, updated_at, created_at, extraction_metadata')
+          .order('created_at', { ascending: true });
+
+        if (instructionsError) {
+          console.error("Error fetching chatbot instructions:", instructionsError);
+        } else if (instructions) {
+          setChatbotInstructions(instructions);
+          console.log("Loaded chatbot instructions:", instructions);
+        }
+        
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: {
@@ -148,7 +171,8 @@ export function RealtimeChat() {
           },
           body: JSON.stringify({
             model: "gpt-4o-mini-realtime-preview-2024-12-17",
-            userId
+            userId,
+            instructions: chatbotInstructions // Pass all instruction fields to the API
           }),
         });
 
@@ -168,7 +192,6 @@ export function RealtimeChat() {
       } catch (error) {
         console.error("Error initializing session:", error);
         setError(error instanceof Error ? error.message : "Failed to create session");
-        setIsLoading(false);
         
         // Set default welcome message if session initialization fails
         setMessages([{
