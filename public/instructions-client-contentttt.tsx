@@ -104,20 +104,20 @@ export default function InstructionsClientContent({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== 'application/pdf') {
-      toast.error('Please select a PDF file');
+    if (file.type !== 'application/pdf' && !file.name.endsWith('.docx')) {
+      toast.error('Please select a PDF or DOCX file');
       return;
     }
 
     setSelectedFile(file);
-    setContentType('pdf');
+    setContentType(file.name.endsWith('.docx') ? 'document' : 'pdf');
     
     try {
       setIsProcessing(prev => ({ ...prev, 'new': true }));
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch('/api/extract/pdf', {
+      const response = await fetch(`/api/extract/${file.name.endsWith('.docx') ? 'document' : 'pdf'}`, {
         method: 'POST',
         body: formData,
       });
@@ -162,6 +162,10 @@ export default function InstructionsClientContent({
       switch (type) {
         case 'pdf':
           apiEndpoint = '/api/extract/pdf';
+          break;
+        case 'document':
+        case 'doc':
+          apiEndpoint = '/api/extract/document';
           break;
         default:
           console.warn(`Extraction not yet implemented for type: ${type}`);
@@ -342,9 +346,22 @@ export default function InstructionsClientContent({
                       className="h-8 text-sm"
                     />
                   </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => handleExtractContent(url, contentType)}
+                    disabled={!url || isProcessing['new']}
+                    className="h-8"
+                  >
+                    {isProcessing['new'] ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Download className="h-3.5 w-3.5 mr-1" />}
+                    Extract
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Enter URL to extract content automatically on save
+                  {contentType === 'document' ? 
+                    "Enter Google Docs URL to extract content automatically" :
+                    "Enter URL to extract content automatically on save"
+                  }
                 </p>
               </div>
             )}
@@ -361,6 +378,22 @@ export default function InstructionsClientContent({
                 />
                 <p className="text-xs text-muted-foreground">
                   Upload a PDF file to extract content automatically
+                </p>
+              </div>
+            )}
+
+            {contentType === 'document' && (
+              <div className="space-y-2">
+                <Label htmlFor="file" className="text-xs mb-1 block">Upload Document</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".docx"
+                  onChange={handleFileChange}
+                  className="h-8 text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Upload a DOCX file to extract content automatically
                 </p>
               </div>
             )}
