@@ -114,9 +114,7 @@ export function RealtimeChat() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isClearingChat, setIsClearingChat] = useState(false);
 
-  // Default instructions for all chats
-  const DEFAULT_INSTRUCTIONS = `your name is alice and you work for a company called 'Trades Business School'. Alwasys talk in uk accent.`;
-
+  
   // --- New state refs for audio playback ---
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioQueueRef = useRef<AudioBuffer[]>([]); // Queue for decoded audio buffers
@@ -136,7 +134,13 @@ export function RealtimeChat() {
       try {
         setError(null);
         setIsLoading(true);
-        console.log("Initializing session with instructions:", DEFAULT_INSTRUCTIONS);
+        
+        // Get current user ID
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id;
+        
+        console.log("Initializing session for user:", userId);
+        
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: {
@@ -144,7 +148,7 @@ export function RealtimeChat() {
           },
           body: JSON.stringify({
             model: "gpt-4o-mini-realtime-preview-2024-12-17",
-            instructions: DEFAULT_INSTRUCTIONS
+            userId
           }),
         });
 
@@ -157,7 +161,7 @@ export function RealtimeChat() {
         console.log("Session created:", data);
         setSessionToken(data.client_secret.value);
         
-        // Load chat history instead of setting default message
+        // Load chat history (loadChatHistory will handle setting default welcome message if needed)
         await loadChatHistory();
         
         setIsLoading(false);
@@ -165,11 +169,19 @@ export function RealtimeChat() {
         console.error("Error initializing session:", error);
         setError(error instanceof Error ? error.message : "Failed to create session");
         setIsLoading(false);
+        
+        // Set default welcome message if session initialization fails
+        setMessages([{
+          role: "assistant",
+          content: "Welcome. How can I help you?",
+          type: "text",
+          isComplete: true
+        }]);
       }
     };
 
     initializeSession();
-  }, []); // Only run on component mount
+  }, []);
 
   useEffect(() => {
     if (!sessionToken) return;
@@ -1105,31 +1117,68 @@ export function RealtimeChat() {
 
       if (!session || !session.user) {
         console.log('No user found in chat session');
+        // Add a default welcome message if no user is found
+        setMessages([
+          {
+            role: "assistant",
+            content: "Welcome. How can I help you?",
+            type: "text",
+            isComplete: true
+          }
+        ]);
         return;
       }
 
       console.log('Fetching chat history for user:', session.user.id);
       const { data, error } = await supabase
         .from('chat_history')
-        .select('*')
+        .select('messages')
         .eq('user_id', session.user.id)
-        .order('created_at', { ascending: true });
+        .single();
 
       console.log('Chat history response:', data, 'Error:', error);
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const formattedMessages = data.map(msg => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-          type: msg.type as "text" | "audio",
-          isComplete: msg.is_complete
-        }));
-        setMessages(formattedMessages);
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No chat history found for this user, this is normal for new users
+          console.log('No chat history found for user, setting default welcome message');
+          setMessages([
+            {
+              role: "assistant",
+              content: "Welcome. How can I help you?",
+              type: "text",
+              isComplete: true
+            }
+          ]);
+        } else {
+          // Some other error occurred
+          throw error;
+        }
+      } else if (data && data.messages && data.messages.length > 0) {
+        // We have chat history, use it
+        setMessages(data.messages);
+      } else {
+        // We have a record but no messages, set default welcome message
+        setMessages([
+          {
+            role: "assistant",
+            content: "Welcome. How can I help you?",
+            type: "text",
+            isComplete: true
+          }
+        ]);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
       toast.error('Failed to load chat history');
+      // Add a default welcome message if there's an error
+      setMessages([
+        {
+          role: "assistant",
+          content: "Welcome. How can I help you?",
+          type: "text",
+          isComplete: true
+        }
+      ]);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -1150,17 +1199,17 @@ export function RealtimeChat() {
         return;
       }
 
-      // Save each message individually
+      // Use upsert to either insert a new record or update the existing one
       const { error } = await supabase
         .from('chat_history')
-        .insert(
-          messages.map(msg => ({
+        .upsert(
+          {
             user_id: session.user.id,
-            role: msg.role,
-            content: msg.content,
-            type: msg.type,
-            is_complete: msg.isComplete
-          }))
+            messages: messages
+          },
+          {
+            onConflict: 'user_id'
+          }
         );
 
       if (error) {
@@ -1184,10 +1233,23 @@ export function RealtimeChat() {
         return;
       }
 
+      // Just update the record with an empty messages array
       const { error } = await supabase
         .from('chat_history')
-        .delete()
-        .eq('user_id', session.user.id);
+        .upsert(
+          {
+            user_id: session.user.id,
+            messages: [{
+              role: "assistant",
+              content: "Welcome. How can I help you?",
+              type: "text",
+              isComplete: true
+            }]
+          },
+          {
+            onConflict: 'user_id'
+          }
+        );
 
       if (error) {
         console.error('Error clearing chat history:', error);
@@ -1229,7 +1291,7 @@ export function RealtimeChat() {
             A
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-800">Alice</h2>
+            <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
             <p className="text-xs text-gray-500">Trades Business School</p>
           </div>
           {isLoadingHistory && (
@@ -1347,7 +1409,7 @@ export function RealtimeChat() {
                       <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                       <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"></div>
                     </div>
-                    <span className="text-sm text-gray-500">Alice is typing</span>
+                    <span className="text-sm text-gray-500">Bot is typing</span>
                   </div>
                 </div>
               </div>
