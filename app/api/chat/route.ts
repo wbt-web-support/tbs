@@ -1,26 +1,60 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+interface ChatbotInstruction {
+  content: string;
+  content_type: string;
+  url: string | null;
+  updated_at: string;
+  created_at: string;
+  extraction_metadata: any;
+}
+
 export async function POST(req: Request) {
   try {
-    const { model, userId } = await req.json();
+    const { model, userId, instructions: clientInstructions } = await req.json();
     const supabase = await createClient();
 
-    // Fetch the latest instructions from the database
+    // Fetch all instructions from the database
     const { data: instructionsData, error: instructionsError } = await supabase
       .from("chatbot_instructions")
-      .select("content")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .single();
+      .select("content, content_type, url, updated_at, created_at, extraction_metadata")
+      .order("created_at", { ascending: true });
 
     if (instructionsError) {
       console.error("Error fetching instructions:", instructionsError);
       throw new Error("Failed to fetch chatbot instructions");
     }
 
-    // Use instructions from the database, if available
-    const instructions = instructionsData?.content;
+    // Combine all instructions with their metadata
+    let combinedInstructions = "";
+    if (instructionsData && instructionsData.length > 0) {
+      combinedInstructions = instructionsData
+        .map(inst => {
+          // Start with the main content
+          let instruction = inst.content + "\n";
+          
+          // Add type information
+          instruction += `[Type: ${inst.content_type}]\n`;
+          
+          // Add URL if available
+          if (inst.url) {
+            instruction += `[Reference: ${inst.url}]\n`;
+          }
+          
+          // Add metadata if available
+          if (inst.extraction_metadata && Object.keys(inst.extraction_metadata).length > 0) {
+            instruction += `[Metadata: ${JSON.stringify(inst.extraction_metadata)}]\n`;
+          }
+          
+          // Add timestamps
+          instruction += `[Last Updated: ${new Date(inst.updated_at).toLocaleString()}]\n`;
+          instruction += `[Created: ${new Date(inst.created_at).toLocaleString()}]\n`;
+          
+          return instruction;
+        })
+        .join("\n---\n\n");
+    }
 
     // Fetch user data if userId is provided
     let userContext = "";
@@ -76,7 +110,11 @@ User Information:
     }
 
     // Combine instructions with user context
-    const fullInstructions = userContext ? `${instructions}\n\nUser Context:\n${userContext}` : instructions;
+    const fullInstructions = userContext 
+      ? `${combinedInstructions}\n\nUser Context:\n${userContext}` 
+      : combinedInstructions;
+
+    console.log("Sending instructions to OpenAI:", fullInstructions);
 
     const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
