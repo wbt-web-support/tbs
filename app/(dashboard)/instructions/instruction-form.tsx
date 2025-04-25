@@ -65,20 +65,24 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== 'application/pdf') {
+    if (contentType === 'pdf' && file.type !== 'application/pdf') {
       toast.error('Please select a PDF file');
       return;
     }
 
+    if (contentType === 'doc' && !file.type.includes('document')) {
+      toast.error('Please select a document file');
+      return;
+    }
+
     setSelectedFile(file);
-    setContentType('pdf');
     
     try {
       setIsProcessing(true);
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch('/api/extract/pdf', {
+      const response = await fetch(`/api/extract/${contentType}`, {
         method: 'POST',
         body: formData,
       });
@@ -111,7 +115,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
     try {
       setIsProcessing(true);
       
-      const response = await fetch('/api/extract/pdf', {
+      const response = await fetch(`/api/extract/${contentType}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,8 +132,8 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
       
       setExtractedContent({
         extracted_text: data.content,
-        file_name: url.split('/').pop() || 'unknown',
-        extraction_date: new Date().toISOString()
+        file_name: data.fileName || url.split('/').pop() || 'unknown',
+        extraction_date: data.extractionDate || new Date().toISOString()
       });
       
       toast.success("Content extracted successfully");
@@ -342,6 +346,22 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
               accept=".pdf"
               onChange={handleFileChange}
             />
+          </div>
+        )}
+        
+        {contentType === 'doc' && (
+          <div className="space-y-2">
+            <Label htmlFor="file" className="text-xs mb-1 block">Upload Document</Label>
+            <Input
+              id="file"
+              type="file"
+              accept=".doc,.docx,.odt"
+              onChange={handleFileChange}
+              className="h-8 text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Upload a document file to extract content automatically
+            </p>
           </div>
         )}
         
