@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ExternalLink } from "lucide-react";
+import { Plus, ExternalLink, Edit2 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Filters } from "./filters";
@@ -60,6 +60,7 @@ export default async function InstructionsPage({
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Type</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Source</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Content</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Created</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Updated</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Actions</th>
@@ -92,6 +93,13 @@ export default async function InstructionsPage({
                     <td className="p-4 align-middle">
                       <div className="max-w-[300px]">
                         <p className="text-xs line-clamp-2">{instruction.content}</p>
+                      </div>
+                    </td>
+                    <td className="p-4 align-middle">
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        instruction.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {instruction.is_active ? 'Active' : 'Inactive'}
                       </div>
                     </td>
                     <td className="p-4 align-middle">

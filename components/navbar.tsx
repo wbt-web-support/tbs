@@ -64,6 +64,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               <span>Chat</span>
             </Button>
           </Link>
+          <Link href="/chat-v2">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
+              <MessageSquare className="h-4 w-4" />
+              <span>Gemini Chat</span>
+            </Button>
+          </Link>
           <Link href="/instructions">
             <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
               <span>Instructions</span>

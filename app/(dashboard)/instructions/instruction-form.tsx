@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 
 interface Instruction {
   id: string;
@@ -21,6 +22,7 @@ interface Instruction {
   content: string;
   content_type: string;
   url?: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
   created_by?: string | null;
@@ -42,6 +44,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
   const [content, setContent] = useState(instruction?.content || "");
   const [contentType, setContentType] = useState(instruction?.content_type || "text");
   const [url, setUrl] = useState(instruction?.url || "");
+  const [isActive, setIsActive] = useState(instruction?.is_active ?? true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -201,6 +204,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
         content: content.trim(),
         content_type: contentType,
         url: url.trim() || null,
+        is_active: isActive,
         extraction_metadata: finalExtractedContent || null
       };
       
@@ -302,6 +306,15 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
               </SelectContent>
             </Select>
           </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="is-active"
+            checked={isActive}
+            onCheckedChange={setIsActive}
+          />
+          <Label htmlFor="is-active">Active</Label>
         </div>
         
         {needsUrl && (
