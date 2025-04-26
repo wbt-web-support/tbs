@@ -12,14 +12,14 @@ interface ChatbotInstruction {
 
 export async function POST(req: Request) {
   try {
-    const { model, userId, instructions: clientInstructions } = await req.json();
+    const { userId, instructions: clientInstructions } = await req.json();
     const supabase = await createClient();
 
-    // Fetch all instructions from the database
+    // Fetch all active instructions from the database
     const { data: instructionsData, error: instructionsError } = await supabase
       .from("chatbot_instructions")
       .select("content, content_type, url, updated_at, created_at, extraction_metadata")
-      .eq("is_active", true)  // Only fetch active instructions
+      .eq("is_active", true)
       .order("created_at", { ascending: true });
 
     if (instructionsError) {
@@ -138,31 +138,12 @@ User Information:
       ? `${combinedInstructions}\n\nUser Context:\n${userContext}` 
       : combinedInstructions;
 
-    console.log("Sending instructions to OpenAI:", fullInstructions);
+    console.log("Sending instructions to Gemini:", fullInstructions);
 
-    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta": "realtime=v1",
-      },
-      body: JSON.stringify({
-        model: model || "gpt-4o-mini-realtime-preview-2024-12-17",
-        modalities: ["text", "audio"],
-        voice: "alloy", 
-        instructions: fullInstructions
-      }),
-    });
+    // Generate a unique session ID
+    const sessionId = crypto.randomUUID();
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("OpenAI API error:", error);
-      throw new Error(error.error?.message || "Failed to create session");
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ sessionId });
   } catch (error) {
     console.error("Error creating session:", error);
     return NextResponse.json(

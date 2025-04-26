@@ -5,6 +5,7 @@ create table public.chatbot_instructions (
   content text not null,
   content_type text not null,  -- 'text', 'pdf', 'doc', 'link', 'youtube', 'loom', 'vimeo', 'faq'
   url text null,               -- For external resources like videos, PDFs, docs
+  is_active boolean not null default true, -- New column to toggle instructions
   created_at timestamp with time zone not null default timezone('utc'::text, now()),
   updated_at timestamp with time zone not null default timezone('utc'::text, now()),
   created_by uuid null,
