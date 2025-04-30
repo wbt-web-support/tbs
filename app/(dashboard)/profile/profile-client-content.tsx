@@ -166,7 +166,7 @@ export function ProfileClientContent({ user, initialBusinessInfo }: ProfileClien
     <div className="container mx-auto py-6 px-4">
       <div className="max-w-4xl mx-auto">
         {/* <DebugSession /> Consider passing session from server if needed */} 
-        <Card className="border-0 shadow-sm overflow-hidden">
+        <Card className="border-0  overflow-hidden">
           <CardHeader className="bg-gray-50/50 border-b px-6 py-4">
             <div className="flex justify-between items-center">
               <div>

@@ -546,7 +546,7 @@ export function RealtimeChatGemini() {
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
                 <div
-                  className={`max-w-[70%] rounded-xl px-4 py-2 shadow-sm flex flex-col ${
+                  className={`max-w-[70%] rounded-xl px-4 py-2  flex flex-col ${
                     message.role === "user"
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
                       : "bg-slate-100 text-gray-800 border"
@@ -603,7 +603,7 @@ export function RealtimeChatGemini() {
             <div ref={messagesEndRef} />
             {audioPlaceholder && (
               <div className={`flex ${audioPlaceholder.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                <div className={`max-w-[70%] rounded-xl px-4 py-2 shadow-sm flex flex-col ${
+                <div className={`max-w-[70%] rounded-xl px-4 py-2  flex flex-col ${
                   audioPlaceholder.role === 'user'
                     ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
                     : 'bg-slate-100 text-gray-800 border'
@@ -639,13 +639,13 @@ export function RealtimeChatGemini() {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-              className="w-full px-4 py-2 rounded-full border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white shadow-sm transition-all"
+              className="w-full px-4 py-2 rounded-full border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white  transition-all"
               placeholder="Type a message..."
               disabled={!isConnected || isLoading || isRecording}
             />
             {inputText && (
               <Button
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm transition-all"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white  transition-all"
                 size="icon"
                 onClick={handleSendMessage}
                 disabled={!isConnected || isLoading || !inputText.trim() || isRecording}
