@@ -7,12 +7,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { GoogleGenerativeAI, ChatSession, Content, Part } from "@google/generative-ai";
+import { AudioVisualizer } from "./audio-visualizer";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   type: "text";
   isComplete?: boolean;
+  isStreaming?: boolean;
 }
 
 interface ChatbotInstruction {
@@ -38,115 +40,207 @@ export function RealtimeChatGemini() {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const chatSessionRef = useRef<ChatSession | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isClearingChat, setIsClearingChat] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const currentStreamingMessageRef = useRef<string>('');
+  const [audioPlaceholder, setAudioPlaceholder] = useState<null | { role: 'user' | 'assistant', id: string }>(null);
   
   const supabase = createClient();
-  const genAI = new GoogleGenerativeAI(API_KEY);
 
   useEffect(() => {
-    const initializeChat = async () => {
       setIsLoading(true);
       setError(null);
-      
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const userId = user?.id;
-
-        // 1. Load Chat History first
-        await loadChatHistory(userId);
-
-        // 2. Fetch Instructions
-        const { data: instructions, error: instructionsError } = await supabase
-          .from('chatbot_instructions')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: true });
-
-        if (instructionsError) throw new Error("Failed to fetch instructions");
-        setChatbotInstructions(instructions || []);
-
-        // 3. Fetch Business Info
-        let businessInfoContext = "";
-        if (userId) {
-          const { data: businessInfo } = await supabase
-            .from("business_info")
-            .select("full_name, business_name, role")
-            .eq("user_id", userId)
-            .single();
-          if (businessInfo) {
-            businessInfoContext = `User: ${businessInfo.full_name}\nBusiness: ${businessInfo.business_name}\nRole: ${businessInfo.role}`;
-          }
-        }
-
-        // 4. Format initial history and instructions for SDK
-        const sdkHistory: Content[] = [];
-
-        // Add instructions and context as the first 'user' message
-        const formattedInstructions = (instructions || [])
-          .map(inst => {
-            let instruction = `${inst.title}\n${inst.content}`;
-            if (inst.url) instruction += `\nSource: ${inst.url}`;
-            if (inst.extraction_metadata && Object.keys(inst.extraction_metadata).length > 0) {
-              instruction += `\nExtraction Metadata: ${JSON.stringify(inst.extraction_metadata, null, 2)}`;
-            }
-            return instruction;
-          })
-          .join("\n\n");
-          
-        const initialSystemPrompt = `SYSTEM INSTRUCTIONS:\n${formattedInstructions}\n\n${businessInfoContext}`;
-        sdkHistory.push({ role: "user", parts: [{ text: initialSystemPrompt }] });
-        // Add a placeholder model response to balance the turn
-        sdkHistory.push({ role: "model", parts: [{ text: "Understood. I will follow these instructions." }] });
-
-        // Add existing messages from loaded history
-        const loadedMessages = messagesRef.current; // Use a ref to access latest messages
-        loadedMessages.forEach(msg => {
-           // Map role 'assistant' to 'model' for the SDK
-           const role = msg.role === "user" ? "user" : "model";
-           sdkHistory.push({ role, parts: [{ text: msg.content }] });
-        });
-
-        // 5. Initialize SDK Chat Session
-        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-        chatSessionRef.current = model.startChat({
-          history: sdkHistory,
-          generationConfig: {
-            maxOutputTokens: 1024,
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-          },
-        });
-
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket('ws://localhost:4001');
+      ws.onopen = () => {
         setIsConnected(true);
-        console.log("Gemini SDK Chat Session Initialized.");
+        setError(null);
+        setIsLoading(false);
+      };
+      ws.onclose = () => {
+        setIsConnected(false);
+        // Try to reconnect if connection is lost
+        const reconnectTimeout = setTimeout(() => {
+          try {
+            const newWs = new WebSocket('ws://localhost:4001');
+            wsRef.current = newWs;
+            setError('Reconnecting...');
+          } catch (error) {
+            setError('Could not reconnect to server');
+          }
+        }, 3000);
+        return () => clearTimeout(reconnectTimeout);
+      };
+      ws.onerror = (error) => {
+        setError('WebSocket connection error');
+        setIsLoading(false);
+      };
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
 
+          // Handle streaming chunks
+          if (data.type === "stream-chunk") {
+            // First chunk - create a new message
+            if (currentStreamingMessageRef.current === '') {
+              setMessages((prev: Message[]) => [
+                ...prev,
+                { 
+                  role: "assistant", 
+                  content: data.content, 
+                  type: "text", 
+                  isComplete: false,
+                  isStreaming: true 
+                },
+              ]);
+            } else {
+              // Update existing message
+              setMessages((prev: Message[]) => {
+                const updated = [...prev];
+                const lastIdx = updated.length - 1;
+                
+                // Only update if the last message is an incomplete assistant message
+                if (lastIdx >= 0 && 
+                    updated[lastIdx].role === "assistant" && 
+                    !updated[lastIdx].isComplete) {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: updated[lastIdx].content + data.content,
+                  };
+                }
+                return updated;
+              });
+            }
+            
+            // Update the current streaming content
+            currentStreamingMessageRef.current += data.content;
+            
+            // Scroll to bottom as content streams in
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }
+          // Handle transcription
+          else if (data.type === "transcription") {
+            // Remove user audio placeholder
+            setAudioPlaceholder((prev) => (prev?.role === 'user' ? null : prev));
+            // Add the transcription as a user message
+            setMessages((prev: Message[]) => [
+              ...prev,
+              { 
+                role: "user", 
+                content: `🎤 ${data.content}`, 
+                type: "text", 
+                isComplete: true 
+              },
+            ]);
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }
+          // Handle stream completion
+          else if (data.type === "stream-complete") {
+            setIsLoading(false);
+            // Mark the message as complete
+            setMessages((prev: Message[]) => {
+              const updated = [...prev];
+              const lastIdx = updated.length - 1;
+              
+              if (lastIdx >= 0 && 
+                  updated[lastIdx].role === "assistant" && 
+                  !updated[lastIdx].isComplete) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  content: data.content, // Ensure complete content
+                  isComplete: true,
+                  isStreaming: false
+                };
+            }
+              return updated;
+            });
+            
+            // Save chat history with completed message
+            saveChatHistory([...messages, {
+              role: "assistant",
+              content: data.content,
+              type: "text",
+              isComplete: true
+            }]);
+            
+            // Reset streaming state
+            currentStreamingMessageRef.current = '';
+            
+            // Scroll to bottom after completing
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }
+          // Handle audio responses
+          else if (data.type === "tts-audio") {
+            // Remove bot audio placeholder
+            setAudioPlaceholder((prev) => (prev?.role === 'assistant' ? null : prev));
+            // Play the audio
+            const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
+            if (audioRef.current) {
+              audioRef.current.src = audioUrl;
+              audioRef.current.play();
+            }
+            
+            // Audio responses don't add a new message since we already have the text
+          } 
+          // Handle classic non-streaming responses (fallback)
+          else if (data.type === "response") {
+            const assistantMessage: Message = {
+              role: 'assistant',
+              content: data.content,
+              type: 'text',
+              isComplete: true
+            };
+            setMessages((prev: Message[]) => ([...prev, assistantMessage]));
+            saveChatHistory([...messages, assistantMessage]);
+            setIsLoading(false);
+            
+            // Scroll to bottom
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          } 
+          // Handle errors
+          else if (data.type === "error" || data.type === "tts-error") {
+            // For TTS errors, just log them as the text response was already sent
+            if (data.type === "tts-error") {
+              console.error("TTS Error:", data.error);
+            } else {
+              setError(data.error);
+              setIsLoading(false);
+              // Add an error message to the chat
+              setMessages(prev => [...prev, { 
+                role: "assistant", 
+                content: `Sorry, I encountered an error: ${data.error}. Please try again.`, 
+                type: "text",
+                isComplete: true
+              }]);
+            }
+          }
+        } catch (error) {
+          setError('Error processing message');
+          setIsLoading(false);
+        }
+      };
+      wsRef.current = ws;
       } catch (err) {
-        console.error("Error initializing chat:", err);
-        setError(err instanceof Error ? err.message : "Failed to initialize chat session");
-        setMessages([{ role: "assistant", content: "Error initializing chat.", type: "text" }]);
-      } finally {
+      setError('Failed to connect to Gemini WebSocket server');
         setIsLoading(false);
       }
+    return () => {
+      if (ws) ws.close();
     };
+  }, []);
 
-    initializeChat();
-  }, []); // Run only once on mount
-
-  // Use a ref to track messages for initialization, avoiding stale closures
-  const messagesRef = useRef<Message[]>(messages);
+  // Effect to automatically scroll to bottom when messages change
   useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  // Effect to scroll to bottom when messages change
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Load chat history from database
@@ -217,8 +311,82 @@ export function RealtimeChatGemini() {
     }
   };
 
+  // Clear chat history function
+  const clearChatHistory = async () => {
+    try {
+      setIsClearingChat(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        console.log('No user found, skipping chat history clear');
+        return;
+      }
+
+      // Update the record with a welcome message
+      const { error } = await supabase
+        .from('chat_history')
+        .upsert(
+          {
+            user_id: session.user.id,
+            messages: [{
+              role: "model", // Use model instead of assistant for storage
+              content: "Welcome! How can I help?",
+              type: "text",
+              isComplete: true
+            }],
+            updated_at: new Date().toISOString()
+          },
+          {
+            onConflict: 'user_id'
+          }
+        );
+
+      if (error) {
+        console.error('Error clearing chat history:', error);
+        return;
+      }
+
+      // Set default welcome message after clearing
+      setMessages([
+        {
+          role: "assistant", // Use assistant for UI display
+          content: "Welcome! How can I help?",
+          type: "text",
+          isComplete: true
+        }
+      ]);
+
+      // Reinitialize the chat session with just the welcome message
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch (reinitError) {
+          console.error("Error reinitializing chat session:", reinitError);
+          // Don't set the error state here since the chat was still cleared successfully
+        }
+      }
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+      setError('Failed to clear chat history.');
+    } finally {
+      setIsClearingChat(false);
+    }
+  };
+
+  // Handle sending message with optimistic UI updates
   const handleSendMessage = async () => {
-    if (!inputText.trim() || isLoading || !chatSessionRef.current) return;
+    if (!inputText.trim() || isLoading || !wsRef.current) return;
+
+    // Reset the current streaming message
+    currentStreamingMessageRef.current = '';
+
+    // Set a timeout to limit waiting time for response
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        setIsLoading(false);
+        setError("Response took too long. Please try again.");
+      }
+    }, 10000); // 10 seconds max wait
 
     setIsLoading(true);
     setError(null);
@@ -234,30 +402,91 @@ export function RealtimeChatGemini() {
     const messagesWithUser = [...messages, userMessage];
     setMessages(messagesWithUser);
 
+    // Scroll to show the user's message
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+
     try {
-      const chat = chatSessionRef.current;
-      const result = await chat.sendMessage(currentInput);
-      const response = result.response;
-      const text = response.text();
-
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: text,
-        type: "text",
-        isComplete: true
-      };
-      
-      const finalMessages = [...messagesWithUser, assistantMessage];
-      setMessages(finalMessages);
-      await saveChatHistory(finalMessages);
-
+      // Send message through WebSocket
+      wsRef.current.send(JSON.stringify({
+        type: "chat",
+        message: currentInput,
+        history: messages.map(msg => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }]
+        }))
+      }));
     } catch (error) {
       console.error("Error sending message:", error);
       setError(error instanceof Error ? error.message : "Failed to send message");
-      // Optionally add an error message to the chat
       setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error.", type: "text" }]);
-    } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
+    }
+  };
+
+  // Audio recording and sending logic - updated for toggle recording
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording and send audio
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+        // MediaRecorder.onstop event will handle sending the audio
+      }
+    } else {
+      // Start recording
+      setIsRecording(true);
+      audioChunksRef.current = [];
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setAudioStream(stream);
+        
+        const recorder = new MediaRecorder(stream);
+        setMediaRecorder(recorder);
+        
+        recorder.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+        
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+          const reader = new FileReader();
+          
+          reader.onloadend = () => {
+            const base64Audio = (reader.result as string).split(",")[1];
+            
+            // Set loading state while waiting for response
+            setIsLoading(true);
+            
+            // Add user audio placeholder
+            setAudioPlaceholder({ role: 'user', id: 'user-audio' });
+            
+            wsRef.current?.send(
+              JSON.stringify({
+                type: "audio",
+                audio: base64Audio,
+                mimeType: "audio/wav",
+              })
+            );
+          };
+          
+          reader.readAsDataURL(audioBlob);
+          
+          // Stop all tracks in the stream
+          stream.getTracks().forEach(track => track.stop());
+          setAudioStream(null);
+          setMediaRecorder(null);
+          setIsRecording(false);
+        };
+        
+        recorder.start();
+      } catch (err) {
+        setIsRecording(false);
+        setError("Failed to record audio");
+        setIsLoading(false); // Reset loading state on error
+      }
     }
   };
 
@@ -270,7 +499,7 @@ export function RealtimeChatGemini() {
             G
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-800">Gemini Bot (SDK)</h2>
+            <h2 className="text-sm font-semibold text-gray-800">Gemini Bot (WebSocket)</h2>
             <p className="text-xs text-gray-500">Trades Business School</p>
           </div>
           {isLoadingHistory && (
@@ -280,6 +509,31 @@ export function RealtimeChatGemini() {
             </div>
           )}
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearChatHistory}
+          disabled={isClearingChat || isLoading}
+          className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
+        >
+          {isClearingChat ? (
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+              <span>Clearing...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                <line x1="10" x2="10" y1="11" y2="17"></line>
+                <line x1="14" x2="14" y1="11" y2="17"></line>
+              </svg>
+              <span>Clear Chat</span>
+            </div>
+          )}
+        </Button>
       </div>
 
       {/* Chat Area */}
@@ -325,6 +579,14 @@ export function RealtimeChatGemini() {
                         >
                           {message.content}
                         </ReactMarkdown>
+                        {/* Show streaming indicator */}
+                        {message.isStreaming && (
+                          <div className="flex h-4 items-center space-x-1 mt-1">
+                            <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
+                            <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.2s]"></div>
+                            <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.4s]"></div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -335,28 +597,38 @@ export function RealtimeChatGemini() {
                 </div>
               </div>
             ))}
-            {isLoading && !messages.some(m => m.role === 'assistant' && m.content === "...") && ( // Show typing indicator only if not already showing response
-              <div className="max-w-[70%] flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="rounded-xl px-4 py-2 bg-slate-100 border shadow-sm">
-                  <div className="flex items-center gap-2">
-                     {/* Simple typing indicator */}
-                     <div className="flex space-x-1">
-                       <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                       <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                       <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"></div>
-                     </div>
-                     <span className="text-sm text-gray-500">Bot is thinking...</span>
-                  </div>
-                </div>
-              </div>
-            )}
              {error && (
                  <div className="text-red-500 text-sm p-2 bg-red-50 rounded border border-red-200">Error: {error}</div>
              )}
             <div ref={messagesEndRef} />
+            {audioPlaceholder && (
+              <div className={`flex ${audioPlaceholder.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                <div className={`max-w-[70%] rounded-xl px-4 py-2 shadow-sm flex flex-col ${
+                  audioPlaceholder.role === 'user'
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
+                    : 'bg-slate-100 text-gray-800 border'
+                }`}>
+                  <div className="w-full">
+                    {/* Animated indicator only, no text */}
+                    <div className="flex h-4 items-center space-x-1 mt-1">
+                      <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
+                      <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.2s]"></div>
+                      <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.4s]"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
       </div>
+
+      {/* Audio Visualizer - only shown when recording */}
+      {isRecording && (
+        <div className="px-4 py-2 bg-gray-50">
+          <AudioVisualizer isRecording={isRecording} stream={audioStream} />
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="p-4 border-t bg-white/80 backdrop-blur-sm rounded-b-xl">
@@ -369,20 +641,46 @@ export function RealtimeChatGemini() {
               onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
               className="w-full px-4 py-2 rounded-full border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white shadow-sm transition-all"
               placeholder="Type a message..."
-              disabled={!isConnected || isLoading}
+              disabled={!isConnected || isLoading || isRecording}
             />
             {inputText && (
               <Button
                 className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm transition-all"
                 size="icon"
                 onClick={handleSendMessage}
-                disabled={!isConnected || isLoading || !inputText.trim()}
+                disabled={!isConnected || isLoading || !inputText.trim() || isRecording}
               >
                 <Send className="h-4 w-4" />
               </Button>
             )}
           </div>
+          
+          {/* Audio recording button */}
+          <Button
+            onClick={toggleRecording}
+            disabled={isLoading && !isRecording}
+            className={`flex items-center justify-center h-10 w-10 rounded-full transition-all ${
+              isRecording 
+                ? "bg-red-500 hover:bg-red-600 text-white" 
+                : "bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200"
+            }`}
+          >
+            {isRecording ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" x2="12" y1="19" y2="22"></line>
+              </svg>
+            )}
+          </Button>
         </div>
+        
+        {/* Audio player for responses */}
+        <audio ref={audioRef} controls style={{ display: "none" }} />
       </div>
     </div>
   );
