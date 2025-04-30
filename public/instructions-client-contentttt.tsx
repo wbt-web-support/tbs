@@ -296,7 +296,7 @@ export default function InstructionsClientContent({
       </Button>
       
       {isAdding && (
-        <Card className="mb-4 shadow-sm">
+        <Card className="mb-4 ">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-base">Add New Instruction</CardTitle>
           </CardHeader>
@@ -450,7 +450,7 @@ export default function InstructionsClientContent({
       )}
       
       {editingId && (
-        <Card className="mb-4 shadow-sm">
+        <Card className="mb-4 ">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-base">Edit Instruction</CardTitle>
           </CardHeader>
@@ -546,7 +546,7 @@ export default function InstructionsClientContent({
           </div>
         ) : (
           instructions.map((instruction) => (
-            <Card key={instruction.id} className={`shadow-sm ${editingId === instruction.id ? "border-primary" : "border-border"}`}>
+            <Card key={instruction.id} className={` ${editingId === instruction.id ? "border-primary" : "border-border"}`}>
               <div className="p-3">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-medium text-sm">{instruction.title}</h3>
