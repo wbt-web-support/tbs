@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Trash2, Pencil, Save, X, CheckCircle, XCircle, PlusCircle, HelpCircle, ListChecks } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { CardHeader, CardTitle } from "@/components/ui/card";
+import { CardHeader, CardTitle, Card } from "@/components/ui/card";
 
 type HelpfulListsProps = {
   rightData: string[];
@@ -129,6 +129,193 @@ export default function HelpfulLists({
     setAddingTo(null);
   };
 
+  const getSectionStyle = (section: string) => {
+    switch (section) {
+      case "right":
+        return {
+          icon: <CheckCircle className="h-4 w-4 text-emerald-600 mr-2 flex-shrink-0" />,
+          cardHeaderClass: "border-b border-emerald-100 bg-emerald-50",
+          titleClass: "text-emerald-800",
+          itemIcon: <CheckCircle className="h-3 w-3 text-emerald-600 mr-1.5 flex-shrink-0" />,
+          bgColor: "bg-emerald-50/50",
+          buttonClass: "border-emerald-200 text-emerald-700 hover:bg-emerald-50",
+          actionBtnClass: "bg-emerald-600 hover:bg-emerald-700 text-white"
+        };
+      case "wrong":
+        return {
+          icon: <XCircle className="h-4 w-4 text-red-600 mr-2 flex-shrink-0" />,
+          cardHeaderClass: "border-b border-red-100 bg-red-50",
+          titleClass: "text-red-800",
+          itemIcon: <XCircle className="h-3 w-3 text-red-600 mr-1.5 flex-shrink-0" />,
+          bgColor: "bg-red-50/50",
+          buttonClass: "border-red-200 text-red-700 hover:bg-red-50",
+          actionBtnClass: "bg-red-600 hover:bg-red-700 text-white"
+        };
+      case "missing":
+        return {
+          icon: <PlusCircle className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0" />,
+          cardHeaderClass: "border-b border-blue-100 bg-blue-50",
+          titleClass: "text-blue-800",
+          itemIcon: <PlusCircle className="h-3 w-3 text-blue-600 mr-1.5 flex-shrink-0" />,
+          bgColor: "bg-blue-50/50",
+          buttonClass: "border-blue-200 text-blue-700 hover:bg-blue-50",
+          actionBtnClass: "bg-blue-600 hover:bg-blue-700 text-white"
+        };
+      case "confusing":
+        return {
+          icon: <HelpCircle className="h-4 w-4 text-amber-600 mr-2 flex-shrink-0" />,
+          cardHeaderClass: "border-b border-amber-100 bg-amber-50",
+          titleClass: "text-amber-800",
+          itemIcon: <HelpCircle className="h-3 w-3 text-amber-600 mr-1.5 flex-shrink-0" />,
+          bgColor: "bg-amber-50/50",
+          buttonClass: "border-amber-200 text-amber-700 hover:bg-amber-50",
+          actionBtnClass: "bg-amber-600 hover:bg-amber-700 text-white"
+        };
+      default:
+        return {
+          icon: null,
+          cardHeaderClass: "",
+          titleClass: "",
+          itemIcon: null,
+          bgColor: "",
+          buttonClass: "",
+          actionBtnClass: ""
+        };
+    }
+  };
+
+  const getItemsForSection = (section: string) => {
+    switch (section) {
+      case "right":
+        return right;
+      case "wrong":
+        return wrong;
+      case "missing":
+        return missing;
+      case "confusing":
+        return confusing;
+      default:
+        return [];
+    }
+  };
+
+  const getSectionTitle = (section: string) => {
+    switch (section) {
+      case "right":
+        return "What Is Right? (Optimise)";
+      case "wrong":
+        return "What Is Wrong? (Change)";
+      case "missing":
+        return "What Is Missing? (Add)";
+      case "confusing":
+        return "What Is Confusing? (Clarify)";
+      default:
+        return "";
+    }
+  };
+
+  const renderSection = (section: string) => {
+    const items = getItemsForSection(section);
+    const title = getSectionTitle(section);
+    const style = getSectionStyle(section);
+
+    return (
+      <Card className="overflow-hidden shadow-sm border-gray-200 h-full">
+        <CardHeader className={`py-3 px-4 ${style.cardHeaderClass}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              {style.icon}
+              <h3 className={`text-sm font-semibold ${style.titleClass}`}>{title}</h3>
+            </div>
+            {!editMode && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0"
+                onClick={() => toggleEditSection(section)}
+              >
+                <Pencil className="h-3 w-3 text-gray-500" />
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <div className="px-4 py-3">
+          {editSection === section ? (
+            <div className="space-y-3">
+              <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                {items.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 text-sm border border-gray-100">
+                    <span className="mr-2">{item}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveItem(section, index)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <Trash2 className="h-3 w-3 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              
+              {addingTo === section ? (
+                <div className="flex items-center space-x-2 pt-2">
+                  <Input
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    placeholder="Add new item..."
+                    className="flex-1 h-8 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddItem();
+                      }
+                    }}
+                  />
+                  <Button 
+                    size="sm"
+                    className={`h-8 px-3 text-xs ${style.actionBtnClass}`}
+                    onClick={handleAddItem}
+                    disabled={!newItem.trim()}
+                  >
+                    <Plus className="mr-1 h-3 w-3" /> Add
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  onClick={() => setAddingTo(section)} 
+                  variant="outline"
+                  className={`w-full mt-2 h-8 text-xs ${style.buttonClass}`}
+                  size="sm"
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add Item
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+              {items.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">No items added yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {items.map((item, index) => (
+                    <div 
+                      key={index} 
+                      className="flex items-start text-sm text-gray-700 rounded-md p-2 bg-gray-50 border border-gray-100"
+                    >
+                      {style.itemIcon}
+                      <span className="flex-1">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
   if (!editMode) {
     return (
       <>
@@ -148,135 +335,12 @@ export default function HelpfulLists({
           </Button>
         </CardHeader>
 
-        <div className="px-4 pb-4">
+        <div className="px-4 py-4 pt-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* What Is Right - View Mode */}
-            <div className="space-y-2 border rounded-md p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Right? (Optimise)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("right")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                {right.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">No items added yet</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {right.map((item, index) => (
-                      <div key={index} className="flex items-center text-green-700 rounded-md py-1 text-sm">
-                        <CheckCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* What Is Wrong - View Mode */}
-            <div className="space-y-2 border rounded-md p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <XCircle className="h-4 w-4 text-red-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Wrong? (Change)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("wrong")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                {wrong.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">No items added yet</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {wrong.map((item, index) => (
-                      <div key={index} className="flex items-center text-red-700 rounded-md py-1 text-sm">
-                        <XCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* What Is Missing - View Mode */}
-            <div className="space-y-2 border rounded-md p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <PlusCircle className="h-4 w-4 text-blue-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Missing? (Add)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("missing")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                {missing.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">No items added yet</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {missing.map((item, index) => (
-                      <div key={index} className="flex items-center text-blue-700 rounded-md py-1 text-sm">
-                        <PlusCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* What Is Confusing - View Mode */}
-            <div className="space-y-2 border rounded-md p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <HelpCircle className="h-4 w-4 text-amber-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Confusing? (Clarify)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("confusing")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                {confusing.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">No items added yet</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {confusing.map((item, index) => (
-                      <div key={index} className="flex items-center text-amber-700 rounded-md py-1 text-sm">
-                        <HelpCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            {renderSection("right")}
+            {renderSection("wrong")}
+            {renderSection("missing")}
+            {renderSection("confusing")}
           </div>
         </div>
       </>
@@ -290,378 +354,84 @@ export default function HelpfulLists({
           <ListChecks className="h-5 w-5 text-blue-600 mr-2" />
           <CardTitle className="text-lg font-semibold text-gray-800">Helpful Lists</CardTitle>
         </div>
-        {!editMode ? (
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="h-7 px-2 text-xs" 
-            onClick={() => setEditMode(true)}
+        <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={exitEditMode}
           >
-            <Pencil className="h-3 w-3 mr-1 text-gray-500" />
-            Edit
+            <X className="h-3 w-3 mr-1" />
+            Cancel
           </Button>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs"
-              onClick={exitEditMode}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-3 w-3" />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+          <Button
+            size="sm"
+            className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-1 h-3 w-3" />
+                Save
+              </>
+            )}
+          </Button>
+        </div>
       </CardHeader>
 
-      <div className="px-4 pb-4">
-        {!editMode ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-            {/* What Is Right - View Mode */}
-            <div className="space-y-1.5 border rounded-md p-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Right? (Optimise)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("right")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              {right.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No items added yet</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {right.map((item, index) => (
-                    <div key={index} className="flex items-center text-green-700 rounded-md py-1 text-sm">
-                      <CheckCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+      <div className="px-4 py-4">
+        <div className="space-y-4">
+          {editSection ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {renderSection("right")}
+              {renderSection("wrong")}
+              {renderSection("missing")}
+              {renderSection("confusing")}
             </div>
-
-            {/* What Is Wrong - View Mode */}
-            <div className="space-y-1.5 border rounded-md p-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center">
-                  <XCircle className="h-4 w-4 text-red-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Wrong? (Change)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("wrong")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              {wrong.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No items added yet</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {wrong.map((item, index) => (
-                    <div key={index} className="flex items-center text-red-700 rounded-md py-1 text-sm">
-                      <XCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button 
+                onClick={() => toggleEditSection("right")} 
+                variant="outline" 
+                className="h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> 
+                <span className="font-medium">What Is Right?</span>
+              </Button>
+              <Button 
+                onClick={() => toggleEditSection("wrong")} 
+                variant="outline" 
+                className="h-10 border-red-200 text-red-700 hover:bg-red-50"
+              >
+                <XCircle className="mr-2 h-4 w-4 text-red-600" /> 
+                <span className="font-medium">What Is Wrong?</span>
+              </Button>
+              <Button 
+                onClick={() => toggleEditSection("missing")} 
+                variant="outline" 
+                className="h-10 border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                <PlusCircle className="mr-2 h-4 w-4 text-blue-600" /> 
+                <span className="font-medium">What Is Missing?</span>
+              </Button>
+              <Button 
+                onClick={() => toggleEditSection("confusing")} 
+                variant="outline" 
+                className="h-10 border-amber-200 text-amber-700 hover:bg-amber-50"
+              >
+                <HelpCircle className="mr-2 h-4 w-4 text-amber-600" /> 
+                <span className="font-medium">What Is Confusing?</span>
+              </Button>
             </div>
-
-            {/* What Is Missing - View Mode */}
-            <div className="space-y-1.5 border rounded-md p-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center">
-                  <PlusCircle className="h-4 w-4 text-blue-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Missing? (Add)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("missing")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              {missing.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No items added yet</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {missing.map((item, index) => (
-                    <div key={index} className="flex items-center text-blue-700 rounded-md py-1 text-sm">
-                      <PlusCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* What Is Confusing - View Mode */}
-            <div className="space-y-1.5 border rounded-md p-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center">
-                  <HelpCircle className="h-4 w-4 text-amber-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Confusing? (Clarify)</h3>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => toggleEditSection("confusing")}
-                >
-                  <Pencil className="h-3 w-3 text-gray-500" />
-                </Button>
-              </div>
-              {confusing.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No items added yet</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {confusing.map((item, index) => (
-                    <div key={index} className="flex items-center text-amber-700 rounded-md py-1 text-sm">
-                      <HelpCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Edit Mode for each section */}
-            {editSection === "right" && (
-              <div className="border rounded-md p-3 bg-green-50/50">
-                <div className="flex items-center mb-2">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Right? (Optimise)</h3>
-                </div>
-                <ListItems items={right} onRemove={(index) => handleRemoveItem("right", index)} editMode={true} />
-                {addingTo === "right" ? (
-                  <div className="mt-2 flex space-x-2">
-                    <Input
-                      value={newItem}
-                      onChange={(e) => setNewItem(e.target.value)}
-                      placeholder="Add new item..."
-                      className="h-8 text-xs"
-                    />
-                    <Button 
-                      onClick={handleAddItem} 
-                      disabled={!newItem.trim()}
-                      className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
-                      size="sm"
-                    >
-                      <Plus className="mr-1 h-3 w-3" /> Add
-                    </Button>
-                  </div>
-                ) : (
-                  <Button 
-                    onClick={() => setAddingTo("right")} 
-                    variant="outline"
-                    className="w-full mt-2 border-green-200 text-green-700 hover:bg-green-50 h-7 text-xs"
-                    size="sm"
-                  >
-                    <Plus className="mr-1 h-3 w-3" /> Add Item
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {editSection === "wrong" && (
-              <div className="border rounded-md p-3 bg-red-50/50">
-                <div className="flex items-center mb-2">
-                  <XCircle className="h-4 w-4 text-red-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Wrong? (Change)</h3>
-                </div>
-                <ListItems items={wrong} onRemove={(index) => handleRemoveItem("wrong", index)} editMode={true} />
-                {addingTo === "wrong" ? (
-                  <div className="mt-2 flex space-x-2">
-                    <Input
-                      value={newItem}
-                      onChange={(e) => setNewItem(e.target.value)}
-                      placeholder="Add new item..."
-                      className="h-8 text-xs"
-                    />
-                    <Button 
-                      onClick={handleAddItem} 
-                      disabled={!newItem.trim()}
-                      className="h-8 px-3 text-xs bg-red-600 hover:bg-red-700 text-white"
-                      size="sm"
-                    >
-                      <Plus className="mr-1 h-3 w-3" /> Add
-                    </Button>
-                  </div>
-                ) : (
-                  <Button 
-                    onClick={() => setAddingTo("wrong")} 
-                    variant="outline"
-                    className="w-full mt-2 border-red-200 text-red-700 hover:bg-red-50 h-7 text-xs"
-                    size="sm"
-                  >
-                    <Plus className="mr-1 h-3 w-3" /> Add Item
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {editSection === "missing" && (
-              <div className="border rounded-md p-3 bg-blue-50/50">
-                <div className="flex items-center mb-2">
-                  <PlusCircle className="h-4 w-4 text-blue-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Missing? (Add)</h3>
-                </div>
-                <ListItems items={missing} onRemove={(index) => handleRemoveItem("missing", index)} editMode={true} />
-                {addingTo === "missing" ? (
-                  <div className="mt-2 flex space-x-2">
-                    <Input
-                      value={newItem}
-                      onChange={(e) => setNewItem(e.target.value)}
-                      placeholder="Add new item..."
-                      className="h-8 text-xs"
-                    />
-                    <Button 
-                      onClick={handleAddItem} 
-                      disabled={!newItem.trim()}
-                      className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                      size="sm"
-                    >
-                      <Plus className="mr-1 h-3 w-3" /> Add
-                    </Button>
-                  </div>
-                ) : (
-                  <Button 
-                    onClick={() => setAddingTo("missing")} 
-                    variant="outline"
-                    className="w-full mt-2 border-blue-200 text-blue-700 hover:bg-blue-50 h-7 text-xs"
-                    size="sm"
-                  >
-                    <Plus className="mr-1 h-3 w-3" /> Add Item
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {editSection === "confusing" && (
-              <div className="border rounded-md p-3 bg-amber-50/50">
-                <div className="flex items-center mb-2">
-                  <HelpCircle className="h-4 w-4 text-amber-500 mr-1.5" />
-                  <h3 className="text-sm font-medium text-gray-800">What Is Confusing? (Clarify)</h3>
-                </div>
-                <ListItems items={confusing} onRemove={(index) => handleRemoveItem("confusing", index)} editMode={true} />
-                {addingTo === "confusing" ? (
-                  <div className="mt-2 flex space-x-2">
-                    <Input
-                      value={newItem}
-                      onChange={(e) => setNewItem(e.target.value)}
-                      placeholder="Add new item..."
-                      className="h-8 text-xs"
-                    />
-                    <Button 
-                      onClick={handleAddItem} 
-                      disabled={!newItem.trim()}
-                      className="h-8 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white"
-                      size="sm"
-                    >
-                      <Plus className="mr-1 h-3 w-3" /> Add
-                    </Button>
-                  </div>
-                ) : (
-                  <Button 
-                    onClick={() => setAddingTo("confusing")} 
-                    variant="outline"
-                    className="w-full mt-2 border-amber-200 text-amber-700 hover:bg-amber-50 h-7 text-xs"
-                    size="sm"
-                  >
-                    <Plus className="mr-1 h-3 w-3" /> Add Item
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {!editSection && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button onClick={() => toggleEditSection("right")} variant="outline" className="border-green-200 text-green-700 hover:bg-green-50 h-8">
-                  <CheckCircle className="mr-1.5 h-4 w-4" /> What Is Right?
-                </Button>
-                <Button onClick={() => toggleEditSection("wrong")} variant="outline" className="border-red-200 text-red-700 hover:bg-red-50 h-8">
-                  <XCircle className="mr-1.5 h-4 w-4" /> What Is Wrong?
-                </Button>
-                <Button onClick={() => toggleEditSection("missing")} variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50 h-8">
-                  <PlusCircle className="mr-1.5 h-4 w-4" /> What Is Missing?
-                </Button>
-                <Button onClick={() => toggleEditSection("confusing")} variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50 h-8">
-                  <HelpCircle className="mr-1.5 h-4 w-4" /> What Is Confusing?
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </>
-  );
-}
-
-function ListItems({ 
-  items, 
-  onRemove, 
-  editMode 
-}: { 
-  items: string[], 
-  onRemove: (index: number) => void,
-  editMode: boolean
-}) {
-  return (
-    <div className="space-y-1.5">
-      {items.length === 0 ? (
-        <p className="text-xs text-gray-400 italic">No items added yet</p>
-      ) : (
-        <div className="space-y-1.5">
-          {items.map((item, index) => (
-            <div key={index} className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 text-xs">
-              <span className="mr-2">{item}</span>
-              {editMode && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onRemove(index)}
-                  className="h-5 w-5 p-0"
-                >
-                  <Trash2 className="h-3 w-3 text-red-500" />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 } 
