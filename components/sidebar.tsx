@@ -112,11 +112,11 @@ const navigationSections = [
         href: "/quarterly-sprint-canvas",
         icon: Flag,
       },
-      {
-        name: "12Q Planner",
-        href: "/planner",
-        icon: Calendar,
-      },
+      // {
+      //   name: "12Q Planner",
+      //   href: "/planner",
+      //   icon: Calendar,
+      // },
       {
         name: "HWGT Plan",
         href: "/hwgt-plan",

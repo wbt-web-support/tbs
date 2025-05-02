@@ -3,6 +3,9 @@ const nextConfig = {
   serverExternalPackages: ['pdf-parse'],
   typescript: {
     ignoreBuildErrors: true
+  },
+  images: {
+    domains: ['npeajhtemjbcpnhsqknf.supabase.co']
   }
 };
 
