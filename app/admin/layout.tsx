@@ -119,7 +119,7 @@ export default function AdminLayout({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-blue-100 shadow-sm transform transition-transform duration-200 ease-in-out flex flex-col h-full",
+          "fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-blue-100 -sm transform transition-transform duration-200 ease-in-out flex flex-col h-full",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >

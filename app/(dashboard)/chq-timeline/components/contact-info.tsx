@@ -160,7 +160,7 @@ export default function ContactInfo() {
         </h3>
         
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="p-4 hover:shadow-sm transition-shadow duration-200 border-blue-100">
+          <Card className="p-4 hover:-sm transition- duration-200 border-blue-100">
             <div className="flex items-center space-x-4">
               <div className="p-2.5 rounded-lg bg-blue-50">
                 <Mail className="w-5 h-5 text-blue-600" />
@@ -172,7 +172,7 @@ export default function ContactInfo() {
             </div>
           </Card>
 
-          <Card className="p-4 hover:shadow-sm transition-shadow duration-200 border-blue-100">
+          <Card className="p-4 hover:-sm transition- duration-200 border-blue-100">
             <div className="flex items-center space-x-4">
               <div className="p-2.5 rounded-lg bg-blue-50">
                 <Phone className="w-5 h-5 text-blue-600" />
@@ -185,7 +185,7 @@ export default function ContactInfo() {
           </Card>
 
           {businessInfo.command_hq_link && (
-            <Card className="p-4 hover:shadow-sm transition-shadow duration-200 border-blue-100 md:col-span-2">
+            <Card className="p-4 hover:-sm transition- duration-200 border-blue-100 md:col-span-2">
               <div className="flex items-center space-x-4">
                 <div className="p-2.5 rounded-lg bg-blue-50">
                   <Globe className="w-5 h-5 text-blue-600" />

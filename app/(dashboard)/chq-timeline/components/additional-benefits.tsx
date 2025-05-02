@@ -168,7 +168,7 @@ export default function AdditionalBenefits() {
                   key={benefit.id}
                   className="transform transition-all duration-300 hover:translate-y-[-2px]"
                 >
-                  <Card className="p-5 h-full hover:shadow-md transition-shadow duration-300 overflow-hidden group relative">
+                  <Card className="p-5 h-full hover:-md transition- duration-300 overflow-hidden group relative">
                     <div className="absolute top-0 right-0 w-24 h-24 -mt-12 -mr-12 bg-blue-50 rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
                     
                     <div className="flex items-start gap-4">

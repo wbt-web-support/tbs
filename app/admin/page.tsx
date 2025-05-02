@@ -153,7 +153,7 @@ export default function AdminDashboard() {
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat, index) => (
-          <Card key={index} className="p-5 border-blue-100 hover:shadow-md transition-all duration-200">
+          <Card key={index} className="p-5 border-blue-100 hover:-md transition-all duration-200">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
                 <stat.icon className="w-5 h-5" />
