@@ -73,7 +73,7 @@ const navigationSections = [
     items: [
       {
         name: "Growth Machine Planner",
-        href: "/growth-planner",
+        href: "/growth-machine-planner",
         icon: Rocket,
       },
       {
@@ -81,30 +81,20 @@ const navigationSections = [
         href: "/growth-machine",
         icon: LineChart,
       },
-      {
-        name: "Growth Engine Library",
-        href: "/growth-library",
-        icon: BookOpen,
-      },
     ]
   },
   {
     title: "Fulfillment",
     items: [
       {
-        name: "Fulfillment Planner",
-        href: "/fulfillment-planner",
+        name: "Fulfillment Machine Planner",
+        href: "/fulfillment-machine-planner",
         icon: Package,
       },
       {
         name: "Fulfillment Machine",
-        href: "/fulfillment",
+        href: "/fulfillment-machine",
         icon: Gauge,
-      },
-      {
-        name: "Fulfillment Engine Library",
-        href: "/fulfillment-library",
-        icon: Wrench,
       },
     ]
   },
@@ -118,17 +108,17 @@ const navigationSections = [
       },
       {
         name: "Company Scorecard",
-        href: "/scorecard",
+        href: "/company-scorecard",
         icon: Gauge,
       },
       {
         name: "Meeting Rhythm",
-        href: "/meetings",
+        href: "/meeting-rhythm",
         icon: Clock,
       },
       {
         name: "Quarterly Sprint",
-        href: "/sprint",
+        href: "/quarterly-sprint",
         icon: Flag,
       },
     ]
@@ -212,4 +202,4 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
     </>
   );
-} 
+}  

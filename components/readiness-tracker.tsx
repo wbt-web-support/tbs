@@ -106,7 +106,7 @@ export function ReadinessTracker() {
     <div className="fixed bottom-4 right-4 z-50">
       <div
         className={cn(
-          "bg-white rounded-2xl shadow-xl transition-all duration-300 border border-gray-100",
+          "bg-white rounded-2xl -xl transition-all duration-300 border border-gray-100",
           isExpanded ? "w-[380px] h-[calc(100vh-2rem)]" : "w-26"
         )}
       >
@@ -135,7 +135,7 @@ export function ReadinessTracker() {
         </button>
 
         {showTooltip && !isExpanded && (
-          <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg">
+          <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg -lg">
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4" />
               <span>Chatbot Readiness: {overallProgress}%</span>

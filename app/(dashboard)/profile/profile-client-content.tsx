@@ -192,7 +192,7 @@ export function ProfileClientContent({ user, initialBusinessInfo }: ProfileClien
                 {/* Profile Picture Section */} 
                 <div className="flex flex-col items-center md:items-start gap-3">
                   <div className="relative group">
-                    <Avatar className="h-28 w-28 rounded-full border-2 border-white shadow-md">
+                    <Avatar className="h-28 w-28 rounded-full border-2 border-white -md">
                       <AvatarImage src={businessInfo?.profile_picture_url || ''} alt={businessInfo?.business_name || 'User'} />
                       <AvatarFallback className="text-2xl bg-blue-100 text-blue-700 font-medium">
                         {businessInfo?.business_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
@@ -205,7 +205,7 @@ export function ProfileClientContent({ user, initialBusinessInfo }: ProfileClien
                     )}
                     <label
                       htmlFor="profile-picture"
-                      className={`absolute bottom-1 right-1 bg-white p-2 rounded-full cursor-pointer hover:bg-gray-100 transition-colors shadow border border-gray-200 ${uploading ? 'cursor-not-allowed opacity-50' : ''}`}
+                      className={`absolute bottom-1 right-1 bg-white p-2 rounded-full cursor-pointer hover:bg-gray-100 transition-colors  border border-gray-200 ${uploading ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
                       <Camera className="h-4 w-4 text-gray-600" />
                     </label>

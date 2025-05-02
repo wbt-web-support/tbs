@@ -130,7 +130,7 @@ export default function BattlePlanPage() {
       ) : (
         <div className="space-y-5">
           {/* Business Plan Link */}
-          <Card className="overflow-hidden shadow-sm border-gray-200">
+          <Card className="overflow-hidden -sm border-gray-200">
             <div className="px-4 py-2 bg-white border-b border-gray-200">
               <div className="flex flex-wrap md:flex-nowrap items-center gap-3">
                 <div className="flex items-center text-gray-700">
@@ -198,7 +198,7 @@ export default function BattlePlanPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Left Column - Mission & Vision */}
             <div className="lg:col-span-4">
-              <Card className="overflow-hidden shadow-sm border-gray-200 h-full">
+              <Card className="overflow-hidden -sm border-gray-200 h-full">
                 <BattlePlanDetails 
                   missionStatement={battlePlanData?.missionstatement || ""}
                   visionStatement={battlePlanData?.visionstatement || ""}

@@ -81,18 +81,6 @@ const sections = {
   ],
   howWeWork: [
     {
-      title: "GROWTH ENGINE LIBRARY",
-      description: "Central repository of marketing plays and tactics by channel",
-      icon: BookOpen,
-      href: "/growth-library",
-    },
-    {
-      title: "FULFILLMENT ENGINE LIBRARY",
-      description: "Documents tools, templates, and tactics for efficient fulfillment",
-      icon: Wrench,
-      href: "/fulfillment-library",
-    },
-    {
       title: "PLAYBOOK LIBRARY",
       description: "Repository of company playbooks and processes",
       icon: BookText,
@@ -190,7 +178,7 @@ export default function DashboardPage() {
     iconColor?: string
   }) => (
     <Link href={item.href} className={`block group ${className}`}>
-      <div className="bg-white rounded-xl p-5 transition-all h-full border border-gray-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-50">
+      <div className="bg-white rounded-xl p-5 transition-all h-full border border-gray-200 hover:border-blue-200 hover:-lg hover:-blue-50">
         <div className="flex items-center gap-3">
           <div className={`${iconColor} group-hover:scale-110 transition-all`}>
             <item.icon className="h-5 w-5" strokeWidth={2} />
