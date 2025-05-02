@@ -192,7 +192,7 @@ export default function FulfillmentMachinePage() {
         </div>
       ) : isEditing ? (
         <div className="flex-1 flex flex-col items-center justify-center p-3 sm:p-6">
-          <div className="w-full max-w-lg bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <div className="w-full max-w-lg bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">
               {hasFigmaContent ? "Edit Figma Design" : "Add Figma Design"}
             </h2>
@@ -287,7 +287,7 @@ export default function FulfillmentMachinePage() {
       ) : (
         <>
           {/* Header with machine name and edit button */}
-          <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm">
+          <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between">
             <div className="mb-2 sm:mb-0">
               <h1 className="text-sm sm:text-xl font-semibold text-purple-800">
                 {machineData?.enginename || "Fulfillment Machine"}
@@ -340,7 +340,7 @@ export default function FulfillmentMachinePage() {
           {/* Figma embed with instructions */}
           <div className="flex-1 bg-gray-100 relative">
             {/* Navigation instructions - top left corner - simplified */}
-            <div className="absolute top-3 left-3 bg-white/90 rounded-lg shadow-md p-2 z-10 text-xs border border-gray-200 max-w-[180px] sm:max-w-[220px]">
+            <div className="absolute top-3 left-3 bg-white/90 rounded-lg -md p-2 z-10 text-xs border border-gray-200 max-w-[180px] sm:max-w-[220px]">
               <h4 className="font-medium text-gray-900 text-xs mb-1.5 px-1">Figma Navigation</h4>
               <ul className="space-y-1.5">
                 <li className="flex items-center text-xs">

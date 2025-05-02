@@ -289,7 +289,7 @@ export default function ChainOfCommandPage() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 bg-gray-50/50">
-              <div className="bg-white rounded-full p-3 mb-4 -sm">
+              <div className="bg-white rounded-full p-3 mb-4">
                 <Users className="h-10 w-10 text-blue-500" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No team members yet</h3>
@@ -298,7 +298,7 @@ export default function ChainOfCommandPage() {
               </p>
               <Button 
                 onClick={handleAddNew}
-                className="bg-blue-600 hover:bg-blue-700 text-white -sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add First Team Member

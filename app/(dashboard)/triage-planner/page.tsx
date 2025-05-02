@@ -111,7 +111,7 @@ export default function TriagePlannerPage() {
           {/* Left Column */}
           <div className="lg:col-span-8 space-y-4">
             {/* Company Info */}
-            <Card className="overflow-hidden -sm border-gray-200">
+            <Card className="overflow-hidden border-gray-200">
               <CompanyInfo 
                 data={plannerData?.company_info} 
                 onUpdate={fetchPlannerData} 
@@ -120,7 +120,7 @@ export default function TriagePlannerPage() {
             </Card>
 
             {/* Helpful Lists */}
-            <Card className="overflow-hidden -sm border-gray-200">
+            <Card className="overflow-hidden border-gray-200">
               <HelpfulLists 
                 rightData={plannerData?.what_is_right || []} 
                 wrongData={plannerData?.what_is_wrong || []} 
@@ -135,7 +135,7 @@ export default function TriagePlannerPage() {
           {/* Right Column */}
           <div className="lg:col-span-4 space-y-4">
             {/* Internal Tasks */}
-            <Card className="overflow-hidden -sm border-gray-200">
+            <Card className="overflow-hidden border-gray-200">
               <InternalTasks 
                 data={plannerData?.internal_tasks || []} 
                 onUpdate={fetchPlannerData} 
@@ -144,7 +144,7 @@ export default function TriagePlannerPage() {
             </Card>
 
             {/* Text Sections */}
-            <Card className="overflow-hidden -sm border-gray-200">
+            <Card className="overflow-hidden border-gray-200">
               <TextSections 
                 whatYouDo={plannerData?.what_you_do || ""}
                 whoYouServe={plannerData?.who_you_serve || ""}

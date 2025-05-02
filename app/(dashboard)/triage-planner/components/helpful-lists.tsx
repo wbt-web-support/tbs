@@ -220,7 +220,7 @@ export default function HelpfulLists({
     const style = getSectionStyle(section);
 
     return (
-      <Card className="overflow-hidden -sm border-gray-200 h-full">
+      <Card className="overflow-hidden border-gray-200 h-full">
         <CardHeader className={`py-3 px-4 ${style.cardHeaderClass}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
