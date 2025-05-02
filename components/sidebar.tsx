@@ -56,16 +56,7 @@ const navigationSections = [
         href: "/battle-plan",
         icon: Swords,
       },
-      {
-        name: "12Q Planner",
-        href: "/planner",
-        icon: Calendar,
-      },
-      {
-        name: "HWGT Plan",
-        href: "/hwgt-plan",
-        icon: Compass,
-      },
+     
     ]
   },
   {
@@ -112,14 +103,24 @@ const navigationSections = [
         icon: Gauge,
       },
       {
-        name: "Meeting Rhythm",
-        href: "/meeting-rhythm",
+        name: "Meeting Rhythm Planner",
+        href: "/meeting-rhythm-planner",
         icon: Clock,
       },
       {
-        name: "Quarterly Sprint",
-        href: "/quarterly-sprint",
+        name: "Quarterly Sprint Canvas",
+        href: "/quarterly-sprint-canvas",
         icon: Flag,
+      },
+      {
+        name: "12Q Planner",
+        href: "/planner",
+        icon: Calendar,
+      },
+      {
+        name: "HWGT Plan",
+        href: "/hwgt-plan",
+        icon: Compass,
       },
     ]
   },

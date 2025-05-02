@@ -70,12 +70,18 @@ const config = {
         orbit: {
           '0%': { transform: 'translateX(-50%) rotate(0deg) translateY(0)' },
           '100%': { transform: 'translateX(-50%) rotate(360deg) translateY(0)' }
+        },
+        fadeOut: {
+          '0%': { opacity: '1' },
+          '90%': { opacity: '1' },
+          '100%': { opacity: '0' }
         }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "orbit": "orbit 1s linear infinite"
+        "orbit": "orbit 1s linear infinite",
+        "fadeOut": "fadeOut 2s forwards ease-out"
       },
     },
   },

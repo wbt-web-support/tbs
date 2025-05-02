@@ -481,7 +481,7 @@ export default function FulfillmentMachinePlannerPage() {
                   </CardHeader>
                   <div className="p-4">
                     <div className="flex items-center">
-                      <div className="bg-purple-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold shadow-sm">
+                      <div className="bg-purple-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold">
                         {engineType}
                       </div>
                     </div>
