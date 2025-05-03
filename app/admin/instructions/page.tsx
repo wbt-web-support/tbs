@@ -33,7 +33,7 @@ export default async function InstructionsPage({
     <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Instructions</h1>
-        <Link href="/instructions/new">
+        <Link href="/admin/instructions/new">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             Add Instruction
@@ -114,7 +114,7 @@ export default async function InstructionsPage({
                     </td>
                     <td className="p-4 align-middle">
                       <div className="flex items-center gap-2">
-                        <Link href={`/instructions/${instruction.id}`}>
+                        <Link href={`/admin/instructions/${instruction.id}`}>
                           <Button variant="ghost" size="sm">Edit</Button>
                         </Link>
                         {instruction.extraction_metadata && (

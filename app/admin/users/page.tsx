@@ -4,7 +4,18 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, User, CheckSquare, Calendar, Gift, BarChart4 } from "lucide-react";
+import { 
+  Loader2, 
+  Search, 
+  User, 
+  UserPlus, 
+  Plus, 
+  Building,
+  Mail, 
+  Phone,
+  CreditCard,
+  Eye,
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import {
@@ -18,12 +29,20 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import Link from "next/link";
 
 // Define types
 interface UserProfile {
@@ -69,6 +88,21 @@ interface Benefit {
   claimed_date?: string;
 }
 
+interface NewUserForm {
+  email: string;
+  password: string;
+  full_name: string;
+  business_name: string;
+  phone_number: string;
+  payment_option: string;
+  payment_remaining: number;
+  command_hq_link: string;
+  command_hq_created: boolean;
+  gd_folder_created: boolean;
+  meeting_scheduled: boolean;
+  role: string;
+}
+
 export default function UserManagementPage() {
   // State
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -82,6 +116,22 @@ export default function UserManagementPage() {
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState<NewUserForm>({
+    email: "",
+    password: "",
+    full_name: "",
+    business_name: "",
+    phone_number: "",
+    payment_option: "FULL",
+    payment_remaining: 0,
+    command_hq_link: "",
+    command_hq_created: false,
+    gd_folder_created: false,
+    meeting_scheduled: false,
+    role: "user",
+  });
   const supabase = createClient();
 
   // Fetch users on load
@@ -219,6 +269,114 @@ export default function UserManagementPage() {
     setIsDialogOpen(true);
   };
 
+  const handleCreateUser = async () => {
+    if (!newUserForm.email || !newUserForm.password || !newUserForm.full_name || !newUserForm.business_name) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    try {
+      setIsCreatingUser(true);
+
+      // Use signUp instead of admin.createUser
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newUserForm.email,
+        password: newUserForm.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error("Failed to create user");
+      }
+
+      // Create business_info record
+      const { error: businessError } = await supabase
+        .from('business_info')
+        .insert({
+          user_id: authData.user.id,
+          full_name: newUserForm.full_name,
+          business_name: newUserForm.business_name,
+          email: newUserForm.email,
+          phone_number: newUserForm.phone_number,
+          payment_option: newUserForm.payment_option,
+          payment_remaining: newUserForm.payment_remaining,
+          command_hq_link: newUserForm.command_hq_link,
+          command_hq_created: newUserForm.command_hq_created,
+          gd_folder_created: newUserForm.gd_folder_created,
+          meeting_scheduled: newUserForm.meeting_scheduled,
+          role: newUserForm.role,
+        });
+
+      if (businessError) {
+        throw businessError;
+      }
+
+      toast.success("User created successfully. Email verification sent.");
+      setIsCreateDialogOpen(false);
+      
+      // Reset form
+      setNewUserForm({
+        email: "",
+        password: "",
+        full_name: "",
+        business_name: "",
+        phone_number: "",
+        payment_option: "FULL",
+        payment_remaining: 0,
+        command_hq_link: "",
+        command_hq_created: false,
+        gd_folder_created: false,
+        meeting_scheduled: false,
+        role: "user",
+      });
+      
+      // Refresh users list
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      toast.error(error.message || "Failed to create user");
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewUserForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSwitchChange = (name: string, checked: boolean) => {
+    setNewUserForm(prev => ({
+      ...prev,
+      [name]: checked
+    }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setNewUserForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const filteredUsers = users.filter(user => {
+    const searchTermLower = searchTerm.toLowerCase();
+    return (
+      user.full_name.toLowerCase().includes(searchTermLower) ||
+      user.business_name.toLowerCase().includes(searchTermLower) ||
+      user.email.toLowerCase().includes(searchTermLower)
+    );
+  });
+
   const getInitials = (name?: string) => {
     if (!name) return "U";
     return name
@@ -248,14 +406,16 @@ export default function UserManagementPage() {
     return colors[hash % colors.length];
   };
 
-  const filteredUsers = searchTerm
-    ? users.filter(
-        (user) =>
-          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.business_name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : users;
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'super_admin':
+        return 'bg-purple-100 text-purple-800';
+      case 'admin':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   if (loading) {
     return (
@@ -267,94 +427,264 @@ export default function UserManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage user accounts and view their data</p>
+          <p className="text-muted-foreground mt-1">
+            View, create, and manage user accounts
+          </p>
         </div>
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <UserPlus className="w-4 h-4" />
+              Add User
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-600" />
+                Create New User
+              </DialogTitle>
+              <DialogDescription>
+                Create a new user account and business profile.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-5 py-4">
+              <div className="space-y-5">
+                <h3 className="font-medium text-sm text-blue-600">Account Information</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="user@example.com"
+                      value={newUserForm.email}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={newUserForm.password}
+                      onChange={handleInputChange}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Must be at least 6 characters.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      name="role"
+                      value={newUserForm.role}
+                      onValueChange={(value) => handleSelectChange("role", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-5">
+                <h3 className="font-medium text-sm text-blue-600">Personal & Business Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Full Name <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="full_name"
+                      name="full_name"
+                      placeholder="John Doe"
+                      value={newUserForm.full_name}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="business_name">Business Name <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="business_name"
+                      name="business_name"
+                      placeholder="Acme Inc."
+                      value={newUserForm.business_name}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phone_number">Phone Number</Label>
           <Input
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+                      id="phone_number"
+                      name="phone_number"
+                      placeholder="+1 (555) 555-5555"
+                      value={newUserForm.phone_number}
+                      onChange={handleInputChange}
           />
         </div>
+                </div>
+              </div>
+              
+              <div className="space-y-5">
+                <h3 className="font-medium text-sm text-blue-600">Payment Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_option">Payment Option</Label>
+                    <Select
+                      name="payment_option"
+                      value={newUserForm.payment_option}
+                      onValueChange={(value) => handleSelectChange("payment_option", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FULL">Full Payment</SelectItem>
+                        <SelectItem value="6_MONTH_SPLIT">6 Month Split</SelectItem>
+                      </SelectContent>
+                    </Select>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 hidden">
-        <Card className="p-4 flex items-center space-x-4">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <User className="h-6 w-6 text-blue-700" />
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_remaining">Payment Remaining (EX VAT)</Label>
+                    <Input
+                      id="payment_remaining"
+                      name="payment_remaining"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={newUserForm.payment_remaining.toString()}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-            <h3 className="text-2xl font-semibold">{users.length}</h3>
+              
+              <div className="space-y-5">
+                <h3 className="font-medium text-sm text-blue-600">Setup Information</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="command_hq_link">Command HQ Link</Label>
+                    <Input
+                      id="command_hq_link"
+                      name="command_hq_link"
+                      placeholder="https://..."
+                      value={newUserForm.command_hq_link}
+                      onChange={handleInputChange}
+                    />
           </div>
-        </Card>
-        
-        <Card className="p-4 flex items-center space-x-4">
-          <div className="bg-green-100 p-2 rounded-lg">
-            <CheckSquare className="h-6 w-6 text-green-700" />
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="command_hq_created">Command HQ Created</Label>
+                      <Switch
+                        id="command_hq_created"
+                        checked={newUserForm.command_hq_created}
+                        onCheckedChange={(checked) => handleSwitchChange("command_hq_created", checked)}
+                      />
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Active Users</p>
-            <h3 className="text-2xl font-semibold">{users.filter(u => u.command_hq_created).length}</h3>
+                    
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="gd_folder_created">GD Folder Created</Label>
+                      <Switch
+                        id="gd_folder_created"
+                        checked={newUserForm.gd_folder_created}
+                        onCheckedChange={(checked) => handleSwitchChange("gd_folder_created", checked)}
+                      />
           </div>
-        </Card>
-        
-        <Card className="p-4 flex items-center space-x-4">
-          <div className="bg-purple-100 p-2 rounded-lg">
-            <Calendar className="h-6 w-6 text-purple-700" />
+                    
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="meeting_scheduled">3-1 Meeting Scheduled</Label>
+                      <Switch
+                        id="meeting_scheduled"
+                        checked={newUserForm.meeting_scheduled}
+                        onCheckedChange={(checked) => handleSwitchChange("meeting_scheduled", checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Recent Joins</p>
-            <h3 className="text-2xl font-semibold">
-              {users.filter(u => {
-                const date = new Date(u.created_at);
-                const now = new Date();
-                const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-                return diffDays < 30;
-              }).length}
-            </h3>
           </div>
-        </Card>
-        
-        <Card className="p-4 flex items-center space-x-4">
-          <div className="bg-yellow-100 p-2 rounded-lg">
-            <BarChart4 className="h-6 w-6 text-yellow-700" />
+            
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCreateDialogOpen(false)}
+                disabled={isCreatingUser}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreateUser}
+                disabled={isCreatingUser}
+              >
+                {isCreatingUser ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>Create User</>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Companies</p>
-            <h3 className="text-2xl font-semibold">
-              {new Set(users.map(u => u.business_name).filter(Boolean)).size}
-            </h3>
+
+      <Card className="p-4">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-        </Card>
       </div>
 
-      {/* User Table */}
-      <Card className="overflow-hidden">
+        <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-muted/50">
+            <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-12"></TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Business</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Joined</TableHead>
+                <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  {searchTerm ? "No users matching your search" : "No users found"}
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                    {searchTerm 
+                      ? "No users found matching your search." 
+                      : "No users found. Create your first user by clicking the Add User button."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -371,243 +701,27 @@ export default function UserManagementPage() {
                   <TableCell className="font-medium">{user.full_name}</TableCell>
                   <TableCell>{user.business_name}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.role}</TableCell>
+                    <TableCell>
+                      <Badge className={getRoleBadgeColor(user.role)}>
+                        {user.role}
+                      </Badge>
+                    </TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => handleViewDetails(user)}>
-                      View Details
+                      <Link href={`/admin/users/${user.id}`}>
+                        <Button variant="outline" size="sm" className="gap-1">
+                          <Eye className="h-3.5 w-3.5" />
+                          View
                     </Button>
+                      </Link>
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+        </div>
       </Card>
-
-      {/* User Details Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage 
-                  src={selectedUser?.profile_picture_url || ""} 
-                  alt={selectedUser?.full_name || "User"} 
-                />
-                <AvatarFallback className={selectedUser ? getRandomColor(selectedUser.id) : ""}>
-                  {getInitials(selectedUser?.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              <span>{selectedUser?.full_name}</span>
-            </DialogTitle>
-          </DialogHeader>
-          
-          {detailsLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-            </div>
-          ) : (
-            <Tabs defaultValue="profile" className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="profile">Profile</TabsTrigger>
-                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                <TabsTrigger value="checklist">Checklist</TabsTrigger>
-                <TabsTrigger value="benefits">Benefits</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="profile" className="space-y-4">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Business Information</h3>
-                  {selectedUser ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Business Name</p>
-                        <p className="font-medium">{selectedUser.business_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Contact Name</p>
-                        <p className="font-medium">{selectedUser.full_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Contact Email</p>
-                        <p className="font-medium">{selectedUser.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Contact Phone</p>
-                        <p className="font-medium">{selectedUser.phone_number}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Payment Option</p>
-                        <p className="font-medium">{selectedUser.payment_option}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Payment Remaining</p>
-                        <p className="font-medium">${selectedUser.payment_remaining?.toFixed(2) || '0.00'}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No business information provided</p>
-                  )}
-                </Card>
-                
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Setup Status</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Command HQ Created</p>
-                      <Badge className={selectedUser?.command_hq_created ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-                        {selectedUser?.command_hq_created ? 'Yes' : 'No'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Command HQ Link</p>
-                      <p className="font-medium truncate">{selectedUser?.command_hq_link || 'Not available'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Google Drive Folder Created</p>
-                      <Badge className={selectedUser?.gd_folder_created ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-                        {selectedUser?.gd_folder_created ? 'Yes' : 'No'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Initial Meeting Scheduled</p>
-                      <Badge className={selectedUser?.meeting_scheduled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-                        {selectedUser?.meeting_scheduled ? 'Yes' : 'No'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Account Created</p>
-                      <p className="font-medium">{selectedUser ? new Date(selectedUser.created_at).toLocaleString() : "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">User ID</p>
-                      <p className="font-medium text-xs truncate">{selectedUser?.user_id}</p>
-                    </div>
-                  </div>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="timeline" className="space-y-4">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Timeline Progress
-                    <Badge variant="outline" className="ml-2">
-                      {userDetails.timeline.filter(item => item.is_completed).length}/{userDetails.timeline.length} Completed
-                    </Badge>
-                  </h3>
-                  
-                  {userDetails.timeline.length === 0 ? (
-                    <p className="text-muted-foreground">No timeline events found</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {userDetails.timeline.map((event) => (
-                        <div key={event.id} className="flex items-start gap-3 pb-4 border-b">
-                          <div className={`rounded-full w-8 h-8 flex items-center justify-center ${event.is_completed ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {event.week_number}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{event.event_name}</p>
-                              {event.is_completed && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Completed</Badge>}
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {event.description || 'No description available'}
-                            </p>
-                            {event.completion_date && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Completed on: {new Date(event.completion_date).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="checklist" className="space-y-4">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Build Checklist
-                    <Badge variant="outline" className="ml-2">
-                      {userDetails.checklist.filter(item => item.is_completed).length}/{userDetails.checklist.length} Completed
-                    </Badge>
-                  </h3>
-                  
-                  {userDetails.checklist.length === 0 ? (
-                    <p className="text-muted-foreground">No checklist items found</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {userDetails.checklist.map((item) => (
-                        <div key={item.id} className="flex items-center gap-3 pb-3 border-b">
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full ${item.is_completed ? 'bg-green-500' : 'border-2 border-gray-300'}`}>
-                            {item.is_completed && <CheckSquare className="w-5 h-5 text-white" />}
-                          </div>
-                          <div>
-                            <span className={item.is_completed ? 'line-through text-muted-foreground' : ''}>
-                              {item.checklist_item}
-                            </span>
-                            {item.description && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {item.description}
-                              </p>
-                            )}
-                            {item.completion_date && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Completed on: {new Date(item.completion_date).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="benefits" className="space-y-4">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Available Benefits
-                    <Badge variant="outline" className="ml-2">
-                      {userDetails.benefits.filter(item => item.is_claimed).length}/{userDetails.benefits.length} Claimed
-                    </Badge>
-                  </h3>
-                  
-                  {userDetails.benefits.length === 0 ? (
-                    <p className="text-muted-foreground">No benefits found</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {userDetails.benefits.map((benefit) => (
-                        <div key={benefit.id} className="p-4 border rounded-lg">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h4 className="font-medium">{benefit.benefit_title}</h4>
-                              {benefit.benefit_description && (
-                                <p className="text-sm text-muted-foreground mt-1">{benefit.benefit_description}</p>
-                              )}
-                              {benefit.claimed_date && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Claimed on: {new Date(benefit.claimed_date).toLocaleDateString()}
-                                </p>
-                              )}
-                            </div>
-                            <Badge className={benefit.is_claimed ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-100'}>
-                              {benefit.is_claimed ? 'Claimed' : 'Not Claimed'}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-              </TabsContent>
-            </Tabs>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 } 

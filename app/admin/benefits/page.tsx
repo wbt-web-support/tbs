@@ -18,8 +18,8 @@ import {
 
 type Benefit = {
   id: string;
-  benefit_title: string;
-  benefit_description: string | null;
+  benefit_name: string;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -30,9 +30,11 @@ export default function AdminBenefitsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBenefit, setEditingBenefit] = useState<Benefit | null>(null);
   const [formData, setFormData] = useState({
-    benefit_title: "",
-    benefit_description: "",
+    benefit_name: "",
+    notes: "",
   });
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -41,12 +43,14 @@ export default function AdminBenefitsPage() {
 
   const fetchBenefits = async () => {
     try {
+      console.log("Fetching benefits...");
       const { data, error } = await supabase
         .from("chq_benefits")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      console.log("Fetched benefits:", data);
       setBenefits(data || []);
     } catch (error) {
       console.error("Error fetching benefits:", error);
@@ -58,6 +62,7 @@ export default function AdminBenefitsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitLoading(true);
     try {
       if (editingBenefit) {
         const { error } = await supabase
@@ -79,21 +84,23 @@ export default function AdminBenefitsPage() {
       setIsDialogOpen(false);
       setEditingBenefit(null);
       setFormData({
-        benefit_title: "",
-        benefit_description: "",
+        benefit_name: "",
+        notes: "",
       });
       fetchBenefits();
     } catch (error) {
       console.error("Error saving benefit:", error);
       toast.error("Failed to save benefit");
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
   const handleEdit = (benefit: Benefit) => {
     setEditingBenefit(benefit);
     setFormData({
-      benefit_title: benefit.benefit_title,
-      benefit_description: benefit.benefit_description || "",
+      benefit_name: benefit.benefit_name,
+      notes: benefit.notes || "",
     });
     setIsDialogOpen(true);
   };
@@ -101,6 +108,7 @@ export default function AdminBenefitsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this benefit?")) return;
 
+    setDeleteLoading(id);
     try {
       const { error } = await supabase
         .from("chq_benefits")
@@ -113,6 +121,8 @@ export default function AdminBenefitsPage() {
     } catch (error) {
       console.error("Error deleting benefit:", error);
       toast.error("Failed to delete benefit");
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -143,28 +153,35 @@ export default function AdminBenefitsPage() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="benefit_title">Benefit Title</label>
+                <label htmlFor="benefit_name">Benefit Name</label>
                 <Input
-                  id="benefit_title"
-                  value={formData.benefit_title}
+                  id="benefit_name"
+                  value={formData.benefit_name}
                   onChange={(e) =>
-                    setFormData({ ...formData, benefit_title: e.target.value })
+                    setFormData({ ...formData, benefit_name: e.target.value })
                   }
                   required
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="benefit_description">Benefit Description</label>
+                <label htmlFor="notes">Notes</label>
                 <Textarea
-                  id="benefit_description"
-                  value={formData.benefit_description}
+                  id="notes"
+                  value={formData.notes}
                   onChange={(e) =>
-                    setFormData({ ...formData, benefit_description: e.target.value })
+                    setFormData({ ...formData, notes: e.target.value })
                   }
                 />
               </div>
-              <Button type="submit" className="w-full">
-                {editingBenefit ? "Update" : "Create"}
+              <Button type="submit" className="w-full" disabled={submitLoading}>
+                {submitLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {editingBenefit ? "Updating..." : "Creating..."}
+                  </>
+                ) : (
+                  <>{editingBenefit ? "Update" : "Create"}</>
+                )}
               </Button>
             </form>
           </DialogContent>
@@ -172,36 +189,47 @@ export default function AdminBenefitsPage() {
       </div>
 
       <div className="grid gap-4">
-        {benefits.map((benefit) => (
-          <Card key={benefit.id} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h3 className="font-medium">{benefit.benefit_title}</h3>
-                {benefit.benefit_description && (
-                  <p className="text-sm text-muted-foreground">
-                    {benefit.benefit_description}
-                  </p>
-                )}
+        {benefits.length === 0 && !loading ? (
+          <div className="p-4 text-center text-gray-500">
+            No benefits found. Create your first benefit by clicking the "Add Benefit" button above.
+          </div>
+        ) : (
+          benefits.map((benefit) => (
+            <Card key={benefit.id} className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="font-medium">{benefit.benefit_name}</h3>
+                  {benefit.notes && (
+                    <p className="text-sm text-muted-foreground">
+                      {benefit.notes}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(benefit)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(benefit.id)}
+                    disabled={deleteLoading === benefit.id}
+                  >
+                    {deleteLoading === benefit.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(benefit)}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(benefit.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
