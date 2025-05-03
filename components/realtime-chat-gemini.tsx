@@ -584,17 +584,17 @@ export function RealtimeChatGemini() {
       {/* Chat Area */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-[calc(100vh-200px)]" ref={scrollAreaRef}> {/* Adjusted height */}
-          <div className="space-y-4 p-6 pt-12">
+          <div className="space-y-6 p-6 pt-12">
             {messages.map((message, index) => (
               <div
                 key={index}
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
                 <div
-                  className={`max-w-[70%] rounded-xl px-4 py-2  flex flex-col ${
+                  className={`max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ${
                     message.role === "user"
-                      ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
-                      : "bg-slate-100 text-gray-800 border"
+                      ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
+                      : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
                   }`}
                 >
                   <div className="w-full">
@@ -602,23 +602,32 @@ export function RealtimeChatGemini() {
                       <div className="prose prose-sm max-w-none dark:prose-invert">
                         <ReactMarkdown
                           components={{
-                            p: ({ children }) => <p className="text-sm leading-relaxed">{children}</p>,
-                            h1: ({ children }) => <h1 className="text-lg font-bold mt-2 mb-1">{children}</h1>,
-                            // ... other markdown components ...
-                             code: ({ children }) => (
-                              <code className="bg-gray-200 rounded px-1 py-0.5 text-sm font-mono text-wrap">
+                            p: ({ children }) => <p className="text-sm leading-relaxed mb-2 last:mb-0">{children}</p>,
+                            h1: ({ children }) => <h1 className="text-lg font-bold mt-2 mb-3">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-base font-semibold mt-2 mb-2">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
+                            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>,
+                            li: ({ children }) => <li className="text-sm">{children}</li>,
+                            code: ({ children }) => (
+                              <code className="bg-gray-100 rounded px-1.5 py-0.5 text-sm font-mono text-gray-800">
                                 {children}
                               </code>
                             ),
                             pre: ({ children }) => (
-                              <pre className="rounded-xl p-4 my-2 overflow-x-auto w-full">
+                              <pre className="bg-gray-50 rounded-xl p-4 my-3 overflow-x-auto w-full border border-gray-100">
                                 {children}
                               </pre>
                             ),
-                             a: ({ href, children }) => (
-                              <a href={href} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                            a: ({ href, children }) => (
+                              <a href={href} className="text-blue-600 hover:text-blue-700 hover:underline transition-colors" target="_blank" rel="noopener noreferrer">
                                 {children}
                               </a>
+                            ),
+                            blockquote: ({ children }) => (
+                              <blockquote className="border-l-4 border-gray-200 pl-4 my-3 italic text-gray-600">
+                                {children}
+                              </blockquote>
                             ),
                           }}
                         >
@@ -626,7 +635,7 @@ export function RealtimeChatGemini() {
                         </ReactMarkdown>
                         {/* Show streaming indicator */}
                         {message.isStreaming && (
-                          <div className="flex h-4 items-center space-x-1 mt-1">
+                          <div className="flex h-4 items-center space-x-1.5 mt-2">
                             <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
                             <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.2s]"></div>
                             <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.4s]"></div>
@@ -642,20 +651,29 @@ export function RealtimeChatGemini() {
                 </div>
               </div>
             ))}
-             {error && (
-                 <div className="text-red-500 text-sm p-2 bg-red-50 rounded border border-red-200">Error: {error}</div>
-             )}
+            {error && (
+              <div className="text-red-500 text-sm p-3 bg-red-50 rounded-xl border border-red-100 shadow-sm max-w-[75%] mx-auto">
+                <div className="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" x2="12" y1="8" y2="12"></line>
+                    <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
             {audioPlaceholder && (
               <div className={`flex ${audioPlaceholder.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                <div className={`max-w-[70%] rounded-xl px-4 py-2  flex flex-col ${
+                <div className={`max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ${
                   audioPlaceholder.role === 'user'
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
-                    : 'bg-slate-100 text-gray-800 border'
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20'
+                    : 'bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100'
                 }`}>
                   <div className="w-full">
                     {/* Animated indicator only, no text */}
-                    <div className="flex h-4 items-center space-x-1 mt-1">
+                    <div className="flex h-4 items-center space-x-1.5">
                       <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
                       <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.2s]"></div>
                       <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.4s]"></div>
