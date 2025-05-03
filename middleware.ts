@@ -42,7 +42,10 @@ export async function middleware(request: NextRequest) {
   console.log('Middleware: Session check result:', session ? 'Session found' : 'No session')
 
   // If there's no session and the user is trying to access a protected route
-  if (!session && request.nextUrl.pathname.startsWith('/dashboard')) {
+  if (!session && (
+    request.nextUrl.pathname.startsWith('/dashboard') ||
+    request.nextUrl.pathname.startsWith('/admin')
+  )) {
     console.log('Middleware: Redirecting to sign-in due to missing session')
     const redirectUrl = new URL('/sign-in', request.url)
     redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
@@ -55,7 +58,33 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/sign-up')
   )) {
     console.log('Middleware: Redirecting to dashboard due to existing session')
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    
+    // Check user role and redirect accordingly
+    const { data: userData } = await supabase
+      .from('business_info')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .single()
+    
+    if (userData?.role === 'super_admin') {
+      return NextResponse.redirect(new URL('/admin', request.url))
+    } else {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  // If the user is trying to access admin pages, check if they're a super_admin
+  if (session && request.nextUrl.pathname.startsWith('/admin')) {
+    const { data: userData } = await supabase
+      .from('business_info')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .single()
+    
+    if (userData?.role !== 'super_admin') {
+      console.log('Middleware: Redirecting non-super_admin user from admin page')
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return response

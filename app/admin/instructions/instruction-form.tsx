@@ -239,7 +239,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
         toast.success("Instruction added successfully");
       }
       
-      router.push('/instructions');
+      router.push('/admin/instructions');
       router.refresh();
     } catch (error) {
       console.error("Error saving instruction:", error);
@@ -262,7 +262,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
       if (error) throw error;
       
       toast.success("Instruction deleted successfully");
-      router.push('/instructions');
+      router.push('/admin/instructions');
       router.refresh();
     } catch (error) {
       console.error("Error deleting instruction:", error);

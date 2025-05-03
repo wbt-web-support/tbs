@@ -77,13 +77,27 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
     return encodedRedirect("error", "/sign-in", error.message);
+  }
+
+  if (data.user) {
+    const { data: userData, error: roleError } = await supabase
+      .from('business_info')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single();
+    
+    if (roleError) {
+      console.error("Error fetching user role:", roleError);
+    } else if (userData?.role === 'super_admin') {
+      return redirect("/admin");
+    }
   }
 
   return redirect("/dashboard");

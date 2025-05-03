@@ -33,8 +33,8 @@ type ChecklistItem = {
 
 type Benefit = {
   id: string;
-  benefit_title: string;
-  benefit_description: string | null;
+  benefit_name: string;
+  notes: string | null;
 };
 
 type UserCount = {
@@ -258,11 +258,9 @@ export default function AdminDashboard() {
           <div className="divide-y divide-blue-100">
             {benefits.length > 0 ? benefits.map((benefit) => (
               <div key={benefit.id} className="p-4 hover:bg-blue-50/50 transition-colors">
-                <p className="text-sm font-medium text-slate-700">{benefit.benefit_title}</p>
-                {benefit.benefit_description && (
-                  <p className="mt-1 text-xs text-slate-500 line-clamp-2">
-                    {benefit.benefit_description}
-                  </p>
+                <p className="text-sm font-medium text-slate-700">{benefit.benefit_name}</p>
+                {benefit.notes && (
+                  <p className="mt-1 text-xs text-slate-500 line-clamp-2">{benefit.notes}</p>
                 )}
               </div>
             )) : (
