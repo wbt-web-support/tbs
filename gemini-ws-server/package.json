@@ -1,0 +1,20 @@
+{
+  "name": "gemini-ws-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for Gemini AI with Supabase integration",
+  "main": "gemini-ws-server.js",
+  "scripts": {
+    "start": "node gemini-ws-server.js",
+    "dev": "nodemon gemini-ws-server.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "@supabase/supabase-js": "^2.39.8",
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.1",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+} 

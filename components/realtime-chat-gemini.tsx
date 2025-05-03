@@ -65,6 +65,9 @@ export function RealtimeChatGemini() {
         setIsConnected(true);
         setError(null);
         setIsLoading(false);
+        
+        // Fetch user and request chat history when connected
+        fetchUserAndHistory();
       };
       ws.onclose = () => {
         setIsConnected(false);
@@ -191,6 +194,51 @@ export function RealtimeChatGemini() {
             
             // Audio responses don't add a new message since we already have the text
           } 
+          // Handle chat history from the server
+          else if (data.type === "chat_history") {
+            console.log('Received chat history from server');
+            if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+              // Map the roles from server format to client format
+              const formattedHistory = data.history.map((msg: any) => ({
+                role: msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user',
+                content: msg.content || '',
+                type: 'text',
+                isComplete: true
+              })) as Message[];
+              
+              setMessages(formattedHistory);
+              console.log('Chat history loaded from server:', formattedHistory.length, 'messages');
+            } else {
+              // If no history or empty history, set a welcome message
+              setMessages([{ 
+                role: "assistant", 
+                content: "Welcome! How can I help?", 
+                type: "text", 
+                isComplete: true 
+              }]);
+              console.log('No chat history found on server, starting with welcome message');
+            }
+            
+            // Set loading state to false since we've received the history
+            setIsLoadingHistory(false);
+          }
+          // Handle history cleared confirmation
+          else if (data.type === "history_cleared") {
+            if (data.success) {
+              console.log('Chat history cleared on server');
+              setMessages([{ 
+                role: "assistant", 
+                content: "Welcome! How can I help?", 
+                type: "text", 
+                isComplete: true 
+              }]);
+            } else {
+              console.error('Failed to clear chat history on server');
+              setError('Failed to clear chat history');
+            }
+            // Always set clearing state to false once we get a response
+            setIsClearingChat(false);
+          }
           // Handle classic non-streaming responses (fallback)
           else if (data.type === "response") {
             const assistantMessage: Message = {
@@ -243,7 +291,7 @@ export function RealtimeChatGemini() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load chat history from database
+  // Load chat history via WebSocket (this is now handled by fetchUserAndHistory)
   const loadChatHistory = async (userId?: string) => {
     if (!userId) {
        console.log('No user ID provided for loading chat history.');
@@ -251,67 +299,34 @@ export function RealtimeChatGemini() {
        return;
     }
     
-    setIsLoadingHistory(true);
-    try {
-      const { data, error } = await supabase
-        .from('chat_history')
-        .select('messages')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        throw error;
-      }
-
-      if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
-        // Ensure loaded messages conform to the Message interface
-        const loadedMessages = data.messages.map((msg: any) => ({
-           role: msg.role === 'model' ? 'assistant' : msg.role, // Map 'model' back to 'assistant'
-           content: msg.content || '',
-           type: 'text' // Only handle text for now
-        })) as Message[];
-        setMessages(loadedMessages);
-        console.log('Chat history loaded successfully.');
-      } else {
-        setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text" }]);
-        console.log('No chat history found or empty, starting fresh.');
-      }
-    } catch (error) {
-      console.error("Error loading chat history:", error);
-      setError("Failed to load chat history.");
-       setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text" }]);
-    } finally {
+    // This function is kept for compatibility but no longer directly loads from Supabase
+    // Instead, we request via WebSocket to take advantage of caching
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      setIsLoadingHistory(true);
+      wsRef.current.send(JSON.stringify({
+        type: 'fetch_history',
+        userId: userId
+      }));
+    } else {
+      console.error("WebSocket not connected, cannot load chat history");
+      setError("Failed to connect to server. Please refresh the page.");
+      setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text" }]);
       setIsLoadingHistory(false);
     }
   };
 
-  // Save chat history to database
+  // Save chat history locally only - actual DB saving happens on the server
   const saveChatHistory = async (updatedMessages: Message[]) => {
-    // Map 'assistant' back to 'model' for storage consistency with SDK
-    const messagesToSave = updatedMessages.map(msg => ({
-      ...msg,
-      role: msg.role === 'assistant' ? 'model' : msg.role
-    }));
-
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-
-      await supabase
-        .from('chat_history')
-        .upsert({
-          user_id: session.user.id,
-          messages: messagesToSave,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-        
-      console.log('Chat history saved.');
+      // For streamlined caching, we don't need to save to Supabase here
+      // Messages are already sent to and saved by the server during each interaction
+      console.log('Chat history tracked locally.');
     } catch (error) {
-      console.error('Error saving chat history:', error);
+      console.error('Error with local chat history tracking:', error);
     }
   };
 
-  // Clear chat history function
+  // Clear chat history function - using WebSocket server
   const clearChatHistory = async () => {
     try {
       setIsClearingChat(true);
@@ -319,56 +334,31 @@ export function RealtimeChatGemini() {
       
       if (!session?.user) {
         console.log('No user found, skipping chat history clear');
+        setIsClearingChat(false);
         return;
       }
 
-      // Update the record with a welcome message
-      const { error } = await supabase
-        .from('chat_history')
-        .upsert(
-          {
-            user_id: session.user.id,
-            messages: [{
-              role: "model", // Use model instead of assistant for storage
-              content: "Welcome! How can I help?",
-              type: "text",
-              isComplete: true
-            }],
-            updated_at: new Date().toISOString()
-          },
-          {
-            onConflict: 'user_id'
-          }
-        );
-
-      if (error) {
-        console.error('Error clearing chat history:', error);
-        return;
-      }
-
-      // Set default welcome message after clearing
-      setMessages([
-        {
-          role: "assistant", // Use assistant for UI display
-          content: "Welcome! How can I help?",
-          type: "text",
-          isComplete: true
-        }
-      ]);
-
-      // Reinitialize the chat session with just the welcome message
-      if (wsRef.current) {
-        try {
-          wsRef.current.close();
-        } catch (reinitError) {
-          console.error("Error reinitializing chat session:", reinitError);
-          // Don't set the error state here since the chat was still cleared successfully
-        }
+      const userId = session.user.id;
+      
+      // Always try to clear history via the WebSocket server
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        console.log('Sending clear history request to WebSocket server');
+        wsRef.current.send(JSON.stringify({
+          type: 'clear_history',
+          userId: userId
+        }));
+        
+        // The response will be handled by the message handler (history_cleared)
+        // So we don't need to modify the UI here
+      } else {
+        // If WebSocket isn't available, show an error
+        console.error('WebSocket not available, cannot clear history');
+        setError('Server connection not available. Please try again later.');
+        setIsClearingChat(false);
       }
     } catch (error) {
       console.error('Error clearing chat history:', error);
       setError('Failed to clear chat history.');
-    } finally {
       setIsClearingChat(false);
     }
   };
@@ -409,12 +399,16 @@ export function RealtimeChatGemini() {
 
     try {
       // Send message through WebSocket
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
       wsRef.current.send(JSON.stringify({
         type: "chat",
         message: currentInput,
+        userId: userId, // Add the user ID from Supabase
         history: messages.map(msg => ({
           role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.content }]
+          parts: [{ text: msg.content.replace('🎤 ', '') }] // Remove microphone emoji from transcriptions
         }))
       }));
     } catch (error) {
@@ -463,13 +457,33 @@ export function RealtimeChatGemini() {
             // Add user audio placeholder
             setAudioPlaceholder({ role: 'user', id: 'user-audio' });
             
-            wsRef.current?.send(
-              JSON.stringify({
-                type: "audio",
-                audio: base64Audio,
-                mimeType: "audio/wav",
-              })
-            );
+            // Wrap in an immediately invoked async function
+            (async () => {
+              try {
+                // Get the current user ID
+                const { data: { session } } = await supabase.auth.getSession();
+                const userId = session?.user?.id;
+                
+                wsRef.current?.send(
+                  JSON.stringify({
+                    type: "audio",
+                    audio: base64Audio,
+                    mimeType: "audio/wav",
+                    userId: userId, // Add the user ID
+                  })
+                );
+              } catch (error) {
+                console.error("Error getting user session:", error);
+                // Send without userId as fallback
+                wsRef.current?.send(
+                  JSON.stringify({
+                    type: "audio",
+                    audio: base64Audio,
+                    mimeType: "audio/wav"
+                  })
+                );
+              }
+            })();
           };
           
           reader.readAsDataURL(audioBlob);
@@ -487,6 +501,37 @@ export function RealtimeChatGemini() {
         setError("Failed to record audio");
         setIsLoading(false); // Reset loading state on error
       }
+    }
+  };
+
+  // Function to fetch the user ID and load chat history
+  const fetchUserAndHistory = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (userId && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        console.log('Requesting chat history for user:', userId);
+        setIsLoadingHistory(true);
+        
+        // Only request history via WebSocket and rely on the onmessage handler
+        // to process the response - do not load directly from Supabase
+        wsRef.current.send(JSON.stringify({
+          type: 'fetch_history',
+          userId: userId
+        }));
+        
+        // Don't set messages here - wait for the WebSocket response
+        // which will be handled in the onmessage event
+      } else {
+        // If no user ID or WebSocket, initialize with a welcome message
+        setIsLoadingHistory(false);
+        setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text", isComplete: true }]);
+      }
+    } catch (error) {
+      console.error('Error fetching user session:', error);
+      setIsLoadingHistory(false);
+      setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text", isComplete: true }]);
     }
   };
 
