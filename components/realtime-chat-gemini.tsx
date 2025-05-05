@@ -4,9 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send } from "lucide-react";
+import { Send, Play, Pause } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { GoogleGenerativeAI, ChatSession, Content, Part } from "@google/generative-ai";
 import { AudioVisualizer } from "./audio-visualizer";
 
 interface Message {
@@ -15,6 +14,7 @@ interface Message {
   type: "text";
   isComplete?: boolean;
   isStreaming?: boolean;
+  isVoiceMessage?: boolean;
 }
 
 interface ChatbotInstruction {
@@ -30,17 +30,11 @@ interface ChatbotInstruction {
   extraction_metadata: any;
 }
 
-const MODEL_NAME = "gemini-2.0-flash";
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-
 export function RealtimeChatGemini() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [chatbotInstructions, setChatbotInstructions] = useState<ChatbotInstruction[]>([]);
   const [inputText, setInputText] = useState("");
-  const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -52,153 +46,66 @@ export function RealtimeChatGemini() {
   const audioChunksRef = useRef<Blob[]>([]);
   const currentStreamingMessageRef = useRef<string>('');
   const [audioPlaceholder, setAudioPlaceholder] = useState<null | { role: 'user' | 'assistant', id: string }>(null);
+  const [showBotTyping, setShowBotTyping] = useState(false);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [lastMessageWasVoice, setLastMessageWasVoice] = useState(false);
   
   const supabase = createClient();
 
+  // Load chat history on mount
   useEffect(() => {
-      setIsLoading(true);
-      setError(null);
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket('ws://localhost:4001');
-      ws.onopen = () => {
-        setIsConnected(true);
-        setError(null);
-        setIsLoading(false);
-        
-        // Fetch user and request chat history when connected
-        fetchUserAndHistory();
-      };
-      ws.onclose = () => {
-        setIsConnected(false);
-        // Try to reconnect if connection is lost
-        const reconnectTimeout = setTimeout(() => {
-          try {
-            const newWs = new WebSocket('ws://localhost:4001');
-            wsRef.current = newWs;
-            setError('Reconnecting...');
-          } catch (error) {
-            setError('Could not reconnect to server');
-          }
-        }, 3000);
-        return () => clearTimeout(reconnectTimeout);
-      };
-      ws.onerror = (error) => {
-        setError('WebSocket connection error');
-        setIsLoading(false);
-      };
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
+    fetchUserAndHistory();
+  }, []);
 
-          // Handle streaming chunks
-          if (data.type === "stream-chunk") {
-            // First chunk - create a new message
-            if (currentStreamingMessageRef.current === '') {
-              setMessages((prev: Message[]) => [
-                ...prev,
-                { 
-                  role: "assistant", 
-                  content: data.content, 
-                  type: "text", 
-                  isComplete: false,
-                  isStreaming: true 
-                },
-              ]);
-            } else {
-              // Update existing message
-              setMessages((prev: Message[]) => {
-                const updated = [...prev];
-                const lastIdx = updated.length - 1;
-                
-                // Only update if the last message is an incomplete assistant message
-                if (lastIdx >= 0 && 
-                    updated[lastIdx].role === "assistant" && 
-                    !updated[lastIdx].isComplete) {
-                  updated[lastIdx] = {
-                    ...updated[lastIdx],
-                    content: updated[lastIdx].content + data.content,
-                  };
-                }
-                return updated;
-              });
-            }
-            
-            // Update the current streaming content
-            currentStreamingMessageRef.current += data.content;
-            
-            // Scroll to bottom as content streams in
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Effect to automatically scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Add effect to handle audio element events
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const handlePlay = () => setIsAudioPlaying(true);
+    const handlePause = () => setIsAudioPlaying(false);
+    const handleEnded = () => setIsAudioPlaying(false);
+    
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+    
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
+  // Function to fetch the user ID and load chat history
+  const fetchUserAndHistory = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (userId) {
+        console.log('Requesting chat history for user:', userId);
+        setIsLoadingHistory(true);
+        
+        const response = await fetch('/api/gemini', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
           }
-          // Handle transcription
-          else if (data.type === "transcription") {
-            // Remove user audio placeholder
-            setAudioPlaceholder((prev) => (prev?.role === 'user' ? null : prev));
-            // Add the transcription as a user message
-            setMessages((prev: Message[]) => [
-              ...prev,
-              { 
-                role: "user", 
-                content: `🎤 ${data.content}`, 
-                type: "text", 
-                isComplete: true 
-              },
-            ]);
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          }
-          // Handle stream completion
-          else if (data.type === "stream-complete") {
-            setIsLoading(false);
-            // Mark the message as complete
-            setMessages((prev: Message[]) => {
-              const updated = [...prev];
-              const lastIdx = updated.length - 1;
-              
-              if (lastIdx >= 0 && 
-                  updated[lastIdx].role === "assistant" && 
-                  !updated[lastIdx].isComplete) {
-                updated[lastIdx] = {
-                  ...updated[lastIdx],
-                  content: data.content, // Ensure complete content
-                  isComplete: true,
-                  isStreaming: false
-                };
-            }
-              return updated;
-            });
-            
-            // Save chat history with completed message
-            saveChatHistory([...messages, {
-              role: "assistant",
-              content: data.content,
-              type: "text",
-              isComplete: true
-            }]);
-            
-            // Reset streaming state
-            currentStreamingMessageRef.current = '';
-            
-            // Scroll to bottom after completing
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          }
-          // Handle audio responses
-          else if (data.type === "tts-audio") {
-            // Remove bot audio placeholder
-            setAudioPlaceholder((prev) => (prev?.role === 'assistant' ? null : prev));
-            // Play the audio
-            const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
-            if (audioRef.current) {
-              audioRef.current.src = audioUrl;
-              audioRef.current.play();
-            }
-            
-            // Audio responses don't add a new message since we already have the text
-          } 
-          // Handle chat history from the server
-          else if (data.type === "chat_history") {
-            console.log('Received chat history from server');
-            if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-              // Map the roles from server format to client format
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch chat history');
+        }
+
+        const data = await response.json();
+        
+        if (data.type === 'chat_history' && Array.isArray(data.history)) {
               const formattedHistory = data.history.map((msg: any) => ({
                 role: msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user',
                 content: msg.content || '',
@@ -207,126 +114,37 @@ export function RealtimeChatGemini() {
               })) as Message[];
               
               setMessages(formattedHistory);
-              console.log('Chat history loaded from server:', formattedHistory.length, 'messages');
+          console.log('Chat history loaded:', formattedHistory.length, 'messages');
             } else {
-              // If no history or empty history, set a welcome message
               setMessages([{ 
                 role: "assistant", 
                 content: "Welcome! How can I help?", 
                 type: "text", 
                 isComplete: true 
               }]);
-              console.log('No chat history found on server, starting with welcome message');
-            }
-            
-            // Set loading state to false since we've received the history
-            setIsLoadingHistory(false);
-          }
-          // Handle history cleared confirmation
-          else if (data.type === "history_cleared") {
-            if (data.success) {
-              console.log('Chat history cleared on server');
+        }
+      } else {
               setMessages([{ 
                 role: "assistant", 
                 content: "Welcome! How can I help?", 
                 type: "text", 
                 isComplete: true 
               }]);
-            } else {
-              console.error('Failed to clear chat history on server');
-              setError('Failed to clear chat history');
-            }
-            // Always set clearing state to false once we get a response
-            setIsClearingChat(false);
-          }
-          // Handle classic non-streaming responses (fallback)
-          else if (data.type === "response") {
-            const assistantMessage: Message = {
-              role: 'assistant',
-              content: data.content,
-              type: 'text',
-              isComplete: true
-            };
-            setMessages((prev: Message[]) => ([...prev, assistantMessage]));
-            saveChatHistory([...messages, assistantMessage]);
-            setIsLoading(false);
-            
-            // Scroll to bottom
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          } 
-          // Handle errors
-          else if (data.type === "error" || data.type === "tts-error") {
-            // For TTS errors, just log them as the text response was already sent
-            if (data.type === "tts-error") {
-              console.error("TTS Error:", data.error);
-            } else {
-              setError(data.error);
-              setIsLoading(false);
-              // Add an error message to the chat
-              setMessages(prev => [...prev, { 
+      }
+    } catch (error) {
+      console.error('Error fetching user session:', error);
+      setMessages([{ 
                 role: "assistant", 
-                content: `Sorry, I encountered an error: ${data.error}. Please try again.`, 
+        content: "Welcome! How can I help?", 
                 type: "text",
                 isComplete: true
               }]);
-            }
-          }
-        } catch (error) {
-          setError('Error processing message');
-          setIsLoading(false);
-        }
-      };
-      wsRef.current = ws;
-      } catch (err) {
-      setError('Failed to connect to Gemini WebSocket server');
-        setIsLoading(false);
-      }
-    return () => {
-      if (ws) ws.close();
-    };
-  }, []);
-
-  // Effect to automatically scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Load chat history via WebSocket (this is now handled by fetchUserAndHistory)
-  const loadChatHistory = async (userId?: string) => {
-    if (!userId) {
-       console.log('No user ID provided for loading chat history.');
-       setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text" }]);
-       return;
-    }
-    
-    // This function is kept for compatibility but no longer directly loads from Supabase
-    // Instead, we request via WebSocket to take advantage of caching
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      setIsLoadingHistory(true);
-      wsRef.current.send(JSON.stringify({
-        type: 'fetch_history',
-        userId: userId
-      }));
-    } else {
-      console.error("WebSocket not connected, cannot load chat history");
-      setError("Failed to connect to server. Please refresh the page.");
-      setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text" }]);
+    } finally {
       setIsLoadingHistory(false);
     }
   };
 
-  // Save chat history locally only - actual DB saving happens on the server
-  const saveChatHistory = async (updatedMessages: Message[]) => {
-    try {
-      // For streamlined caching, we don't need to save to Supabase here
-      // Messages are already sent to and saved by the server during each interaction
-      console.log('Chat history tracked locally.');
-    } catch (error) {
-      console.error('Error with local chat history tracking:', error);
-    }
-  };
-
-  // Clear chat history function - using WebSocket server
+  // Clear chat history function
   const clearChatHistory = async () => {
     try {
       setIsClearingChat(true);
@@ -338,34 +156,51 @@ export function RealtimeChatGemini() {
         return;
       }
 
-      const userId = session.user.id;
+      const response = await fetch('/api/gemini', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear chat history');
+      }
+
+      const data = await response.json();
       
-      // Always try to clear history via the WebSocket server
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        console.log('Sending clear history request to WebSocket server');
-        wsRef.current.send(JSON.stringify({
-          type: 'clear_history',
-          userId: userId
-        }));
-        
-        // The response will be handled by the message handler (history_cleared)
-        // So we don't need to modify the UI here
+      if (data.type === 'history_cleared' && data.success) {
+        setMessages([{ 
+          role: "assistant", 
+          content: "Welcome! How can I help?", 
+          type: "text", 
+          isComplete: true 
+        }]);
       } else {
-        // If WebSocket isn't available, show an error
-        console.error('WebSocket not available, cannot clear history');
-        setError('Server connection not available. Please try again later.');
-        setIsClearingChat(false);
+        throw new Error('Failed to clear chat history');
       }
     } catch (error) {
       console.error('Error clearing chat history:', error);
       setError('Failed to clear chat history.');
+    } finally {
       setIsClearingChat(false);
+    }
+  };
+
+  // Toggle play/pause function
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+    
+    if (isAudioPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(e => console.error("Play error:", e));
     }
   };
 
   // Handle sending message with optimistic UI updates
   const handleSendMessage = async () => {
-    if (!inputText.trim() || isLoading || !wsRef.current) return;
+    if (!inputText.trim() || isLoading) return;
 
     // Reset the current streaming message
     currentStreamingMessageRef.current = '';
@@ -392,35 +227,154 @@ export function RealtimeChatGemini() {
     const messagesWithUser = [...messages, userMessage];
     setMessages(messagesWithUser);
 
+    // Show typing indicator
+    setShowBotTyping(true);
+
     // Scroll to show the user's message
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
 
     try {
-      // Send message through WebSocket
       const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
+      if (!session?.user) {
+        throw new Error('No user session');
+      }
 
-      wsRef.current.send(JSON.stringify({
-        type: "chat",
-        message: currentInput,
-        userId: userId, // Add the user ID from Supabase
-        history: messages.map(msg => ({
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.content.replace('🎤 ', '') }] // Remove microphone emoji from transcriptions
-        }))
-      }));
+      // Update lastMessageWasVoice state - text messages are not voice
+      setLastMessageWasVoice(false);
+
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          type: 'chat',
+          message: currentInput,
+          history: messages.map(msg => ({
+            role: msg.role === "assistant" ? "model" : "user",
+            parts: [{ text: msg.content }]
+          }))
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      // Hide typing indicator
+      setShowBotTyping(false);
+
+      // Add assistant message placeholder
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "",
+        type: "text",
+        isComplete: false,
+        isStreaming: true
+      }]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let lastUpdate = Date.now();
+      const UPDATE_INTERVAL = 50; // Update UI every 50ms
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        buffer += chunk;
+        
+        // Process complete JSON objects
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
+
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+
+            if (data.type === 'stream-chunk') {
+              currentStreamingMessageRef.current += data.content;
+              
+              // Throttle UI updates to every 50ms
+              const now = Date.now();
+              if (now - lastUpdate >= UPDATE_INTERVAL) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const lastIdx = updated.length - 1;
+                  if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                    updated[lastIdx] = {
+                      ...updated[lastIdx],
+                      content: currentStreamingMessageRef.current
+                    };
+                  }
+                  return updated;
+                });
+                lastUpdate = now;
+              }
+            } else if (data.type === 'stream-complete') {
+              // Always update on completion
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastIdx = updated.length - 1;
+                if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: data.content,
+                    isComplete: true,
+                    isStreaming: false
+                  };
+                }
+                return updated;
+              });
+            } else if (data.type === 'tts-audio') {
+              const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
+              console.log("Received TTS audio for voice message response", audioUrl.substring(0, 50) + "...");
+              setTtsAudioUrl(audioUrl);
+              
+              if (audioRef.current) {
+                console.log("Setting audio source and preparing to play");
+                audioRef.current.src = audioUrl;
+                audioRef.current.oncanplay = () => {
+                  console.log("Audio can play now, auto-playing");
+                  audioRef.current?.play().catch(e => {
+                    console.error("Auto-play error:", e);
+                    // Audio playback might be blocked by browser policy, show a message or indicator
+                  });
+                };
+              }
+            } else if (data.type === 'error') {
+              throw new Error(data.error);
+            }
+          } catch (error) {
+            console.error('Error processing chunk:', error);
+          }
+        }
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       setError(error instanceof Error ? error.message : "Failed to send message");
-      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error.", type: "text" }]);
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "Sorry, I encountered an error.", 
+        type: "text",
+        isComplete: true
+      }]);
+    } finally {
       clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
 
-  // Audio recording and sending logic - updated for toggle recording
+  // Audio recording and sending logic
   const toggleRecording = async () => {
     if (isRecording) {
       // Stop recording and send audio
@@ -448,42 +402,148 @@ export function RealtimeChatGemini() {
           const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
           const reader = new FileReader();
           
-          reader.onloadend = () => {
+          reader.onloadend = async () => {
             const base64Audio = (reader.result as string).split(",")[1];
             
             // Set loading state while waiting for response
             setIsLoading(true);
             
-            // Add user audio placeholder
-            setAudioPlaceholder({ role: 'user', id: 'user-audio' });
+            // Show typing indicator for bot response
+            setShowBotTyping(true);
             
-            // Wrap in an immediately invoked async function
-            (async () => {
-              try {
-                // Get the current user ID
-                const { data: { session } } = await supabase.auth.getSession();
-                const userId = session?.user?.id;
-                
-                wsRef.current?.send(
-                  JSON.stringify({
-                    type: "audio",
-                    audio: base64Audio,
-                    mimeType: "audio/wav",
-                    userId: userId, // Add the user ID
-                  })
-                );
-              } catch (error) {
-                console.error("Error getting user session:", error);
-                // Send without userId as fallback
-                wsRef.current?.send(
-                  JSON.stringify({
-                    type: "audio",
-                    audio: base64Audio,
-                    mimeType: "audio/wav"
-                  })
-                );
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session?.user) {
+                throw new Error('No user session');
               }
-            })();
+
+              // Set that this is a voice message and clear any previous audio URL
+              setLastMessageWasVoice(true);
+              setTtsAudioUrl(null);
+
+              const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({
+                  type: 'audio',
+                  audio: base64Audio,
+                  mimeType: 'audio/wav'
+                })
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to process audio');
+              }
+
+              if (!response.body) {
+                throw new Error('No response body');
+              }
+
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder();
+              let buffer = '';
+              let lastUpdate = Date.now();
+              const UPDATE_INTERVAL = 50;
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                buffer += chunk;
+                
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  try {
+                    const data = JSON.parse(line);
+
+                    if (data.type === 'transcription') {
+                      // Add the transcription as a user message
+                      setMessages(prev => [...prev, { 
+                        role: "user", 
+                        content: data.content, 
+                        type: "text", 
+                        isComplete: true,
+                        isVoiceMessage: true
+                      }]);
+                    } else if (data.type === 'stream-chunk') {
+                      // Hide typing indicator when we get the first chunk
+                      setShowBotTyping(false);
+                      setMessages(prev => {
+                        const updated = [...prev];
+                        const lastIdx = updated.length - 1;
+                        if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                          updated[lastIdx] = {
+                            ...updated[lastIdx],
+                            content: updated[lastIdx].content + data.content
+                          };
+                        } else {
+                          updated.push({
+                            role: "assistant",
+                            content: data.content,
+                            type: "text",
+                            isComplete: false,
+                            isStreaming: true
+                          });
+                        }
+                        return updated;
+                      });
+                    } else if (data.type === 'stream-complete') {
+                      setMessages(prev => {
+                        const updated = [...prev];
+                        const lastIdx = updated.length - 1;
+                        if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                          updated[lastIdx] = {
+                            ...updated[lastIdx],
+                            content: data.content,
+                            isComplete: true,
+                            isStreaming: false
+                          };
+                        }
+                        return updated;
+                      });
+                    } else if (data.type === 'tts-audio') {
+                      const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
+                      console.log("Received TTS audio for voice message response", audioUrl.substring(0, 50) + "...");
+                      setTtsAudioUrl(audioUrl);
+                      
+                      if (audioRef.current) {
+                        console.log("Setting audio source and preparing to play");
+                        audioRef.current.src = audioUrl;
+                        audioRef.current.oncanplay = () => {
+                          console.log("Audio can play now, auto-playing");
+                          audioRef.current?.play().catch(e => {
+                            console.error("Auto-play error:", e);
+                            // Audio playback might be blocked by browser policy, show a message or indicator
+                          });
+                        };
+                      }
+                    } else if (data.type === 'error') {
+                      throw new Error(data.error);
+                    }
+                  } catch (error) {
+                    console.error('Error processing chunk:', error);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error("Error processing audio:", error);
+              setError(error instanceof Error ? error.message : "Failed to process audio");
+              setMessages(prev => [...prev, { 
+                role: "assistant", 
+                content: "Sorry, I encountered an error processing your audio.", 
+                type: "text",
+                isComplete: true
+              }]);
+            } finally {
+              setIsLoading(false);
+              setShowBotTyping(false);
+            }
           };
           
           reader.readAsDataURL(audioBlob);
@@ -499,39 +559,8 @@ export function RealtimeChatGemini() {
       } catch (err) {
         setIsRecording(false);
         setError("Failed to record audio");
-        setIsLoading(false); // Reset loading state on error
+        setIsLoading(false);
       }
-    }
-  };
-
-  // Function to fetch the user ID and load chat history
-  const fetchUserAndHistory = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      
-      if (userId && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        console.log('Requesting chat history for user:', userId);
-        setIsLoadingHistory(true);
-        
-        // Only request history via WebSocket and rely on the onmessage handler
-        // to process the response - do not load directly from Supabase
-        wsRef.current.send(JSON.stringify({
-          type: 'fetch_history',
-          userId: userId
-        }));
-        
-        // Don't set messages here - wait for the WebSocket response
-        // which will be handled in the onmessage event
-      } else {
-        // If no user ID or WebSocket, initialize with a welcome message
-        setIsLoadingHistory(false);
-        setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text", isComplete: true }]);
-      }
-    } catch (error) {
-      console.error('Error fetching user session:', error);
-      setIsLoadingHistory(false);
-      setMessages([{ role: "assistant", content: "Welcome! How can I help?", type: "text", isComplete: true }]);
     }
   };
 
@@ -544,7 +573,7 @@ export function RealtimeChatGemini() {
             G
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-800">Gemini Bot (WebSocket)</h2>
+            <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
             <p className="text-xs text-gray-500">Trades Business School</p>
           </div>
           {isLoadingHistory && (
@@ -583,168 +612,192 @@ export function RealtimeChatGemini() {
 
       {/* Chat Area */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-200px)]" ref={scrollAreaRef}> {/* Adjusted height */}
+        <ScrollArea className="h-[calc(100vh-280px)] sm:h-[calc(100vh-280px)]" ref={scrollAreaRef}>
           <div className="space-y-6 p-6 pt-12">
             {messages.map((message, index) => (
               <div
                 key={index}
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
+                <div className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"} w-full max-w-[75%] sm:max-w-[90%]`}>
+                  <div
+                    className={`rounded-2xl px-4 py-2 sm:px-5 sm:py-3 flex flex-col w-fit break-words ${
+                      message.role === "user"
+                        ? message.isVoiceMessage 
+                          ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                          : "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
+                    }`}
+                  >
+                    <div className="w-full">
+                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
+                          <ReactMarkdown
+                            components={{
+                              h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
+                              h2: ({children}) => <h2 className="text-lg font-bold mb-2 mt-4">{children}</h2>,
+                              h3: ({children}) => <h3 className="text-base font-bold mb-1 mt-3">{children}</h3>,
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              ul: ({children}) => <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>,
+                              ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>,
+                              li: ({children}) => <li className="mb-1">{children}</li>,
+                              a: ({ href, children }) => (
+                                <a href={href} className={`${message.role === "user" ? "text-blue-100" : "text-blue-500"} hover:underline`} target="_blank" rel="noopener noreferrer">
+                                  {children}
+                                </a>
+                              ),
+                              code: ({ children }) => (
+                                <code className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded px-1 py-0.5 text-sm`}>
+                                  {children}
+                                </code>
+                              ),
+                              pre: ({ children }) => (
+                                <pre className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded p-2 text-sm overflow-x-auto my-2`}>
+                                  {children}
+                                </pre>
+                              ),
+                              blockquote: ({ children }) => (
+                                <blockquote className={`border-l-2 ${message.role === "user" ? "border-blue-300" : "border-gray-300"} pl-3 italic my-2`}>
+                                  {children}
+                                </blockquote>
+                              ),
+                              hr: () => <hr className="my-3 border-t border-gray-200" />
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                    </div>
+                  </div>
+                  {message.isVoiceMessage && (
+                    <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${message.role === "user" ? "self-end" : "self-start"}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" x2="12" y1="19" y2="22"></line>
+                      </svg>
+                      <span>Voice Message</span>
+                    </div>
+                  )}
+                  {message.role === "assistant" && ttsAudioUrl && lastMessageWasVoice && index === messages.length - 1 && (
+                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-400 self-start cursor-pointer hover:text-blue-500"
+                      onClick={toggleAudio}>
+                      {isAudioPlaying ? (
+                        <Pause className="w-4 h-4" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                      <span>Voice Response</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {/* Bot typing indicator placeholder with glowing lines */}
+            {showBotTyping && (
+              <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100">
+                  <div className="flex flex-col gap-1.5 w-36">
+                    <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
+                    <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {audioPlaceholder && (
+              <div
+                className={`flex ${audioPlaceholder.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+              >
                 <div
                   className={`max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ${
-                    message.role === "user"
+                    audioPlaceholder.role === "user"
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
                       : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
                   }`}
                 >
                   <div className="w-full">
-                    {message.role === "assistant" ? (
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }) => <p className="text-sm leading-relaxed mb-2 last:mb-0">{children}</p>,
-                            h1: ({ children }) => <h1 className="text-lg font-bold mt-2 mb-3">{children}</h1>,
-                            h2: ({ children }) => <h2 className="text-base font-semibold mt-2 mb-2">{children}</h2>,
-                            h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
-                            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>,
-                            li: ({ children }) => <li className="text-sm">{children}</li>,
-                            code: ({ children }) => (
-                              <code className="bg-gray-100 rounded px-1.5 py-0.5 text-sm font-mono text-gray-800">
-                                {children}
-                              </code>
-                            ),
-                            pre: ({ children }) => (
-                              <pre className="bg-gray-50 rounded-xl p-4 my-3 overflow-x-auto w-full border border-gray-100">
-                                {children}
-                              </pre>
-                            ),
-                            a: ({ href, children }) => (
-                              <a href={href} className="text-blue-600 hover:text-blue-700 hover:underline transition-colors" target="_blank" rel="noopener noreferrer">
-                                {children}
-                              </a>
-                            ),
-                            blockquote: ({ children }) => (
-                              <blockquote className="border-l-4 border-gray-200 pl-4 my-3 italic text-gray-600">
-                                {children}
-                              </blockquote>
-                            ),
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
-                        {/* Show streaming indicator */}
-                        {message.isStreaming && (
-                          <div className="flex h-4 items-center space-x-1.5 mt-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
-                            <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.2s]"></div>
-                            <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.4s]"></div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {message.content}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {error && (
-              <div className="text-red-500 text-sm p-3 bg-red-50 rounded-xl border border-red-100 shadow-sm max-w-[75%] mx-auto">
-                <div className="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" x2="12" y1="8" y2="12"></line>
-                    <line x1="12" x2="12.01" y1="16" y2="16"></line>
-                  </svg>
-                  <span>{error}</span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-            {audioPlaceholder && (
-              <div className={`flex ${audioPlaceholder.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                <div className={`max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ${
-                  audioPlaceholder.role === 'user'
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20'
-                    : 'bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100'
-                }`}>
-                  <div className="w-full">
-                    {/* Animated indicator only, no text */}
-                    <div className="flex h-4 items-center space-x-1.5">
-                      <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
-                      <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.2s]"></div>
-                      <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse [animation-delay:0.4s]"></div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                      <span className="text-sm">
+                        {audioPlaceholder.role === "user" ? "Processing audio..." : "Generating response..."}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
       </div>
 
-      {/* Audio Visualizer - only shown when recording */}
-      {isRecording && (
-        <div className="px-4 py-2 bg-gray-50">
-          <AudioVisualizer isRecording={isRecording} stream={audioStream} />
-        </div>
-      )}
-
       {/* Input Area */}
       <div className="p-4 border-t bg-white/80 backdrop-blur-sm rounded-b-xl">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-              className="w-full px-4 py-2 rounded-full border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white  transition-all"
-              placeholder="Type a message..."
-              disabled={!isConnected || isLoading || isRecording}
-            />
-            {inputText && (
-              <Button
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white  transition-all"
-                size="icon"
-                onClick={handleSendMessage}
-                disabled={!isConnected || isLoading || !inputText.trim() || isRecording}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
+        {isRecording && (
+          <div className="mb-3">
+            <AudioVisualizer isRecording={isRecording} stream={audioStream} />
           </div>
-          
-          {/* Audio recording button */}
+        )}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <Button
+            variant="ghost"
+            size="icon"
             onClick={toggleRecording}
-            disabled={isLoading && !isRecording}
-            className={`flex items-center justify-center h-10 w-10 rounded-full transition-all ${
-              isRecording 
-                ? "bg-red-500 hover:bg-red-600 text-white" 
-                : "bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200"
-            }`}
+            disabled={isLoading}
+            className={`rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}
           >
             {isRecording ? (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
-              </svg>
+              <div className="h-4 w-4 rounded-full bg-white animate-pulse" />
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                 <line x1="12" x2="12" y1="19" y2="22"></line>
               </svg>
             )}
           </Button>
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Type your message..."
+              className="w-full px-3 py-2 sm:px-4 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[15px] sm:text-base"
+              disabled={isLoading}
+            />
+            {isLoading && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSendMessage}
+            disabled={!inputText.trim() || isLoading}
+            className="rounded-full"
+          >
+            <Send className="h-5 w-5" />
+          </Button>
         </div>
-        
-        {/* Audio player for responses */}
-        <audio ref={audioRef} controls style={{ display: "none" }} />
       </div>
+
+      {/* Audio element for TTS */}
+      <audio 
+        ref={audioRef} 
+        className="hidden" 
+        preload="auto" 
+        onError={(e) => console.error("Audio element error:", e)}
+        onLoadedData={() => console.log("Audio data loaded")}
+      />
     </div>
   );
 }

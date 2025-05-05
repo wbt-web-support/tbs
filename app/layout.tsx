@@ -2,6 +2,7 @@ import HeaderAuth from "@/components/header-auth";
 import { Geist } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import "./global-overrides.css";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
