@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Play, Pause } from "lucide-react";
+import { Send, Play, Pause, Phone, PhoneOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
 
@@ -50,6 +50,14 @@ export function RealtimeChatGemini() {
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [lastMessageWasVoice, setLastMessageWasVoice] = useState(false);
+  const [isInCallMode, setIsInCallMode] = useState(false);
+  const [isSilent, setIsSilent] = useState(false);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioAnalyserRef = useRef<AnalyserNode | null>(null);
+  const audioDataRef = useRef<Uint8Array | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const silenceStartTimeRef = useRef<number | null>(null);
+  const continuousAudioChunksRef = useRef<Blob[]>([]);
   
   const supabase = createClient();
 
@@ -564,6 +572,314 @@ export function RealtimeChatGemini() {
     }
   };
 
+  // Function to handle starting/stopping call mode
+  const toggleCallMode = async () => {
+    if (isInCallMode) {
+      // End call mode
+      stopCallMode();
+    } else {
+      // Start call mode
+      startCallMode();
+    }
+  };
+  
+  // Start call mode with continuous listening
+  const startCallMode = async () => {
+    try {
+      // Request audio permission
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
+      setIsInCallMode(true);
+      
+      // Create audio context and analyser for voice activity detection
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      audioAnalyserRef.current = analyser;
+      audioDataRef.current = dataArray;
+      
+      // Reset continuous audio chunks
+      continuousAudioChunksRef.current = [];
+      
+      // Start recording
+      const recorder = new MediaRecorder(stream);
+      setMediaRecorder(recorder);
+      
+      recorder.ondataavailable = (event) => {
+        continuousAudioChunksRef.current.push(event.data);
+      };
+      
+      // Start detecting voice activity
+      detectVoiceActivity();
+      
+      // Start recording in smaller chunks for more responsive sending
+      recorder.start(1000); // Collect data every second
+      
+      console.log("Call mode started - listening for voice");
+    } catch (err) {
+      console.error("Error starting call mode:", err);
+      setError("Failed to start call mode");
+    }
+  };
+  
+  // Stop call mode
+  const stopCallMode = () => {
+    // Clear animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // Clear silence timeout
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+    
+    // Stop media recorder
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    
+    // Stop all tracks in the stream
+    if (audioStream) {
+      audioStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Reset state
+    setAudioStream(null);
+    setMediaRecorder(null);
+    setIsInCallMode(false);
+    setIsSilent(false);
+    silenceStartTimeRef.current = null;
+    continuousAudioChunksRef.current = [];
+    
+    console.log("Call mode ended");
+  };
+  
+  // Detect voice activity
+  const detectVoiceActivity = () => {
+    if (!audioAnalyserRef.current || !audioDataRef.current) return;
+    
+    const analyser = audioAnalyserRef.current;
+    const dataArray = audioDataRef.current;
+    
+    const checkVoiceActivity = () => {
+      analyser.getByteFrequencyData(dataArray);
+      
+      // Calculate average frequency value
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / dataArray.length;
+      
+      // Adjust threshold for voice detection - may need tuning
+      const voiceThreshold = 20;
+      const isSpeaking = average > voiceThreshold;
+      
+      if (isSpeaking) {
+        // Reset silence timer when voice detected
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
+        }
+        silenceStartTimeRef.current = null;
+        
+        if (isSilent) {
+          console.log("Voice detected - resumed speaking");
+          setIsSilent(false);
+        }
+      } else if (!isSilent && !silenceStartTimeRef.current) {
+        // Start tracking silence
+        silenceStartTimeRef.current = Date.now();
+      } else if (silenceStartTimeRef.current && !silenceTimeoutRef.current) {
+        // If silence persists for 1.5 seconds, process the recording
+        const silenceDuration = Date.now() - silenceStartTimeRef.current;
+        if (silenceDuration > 1500) {
+          setIsSilent(true);
+          console.log("Silence detected for 1.5s - processing audio");
+          
+          // Process current audio chunks
+          processCallAudio();
+          
+          // Reset for next utterance
+          silenceStartTimeRef.current = null;
+        }
+      }
+      
+      // Continue checking
+      animationFrameRef.current = requestAnimationFrame(checkVoiceActivity);
+    };
+    
+    // Start voice activity detection loop
+    animationFrameRef.current = requestAnimationFrame(checkVoiceActivity);
+  };
+  
+  // Process and send call audio
+  const processCallAudio = async () => {
+    if (continuousAudioChunksRef.current.length === 0 || isLoading) return;
+    
+    console.log("Processing call audio chunks:", continuousAudioChunksRef.current.length);
+    
+    try {
+      // Create a blob from accumulated chunks
+      const audioBlob = new Blob(continuousAudioChunksRef.current, { type: "audio/wav" });
+      
+      // Reset for next utterance
+      continuousAudioChunksRef.current = [];
+      
+      // Process the audio blob
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = (reader.result as string).split(",")[1];
+        
+        setIsLoading(true);
+        setLastMessageWasVoice(true);
+        setTtsAudioUrl(null);
+        setShowBotTyping(true);
+        
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user) {
+            throw new Error('No user session');
+          }
+
+          const response = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+              type: 'audio',
+              audio: base64Audio,
+              mimeType: 'audio/wav'
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to process audio');
+          }
+
+          if (!response.body) {
+            throw new Error('No response body');
+          }
+
+          // Process streaming response (same as existing code)
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let lastUpdate = Date.now();
+          const UPDATE_INTERVAL = 50;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            buffer += chunk;
+            
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              try {
+                const data = JSON.parse(line);
+
+                if (data.type === 'transcription') {
+                  setMessages(prev => [...prev, { 
+                    role: "user", 
+                    content: data.content, 
+                    type: "text", 
+                    isComplete: true,
+                    isVoiceMessage: true
+                  }]);
+                } else if (data.type === 'stream-chunk') {
+                  setShowBotTyping(false);
+                  setMessages(prev => {
+                    const updated = [...prev];
+                    const lastIdx = updated.length - 1;
+                    if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                      updated[lastIdx] = {
+                        ...updated[lastIdx],
+                        content: updated[lastIdx].content + data.content
+                      };
+                    } else {
+                      updated.push({
+                        role: "assistant",
+                        content: data.content,
+                        type: "text",
+                        isComplete: false,
+                        isStreaming: true
+                      });
+                    }
+                    return updated;
+                  });
+                } else if (data.type === 'stream-complete') {
+                  setMessages(prev => {
+                    const updated = [...prev];
+                    const lastIdx = updated.length - 1;
+                    if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                      updated[lastIdx] = {
+                        ...updated[lastIdx],
+                        content: data.content,
+                        isComplete: true,
+                        isStreaming: false
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (data.type === 'tts-audio') {
+                  console.log("Received TTS audio for voice message response", data.audio.substring(0, 50) + "...");
+                  const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
+                  setTtsAudioUrl(audioUrl);
+                  
+                  if (audioRef.current) {
+                    console.log("Setting audio source and preparing to play");
+                    audioRef.current.src = audioUrl;
+                    audioRef.current.oncanplay = () => {
+                      console.log("Audio can play now, auto-playing");
+                      audioRef.current?.play().catch(e => {
+                        console.error("Auto-play error:", e);
+                      });
+                    };
+                  }
+                } else if (data.type === 'error') {
+                  throw new Error(data.error);
+                }
+              } catch (error) {
+                console.error('Error processing chunk:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error processing call audio:", error);
+          setError(error instanceof Error ? error.message : "Failed to process audio");
+        } finally {
+          setIsLoading(false);
+          setShowBotTyping(false);
+          
+          // If still in call mode, continue listening
+          if (isInCallMode) {
+            console.log("Continuing to listen in call mode");
+          }
+        }
+      };
+      
+      reader.readAsDataURL(audioBlob);
+    } catch (error) {
+      console.error("Error processing call audio:", error);
+      setError("Failed to process call audio");
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 rounded-xl border max-w-6xl mx-auto w-full">
       {/* Header */}
@@ -744,7 +1060,7 @@ export function RealtimeChatGemini() {
             variant="ghost"
             size="icon"
             onClick={toggleRecording}
-            disabled={isLoading}
+            disabled={isLoading || isInCallMode}
             className={`rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}
           >
             {isRecording ? (
@@ -757,6 +1073,19 @@ export function RealtimeChatGemini() {
               </svg>
             )}
           </Button>
+          
+          {/* Call Mode Button */}
+          <Button
+            variant={isInCallMode ? "destructive" : "outline"}
+            size="icon"
+            onClick={toggleCallMode}
+            disabled={isLoading || isRecording}
+            className="rounded-full"
+            title={isInCallMode ? "End Call" : "Start Call"}
+          >
+            {isInCallMode ? <PhoneOff size={20} /> : <Phone size={20} />}
+          </Button>
+          
           <div className="flex-1 relative">
             <input
               type="text"
@@ -768,13 +1097,18 @@ export function RealtimeChatGemini() {
                   handleSendMessage();
                 }
               }}
-              placeholder="Type your message..."
+              placeholder={isInCallMode ? "Call mode active - listening..." : "Type your message..."}
               className="w-full px-3 py-2 sm:px-4 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[15px] sm:text-base"
-              disabled={isLoading}
+              disabled={isLoading || isInCallMode}
             />
             {isLoading && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+              </div>
+            )}
+            {isSilent && isInCallMode && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                Processing...
               </div>
             )}
           </div>
@@ -782,12 +1116,22 @@ export function RealtimeChatGemini() {
             variant="ghost"
             size="icon"
             onClick={handleSendMessage}
-            disabled={!inputText.trim() || isLoading}
+            disabled={!inputText.trim() || isLoading || isInCallMode}
             className="rounded-full"
           >
             <Send className="h-5 w-5" />
           </Button>
         </div>
+        
+        {/* Call mode indicator */}
+        {isInCallMode && (
+          <div className="mt-2 text-xs text-center flex items-center justify-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${isSilent ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`}></div>
+            <span className="text-gray-600">
+              {isSilent ? "Listening - silence detected" : "Call mode active - speak now"}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Audio element for TTS */}
