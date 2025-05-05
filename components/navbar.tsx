@@ -58,16 +58,16 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/chat">
+          {/* <Link href="/chat">
             <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
               <MessageSquare className="h-4 w-4" />
               <span>Chat</span>
             </Button>
-          </Link>
+          </Link> */}
           <Link href="/chat-v2">
-            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 hover:text-white rounded-full">
               <MessageSquare className="h-4 w-4" />
-              <span>Gemini Chat</span>
+              <span>Chat</span>
             </Button>
           </Link>
           
