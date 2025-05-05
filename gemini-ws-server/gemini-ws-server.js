@@ -143,9 +143,10 @@ async function getGlobalInstructions() {
   try {
     const { data, error } = await supabase
       .from('chatbot_instructions')
-      .select('content, content_type, url, updated_at, created_at, extraction_metadata')
+      .select('content, content_type, url, updated_at, created_at, extraction_metadata, priority')
       .eq('is_active', true)
-      .order('created_at', { ascending: true });
+      .order('priority', { ascending: false }) // Sort by priority in descending order
+      .order('created_at', { ascending: true }); // Secondary sort by creation date
     
     if (error) throw error;
     
@@ -161,16 +162,23 @@ async function getGlobalInstructions() {
       
       if (totalSize > MAX_INSTRUCTIONS_SIZE) {
         console.warn(`Total instructions size (${totalSize} chars) exceeds limit (${MAX_INSTRUCTIONS_SIZE} chars). Truncating...`);
-        // Take instructions from the end until we're under the limit
+        // Take instructions from the end until we're under the limit, but always keep high priority ones
         let currentSize = 0;
         selectedInstructions = [];
+        
+        // First, add all high priority instructions (priority > 0)
+        const highPriorityInstructions = data.filter(inst => inst.priority > 0);
+        for (const inst of highPriorityInstructions) {
+          selectedInstructions.push(inst);
+          currentSize += inst.content.length;
+        }
+        
+        // Then add remaining instructions until we hit the size limit
         for (let i = data.length - 1; i >= 0; i--) {
           const inst = data[i];
-          if (currentSize + inst.content.length <= MAX_INSTRUCTIONS_SIZE) {
+          if (inst.priority === 0 && currentSize + inst.content.length <= MAX_INSTRUCTIONS_SIZE) {
             selectedInstructions.unshift(inst);
             currentSize += inst.content.length;
-          } else {
-            break;
           }
         }
       }
@@ -184,7 +192,8 @@ async function getGlobalInstructions() {
             url: inst.url,
             updated_at: inst.updated_at,
             created_at: inst.created_at,
-            extraction_metadata: inst.extraction_metadata
+            extraction_metadata: inst.extraction_metadata,
+            priority: inst.priority || 0
           }
         };
       });
@@ -370,35 +379,57 @@ function formatInstructions(instructionsData, userContext) {
   let combinedInstructions = "";
   
   if (instructionsData && instructionsData.length > 0) {
-    combinedInstructions = instructionsData
-      .map(inst => {
-        // Start with the main content
-        let instruction = inst.content + "\n";
-        
-        // Add metadata if available
-        const metadata = inst.metadata;
-        if (metadata) {
-          // Add type information
-          instruction += `[Type: ${metadata.type || 'Unknown'}]\n`;
+    // Group instructions by priority
+    const priorityGroups = instructionsData.reduce((groups, inst) => {
+      const priority = inst.metadata?.priority || 0;
+      if (!groups[priority]) {
+        groups[priority] = [];
+      }
+      groups[priority].push(inst);
+      return groups;
+    }, {});
+
+    // Process instructions in priority order (highest first)
+    const priorities = Object.keys(priorityGroups).sort((a, b) => b - a);
+    
+    for (const priority of priorities) {
+      const instructions = priorityGroups[priority];
+      
+      // Add priority header if there are high priority instructions
+      if (priority > 0) {
+        combinedInstructions += `\n=== HIGH PRIORITY INSTRUCTIONS (Priority ${priority}) ===\n\n`;
+      }
+      
+      combinedInstructions += instructions
+        .map(inst => {
+          // Start with the main content
+          let instruction = inst.content + "\n";
           
-          // Add URL if available
-          if (metadata.url) {
-            instruction += `[Reference: ${metadata.url}]\n`;
+          // Add metadata if available
+          const metadata = inst.metadata;
+          if (metadata) {
+            // Add type information
+            instruction += `[Type: ${metadata.type || 'Unknown'}]\n`;
+            
+            // Add URL if available
+            if (metadata.url) {
+              instruction += `[Reference: ${metadata.url}]\n`;
+            }
+            
+            // Add extraction metadata if available
+            if (metadata.extraction_metadata && Object.keys(metadata.extraction_metadata).length > 0) {
+              instruction += `[Metadata: ${JSON.stringify(metadata.extraction_metadata)}]\n`;
+            }
+            
+            // Add timestamps
+            instruction += `[Last Updated: ${new Date(metadata.updated_at).toLocaleString()}]\n`;
+            instruction += `[Created: ${new Date(metadata.created_at).toLocaleString()}]\n`;
           }
           
-          // Add extraction metadata if available
-          if (metadata.extraction_metadata && Object.keys(metadata.extraction_metadata).length > 0) {
-            instruction += `[Metadata: ${JSON.stringify(metadata.extraction_metadata)}]\n`;
-          }
-          
-          // Add timestamps
-          instruction += `[Last Updated: ${new Date(metadata.updated_at).toLocaleString()}]\n`;
-          instruction += `[Created: ${new Date(metadata.created_at).toLocaleString()}]\n`;
-        }
-        
-        return instruction;
-      })
-      .join("\n---\n\n");
+          return instruction;
+        })
+        .join("\n---\n\n");
+    }
   }
 
   // Combine instructions with user context

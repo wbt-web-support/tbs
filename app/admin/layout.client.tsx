@@ -174,7 +174,7 @@ export default function AdminLayoutClient({
                 <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider">
                   {section.title}
                 </h2>
-                <div className="space-y-0">
+                <div className="space-y-1">
                   {section.items.map((item) => {
                     const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                     return (
