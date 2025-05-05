@@ -418,7 +418,7 @@ export async function POST(req: Request) {
           }
         ],
         generationConfig: {
-          maxOutputTokens: 2000,
+          maxOutputTokens: 2048,
           temperature: 0.5,
         }
       });
@@ -477,7 +477,7 @@ export async function POST(req: Request) {
           const result = await model.generateContentStream({
             contents,
             generationConfig: {
-              maxOutputTokens: 256,
+              maxOutputTokens: 2048,
               temperature: 0.4,
               topK: 40,
               topP: 0.95,
