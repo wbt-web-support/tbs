@@ -97,7 +97,7 @@ interface ChatbotInstruction {
 // Constants for audio processing
 const BUFFER_THRESHOLD_SECONDS = 0.2; // Reduced from 0.3 to minimize latency
 const CROSSFADE_DURATION = 0.015; // Increased from 0.005 for smoother transitions
-const MIN_BUFFER_SIZE = 2048; // Minimum buffer size for stable playback
+const MIN_BUFFER_SIZE = 10024; // Minimum buffer size for stable playback
 const MAX_BUFFER_SIZE = 8192; // Maximum buffer size to prevent delay
 
 export function RealtimeChat() {

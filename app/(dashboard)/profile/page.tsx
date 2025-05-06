@@ -35,7 +35,7 @@ export default async function ProfilePage() {
 
   // Redirect to login if no user
   if (!user) {
-    return redirect('/login');
+    return redirect('/sign-in');
   }
 
   // Fetch business info for the logged-in user

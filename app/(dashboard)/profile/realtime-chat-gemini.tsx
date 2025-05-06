@@ -189,14 +189,18 @@ export function RealtimeChatGemini() {
   const clearChatHistory = async () => {
     try {
       setIsClearingChat(true);
+      setError(null);
+      
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) {
         console.log('No user found, skipping chat history clear');
+        setError('You must be logged in to clear chat history');
         setIsClearingChat(false);
         return;
       }
 
+      console.log('Clearing chat history...');
       const response = await fetch('/api/gemini', {
         method: 'DELETE',
         headers: {
@@ -205,24 +209,32 @@ export function RealtimeChatGemini() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to clear chat history');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to clear chat history');
       }
 
       const data = await response.json();
       
       if (data.type === 'history_cleared' && data.success) {
+        console.log('Chat history cleared successfully');
         setMessages([{ 
           role: "assistant", 
           content: "Welcome! How can I help?", 
           type: "text", 
           isComplete: true 
         }]);
+        // Clear any existing audio
+        setTtsAudioUrl(null);
+        setIsAudioPlaying(false);
+        if (audioRef.current) {
+          audioRef.current.src = '';
+        }
       } else {
         throw new Error('Failed to clear chat history');
       }
     } catch (error) {
       console.error('Error clearing chat history:', error);
-      setError('Failed to clear chat history.');
+      setError(error instanceof Error ? error.message : 'Failed to clear chat history');
     } finally {
       setIsClearingChat(false);
     }
@@ -420,48 +432,31 @@ export function RealtimeChatGemini() {
     if (isRecording) {
       // Stop recording and send audio
       if (mediaRecorder) {
-        console.log("🎤 Stopping voice recording");
         mediaRecorder.stop();
         // MediaRecorder.onstop event will handle sending the audio
       }
     } else {
       // Start recording
-      console.log("🎤 Starting voice recording");
       setIsRecording(true);
       audioChunksRef.current = [];
       
       try {
-        console.log("🎤 Requesting microphone access");
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          } 
-        });
-        console.log("🎤 Microphone access granted");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setAudioStream(stream);
         
         const recorder = new MediaRecorder(stream);
-        console.log("🎤 MediaRecorder created");
         setMediaRecorder(recorder);
         
         recorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            console.log(`🎤 Audio data chunk received: ${event.data.size} bytes`);
-            audioChunksRef.current.push(event.data);
-          }
+          audioChunksRef.current.push(event.data);
         };
         
         recorder.onstop = async () => {
-          console.log("🎤 Recording stopped, processing audio");
           const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-          console.log(`🎤 Audio blob created: ${audioBlob.size} bytes`);
           const reader = new FileReader();
           
           reader.onloadend = async () => {
             const base64Audio = (reader.result as string).split(",")[1];
-            console.log(`🎤 Audio converted to base64: ${base64Audio.length} chars`);
             
             // Set loading state while waiting for response
             setIsLoading(true);
@@ -470,7 +465,6 @@ export function RealtimeChatGemini() {
             setShowBotTyping(true);
             
             try {
-              console.log("🎤 Sending audio to API");
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.user) {
                 throw new Error('No user session');
@@ -489,26 +483,18 @@ export function RealtimeChatGemini() {
                 body: JSON.stringify({
                   type: 'audio',
                   audio: base64Audio,
-                  mimeType: 'audio/wav',
-                  history: messages.map(msg => ({
-                    role: msg.role === "assistant" ? "model" : "user",
-                    parts: [{ text: msg.content }]
-                  })),
-                  generateTTS: true // Explicitly request TTS for voice response
+                  mimeType: 'audio/wav'
                 })
               });
 
               if (!response.ok) {
-                console.error(`🎤 API response not OK: ${response.status} ${response.statusText}`);
-                throw new Error(`Failed to process audio: ${response.status} ${response.statusText}`);
+                throw new Error('Failed to process audio');
               }
 
               if (!response.body) {
-                console.error("🎤 No response body received");
                 throw new Error('No response body');
               }
 
-              console.log("🎤 Processing response stream");
               const reader = response.body.getReader();
               const decoder = new TextDecoder();
               let buffer = '';
@@ -528,10 +514,8 @@ export function RealtimeChatGemini() {
                 for (const line of lines) {
                   try {
                     const data = JSON.parse(line);
-                    console.log(`🎤 Received data type: ${data.type}`);
 
                     if (data.type === 'transcription') {
-                      console.log(`🎤 Transcription: ${data.content.substring(0, 50)}...`);
                       // Add the transcription as a user message
                       setMessages(prev => [...prev, { 
                         role: "user", 
@@ -563,7 +547,6 @@ export function RealtimeChatGemini() {
                         return updated;
                       });
                     } else if (data.type === 'stream-complete') {
-                      console.log("🎤 Stream complete");
                       setMessages(prev => {
                         const updated = [...prev];
                         const lastIdx = updated.length - 1;
@@ -578,32 +561,31 @@ export function RealtimeChatGemini() {
                         return updated;
                       });
                     } else if (data.type === 'tts-audio') {
-                      console.log("🎤 Received TTS audio");
                       const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
+                      console.log("Received TTS audio for voice message response", audioUrl.substring(0, 50) + "...");
                       setTtsAudioUrl(audioUrl);
                       
                       if (audioRef.current) {
-                        console.log("🎤 Setting audio source and preparing to play");
+                        console.log("Setting audio source and preparing to play");
                         audioRef.current.src = audioUrl;
                         audioRef.current.oncanplay = () => {
-                          console.log("🎤 Audio ready, auto-playing");
+                          console.log("Audio can play now, auto-playing");
                           audioRef.current?.play().catch(e => {
-                            console.error("🎤 Auto-play error:", e);
+                            console.error("Auto-play error:", e);
                             // Audio playback might be blocked by browser policy, show a message or indicator
                           });
                         };
                       }
                     } else if (data.type === 'error') {
-                      console.error(`🎤 Error from API: ${data.error}`);
                       throw new Error(data.error);
                     }
                   } catch (error) {
-                    console.error('🎤 Error processing chunk:', error);
+                    console.error('Error processing chunk:', error);
                   }
                 }
               }
             } catch (error) {
-              console.error("🎤 Error processing audio:", error);
+              console.error("Error processing audio:", error);
               setError(error instanceof Error ? error.message : "Failed to process audio");
               setMessages(prev => [...prev, { 
                 role: "assistant", 
@@ -626,12 +608,10 @@ export function RealtimeChatGemini() {
           setIsRecording(false);
         };
         
-        console.log("🎤 Starting MediaRecorder");
         recorder.start();
       } catch (err) {
-        console.error("🎤 Error starting recording:", err);
         setIsRecording(false);
-        setError("Failed to record audio. Please check your microphone permissions.");
+        setError("Failed to record audio");
         setIsLoading(false);
       }
     }
@@ -651,18 +631,8 @@ export function RealtimeChatGemini() {
   // Start call mode with continuous listening
   const startCallMode = async () => {
     try {
-      console.log("📱 Call mode: Starting call mode");
-      
-      // Request audio permission with optimal voice settings
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
-      });
-      
-      console.log("📱 Call mode: Audio permission granted");
+      // Request audio permission
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream);
       setIsInCallMode(true);
       
@@ -672,53 +642,34 @@ export function RealtimeChatGemini() {
       const source = audioContext.createMediaStreamSource(stream);
       source.connect(analyser);
       
-      // Configure for better voice detection
-      analyser.fftSize = 1024; // More detailed frequency data
-      analyser.smoothingTimeConstant = 0.8; // Smoother transitions
+      analyser.fftSize = 256;
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       
-      console.log(`📱 Call mode: Audio analyzer set up with buffer length ${bufferLength}`);
       audioAnalyserRef.current = analyser;
       audioDataRef.current = dataArray;
       
       // Reset continuous audio chunks
       continuousAudioChunksRef.current = [];
       
-      // Start recording with safe fallback
-      let recorder: MediaRecorder;
-      try {
-        // Try with higher quality options first
-        recorder = new MediaRecorder(stream, {
-          mimeType: 'audio/webm;codecs=opus'
-        });
-        console.log("📱 Call mode: Using high quality audio recorder");
-      } catch (err) {
-        // Fall back to default options
-        console.log("📱 Call mode: Falling back to default recorder");
-        recorder = new MediaRecorder(stream);
-      }
-      
+      // Start recording
+      const recorder = new MediaRecorder(stream);
       setMediaRecorder(recorder);
       
       recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          continuousAudioChunksRef.current.push(event.data);
-        }
+        continuousAudioChunksRef.current.push(event.data);
       };
       
       // Start detecting voice activity
       detectVoiceActivity();
       
       // Start recording in smaller chunks for more responsive sending
-      console.log("📱 Call mode: Starting MediaRecorder");
       recorder.start(1000); // Collect data every second
       
-      console.log("📱 Call mode: Now active and listening for voice");
+      console.log("Call mode started - listening for voice");
     } catch (err) {
-      console.error("📱 Call mode: Error starting", err);
-      setError("Could not access microphone. Please check your permissions.");
-      setIsInCallMode(false);
+      console.error("Error starting call mode:", err);
+      setError("Failed to start call mode");
     }
   };
   
@@ -767,19 +718,12 @@ export function RealtimeChatGemini() {
     console.log("Call mode stopped completely");
   };
   
-  // Detect voice activity with improved sensitivity and logging
+  // Detect voice activity
   const detectVoiceActivity = () => {
     if (!audioAnalyserRef.current || !audioDataRef.current || !isInCallMode) return;
     
     const analyser = audioAnalyserRef.current;
     const dataArray = audioDataRef.current;
-    
-    // Track consecutive frames with/without voice
-    let consecutiveSilentFrames = 0;
-    let consecutiveVoiceFrames = 0;
-    const silenceThreshold = 20; // Adjust based on testing
-    const minConsecutiveSilentFrames = 45; // About 0.75 seconds at 60fps
-    const minConsecutiveVoiceFrames = 6; // About 0.1 seconds at 60fps
     
     const checkVoiceActivity = () => {
       // Skip voice detection while audio is playing to avoid false silence detection
@@ -797,53 +741,37 @@ export function RealtimeChatGemini() {
       }
       const average = sum / dataArray.length;
       
-      // Debug every 60 frames (about once per second)
-      if (Math.random() < 0.02) {
-        console.log(`📊 Call mode: Audio level ${average.toFixed(1)}, silence threshold ${silenceThreshold}`);
-      }
-      
-      const isSpeaking = average > silenceThreshold;
+      // Adjust threshold for voice detection - may need tuning
+      const voiceThreshold = 20;
+      const isSpeaking = average > voiceThreshold;
       
       if (isSpeaking) {
-        // Count consecutive voice frames
-        consecutiveVoiceFrames++;
-        consecutiveSilentFrames = 0;
-        
-        // Only consider as speaking after enough consecutive voice frames
-        // This prevents processing on brief noise spikes
-        if (consecutiveVoiceFrames >= minConsecutiveVoiceFrames && isSilent) {
-          console.log("🔊 Call mode: Voice detected - resumed speaking");
-          setIsSilent(false);
-          
-          // Reset silence timers
-          if (silenceTimeoutRef.current) {
-            clearTimeout(silenceTimeoutRef.current);
-            silenceTimeoutRef.current = null;
-          }
-          silenceStartTimeRef.current = null;
+        // Reset silence timer when voice detected
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
         }
-      } else {
-        // Count consecutive silent frames
-        consecutiveSilentFrames++;
-        consecutiveVoiceFrames = 0;
+        silenceStartTimeRef.current = null;
         
-        // Only consider as silent after enough consecutive silent frames
-        if (consecutiveSilentFrames >= minConsecutiveSilentFrames && !isSilent && !silenceStartTimeRef.current) {
-          console.log("🔇 Call mode: Silence detected for sustained period");
+        if (isSilent) {
+          console.log("Voice detected - resumed speaking");
+          setIsSilent(false);
+        }
+      } else if (!isSilent && !silenceStartTimeRef.current) {
+        // Start tracking silence
+        silenceStartTimeRef.current = Date.now();
+      } else if (silenceStartTimeRef.current && !silenceTimeoutRef.current) {
+        // If silence persists for 1.5 seconds, process the recording
+        const silenceDuration = Date.now() - silenceStartTimeRef.current;
+        if (silenceDuration > 1500) {
           setIsSilent(true);
-          silenceStartTimeRef.current = Date.now();
+          console.log("Silence detected for 1.5s - processing audio");
           
-          // Schedule processing after a brief additional confirmation delay
-          if (!silenceTimeoutRef.current && !processingCooldownRef.current) {
-            console.log("🔄 Call mode: Scheduling audio processing");
-            silenceTimeoutRef.current = setTimeout(() => {
-              if (isInCallMode && !isLoading && !isAudioPlaying) {
-                console.log("🔄 Call mode: Processing audio after silence confirmation");
-                processCallAudio();
-              }
-              silenceTimeoutRef.current = null;
-            }, 700); // Additional delay for confirmation
-          }
+          // Process current audio chunks
+          processCallAudio();
+          
+          // Reset for next utterance
+          silenceStartTimeRef.current = null;
         }
       }
       
@@ -851,7 +779,6 @@ export function RealtimeChatGemini() {
       animationFrameRef.current = requestAnimationFrame(checkVoiceActivity);
     };
     
-    console.log("🎙️ Call mode: Starting voice activity detection");
     // Start voice activity detection loop
     animationFrameRef.current = requestAnimationFrame(checkVoiceActivity);
   };
@@ -902,7 +829,6 @@ export function RealtimeChatGemini() {
         setShowBotTyping(true);
         
         try {
-          console.log("📢 Call mode: Sending audio for processing");
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.user) {
             throw new Error('No user session');
@@ -917,26 +843,18 @@ export function RealtimeChatGemini() {
             body: JSON.stringify({
               type: 'audio',
               audio: base64Audio,
-              mimeType: 'audio/wav',
-              history: messages.map(msg => ({
-                role: msg.role === "assistant" ? "model" : "user",
-                parts: [{ text: msg.content }]
-              })),
-              generateTTS: true // Explicitly request TTS for voice response
+              mimeType: 'audio/wav'
             })
           });
 
           if (!response.ok) {
-            console.error("📢 Call mode: Response not OK", response.status, response.statusText);
-            throw new Error(`Failed to process audio: ${response.status} ${response.statusText}`);
+            throw new Error('Failed to process audio');
           }
 
           if (!response.body) {
-            console.error("📢 Call mode: No response body");
             throw new Error('No response body');
           }
 
-          console.log("📢 Call mode: Processing response stream");
           // Process streaming response (same as existing code)
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
@@ -957,10 +875,8 @@ export function RealtimeChatGemini() {
             for (const line of lines) {
               try {
                 const data = JSON.parse(line);
-                console.log("📢 Call mode: Received data type:", data.type);
 
                 if (data.type === 'transcription') {
-                  console.log("📢 Call mode: Received transcription:", data.content.substring(0, 50) + "...");
                   setMessages(prev => [...prev, { 
                     role: "user", 
                     content: data.content, 
@@ -990,7 +906,6 @@ export function RealtimeChatGemini() {
                     return updated;
                   });
                 } else if (data.type === 'stream-complete') {
-                  console.log("📢 Call mode: Stream complete");
                   setMessages(prev => {
                     const updated = [...prev];
                     const lastIdx = updated.length - 1;
@@ -1005,34 +920,33 @@ export function RealtimeChatGemini() {
                     return updated;
                   });
                 } else if (data.type === 'tts-audio') {
-                  console.log("📢 Call mode: Received TTS audio");
+                  console.log("Received TTS audio for voice message response", data.audio.substring(0, 50) + "...");
                   const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
                   setTtsAudioUrl(audioUrl);
                   
                   if (audioRef.current) {
-                    console.log("📢 Call mode: Setting audio source and preparing to play");
+                    console.log("Setting audio source and preparing to play");
                     audioRef.current.src = audioUrl;
                     // Wait longer for the audio to be ready
                     audioRef.current.oncanplay = () => {
-                      console.log("📢 Call mode: Audio can play now, auto-playing");
+                      console.log("Audio can play now, auto-playing");
                       setIsAudioPlaying(true); // Set this before play() to avoid race conditions
                       audioRef.current?.play().catch(e => {
-                        console.error("📢 Call mode: Auto-play error:", e);
+                        console.error("Auto-play error:", e);
                         setIsAudioPlaying(false); // Reset if play fails
                       });
                     };
                   }
                 } else if (data.type === 'error') {
-                  console.error("📢 Call mode: Error from API:", data.error, data.details);
                   throw new Error(data.error);
                 }
               } catch (error) {
-                console.error('📢 Call mode: Error processing chunk:', error);
+                console.error('Error processing chunk:', error);
               }
             }
           }
         } catch (error) {
-          console.error("📢 Call mode: Error processing call audio:", error);
+          console.error("Error processing call audio:", error);
           setError(error instanceof Error ? error.message : "Failed to process audio");
         } finally {
           setIsLoading(false);
@@ -1040,14 +954,14 @@ export function RealtimeChatGemini() {
           
           // If still in call mode, continue listening
           if (isInCallMode) {
-            console.log("📢 Call mode: Continuing to listen in call mode");
+            console.log("Continuing to listen in call mode");
           }
         }
       };
       
       reader.readAsDataURL(audioBlob);
     } catch (error) {
-      console.error("📢 Call mode: Error processing call audio:", error);
+      console.error("Error processing call audio:", error);
       setError("Failed to process call audio");
     }
   };

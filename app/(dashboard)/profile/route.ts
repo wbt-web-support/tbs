@@ -55,7 +55,7 @@ async function getUserData(userId: string) {
   }
 
   console.log(`🔄 [Supabase] Fetching data for user: ${userId}`);
-
+  
   try {
     const supabase = await createClient();
     
@@ -153,7 +153,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
     console.log('⚠️ [Supabase] No userId provided, not saving message to history');
     return;
   }
-
+  
   try {
     console.log(`🔄 [Supabase] Saving ${role} message to history for user: ${userId}`);
     
@@ -164,7 +164,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       .select('id, messages')
       .eq('user_id', userId)
       .single();
-
+    
     if (fetchError && fetchError.code !== 'PGRST116') {
       console.error('❌ [Supabase] Error fetching chat history:', fetchError);
       return;
@@ -175,7 +175,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       content: message,
       timestamp: new Date().toISOString()
     };
-
+    
     if (!existingHistory) {
       console.log('🔄 [Supabase] Creating new chat history');
       const { error: insertError } = await supabase
@@ -204,7 +204,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       
       // Limit to the last 50 messages
       const limitedMessages = messages.slice(-50);
-
+      
       const { error: updateError } = await supabase
         .from('chat_history')
         .update({ messages: limitedMessages })
@@ -233,15 +233,56 @@ async function clearChatHistory(userId: string) {
   if (!userId) return false;
 
   try {
+    console.log(`🔄 [Supabase] Clearing chat history for user: ${userId}`);
     const supabase = await createClient();
-    const { error } = await supabase
+    
+    // First check if the record exists
+    const { data: existingRecord, error: fetchError } = await supabase
       .from('chat_history')
-      .update({ messages: [] })
-      .eq('user_id', userId);
+      .select('id')
+      .eq('user_id', userId)
+      .single();
 
-    return !error;
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('❌ [Supabase] Error checking chat history:', fetchError);
+      return false;
+    }
+
+    let result;
+    if (existingRecord) {
+      // Update existing record
+      console.log('🔄 [Supabase] Updating existing chat history record');
+      result = await supabase
+        .from('chat_history')
+        .update({ messages: [] })
+        .eq('user_id', userId);
+    } else {
+      // Create new record with empty messages
+      console.log('🔄 [Supabase] Creating new chat history record');
+      result = await supabase
+        .from('chat_history')
+        .insert({
+          user_id: userId,
+          messages: []
+        });
+    }
+
+    if (result.error) {
+      console.error('❌ [Supabase] Error clearing chat history:', result.error);
+      return false;
+    }
+
+    // Update the cache
+    const cachedUser = serverCache.userData.get(userId);
+    if (cachedUser) {
+      console.log('🔄 [Cache] Updating chat history in cache');
+      cachedUser.chatHistory = [];
+    }
+
+    console.log('✅ [Supabase] Chat history cleared successfully');
+    return true;
   } catch (error) {
-    console.error("Error clearing chat history:", error);
+    console.error('❌ [Supabase] Error clearing chat history:', error);
     return false;
   }
 }
@@ -475,11 +516,11 @@ export async function POST(req: Request) {
 
           const result = await model.generateContentStream({
             contents,
-              generationConfig: {
+            generationConfig: {
               maxOutputTokens: 2048,
               temperature: 0.4,
-                topK: 40,
-                topP: 0.95,
+              topK: 40,
+              topP: 0.95,
             }
           });
 
@@ -643,60 +684,60 @@ export async function POST(req: Request) {
 
           // Process TTS for voice messages
           if (generateTTS) {
-          try {
-            console.log("Starting TTS processing for voice message response");
-            
-            if (!OPENAI_API_KEY) {
-              console.error("OpenAI API key is missing or empty");
-              throw new Error("OpenAI API key is required for text-to-speech");
-            }
-            
-            console.log("Making TTS request to OpenAI API");
-            const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                model: 'tts-1',
-                input: fullText,
-                voice: 'nova',
-                instructions: "Please speak in a UK English accent, using a casual and friendly tone.",
-                response_format: 'mp3',
-                speed: 1
-              })
-            });
+            try {
+              console.log("Starting TTS processing for voice message response");
+              
+              if (!OPENAI_API_KEY) {
+                console.error("OpenAI API key is missing or empty");
+                throw new Error("OpenAI API key is required for text-to-speech");
+              }
+              
+              console.log("Making TTS request to OpenAI API");
+              const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: 'tts-1',
+                  input: fullText,
+                  voice: 'nova',
+                  instructions: "Please speak in a UK English accent, using a casual and friendly tone.",
+                  response_format: 'mp3',
+                  speed: 1
+                })
+              });
 
-            if (!ttsResponse.ok) {
-              const errorData = await ttsResponse.text();
-              console.error("TTS API error:", ttsResponse.status, errorData);
-              throw new Error(`TTS API error: ${ttsResponse.status} ${errorData}`);
-            }
+              if (!ttsResponse.ok) {
+                const errorData = await ttsResponse.text();
+                console.error("TTS API error:", ttsResponse.status, errorData);
+                throw new Error(`TTS API error: ${ttsResponse.status} ${errorData}`);
+              }
 
-            console.log("TTS response received, processing audio");
-            const audioBuffer = await ttsResponse.arrayBuffer();
-            const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-            console.log(`TTS audio generated successfully, size: ${audioBase64.length} chars`);
-            
-            await writer.write(new TextEncoder().encode(
-              JSON.stringify({
-                type: 'tts-audio',
-                audio: audioBase64,
-                mimeType: 'audio/mp3',
-                text: fullText
-              }) + '\n'
-            ));
-            console.log("TTS audio sent to client");
-          } catch (error) {
-            console.error("TTS error:", error instanceof Error ? error.message : String(error));
-            await writer.write(new TextEncoder().encode(
-              JSON.stringify({
-                type: 'error',
-                error: 'Failed to generate speech audio',
-                details: error instanceof Error ? error.message : String(error)
-              }) + '\n'
-            ));
+              console.log("TTS response received, processing audio");
+              const audioBuffer = await ttsResponse.arrayBuffer();
+              const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+              console.log(`TTS audio generated successfully, size: ${audioBase64.length} chars`);
+              
+              await writer.write(new TextEncoder().encode(
+                JSON.stringify({
+                  type: 'tts-audio',
+                  audio: audioBase64,
+                  mimeType: 'audio/mp3',
+                  text: fullText
+                }) + '\n'
+              ));
+              console.log("TTS audio sent to client");
+            } catch (error) {
+              console.error("TTS error:", error instanceof Error ? error.message : String(error));
+              await writer.write(new TextEncoder().encode(
+                JSON.stringify({
+                  type: 'error',
+                  error: 'Failed to generate speech audio',
+                  details: error instanceof Error ? error.message : String(error)
+                }) + '\n'
+              ));
             }
           }
 
@@ -761,22 +802,22 @@ export async function GET(req: Request) {
     } else {
       // Fallback to direct database query if cache doesn't have chat history
       console.log('🔄 [API] Cache miss for chat history, fetching from database');
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('chat_history')
-      .select('messages')
-      .eq('user_id', userId)
-      .single();
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from('chat_history')
+        .select('messages')
+        .eq('user_id', userId)
+        .single();
 
-    if (error) throw error;
+      if (error) throw error;
 
       console.log('✅ [API] Fetched chat history from database');
-    return new NextResponse(
-      JSON.stringify({
-        type: 'chat_history',
-        history: data?.messages || []
-      })
-    );
+      return new NextResponse(
+        JSON.stringify({
+          type: 'chat_history',
+          history: data?.messages || []
+        })
+      );
     }
   } catch (error) {
     console.error("❌ [API] Error fetching chat history:", error);
@@ -801,18 +842,8 @@ export async function DELETE(req: Request) {
   try {
     const success = await clearChatHistory(userId);
     
-    if (success) {
-      console.log(`✅ [Supabase] Chat history cleared successfully for user: ${userId}`);
-      // Update the chat history in the cache without invalidating the whole user object
-      const cachedUser = serverCache.userData.get(userId);
-      if (cachedUser) {
-        console.log('🔄 [Cache] Clearing chat history in memory cache');
-        cachedUser.chatHistory = [];
-        // No need to set lastUserFetch here, as the main data is still valid
-      }
-    } else {
-      console.error(`❌ [Supabase] Failed to clear chat history for user: ${userId}`);
-    }
+    // We don't invalidate the user cache here since we only cleared chat history
+    // All other user data is still valid
     
     return new NextResponse(
       JSON.stringify({
@@ -821,7 +852,7 @@ export async function DELETE(req: Request) {
       })
     );
   } catch (error) {
-    console.error("❌ [API] Error clearing chat history:", error);
+    console.error("Error clearing chat history:", error);
     return new NextResponse(
       JSON.stringify({
         type: 'error',
