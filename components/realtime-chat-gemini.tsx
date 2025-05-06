@@ -1058,7 +1058,7 @@ export function RealtimeChatGemini() {
       <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm rounded-t-xl">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-            G
+            B
           </div>
           <div>
             <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
