@@ -6,7 +6,13 @@ const nextConfig = {
   },
   images: {
     domains: ['npeajhtemjbcpnhsqknf.supabase.co']
-  }
+  },
+  reactStrictMode: true,
+  compiler: {
+    removeConsole: {
+      exclude: ['error'],
+    },
+  },
 };
 
 module.exports = nextConfig; 

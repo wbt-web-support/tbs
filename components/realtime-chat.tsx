@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -12,7 +12,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue, 
 } from "./ui/select";
 import {
   Dialog,
@@ -26,6 +26,8 @@ import { createClient } from "@/utils/supabase/client";
 import ReactMarkdown from 'react-markdown';
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import logger from "@/utils/log";
+import { debounce } from "lodash";
 
 interface Message {
   role: "user" | "assistant";
@@ -100,6 +102,15 @@ const CROSSFADE_DURATION = 0.015; // Increased from 0.005 for smoother transitio
 const MIN_BUFFER_SIZE = 10024; // Minimum buffer size for stable playback
 const MAX_BUFFER_SIZE = 8192; // Maximum buffer size to prevent delay
 
+// Disable all console messages in production
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+}
+
 export function RealtimeChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatbotInstructions, setChatbotInstructions] = useState<ChatbotInstruction[]>([]);
@@ -139,30 +150,17 @@ export function RealtimeChat() {
 
   const supabase = createClient();
 
+  // Add this to track if history has been loaded already
+  const hasLoadedHistory = useRef(false);
+
   useEffect(() => {
     const initializeSession = async () => {
       try {
         setError(null);
         setIsLoading(true);
         
-        // Get current user ID
         const { data: { user } } = await supabase.auth.getUser();
         const userId = user?.id;
-        
-        console.log("Initializing session for user:", userId);
-        
-        // Fetch chatbot instructions with all fields
-        const { data: instructions, error: instructionsError } = await supabase
-          .from('chatbot_instructions')
-          .select('content, content_type, url, updated_at, created_at, extraction_metadata')
-          .order('created_at', { ascending: true });
-
-        if (instructionsError) {
-          console.error("Error fetching chatbot instructions:", instructionsError);
-        } else if (instructions) {
-          setChatbotInstructions(instructions);
-          console.log("Loaded chatbot instructions:", instructions);
-        }
         
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -172,7 +170,7 @@ export function RealtimeChat() {
           body: JSON.stringify({
             model: "gpt-4o-mini-realtime-preview-2024-12-17",
             userId,
-            instructions: chatbotInstructions // Pass all instruction fields to the API
+            instructions: [], // Send an empty array for instructions
           }),
         });
 
@@ -182,10 +180,8 @@ export function RealtimeChat() {
         }
 
         const data = await response.json();
-        console.log("Session created:", data);
         setSessionToken(data.client_secret.value);
         
-        // Load chat history (loadChatHistory will handle setting default welcome message if needed)
         await loadChatHistory();
         
         setIsLoading(false);
@@ -193,7 +189,6 @@ export function RealtimeChat() {
         console.error("Error initializing session:", error);
         setError(error instanceof Error ? error.message : "Failed to create session");
         
-        // Set default welcome message if session initialization fails
         setMessages([{
           role: "assistant",
           content: "Welcome. How can I help you?",
@@ -220,7 +215,6 @@ export function RealtimeChat() {
     );
 
     ws.onopen = () => {
-      console.log("WebSocket connection established.");
       setIsConnected(true);
       setError(null);
 
@@ -238,12 +232,10 @@ export function RealtimeChat() {
           }
         }
       };
-      console.log("Configuring transcription session:", JSON.stringify(config, null, 2));
       ws.send(JSON.stringify(config));
     };
 
     ws.onclose = () => {
-      console.log("WebSocket connection closed.");
       setIsConnected(false);
     };
 
@@ -255,10 +247,8 @@ export function RealtimeChat() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as WebSocketMessage;
-        console.log("Received message:", JSON.stringify(data, null, 2));
         handleWebSocketMessage(data);
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
         setError("Error processing message");
       }
     };
@@ -352,20 +342,18 @@ export function RealtimeChat() {
     return content;
   };
 
-  const handleWebSocketMessage = (data: WebSocketMessage) => {
-    console.log("Handling WebSocket message of type:", data.type);
-
+  const handleWebSocketMessage = useCallback((data: WebSocketMessage) => {
+    // No logging at all, just process the message
+    
     if (data.type === "session.updated") {
-      console.log("Session updated successfully");
+      // No action needed
     } 
     else if (data.type === "input_audio_buffer.speech_started") {
-      console.log("Speech detected");
       // Add a placeholder message. We will find and update this later.
       setMessages((prev) => {
         // Avoid adding multiple placeholders if events fire rapidly
         const hasPlaceholder = prev.some(m => m.role === "user" && m.type === "audio" && m.content === "Transcribing..." && !m.isComplete);
         if (!hasPlaceholder) {
-          console.log("Adding 'Transcribing...' placeholder message.");
           const placeholderMessage: Message = {
             role: "user",
             content: "Transcribing...", 
@@ -374,7 +362,6 @@ export function RealtimeChat() {
           };
           return [...prev, placeholderMessage];
         } else {
-          console.log("'Transcribing...' placeholder already exists, skipping addition.");
           return prev;
         }
       });
@@ -483,6 +470,20 @@ export function RealtimeChat() {
           return [...prev, newMessage];
         }
       });
+      
+      // Once transcription is complete, request a response with audio
+      setTimeout(() => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          // Request a response with both text and audio
+          const responseEvent = {
+            type: "response.create",
+            response: {
+              modalities: ["text", "audio"]
+            }
+          };
+          wsRef.current.send(JSON.stringify(responseEvent));
+        }
+      }, 300); // Small delay to ensure transcription is fully processed
     } 
     // Handle incremental transcription updates
     else if (data.type === "conversation.item.input_audio_transcription.delta") {
@@ -613,21 +614,51 @@ export function RealtimeChat() {
       setError("Server error: " + (data as any).error?.message || "Unknown error");
       setIsLoading(false);
     }
-    // Add handler for response.audio.delta
+    // Add handler for response.audio.delta with better error handling
     else if (data.type === "response.audio.delta" && data.delta) {
-      console.log("Received audio delta, length:", data.delta.length);
+      if (!audioContext) {
+        console.error("AudioContext not initialized");
+        // Try to initialize audio context on demand
+        try {
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({
+            sampleRate: 24000,
+            latencyHint: 'interactive'
+          });
+          
+          const gain = ctx.createGain();
+          gain.connect(ctx.destination);
+          gain.gain.value = 0.8;
+          
+          setAudioContext(ctx);
+          setGainNode(gain);
+          
+          // Attempt to resume the context
+          if (ctx.state === 'suspended') {
+            ctx.resume().catch(err => {
+              console.error("Failed to resume new AudioContext:", err);
+            });
+          }
+        } catch (err) {
+          console.error("Error creating AudioContext on demand:", err);
+          return;
+        }
+      } else if (audioContext.state === 'suspended') {
+        // Try to resume the context
+        audioContext.resume().catch(err => {
+          console.error("Failed to resume AudioContext:", err);
+        });
+      }
       
-      if (!audioContext || !isAudioPlaybackEnabled) {
-        console.log("Audio playback disabled or context not ready");
+      if (!isAudioPlaybackEnabled) {
+        console.log("Audio playback disabled");
         return;
       }
 
       // Process the audio data
       processAudioData(data.delta).then((audioBuffer) => {
-        if (audioBuffer) {
+        if (audioBuffer && audioContext) {
           // Add to queue and try to play
           audioQueueRef.current.push(audioBuffer);
-          console.log("Added audio buffer to queue, length:", audioQueueRef.current.length);
           playQueuedAudio().catch(err => {
             console.error("Error playing queued audio:", err);
           });
@@ -640,45 +671,116 @@ export function RealtimeChat() {
     else if (data.type === "response.audio.done") {
         console.log("Audio response completed");
     }
+  }, [audioContext, isAudioPlaybackEnabled]);
+
+  // Function to create a new session optimized with RAG for the current query
+  const createSessionWithRAG = async (userQuery: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      
+      // Create a new session with the user's query for RAG context
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini-realtime-preview-2024-12-17",
+          userId,
+          instructions: [], // Use an empty array, NOT chatbotInstructions
+          userQuery // This is the key parameter for RAG search
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create RAG session");
+      }
+
+      const data = await response.json();
+      
+      // Return the token rather than setting it directly
+      return data.client_secret.value;
+    } catch (error) {
+      setError("Failed to optimize response for your query. Please try again.");
+      throw error;
+    }
   };
 
   const handleSendMessage = () => {
     if (!wsRef.current || !inputText.trim() || isLoading) return;
 
+    // Store the user's message to use for RAG context
+    const userQuery = inputText.trim();
+    const currentMessage = inputText;
+    
     setIsLoading(true);
     const userMessage: Message = {
       role: "user",
-      content: inputText,
+      content: currentMessage,
       type: "text",
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    const message = {
-      type: "conversation.item.create",
-      item: {
-        type: "message",
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: inputText,
-          },
-        ],
-      },
-    };
-    console.log("Sending text message:", message);
-    wsRef.current.send(JSON.stringify(message));
-
-    const responseEvent = {
-      type: "response.create",
-      response: {
-        modalities: ["text"]
-      }
-    };
-    console.log("Requesting response:", responseEvent);
-    wsRef.current.send(JSON.stringify(responseEvent));
-
+    // Clear the input immediately for better UX
     setInputText("");
+
+    // Create a new session with RAG context first to improve relevance
+    createSessionWithRAG(userQuery)
+      .then(newSessionToken => {
+        // Set the new token, which will trigger a new WebSocket connection 
+        // in the useEffect hook that depends on sessionToken
+        setSessionToken(newSessionToken);
+        
+        // We need to store the user's message to send once the WebSocket connects
+        // Create a one-time event listener for when the WebSocket connection is established
+        const waitForConnection = setInterval(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            clearInterval(waitForConnection);
+            
+            // Send the user's message after ensuring the connection is open
+            const message = {
+              type: "conversation.item.create",
+              item: {
+                type: "message",
+                role: "user",
+                content: [
+                  {
+                    type: "input_text",
+                    text: currentMessage,
+                  },
+                ],
+              },
+            };
+            wsRef.current.send(JSON.stringify(message));
+
+            // For text chat, only request text responses (no audio)
+            const responseEvent = {
+              type: "response.create",
+              response: {
+                modalities: ["text"]  // Text only for typed messages
+              }
+            };
+            wsRef.current.send(JSON.stringify(responseEvent));
+          }
+        }, 100);
+        
+        // Timeout after 10 seconds to prevent infinite waiting
+        setTimeout(() => {
+          clearInterval(waitForConnection);
+          if (wsRef.current?.readyState !== WebSocket.OPEN) {
+            console.error("WebSocket connection timed out");
+            setError("Connection failed. Please try again.");
+            setIsLoading(false);
+          }
+        }, 10000);
+      })
+      .catch(error => {
+        console.error("Error creating RAG session:", error);
+        setError("Failed to optimize response for your query. Please try again.");
+        setIsLoading(false);
+      });
   };
 
   const toggleCall = async () => {
@@ -694,7 +796,6 @@ export function RealtimeChat() {
             type: "input_audio_buffer.clear"
           };
           wsRef.current.send(JSON.stringify(clearMessage));
-          console.log("Cleared audio buffer after ending call");
         }
 
         // Reset loading state to ensure UI is ready for next recording
@@ -710,7 +811,38 @@ export function RealtimeChat() {
       
       try {
         setIsLoading(true);
-        console.log("Starting call mode");
+
+        // Make sure audio context is initialized and resumed
+        if (!audioContext) {
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({
+              sampleRate: 24000,
+              latencyHint: 'interactive'
+            });
+            
+            const gain = ctx.createGain();
+            gain.connect(ctx.destination);
+            gain.gain.value = 0.8; // Slightly reduce volume to prevent clipping
+            
+            setAudioContext(ctx);
+            setGainNode(gain);
+            
+            // Attempt to resume the context immediately
+            if (ctx.state === 'suspended') {
+              await ctx.resume();
+            }
+          } catch (err) {
+            console.error("Error initializing AudioContext:", err);
+            setError("Could not initialize audio playback");
+          }
+        } else if (audioContext.state === 'suspended') {
+          // Resume existing audio context if suspended
+          try {
+            await audioContext.resume();
+          } catch (err) {
+            console.error("Failed to resume AudioContext:", err);
+          }
+        }
 
         // Clear any existing audio buffer when starting a new call
         if (wsRef.current) {
@@ -718,8 +850,10 @@ export function RealtimeChat() {
             type: "input_audio_buffer.clear"
           };
           wsRef.current.send(JSON.stringify(clearMessage));
-          console.log("Cleared audio buffer before starting call");
         }
+
+        // Make sure audio playback is enabled
+        setIsAudioPlaybackEnabled(true);
 
         // Reset error state
         setError(null);
@@ -1130,16 +1264,20 @@ export function RealtimeChat() {
     }
   };
 
-  // Modify the loadChatHistory function
+  // Modify the loadChatHistory function to prevent duplicate calls
   const loadChatHistory = async () => {
+    if (hasLoadedHistory.current) {
+      logger.log('Chat history already loaded, skipping duplicate fetch');
+      return;
+    }
+    
     try {
-      console.log('Loading chat history...');
+      logger.log('Loading chat history...');
       setIsLoadingHistory(true);
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('User session in chat:', session, 'Error:', sessionError);
-
+      
       if (!session || !session.user) {
-        console.log('No user found in chat session');
+        logger.log('No user found in chat session');
         // Add a default welcome message if no user is found
         setMessages([
           {
@@ -1149,21 +1287,20 @@ export function RealtimeChat() {
             isComplete: true
           }
         ]);
+        hasLoadedHistory.current = true;
         return;
       }
 
-      console.log('Fetching chat history for user:', session.user.id);
       const { data, error } = await supabase
         .from('chat_history')
         .select('messages')
         .eq('user_id', session.user.id)
         .single();
 
-      console.log('Chat history response:', data, 'Error:', error);
       if (error) {
         if (error.code === 'PGRST116') {
           // No chat history found for this user, this is normal for new users
-          console.log('No chat history found for user, setting default welcome message');
+          logger.log('No chat history found for user, setting default welcome message');
           setMessages([
             {
               role: "assistant",
@@ -1190,8 +1327,9 @@ export function RealtimeChat() {
           }
         ]);
       }
+      hasLoadedHistory.current = true;
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      logger.error('Error loading chat history:', error);
       toast.error('Failed to load chat history');
       // Add a default welcome message if there's an error
       setMessages([
@@ -1206,44 +1344,60 @@ export function RealtimeChat() {
       setIsLoadingHistory(false);
     }
   };
+  
+  // Modify the saveHistory function to use debounce to prevent excessive saves
+  // Create a debounced version of saveChatHistory
+  const debouncedSaveChatHistory = useCallback(
+    debounce(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user) {
+          logger.log('No user found, skipping chat history save');
+          return;
+        }
 
-  // Modify the saveChatHistory function
-  const saveChatHistory = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
+        // Only save if there are messages
+        if (messages.length === 0) {
+          return;
+        }
+
+        // Use upsert to either insert a new record or update the existing one
+        const { error } = await supabase
+          .from('chat_history')
+          .upsert(
+            {
+              user_id: session.user.id,
+              messages: messages
+            },
+            {
+              onConflict: 'user_id'
+            }
+          );
+
+        if (error) {
+          logger.error('Error saving chat history:', error);
+        } else {
+          logger.log('Chat history saved successfully');
+        }
+      } catch (error) {
+        logger.error('Error saving chat history:', error);
+      }
+    }, 2000), // Wait 2 seconds before saving to reduce duplicate saves
+    [messages, supabase]
+  );
+  
+  // Update the save useEffect
+  useEffect(() => {
+    if (messages.length > 0) {
+      debouncedSaveChatHistory();
       
-      if (!session?.user) {
-        console.log('No user found, skipping chat history save');
-        return;
-      }
-
-      // Only save if there are messages
-      if (messages.length === 0) {
-        return;
-      }
-
-      // Use upsert to either insert a new record or update the existing one
-      const { error } = await supabase
-        .from('chat_history')
-        .upsert(
-          {
-            user_id: session.user.id,
-            messages: messages
-          },
-          {
-            onConflict: 'user_id'
-          }
-        );
-
-      if (error) {
-        console.error('Error saving chat history:', error);
-      } else {
-        console.log('Chat history saved successfully');
-      }
-    } catch (error) {
-      console.error('Error saving chat history:', error);
+      // Clean up the debounce function when the component unmounts
+      return () => {
+        debouncedSaveChatHistory.cancel();
+      };
     }
-  };
+  }, [messages, debouncedSaveChatHistory]);
 
   // Modify the clearChatHistory function
   const clearChatHistory = async () => {
@@ -1294,17 +1448,6 @@ export function RealtimeChat() {
       setIsClearingChat(false);
     }
   };
-
-  // Modify the useEffect for saving chat history
-  useEffect(() => {
-    if (messages.length > 0) {
-      // Add a small delay to prevent too frequent saves
-      const timeoutId = setTimeout(() => {
-        saveChatHistory();
-      }, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [messages]);
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 rounded-xl border max-w-6xl mx-auto w-full">
@@ -1362,7 +1505,7 @@ export function RealtimeChat() {
                 } animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
                 <div
-                  className={`max-w-[70%] rounded-xl px-4 py-2  flex items-center ${
+                  className={`max-w-[70%] rounded-xl px-4 py-2 flex items-center ${
                     message.role === "user"
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
                       : "bg-slate-100 text-gray-800 border flex flex-col items-baseline"
@@ -1381,39 +1524,49 @@ export function RealtimeChat() {
                   </div>
                   {message.role === "assistant" ? (
                     <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => <p className="text-sm leading-relaxed">{children}</p>,
-                          h1: ({ children }) => <h1 className="text-lg font-bold mt-2 mb-1">{children}</h1>,
-                          h2: ({ children }) => <h2 className="text-base font-bold mt-2 mb-1">{children}</h2>,
-                          h3: ({ children }) => <h3 className="text-sm font-bold mt-2 mb-1">{children}</h3>,
-                          ul: ({ children }) => <ul className="list-disc list-inside my-2">{children}</ul>,
-                          ol: ({ children }) => <ol className="list-decimal list-inside my-2">{children}</ol>,
-                          li: ({ children }) => <li className="text-sm">{children}</li>,
-                          code: ({ children }) => (
-                            <code className="bg-gray-200 rounded px-1 py-0.5 text-sm font-mono text-wrap">
-                              {children}
-                            </code>
-                          ),
-                          pre: ({ children }) => (
-                            <pre className=" rounded-xl p-4 my-2 overflow-x-auto w-full">
-                              {children}
-                            </pre>
-                          ),
-                          blockquote: ({ children }) => (
-                            <blockquote className="border-l-4 border-gray-300 pl-2 my-2 italic">
-                              {children}
-                            </blockquote>
-                          ),
-                          a: ({ href, children }) => (
-                            <a href={href} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                              {children}
-                            </a>
-                          ),
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
+                      {/* Only use ReactMarkdown when we detect markdown in the content */}
+                      {message.content.includes("```") || 
+                       message.content.includes("#") || 
+                       message.content.includes("*") || 
+                       message.content.includes("- ") || 
+                       message.content.includes("1. ") || 
+                       message.content.includes("|") ? (
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => <p className="text-sm leading-relaxed">{children}</p>,
+                            h1: ({ children }) => <h1 className="text-lg font-bold mt-2 mb-1">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-base font-bold mt-2 mb-1">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-sm font-bold mt-2 mb-1">{children}</h3>,
+                            ul: ({ children }) => <ul className="list-disc list-inside my-2">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal list-inside my-2">{children}</ol>,
+                            li: ({ children }) => <li className="text-sm">{children}</li>,
+                            code: ({ children }) => (
+                              <code className="bg-gray-200 rounded px-1 py-0.5 text-sm font-mono text-wrap">
+                                {children}
+                              </code>
+                            ),
+                            pre: ({ children }) => (
+                              <pre className="rounded-xl p-4 my-2 overflow-x-auto w-full">
+                                {children}
+                              </pre>
+                            ),
+                            blockquote: ({ children }) => (
+                              <blockquote className="border-l-4 border-gray-300 pl-2 my-2 italic">
+                                {children}
+                              </blockquote>
+                            ),
+                            a: ({ href, children }) => (
+                              <a href={href} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
+                      ) : (
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">
