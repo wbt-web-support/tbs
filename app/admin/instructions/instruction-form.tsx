@@ -209,10 +209,14 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
         url: url.trim() || null,
         is_active: isActive,
         priority: priority,
-        extraction_metadata: finalExtractedContent || null
+        extraction_metadata: finalExtractedContent || null,
+        embedding: null,
+        embedding_updated_at: null
       };
       
       console.log('Saving instruction data:', instructionData);
+      
+      let savedInstruction;
       
       if (instruction) {
         const { data, error } = await supabase
@@ -226,6 +230,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
           console.error('Update error:', error);
           throw error;
         }
+        savedInstruction = data;
         console.log('Update successful:', data);
         toast.success("Instruction updated successfully");
       } else {
@@ -239,8 +244,24 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
           console.error('Insert error:', error);
           throw error;
         }
+        savedInstruction = data;
         console.log('Insert successful:', data);
         toast.success("Instruction added successfully");
+      }
+
+      if (savedInstruction) {
+        try {
+          const { error: queueError } = await supabase.rpc('process_pending_embeddings');
+          if (queueError) {
+            console.error('Error triggering embedding generation:', queueError);
+            toast.warning('Instruction saved but embedding generation may be delayed');
+          } else {
+            toast.success('Embedding generation triggered successfully');
+          }
+        } catch (error) {
+          console.error('Error triggering embedding generation:', error);
+          toast.warning('Instruction saved but embedding generation may be delayed');
+        }
       }
       
       router.push('/admin/instructions');

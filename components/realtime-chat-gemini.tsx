@@ -1247,7 +1247,7 @@ export function RealtimeChatGemini() {
           </Button>
           
           {/* Call Mode Button */}
-          <Button
+          {/* <Button
             variant={isInCallMode ? "destructive" : "outline"}
             size="icon"
             onClick={toggleCallMode}
@@ -1256,7 +1256,7 @@ export function RealtimeChatGemini() {
             title={isInCallMode ? "End Call" : "Start Call"}
           >
             {isInCallMode ? <PhoneOff size={20} /> : <Phone size={20} />}
-          </Button>
+          </Button> */}
           
           <div className="flex-1 relative">
             <input
