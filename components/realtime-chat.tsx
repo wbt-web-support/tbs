@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
-import { Card } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import { Loading } from "./ui/loading";
 import { Mic, MicOff, Send, Settings, Phone, PhoneOff, Volume2, VolumeX } from "lucide-react";
 import { AudioVisualizer } from "./audio-visualizer";
 import {
@@ -111,6 +109,8 @@ if (process.env.NODE_ENV === 'production') {
   console.debug = () => {};
 }
 
+const REALTIME_MODEL_ID = "gpt-4o-mini-realtime-preview-2024-12-17";
+
 export function RealtimeChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatbotInstructions, setChatbotInstructions] = useState<ChatbotInstruction[]>([]);
@@ -168,7 +168,7 @@ export function RealtimeChat() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "gpt-4o-mini-realtime-preview-2024-12-17",
+            model: REALTIME_MODEL_ID,
             userId,
             instructions: [], // Send an empty array for instructions
           }),
@@ -471,19 +471,48 @@ export function RealtimeChat() {
         }
       });
       
-      // Once transcription is complete, request a response with audio
-      setTimeout(() => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          // Request a response with both text and audio
-          const responseEvent = {
-            type: "response.create",
-            response: {
-              modalities: ["text", "audio"]
-            }
-          };
-          wsRef.current.send(JSON.stringify(responseEvent));
-        }
-      }, 300); // Small delay to ensure transcription is fully processed
+      // Once transcription is complete, create a new session with RAG and then request a response
+      if (finalTranscript && finalTranscript !== "[Transcription empty or failed]") {
+        setIsLoading(true); // Use the main loading state
+        createSessionWithRAG(finalTranscript)
+          .then(newSessionToken => {
+            setSessionToken(newSessionToken);
+            
+            const waitForConnection = setInterval(() => {
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                clearInterval(waitForConnection);
+                
+                // Request a response with both text and audio
+                const responseEvent = {
+                  type: "response.create",
+                  response: {
+                    modalities: ["text", "audio"]
+                  }
+                };
+                wsRef.current.send(JSON.stringify(responseEvent));
+                // isLoading will be set to false by response.done or error handlers
+              }
+            }, 100);
+
+            setTimeout(() => {
+              clearInterval(waitForConnection);
+              if (wsRef.current?.readyState !== WebSocket.OPEN) {
+                console.error("WebSocket connection timed out after RAG for voice");
+                setError("Connection failed after processing voice. Please try again.");
+                setIsLoading(false);
+              }
+            }, 10000); // 10-second timeout
+          })
+          .catch(error => {
+            console.error("Error creating RAG session for voice input:", error);
+            setError("Failed to get an intelligent response for your voice query. Please try again.");
+            setIsLoading(false);
+          });
+      } else {
+        // If transcription failed or is empty, don't attempt RAG or response,
+        // and ensure loading state is reset if it was somehow set.
+        setIsLoading(false); 
+      }
     } 
     // Handle incremental transcription updates
     else if (data.type === "conversation.item.input_audio_transcription.delta") {
@@ -686,7 +715,7 @@ export function RealtimeChat() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini-realtime-preview-2024-12-17",
+          model: REALTIME_MODEL_ID,
           userId,
           instructions: [], // Use an empty array, NOT chatbotInstructions
           userQuery // This is the key parameter for RAG search
@@ -1495,7 +1524,7 @@ export function RealtimeChat() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-240px)]" ref={scrollAreaRef}>
+        <ScrollArea className="h-[calc(100vh-280px)]" ref={scrollAreaRef}>
           <div className="space-y-4 p-6 pt-12">
             {messages.map((message, index) => (
               <div
@@ -1504,88 +1533,91 @@ export function RealtimeChat() {
                   message.role === "user" ? "justify-end" : "justify-start"
                 } animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
-                <div
-                  className={`max-w-[70%] rounded-xl px-4 py-2 flex items-center ${
-                    message.role === "user"
-                      ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
-                      : "bg-slate-100 text-gray-800 border flex flex-col items-baseline"
-                  } ${message.type === "audio" && !message.isComplete ? "opacity-80" : ""}`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    {message.type === "audio" && !message.isComplete && (
-                      <span className="text-xs font-medium flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        voice message...
-                      </span>
-                    )}
-                  </div>
-                  {message.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                      {/* Only use ReactMarkdown when we detect markdown in the content */}
-                      {message.content.includes("```") || 
-                       message.content.includes("#") || 
-                       message.content.includes("*") || 
-                       message.content.includes("- ") || 
-                       message.content.includes("1. ") || 
-                       message.content.includes("|") ? (
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }) => <p className="text-sm leading-relaxed">{children}</p>,
-                            h1: ({ children }) => <h1 className="text-lg font-bold mt-2 mb-1">{children}</h1>,
-                            h2: ({ children }) => <h2 className="text-base font-bold mt-2 mb-1">{children}</h2>,
-                            h3: ({ children }) => <h3 className="text-sm font-bold mt-2 mb-1">{children}</h3>,
-                            ul: ({ children }) => <ul className="list-disc list-inside my-2">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal list-inside my-2">{children}</ol>,
-                            li: ({ children }) => <li className="text-sm">{children}</li>,
-                            code: ({ children }) => (
-                              <code className="bg-gray-200 rounded px-1 py-0.5 text-sm font-mono text-wrap">
-                                {children}
-                              </code>
-                            ),
-                            pre: ({ children }) => (
-                              <pre className="rounded-xl p-4 my-2 overflow-x-auto w-full">
-                                {children}
-                              </pre>
-                            ),
-                            blockquote: ({ children }) => (
-                              <blockquote className="border-l-4 border-gray-300 pl-2 my-2 italic">
-                                {children}
-                              </blockquote>
-                            ),
-                            a: ({ href, children }) => (
-                              <a href={href} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                                {children}
-                              </a>
-                            ),
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
+                <div className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"} w-full max-w-[75%] sm:max-w-[90%]`}>
+                  <div
+                    className={`rounded-2xl px-4 py-2 sm:px-5 sm:py-3 flex flex-col w-fit break-words ${
+                      message.role === "user"
+                        ? message.type === "audio" 
+                          ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                          : "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
+                    } ${message.type === "audio" && !message.isComplete ? "opacity-80" : ""}`}
+                  >
+                    <div className="w-full">
+                      {message.type === "audio" && !message.isComplete && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium flex items-center gap-2">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            voice message...
+                          </span>
+                        </div>
+                      )}
+                      {message.role === "assistant" ? (
+                        <div className={`prose prose-sm max-w-none text-gray-800 !text-[15px] sm:!text-[16px]`}>
+                          <ReactMarkdown
+                            components={{
+                              h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
+                              h2: ({children}) => <h2 className="text-lg font-bold mb-2 mt-4">{children}</h2>,
+                              h3: ({children}) => <h3 className="text-base font-bold mb-1 mt-3">{children}</h3>,
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              ul: ({children}) => <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>,
+                              ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>,
+                              li: ({children}) => <li className="mb-1">{children}</li>,
+                              a: ({ href, children }) => (
+                                <a href={href} className={`${message.role === "user" ? "text-blue-100" : "text-blue-500"} hover:underline`} target="_blank" rel="noopener noreferrer">
+                                  {children}
+                                </a>
+                              ),
+                              code: ({ children }) => (
+                                <code className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded px-1 py-0.5 text-sm`}>
+                                  {children}
+                                </code>
+                              ),
+                              pre: ({ children }) => (
+                                <pre className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded p-2 text-sm overflow-x-auto my-2`}>
+                                  {children}
+                                </pre>
+                              ),
+                              blockquote: ({ children }) => (
+                                <blockquote className={`border-l-2 ${message.role === "user" ? "border-blue-300" : "border-gray-300"} pl-3 italic my-2`}>
+                                  {children}
+                                </blockquote>
+                              ),
+                              hr: () => <hr className="my-3 border-t border-gray-200" />
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
                       ) : (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap mb-0">
+                          {message.type === "audio" && !message.isComplete ? "" : message.content}
+                        </p>
                       )}
                     </div>
-                  ) : (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {message.type === "audio" && !message.isComplete ? "" : message.content}
-                    </p>
+                  </div>
+                  {message.type === "audio" && message.isComplete && (
+                    <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${message.role === "user" ? "self-end" : "self-start"}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" x2="12" y1="19" y2="22"></line>
+                      </svg>
+                      <span>Voice Message</span>
+                    </div>
                   )}
                 </div>
               </div>
             ))}
             {isLoading && (
-              <div className="max-w-[70%] flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="rounded-xl px-4 py-2 bg-slate-100 border ">
-                  <div className="flex items-center gap-2">
-                    <div className="flex space-x-1">
-                      <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                      <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                      <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    </div>
-                    <span className="text-sm text-gray-500">Bot is typing</span>
+              <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100">
+                  <div className="flex flex-col gap-1.5 w-36">
+                    <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
+                    <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
                   </div>
                 </div>
               </div>

@@ -196,7 +196,7 @@ User Information:
     }
 
     // Combine instructions with user context
-    const generalInstructions = `You are a helpful assistant for Trades Business School. Be respectful, concise, and answer based on the knowledge you have about the business and its systems. If asked about the Trades Business System or TBS, provide accurate information based on the context provided.`;
+    const generalInstructions = `You are a helpful assistant for Trades Business School. Be respectful, concise, and answer based on the knowledge you have about the business and its systems. If asked about the Trades Business System or TBS, provide accurate information based on the context provided. if you don't find the info in the provided context, say you don't know. `;
     
     // Build the final instructions
     const fullInstructions = [
