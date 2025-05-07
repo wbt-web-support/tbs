@@ -251,16 +251,31 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
 
       if (savedInstruction) {
         try {
-          const { error: queueError } = await supabase.rpc('process_pending_embeddings');
-          if (queueError) {
-            console.error('Error triggering embedding generation:', queueError);
+          setIsProcessing(true);
+          // Call the Edge Function endpoint to trigger embedding
+          const response = await fetch(
+            'https://npeajhtemjbcpnhsqknf.supabase.co/functions/v1/process-embeddings',
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ manual: true }),
+            }
+          );
+          if (!response.ok) {
+            const error = await response.json();
+            console.error('Error triggering embedding function:', error);
             toast.warning('Instruction saved but embedding generation may be delayed');
           } else {
             toast.success('Embedding generation triggered successfully');
           }
         } catch (error) {
-          console.error('Error triggering embedding generation:', error);
+          console.error('Error triggering embedding function:', error);
           toast.warning('Instruction saved but embedding generation may be delayed');
+        } finally {
+          setIsProcessing(false);
         }
       }
       
