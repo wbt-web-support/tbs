@@ -132,6 +132,17 @@ BEGIN
     INSERT INTO embedding_queue (instruction_id, title, content, created_at)
     VALUES (NEW.id, NEW.title, NEW.content, now());
     
+    -- Call the Edge Function to process the queue immediately
+    PERFORM
+      net.http_post(
+        url := current_setting('app.settings.edge_function_url') || '/process-embeddings',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key')
+        ),
+        body := jsonb_build_object('manual', true)
+      );
+    
     RETURN NEW;
   END IF;
   
@@ -143,6 +154,17 @@ BEGIN
     -- Add to queue after update (in AFTER trigger)
     INSERT INTO embedding_queue (instruction_id, title, content, created_at)
     VALUES (NEW.id, NEW.title, NEW.content, now());
+    
+    -- Call the Edge Function to process the queue immediately
+    PERFORM
+      net.http_post(
+        url := current_setting('app.settings.edge_function_url') || '/process-embeddings',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key')
+        ),
+        body := jsonb_build_object('manual', true)
+      );
   END IF;
   
   RETURN NEW;
