@@ -60,6 +60,7 @@ export function RealtimeChatGemini() {
   const silenceStartTimeRef = useRef<number | null>(null);
   const continuousAudioChunksRef = useRef<Blob[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [useStreaming, setUseStreaming] = useState(false);
   
   const supabase = createClient();
 
@@ -297,17 +298,53 @@ export function RealtimeChatGemini() {
           history: messages.map(msg => ({
             role: msg.role === "assistant" ? "model" : "user",
             parts: [{ text: msg.content }]
-          }))
+          })),
+          useStreaming: useStreaming
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        console.error(`API error: ${response.status} ${response.statusText}`);
+        try {
+          // Try to parse the error response as JSON
+          const errorData = await response.json();
+          console.error('API error response:', errorData);
+          
+          let errorMessage = `Failed to send message: ${response.status} ${response.statusText}`;
+          if (errorData.error) {
+            errorMessage += ` - ${errorData.error}`;
+          }
+          if (errorData.details) {
+            console.error('Error details:', errorData.details);
+            // If details is an object, try to extract useful info
+            if (typeof errorData.details === 'object') {
+              if (errorData.details.message) {
+                errorMessage += `: ${errorData.details.message}`;
+              }
+            }
+          }
+          
+          throw new Error(errorMessage);
+        } catch (parseError) {
+          // If we can't parse JSON, fall back to reading text
+          const errorText = await response.text().catch(e => 'Failed to read error response');
+          console.error('Error response text:', errorText);
+          throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
+        }
       }
 
       if (!response.body) {
         throw new Error('No response body');
       }
+
+      // Add debug logging for response status
+      console.log('Response status:', response.status, response.statusText);
+      // Log headers in a more compatible way
+      const headerObj: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headerObj[key] = value;
+      });
+      console.log('Response headers:', headerObj);
 
       // Hide typing indicator
       setShowBotTyping(false);
@@ -318,94 +355,241 @@ export function RealtimeChatGemini() {
         content: "",
         type: "text",
         isComplete: false,
-        isStreaming: true
+        isStreaming: useStreaming
       }]);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let lastUpdate = Date.now();
-      const UPDATE_INTERVAL = 50; // Update UI every 50ms
+      // Processing depends on whether streaming is enabled
+      if (useStreaming && response.body) {
+        // Process the streaming response with improved error handling
+        try {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let lastUpdate = Date.now();
+          const UPDATE_INTERVAL = 50; // Update UI every 50ms
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        buffer += chunk;
-        
-        // Process complete JSON objects
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
-
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line);
-
-            if (data.type === 'stream-chunk') {
-              currentStreamingMessageRef.current += data.content;
-              
-              // Throttle UI updates to every 50ms
-              const now = Date.now();
-              if (now - lastUpdate >= UPDATE_INTERVAL) {
-                setMessages(prev => {
-                  const updated = [...prev];
-                  const lastIdx = updated.length - 1;
-                  if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
-                    updated[lastIdx] = {
-                      ...updated[lastIdx],
-                      content: currentStreamingMessageRef.current
-                    };
-                  }
-                  return updated;
-                });
-                lastUpdate = now;
-              }
-            } else if (data.type === 'stream-complete') {
-              // Always update on completion
-              setMessages(prev => {
-                const updated = [...prev];
-                const lastIdx = updated.length - 1;
-                if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
-                  updated[lastIdx] = {
-                    ...updated[lastIdx],
-                    content: data.content,
-                    isComplete: true,
-                    isStreaming: false
-                  };
-                }
-                return updated;
-              });
-            } else if (data.type === 'tts-audio') {
-              const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
-              console.log("Received TTS audio for voice message response", audioUrl.substring(0, 50) + "...");
-              setTtsAudioUrl(audioUrl);
-              
-              if (audioRef.current) {
-                console.log("Setting audio source and preparing to play");
-                audioRef.current.src = audioUrl;
-                audioRef.current.oncanplay = () => {
-                  console.log("Audio can play now, auto-playing");
-                  audioRef.current?.play().catch(e => {
-                    console.error("Auto-play error:", e);
-                    // Audio playback might be blocked by browser policy, show a message or indicator
-                  });
-                };
-              }
-            } else if (data.type === 'error') {
-              throw new Error(data.error);
+          while (true) {
+            let readResult;
+            try {
+              readResult = await reader.read();
+            } catch (readError) {
+              console.error('Error reading from stream:', readError);
+              break;
             }
-          } catch (error) {
-            console.error('Error processing chunk:', error);
+            
+            const { done, value } = readResult;
+            if (done) break;
+
+            let chunk;
+            try {
+              chunk = decoder.decode(value);
+              console.log('Raw chunk data (sample):', chunk.substring(0, Math.min(100, chunk.length)));
+            } catch (decodeError) {
+              console.error('Error decoding chunk:', decodeError);
+              continue;
+            }
+            
+            buffer += chunk;
+            
+            // Process complete JSON objects
+            try {
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
+
+              for (const line of lines) {
+                try {
+                  if (!line.trim()) continue; // Skip empty lines
+                  
+                  let data;
+                  try {
+                    data = JSON.parse(line);
+                    console.log('Parsed data type:', data?.type);
+                  } catch (parseError) {
+                    console.error('Failed to parse JSON response:', parseError, 'Raw line:', line);
+                    continue; // Skip this line and try the next one
+                  }
+
+                  if (!data || typeof data !== 'object') {
+                    console.error('Invalid data format received, expected object:', data);
+                    continue;
+                  }
+
+                  if (data.type === 'stream-chunk') {
+                    try {
+                      currentStreamingMessageRef.current += data.content || '';
+                      
+                      // Throttle UI updates to every 50ms
+                      const now = Date.now();
+                      if (now - lastUpdate >= UPDATE_INTERVAL) {
+                        setMessages(prev => {
+                          try {
+                            const updated = [...prev];
+                            const lastIdx = updated.length - 1;
+                            if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                              updated[lastIdx] = {
+                                ...updated[lastIdx],
+                                content: currentStreamingMessageRef.current
+                              };
+                            }
+                            return updated;
+                          } catch (stateError) {
+                            console.error('Error updating message state:', stateError);
+                            return prev; // Return unchanged state on error
+                          }
+                        });
+                        lastUpdate = now;
+                      }
+                    } catch (chunkError) {
+                      console.error('Error processing stream chunk:', chunkError);
+                    }
+                  } else if (data.type === 'stream-complete') {
+                    // Always update on completion
+                    try {
+                      setMessages(prev => {
+                        const updated = [...prev];
+                        const lastIdx = updated.length - 1;
+                        if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+                          updated[lastIdx] = {
+                            ...updated[lastIdx],
+                            content: data.content,
+                            isComplete: true,
+                            isStreaming: false
+                          };
+                        }
+                        return updated;
+                      });
+                    } catch (completeError) {
+                      console.error('Error processing stream complete:', completeError);
+                    }
+                  } else if (data.type === 'tts-audio') {
+                    try {
+                      const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
+                      console.log("Received TTS audio for voice message response", audioUrl.substring(0, 50) + "...");
+                      setTtsAudioUrl(audioUrl);
+                      
+                      if (audioRef.current) {
+                        console.log("Setting audio source and preparing to play");
+                        audioRef.current.src = audioUrl;
+                        audioRef.current.oncanplay = () => {
+                          console.log("Audio can play now, auto-playing");
+                          audioRef.current?.play().catch(e => {
+                            console.error("Auto-play error:", e);
+                          });
+                        };
+                      }
+                    } catch (audioError) {
+                      console.error('Error processing TTS audio:', audioError);
+                    }
+                  } else if (data.type === 'error') {
+                    throw new Error(data.error || 'Unknown API error');
+                  } else {
+                    console.warn('Unknown data type received:', data.type);
+                  }
+                } catch (error) {
+                  console.error('Error processing chunk:', error);
+                }
+              }
+            } catch (bufferError) {
+              console.error('Error processing buffer:', bufferError);
+            }
           }
+        } catch (streamError) {
+          console.error("Error processing response stream:", streamError);
+          setError(streamError instanceof Error ? streamError.message : "Failed to process response");
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: "Sorry, I encountered an error processing the response. Please try again.",
+                isComplete: true,
+                isStreaming: false
+              };
+            } else {
+              updated.push({
+                role: "assistant",
+                content: "Sorry, I encountered an error processing the response. Please try again.",
+                type: "text",
+                isComplete: true
+              });
+            }
+            return updated;
+          });
+        }
+      } else {
+        // Non-streaming mode: get the full response at once
+        try {
+          const data = await response.json();
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: data.content || "I don't have a response for that.",
+                isComplete: true,
+                isStreaming: false
+              };
+            }
+            return updated;
+          });
+        } catch (jsonError) {
+          console.error("Error parsing JSON response:", jsonError);
+          setError("Failed to parse response");
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: "Sorry, I couldn't process the response correctly.",
+                isComplete: true,
+                isStreaming: false
+              };
+            }
+            return updated;
+          });
         }
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      setError(error instanceof Error ? error.message : "Failed to send message");
+      // Make sure the showBotTyping is hidden when there's an error
+      setShowBotTyping(false);
+      
+      // If we were using streaming and got an error, try again with non-streaming
+      if (useStreaming && !(error instanceof Error && error.message?.includes('No user session'))) {
+        console.log("Streaming failed, falling back to non-streaming mode");
+        setUseStreaming(false);
+        
+        // Show fallback message to the user
+        setError("Streaming mode failed. Automatically switching to non-streaming mode. Please try sending your message again.");
+        
+        // Remove the failed assistant message if it exists
+        setMessages(prev => {
+          const updated = [...prev];
+          const lastIdx = updated.length - 1;
+          if (lastIdx >= 0 && updated[lastIdx].role === "assistant" && !updated[lastIdx].isComplete) {
+            return updated.slice(0, -1);
+          }
+          return updated;
+        });
+        
+        return; // Don't add the error message to the chat
+      }
+      
+      // Add a more descriptive error message
+      let errorMessage = "Failed to send message";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error && typeof error === 'object' && 'toString' in error) {
+        errorMessage = error.toString();
+      }
+      
+      setError(errorMessage);
       setMessages(prev => [...prev, { 
         role: "assistant", 
-        content: "Sorry, I encountered an error.", 
+        content: "Sorry, I encountered an error: " + errorMessage, 
         type: "text",
         isComplete: true
       }]);
@@ -1058,7 +1242,7 @@ export function RealtimeChatGemini() {
       <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm rounded-t-xl">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-          🤖
+          C
           </div>
           <div>
             <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
@@ -1071,37 +1255,63 @@ export function RealtimeChatGemini() {
             </div>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={clearChatHistory}
-          disabled={isClearingChat || isLoading}
-          className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
-        >
-          {isClearingChat ? (
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-              <span>Clearing...</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
-                <path d="M3 6h18"></path>
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                <line x1="10" x2="10" y1="11" y2="17"></line>
-                <line x1="14" x2="14" y1="11" y2="17"></line>
-              </svg>
-              <span>Clear Chat</span>
-            </div>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Add streaming toggle */}
+          <div className="flex items-center gap-1 mr-2 hidden">
+            <label className="text-xs text-gray-500">
+              <input 
+                type="checkbox" 
+                checked={useStreaming} 
+                onChange={() => setUseStreaming(!useStreaming)} 
+                className="mr-1"
+              />
+              Streaming
+            </label>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearChatHistory}
+            disabled={isClearingChat || isLoading}
+            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
+          >
+            {isClearingChat ? (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                <span>Clearing...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                  <line x1="10" x2="10" y1="11" y2="17"></line>
+                  <line x1="14" x2="14" y1="11" y2="17"></line>
+                </svg>
+                <span>Clear Chat</span>
+              </div>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Chat Area */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-[calc(100vh-280px)] sm:h-[calc(100vh-280px)]" ref={scrollAreaRef}>
           <div className="space-y-6 p-6 pt-12">
+            {/* Error display with suggestion to disable streaming */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-800 flex flex-col">
+                <div className="font-medium mb-1">Error: {error}</div>
+                {error.includes("process message") && (
+                  <div className="text-sm text-red-700">
+                    Try <strong>unchecking the "Streaming" option</strong> above to fix this issue.
+                  </div>
+                )}
+              </div>
+            )}
+            
             {messages.map((message, index) => (
               <div
                 key={index}

@@ -324,10 +324,7 @@ export default function InstructionsClientContent({
                     <SelectItem value="pdf">PDF</SelectItem>
                     <SelectItem value="doc">Document</SelectItem>
                     <SelectItem value="link">Link</SelectItem>
-                    <SelectItem value="youtube">YouTube</SelectItem>
-                    <SelectItem value="loom">Loom</SelectItem>
-                    <SelectItem value="vimeo">Vimeo</SelectItem>
-                    <SelectItem value="faq">FAQ</SelectItem>
+
                   </SelectContent>
                 </Select>
               </div>
@@ -478,10 +475,7 @@ export default function InstructionsClientContent({
                     <SelectItem value="pdf">PDF</SelectItem>
                     <SelectItem value="doc">Document</SelectItem>
                     <SelectItem value="link">Link</SelectItem>
-                    <SelectItem value="youtube">YouTube</SelectItem>
-                    <SelectItem value="loom">Loom</SelectItem>
-                    <SelectItem value="vimeo">Vimeo</SelectItem>
-                    <SelectItem value="faq">FAQ</SelectItem>
+
                   </SelectContent>
                 </Select>
               </div>
