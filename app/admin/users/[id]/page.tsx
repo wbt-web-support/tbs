@@ -1282,13 +1282,17 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                             {/* Critical Accountabilities */}
                             <div className="space-y-1">
                               <p className="text-sm font-medium">Critical Accountabilities</p>
-                              {!member.criticalaccountabilities || member.criticalaccountabilities.length === 0 ? (
+                              {!member.criticalaccountabilities || 
+                               typeof member.criticalaccountabilities === 'string' ||
+                               member.criticalaccountabilities.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No accountabilities defined</p>
                               ) : (
                                 <ul className="list-disc list-inside space-y-1">
-                                  {member.criticalaccountabilities.map((item, index) => (
+                                  {Array.isArray(member.criticalaccountabilities) && member.criticalaccountabilities.map((item: any, index: number) => (
                                     <li key={index} className="text-sm">
-                                      {typeof item === 'string' ? item : item.text || item.accountability || item.item || JSON.stringify(item)}
+                                      {typeof item === 'string' ? item : 
+                                       typeof item === 'object' ? (item.text || item.accountability || item.item || item.value || JSON.stringify(item)) : 
+                                       String(item)}
                                     </li>
                                   ))}
                                 </ul>
@@ -1298,13 +1302,17 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                             {/* Playbooks Owned */}
                             <div className="space-y-1">
                               <p className="text-sm font-medium">Playbooks Owned</p>
-                              {!member.playbooksowned || member.playbooksowned.length === 0 ? (
+                              {!member.playbooksowned || 
+                               typeof member.playbooksowned === 'string' ||
+                               member.playbooksowned.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No playbooks assigned</p>
                               ) : (
                                 <div className="flex flex-wrap gap-2">
-                                  {member.playbooksowned.map((playbook, index) => (
+                                  {Array.isArray(member.playbooksowned) && member.playbooksowned.map((playbook: any, index: number) => (
                                     <Badge key={index} variant="outline" className="bg-blue-50">
-                                      {typeof playbook === 'string' ? playbook : playbook.name || playbook.title || playbook.playbookname || JSON.stringify(playbook)}
+                                      {typeof playbook === 'string' ? playbook : 
+                                       typeof playbook === 'object' ? (playbook.name || playbook.title || playbook.playbookname || playbook.value || JSON.stringify(playbook)) : 
+                                       String(playbook)}
                                     </Badge>
                                   ))}
                                 </div>
@@ -1449,13 +1457,17 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                             {/* Triggering Events */}
                             <div className="space-y-2">
                               <h5 className="text-sm font-medium">Triggering Events</h5>
-                              {!machine.triggeringevents || machine.triggeringevents.length === 0 ? (
+                              {!machine.triggeringevents || 
+                               typeof machine.triggeringevents === 'string' ||
+                               machine.triggeringevents.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No triggering events defined</p>
                               ) : (
                                 <div className="space-y-2">
-                                  {machine.triggeringevents.map((event, index) => (
+                                  {Array.isArray(machine.triggeringevents) && machine.triggeringevents.map((event: any, index: number) => (
                                     <Badge key={index} variant="outline" className="mr-2 mb-2">
-                                      {typeof event === 'string' ? event : event.text || event.event || event.name || JSON.stringify(event)}
+                                      {typeof event === 'string' ? event : 
+                                       typeof event === 'object' ? (event.text || event.event || event.name || event.value || JSON.stringify(event)) : 
+                                       String(event)}
                                     </Badge>
                                   ))}
                                 </div>
@@ -1465,13 +1477,17 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                             {/* Ending Event */}
                             <div className="space-y-2">
                               <h5 className="text-sm font-medium">Ending Event</h5>
-                              {!machine.endingevent || machine.endingevent.length === 0 ? (
+                              {!machine.endingevent || 
+                               typeof machine.endingevent === 'string' ||
+                               machine.endingevent.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No ending event defined</p>
                               ) : (
                                 <div className="space-y-2">
-                                  {machine.endingevent.map((event, index) => (
+                                  {Array.isArray(machine.endingevent) && machine.endingevent.map((event: any, index: number) => (
                                     <Badge key={index} variant="outline" className="bg-blue-50 mr-2 mb-2">
-                                      {typeof event === 'string' ? event : event.text || event.event || event.name || JSON.stringify(event)}
+                                      {typeof event === 'string' ? event : 
+                                       typeof event === 'object' ? (event.text || event.event || event.name || event.value || JSON.stringify(event)) : 
+                                       String(event)}
                                     </Badge>
                                   ))}
                                 </div>
@@ -1481,13 +1497,17 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                             {/* Actions & Activities */}
                             <div className="space-y-2">
                               <h5 className="text-sm font-medium">Actions & Activities</h5>
-                              {!machine.actionsactivities || machine.actionsactivities.length === 0 ? (
+                              {!machine.actionsactivities || 
+                               typeof machine.actionsactivities === 'string' ||
+                               machine.actionsactivities.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No actions defined</p>
                               ) : (
                                 <ul className="list-disc list-inside space-y-1">
-                                  {machine.actionsactivities.map((action, index) => (
+                                  {Array.isArray(machine.actionsactivities) && machine.actionsactivities.map((action: any, index: number) => (
                                     <li key={index} className="text-sm">
-                                      {typeof action === 'string' ? action : action.text || action.action || action.activity || action.name || JSON.stringify(action)}
+                                      {typeof action === 'string' ? action : 
+                                       typeof action === 'object' ? (action.text || action.action || action.activity || action.name || action.value || JSON.stringify(action)) : 
+                                       String(action)}
                                     </li>
                                   ))}
                                 </ul>
@@ -1978,13 +1998,101 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                           <h4 className="font-medium">Company Information</h4>
                           <Card>
                             <div className="p-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                {Object.entries(userDetails.triagePlanner.company_info || {}).map(([key, value]) => (
-                                  <div key={key} className="space-y-1">
-                                    <p className="text-sm font-medium capitalize">{key.replace(/_/g, ' ')}</p>
-                                    <p className="text-sm">{typeof value === 'object' ? JSON.stringify(value) : String(value || "-")}</p>
-                                  </div>
-                                ))}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {Object.entries(userDetails.triagePlanner.company_info || {}).map(([key, value]) => {
+                                  // Parse the value depending on the key
+                                  const parseValueFromObject = (obj: any): { current: string; target?: string } => {
+                                    // If value is already a string, just return it
+                                    if (typeof obj !== 'object' || obj === null) {
+                                      return { current: String(obj || '-') };
+                                    }
+                                    
+                                    // Try to extract key-value pairs from the object
+                                    const strValue = JSON.stringify(obj);
+                                    let result: { current: string; target?: string } = { current: '-' };
+                                    
+                                    // Handle common patterns like "target:X,current:Y"
+                                    if (strValue.includes('target') && strValue.includes('current')) {
+                                      const current = (obj.current !== undefined) ? obj.current : 
+                                        strValue.match(/current:([^,}]+)/i)?.[1] || '-';
+                                      const target = (obj.target !== undefined) ? obj.target : 
+                                        strValue.match(/target:([^,}]+)/i)?.[1] || '-';
+                                      result = { current: String(current), target: String(target) };
+                                    } else {
+                                      // Use the first property as the value
+                                      result = { current: obj.value || obj.text || obj.name || strValue.replace(/[{}"]/g, '') };
+                                    }
+                                    
+                                    return result;
+                                  };
+                                  
+                                  const parsedValue = parseValueFromObject(value);
+                                  const hasTarget = parsedValue.target !== undefined;
+                                  
+                                  // Format the values based on the key
+                                  const formatValue = (val: string, keyName: string): string => {
+                                    if (val === '-') return '-';
+                                    
+                                    if (keyName.toLowerCase().includes('revenue') || 
+                                        keyName.toLowerCase().includes('income') || 
+                                        keyName.toLowerCase().includes('sale')) {
+                                      // Format currency values
+                                      return val.startsWith('$') ? val : 
+                                        val.startsWith('£') ? val : 
+                                        `£${val}`;
+                                    } else if (keyName.toLowerCase().includes('margin') || 
+                                              keyName.toLowerCase().includes('rate') || 
+                                              keyName.toLowerCase().includes('percentage')) {
+                                      // Format percentage values
+                                      return val.endsWith('%') ? val : `${val}%`;
+                                    }
+                                    
+                                    return val;
+                                  };
+                                  
+                                  const formattedCurrent = formatValue(parsedValue.current, key);
+                                  const formattedTarget = parsedValue.target ? formatValue(parsedValue.target, key) : undefined;
+                                  
+                                  return (
+                                    <div key={key} className="border rounded-md p-4 bg-muted/10">
+                                      <p className="text-sm font-medium capitalize mb-2 text-blue-700">
+                                        {key.replace(/_/g, ' ')}
+                                      </p>
+                                      
+                                      {hasTarget ? (
+                                        <div className="space-y-2">
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-xs text-muted-foreground">Current</span>
+                                            <span className="font-semibold text-lg">{formattedCurrent}</span>
+                                          </div>
+                                          
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-xs text-muted-foreground">Target</span>
+                                            <span className="font-semibold text-lg text-blue-600">{formattedTarget}</span>
+                                          </div>
+                                          
+                                          {/* Progress visualization if we can calculate percentage */}
+                                          {key.toLowerCase().includes('revenue') && 
+                                           parseFloat(parsedValue.current.replace(/[^\d.-]/g, '')) > 0 && 
+                                           parseFloat(parsedValue.target?.replace(/[^\d.-]/g, '') || '0') > 0 && (
+                                            <div className="mt-2">
+                                              <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                                <div 
+                                                  className="h-full bg-blue-500 transition-all duration-500" 
+                                                  style={{ 
+                                                    width: `${Math.min(100, (parseFloat(parsedValue.current.replace(/[^\d.-]/g, '')) / parseFloat(parsedValue.target?.replace(/[^\d.-]/g, '') || '1')) * 100)}%` 
+                                                  }}
+                                                />
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <p className="font-semibold text-lg">{formattedCurrent}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           </Card>

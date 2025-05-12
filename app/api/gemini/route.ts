@@ -99,10 +99,7 @@ async function getUserData(userId: string) {
       'meeting_rhythm_planner',
       'playbooks',
       'quarterly_sprint_canvas',
-      'triage_planner',
-      'user_checklist_claims',
-      'user_benefits_claims',
-      'user_timeline_claims',
+      'triage_planner'
     ];
     
     console.log('🔄 [Supabase] Fetching data from additional tables');
@@ -314,10 +311,7 @@ function prepareUserContext(userData: any) {
     'meeting_rhythm_planner',
     'playbooks',
     'quarterly_sprint_canvas',
-    'triage_planner',
-    'user_checklist_claims',
-    'user_benefits_claims',
-    'user_timeline_claims',
+    'triage_planner'
   ];
   
   if (userData.additionalData) {
@@ -537,55 +531,25 @@ export async function POST(req: Request) {
         // Non-streaming response
         try {
           console.log('🔄 [API] Generating non-streaming response');
-          
-          // Log the contents being sent to the model
-          console.log('🔄 [API] Request contents:', JSON.stringify({
-            contentsLength: contents.length,
-            generationConfig,
-            modelName: MODEL_NAME
-          }));
-          
-          try {
-            const result = await model.generateContent({
-              contents,
-              generationConfig
-            });
+          const result = await model.generateContent({
+            contents,
+            generationConfig
+          });
 
-            const fullText = result.response.text();
-            console.log('✅ [API] Successfully generated response, length:', fullText.length);
-            
-            // Save assistant's response to history but don't invalidate cache
-            await saveMessageToHistory(userId, fullText, 'assistant');
-            
-            return NextResponse.json({ 
-              type: 'chat_response',
-              content: fullText
-            });
-          } catch (modelError) {
-            console.error('❌ [API] Error generating content with Gemini model:', modelError);
-            // Check for specific Google Gemini API error types
-            const errorDetails = modelError instanceof Error ? 
-              {
-                name: modelError.name,
-                message: modelError.message,
-                stack: modelError.stack?.split('\n').slice(0, 3).join('\n')
-              } : 
-              String(modelError);
-              
-            console.error('❌ [API] Error details:', JSON.stringify(errorDetails));
-            
-            // Return a more descriptive error
-            return NextResponse.json({ 
-              type: 'error', 
-              error: 'Failed to generate response from Gemini API',
-              details: errorDetails
-            }, { status: 500 });
-          }
+          const fullText = result.response.text();
+          
+          // Save assistant's response to history but don't invalidate cache
+          await saveMessageToHistory(userId, fullText, 'assistant');
+          
+          return NextResponse.json({ 
+            type: 'chat_response',
+            content: fullText
+          });
         } catch (error) {
-          console.error("❌ [API] Outer error in non-streaming mode:", error);
+          console.error("Error generating response:", error);
           return NextResponse.json({ 
             type: 'error', 
-            error: 'Failed to process request in non-streaming mode',
+            error: 'Failed to generate response',
             details: error instanceof Error ? error.message : String(error)
           }, { status: 500 });
         }
@@ -593,7 +557,7 @@ export async function POST(req: Request) {
     }
 
     if (type === "audio") {
-      console.log('🔄 [API] Processing audio request', useStreaming ? '(streaming)' : '(non-streaming)');
+      console.log('🔄 [API] Processing audio request');
       
       // Get user context and instructions using cache - do not invalidate cache
       const [userData, globalInstructions] = await Promise.all([
@@ -633,228 +597,161 @@ export async function POST(req: Request) {
       // Save transcription as user message but don't invalidate cache
       await saveMessageToHistory(userId, transcription, 'user');
 
-      // Create content with system instructions and conversation history
-      const contents = [];
-      
-      // Add system instructions as the first message
-      contents.push({
-        role: 'user',
-        parts: [{ text: formattedInstructions }]
-      });
-      
-      // Add model response acknowledging instructions
-      contents.push({
-        role: 'model',
-        parts: [{ text: "I understand and will follow these instructions." }]
-      });
-      
-      // Add conversation history (previous messages)
-      if (history && history.length > 0) {
-        // Limit history to last 10 messages to avoid context limits
-        const recentHistory = history.slice(-10);
-        for (const msg of recentHistory) {
+      // Create streaming response for the chat response
+      const stream = new TransformStream();
+      const writer = stream.writable.getWriter();
+
+      // Process in background
+      (async () => {
+        try {
+          // Send transcription first
+          await writer.write(new TextEncoder().encode(
+            JSON.stringify({ type: 'transcription', content: transcription }) + '\n'
+          ));
+
+          // Create content with system instructions and conversation history
+          const contents = [];
+          
+          // Add system instructions as the first message
           contents.push({
-            role: msg.role,
-            parts: msg.parts
+            role: 'user',
+            parts: [{ text: formattedInstructions }]
           });
-        }
-      }
-      
-      // Add the transcribed message
-      contents.push({
-        role: 'user',
-        parts: [{ text: transcription }]
-      });
+          
+          // Add model response acknowledging instructions
+          contents.push({
+            role: 'model',
+            parts: [{ text: "I understand and will follow these instructions." }]
+          });
+          
+          // Add conversation history (previous messages)
+          if (history && history.length > 0) {
+            // Limit history to last 10 messages to avoid context limits
+            const recentHistory = history.slice(-10);
+            for (const msg of recentHistory) {
+              contents.push({
+                role: msg.role,
+                parts: msg.parts
+              });
+            }
+          }
+          
+          // Add the transcribed message
+          contents.push({
+            role: 'user',
+            parts: [{ text: transcription }]
+          });
 
-      const generationConfig = {
-        maxOutputTokens: 2048,
-        temperature: 0.4,
-        topK: 40,
-        topP: 0.95,
-      };
+          // Get chat response
+          const result = await model.generateContentStream({
+            contents,
+            generationConfig: {
+              maxOutputTokens: 2048,
+              temperature: 0.4,
+              topK: 40,
+              topP: 0.95,
+            }
+          });
 
-      if (useStreaming) {
-        // Create streaming response for the chat response
-        const stream = new TransformStream();
-        const writer = stream.writable.getWriter();
+          let fullText = '';
+          for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            if (chunkText) {
+              fullText += chunkText;
+              await writer.write(new TextEncoder().encode(
+                JSON.stringify({ type: 'stream-chunk', content: chunkText }) + '\n'
+              ));
+            }
+          }
 
-        // Process in background
-        (async () => {
+          // Save assistant's response to history but don't invalidate cache
+          await saveMessageToHistory(userId, fullText, 'assistant');
+
+          // Send completion message
+          await writer.write(new TextEncoder().encode(
+            JSON.stringify({ type: 'stream-complete', content: fullText }) + '\n'
+          ));
+
+          // Process TTS for voice messages
+          if (generateTTS) {
           try {
-            // Send transcription first
-            await writer.write(new TextEncoder().encode(
-              JSON.stringify({ type: 'transcription', content: transcription }) + '\n'
-            ));
-
-            // Get chat response
-            const result = await model.generateContentStream({
-              contents,
-              generationConfig
+            console.log("Starting TTS processing for voice message response");
+            
+            if (!OPENAI_API_KEY) {
+              console.error("OpenAI API key is missing or empty");
+              throw new Error("OpenAI API key is required for text-to-speech");
+            }
+            
+            console.log("Making TTS request to OpenAI API");
+            const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: 'tts-1',
+                input: fullText,
+                voice: 'nova',
+                instructions: "Please speak in a UK English accent, using a casual and friendly tone.",
+                response_format: 'mp3',
+                speed: 1
+              })
             });
 
-            let fullText = '';
-            for await (const chunk of result.stream) {
-              const chunkText = chunk.text();
-              if (chunkText) {
-                fullText += chunkText;
-                await writer.write(new TextEncoder().encode(
-                  JSON.stringify({ type: 'stream-chunk', content: chunkText }) + '\n'
-                ));
-              }
+            if (!ttsResponse.ok) {
+              const errorData = await ttsResponse.text();
+              console.error("TTS API error:", ttsResponse.status, errorData);
+              throw new Error(`TTS API error: ${ttsResponse.status} ${errorData}`);
             }
 
-            // Save assistant's response to history but don't invalidate cache
-            await saveMessageToHistory(userId, fullText, 'assistant');
-
-            // Send completion message
+            console.log("TTS response received, processing audio");
+            const audioBuffer = await ttsResponse.arrayBuffer();
+            const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+            console.log(`TTS audio generated successfully, size: ${audioBase64.length} chars`);
+            
             await writer.write(new TextEncoder().encode(
-              JSON.stringify({ type: 'stream-complete', content: fullText }) + '\n'
+              JSON.stringify({
+                type: 'tts-audio',
+                audio: audioBase64,
+                mimeType: 'audio/mp3',
+                text: fullText
+              }) + '\n'
             ));
-
-            // Process TTS for voice messages
-            if (generateTTS) {
-              try {
-                console.log("Starting TTS processing for voice message response");
-                
-                if (!OPENAI_API_KEY) {
-                  console.error("OpenAI API key is missing or empty");
-                  throw new Error("OpenAI API key is required for text-to-speech");
-                }
-                
-                console.log("Making TTS request to OpenAI API");
-                const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    model: 'tts-1',
-                    input: fullText,
-                    voice: 'nova',
-                    instructions: "Please speak in a UK English accent, using a casual and friendly tone.",
-                    response_format: 'mp3',
-                    speed: 1
-                  })
-                });
-
-                if (!ttsResponse.ok) {
-                  const errorData = await ttsResponse.text();
-                  console.error("TTS API error:", ttsResponse.status, errorData);
-                  throw new Error(`TTS API error: ${ttsResponse.status} ${errorData}`);
-                }
-
-                console.log("TTS response received, processing audio");
-                const audioBuffer = await ttsResponse.arrayBuffer();
-                const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-                console.log(`TTS audio generated successfully, size: ${audioBase64.length} chars`);
-                
-                await writer.write(new TextEncoder().encode(
-                  JSON.stringify({
-                    type: 'tts-audio',
-                    audio: audioBase64,
-                    mimeType: 'audio/mp3',
-                    text: fullText
-                  }) + '\n'
-                ));
-                console.log("TTS audio sent to client");
-              } catch (error) {
-                console.error("TTS error:", error instanceof Error ? error.message : String(error));
-                await writer.write(new TextEncoder().encode(
-                  JSON.stringify({
-                    type: 'error',
-                    error: 'Failed to generate speech audio',
-                    details: error instanceof Error ? error.message : String(error)
-                  }) + '\n'
-                ));
-              }
-            }
-
+            console.log("TTS audio sent to client");
           } catch (error) {
-            console.error("Streaming error:", error);
+            console.error("TTS error:", error instanceof Error ? error.message : String(error));
             await writer.write(new TextEncoder().encode(
               JSON.stringify({
                 type: 'error',
-                error: 'Failed to process audio',
+                error: 'Failed to generate speech audio',
                 details: error instanceof Error ? error.message : String(error)
               }) + '\n'
             ));
-          } finally {
-            await writer.close();
+            }
           }
-        })();
 
-        return new Response(stream.readable, {
-          headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-          },
-        });
-      } else {
-        // Non-streaming response for audio
-        try {
-          console.log('🔄 [API] Generating non-streaming audio response');
-          
-          // First send back the transcription
-          const responseData = {
-            type: 'chat_response',
-            transcription: transcription,
-            content: ''
-          };
-          
-          // Log the contents being sent to the model for the response
-          console.log('🔄 [API] Audio request contents:', JSON.stringify({
-            contentsLength: contents.length,
-            generationConfig,
-            modelName: MODEL_NAME
-          }));
-          
-          try {
-            const result = await model.generateContent({
-              contents,
-              generationConfig
-            });
-
-            const fullText = result.response.text();
-            console.log('✅ [API] Successfully generated audio response, length:', fullText.length);
-            
-            // Save assistant's response to history but don't invalidate cache
-            await saveMessageToHistory(userId, fullText, 'assistant');
-            
-            // Add the response to the data
-            responseData.content = fullText;
-            
-            return NextResponse.json(responseData);
-          } catch (modelError) {
-            console.error('❌ [API] Error generating content with Gemini model for audio:', modelError);
-            // Check for specific Google Gemini API error types
-            const errorDetails = modelError instanceof Error ? 
-              {
-                name: modelError.name,
-                message: modelError.message,
-                stack: modelError.stack?.split('\n').slice(0, 3).join('\n')
-              } : 
-              String(modelError);
-              
-            console.error('❌ [API] Audio error details:', JSON.stringify(errorDetails));
-            
-            // Return a more descriptive error
-            return NextResponse.json({ 
-              type: 'error', 
-              error: 'Failed to generate response from Gemini API for audio',
-              details: errorDetails
-            }, { status: 500 });
-          }
         } catch (error) {
-          console.error("❌ [API] Outer error in non-streaming audio mode:", error);
-          return NextResponse.json({ 
-            type: 'error', 
-            error: 'Failed to process audio request in non-streaming mode',
-            details: error instanceof Error ? error.message : String(error)
-          }, { status: 500 });
+          console.error("Streaming error:", error);
+          await writer.write(new TextEncoder().encode(
+            JSON.stringify({
+              type: 'error',
+              error: 'Failed to process audio',
+              details: error instanceof Error ? error.message : String(error)
+            }) + '\n'
+          ));
+        } finally {
+          await writer.close();
         }
-      }
+      })();
+
+      return new Response(stream.readable, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
     }
 
     return new NextResponse("Invalid request type", { status: 400 });

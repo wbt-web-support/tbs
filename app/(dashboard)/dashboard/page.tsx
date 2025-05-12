@@ -159,6 +159,7 @@ export default function DashboardPage() {
         metricsResult,
         machinesResult,
         timelineResult,
+        timelineClaimsResult,
         pendingTasksResult,
         benefitsResult,
         meetingsResult
@@ -199,17 +200,24 @@ export default function DashboardPage() {
           .select("id, enginename, enginetype, description")
           .eq("user_id", user.id),
         
-        // Timeline
+        // Timeline Events
         supabase
           .from("chq_timeline")
           .select(`
-            id, 
-            week_number, 
-            event_name, 
+            id,
+            week_number,
+            event_name,
             scheduled_date,
-            user_timeline_claims(is_completed)
+            duration_minutes,
+            description
           `)
           .order("week_number", { ascending: true }),
+        
+        // Timeline Claims
+        supabase
+          .from("user_timeline_claims")
+          .select("*")
+          .eq("user_id", user.id),
         
         // Pending Tasks
         supabase
@@ -249,7 +257,20 @@ export default function DashboardPage() {
 
       // Process timeline data to find current week
       const timelineEvents = timelineResult.data || [];
+      const userClaims = timelineClaimsResult.data || [];
       const currentWeek = calculateCurrentWeek(timelineEvents);
+
+      // Combine timeline events with user claims (same approach as the timeline page)
+      const eventsWithClaims = timelineEvents.map(event => {
+        const claim = userClaims.find(claim => claim.timeline_id === event.id);
+        return {
+          id: event.id,
+          week_number: event.week_number,
+          event_name: event.event_name,
+          scheduled_date: event.scheduled_date,
+          is_completed: claim?.is_completed || false
+        };
+      });
 
       // Transform data into the format we need
       const processedData: DashboardData = {
@@ -258,14 +279,7 @@ export default function DashboardPage() {
         teamMembers: teamMembersResult.data || [],
         metrics: metricsResult.data || [],
         machines: machinesResult.data || [],
-        timelineEvents: timelineEvents.map(event => ({
-          id: event.id,
-          week_number: event.week_number,
-          event_name: event.event_name,
-          scheduled_date: event.scheduled_date,
-          is_completed: event.user_timeline_claims?.length > 0 ? 
-            event.user_timeline_claims[0].is_completed : false
-        })),
+        timelineEvents: eventsWithClaims,
         pendingTasks: (pendingTasksResult.data || []).map(task => ({
           id: task.id,
           checklist_item: task.checklist_item,
@@ -458,13 +472,22 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <div className="text-sm font-medium mb-1 flex justify-between">
                   <span>Currently in Week {data.currentWeek}</span>
-                  <span className="text-blue-600">{Math.round((data.currentWeek / 12) * 100)}% Complete</span>
+                  <span className="text-blue-600">
+                    {data.timelineEvents.length > 0
+                      ? Math.round((data.timelineEvents.filter(event => event.is_completed).length / data.timelineEvents.length) * 100)
+                      : 0}% Complete
+                  </span>
                 </div>
                 <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-blue-500" 
-                    style={{ width: `${(data.currentWeek / 12) * 100}%` }}
+                    style={{ width: `${data.timelineEvents.length > 0
+                      ? (data.timelineEvents.filter(event => event.is_completed).length / data.timelineEvents.length) * 100
+                      : 0}%` }}
                   />
+                </div>
+                <div className="flex justify-between mt-1 text-xs text-gray-500">
+                  <span>{data.timelineEvents.filter(event => event.is_completed).length} of {data.timelineEvents.length} events completed</span>
                 </div>
               </div>
             </div>
