@@ -15,7 +15,7 @@ async function getUserId(req: Request) {
   try {
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
-    return session?.user?.id;
+    return session?.user?.id; 
   } catch (error) {
     console.error("Error getting user session:", error);
     return null;
@@ -91,7 +91,7 @@ async function getUserData(userId: string) {
     }
     
     // Fetch data from other tables
-    const tables = [
+    const regularTables = [
       'battle_plan',
       'chain_of_command',
       'hwgt_plan',
@@ -99,11 +99,12 @@ async function getUserData(userId: string) {
       'meeting_rhythm_planner',
       'playbooks',
       'quarterly_sprint_canvas',
-      'triage_planner'
+      'triage_planner',
+      'user_timeline_claims'
     ];
     
-    console.log('🔄 [Supabase] Fetching data from additional tables');
-    const tablePromises = tables.map(table => {
+    console.log('🔄 [Supabase] Fetching data from regular tables');
+    const regularTablePromises = regularTables.map(table => {
       console.log(`🔄 [Supabase] Fetching ${table}`);
       return supabase
         .from(table)
@@ -120,7 +121,23 @@ async function getUserData(userId: string) {
         });
     });
     
-    const tableResults = await Promise.all(tablePromises);
+    // Fetch timeline data (chq_timeline doesn't have user_id)
+    console.log('🔄 [Supabase] Fetching timeline data');
+    const timelinePromise = supabase
+      .from('chq_timeline')
+      .select('*')
+      .order('week_number', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(`❌ [Supabase] Error fetching chq_timeline:`, error);
+          return { table: 'chq_timeline', data: [] };
+        }
+        console.log(`✅ [Supabase] Fetched ${data?.length || 0} records from chq_timeline`);
+        return { table: 'chq_timeline', data: data || [] };
+      });
+    
+    const allPromises = [...regularTablePromises, timelinePromise];
+    const tableResults = await Promise.all(allPromises);
     
     // Format the response
     const userData = {
@@ -255,7 +272,24 @@ function formatTableData(table: string, data: any) {
   // Helper function to format a value
   const formatValue = (value: any): string => {
     if (value === null || value === undefined) return 'None';
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+      return JSON.stringify(value, null, 2);
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    if (value instanceof Date || (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/))) {
+      // Format ISO dates more nicely
+      try {
+        const date = new Date(value);
+        return date.toLocaleString();
+      } catch (e) {
+        return String(value);
+      }
+    }
     return String(value);
   };
 
@@ -267,7 +301,25 @@ function formatTableData(table: string, data: any) {
       .join(' ');
   };
 
-  // Add all fields except system fields
+  // Special handling for timeline tables
+  if (table === 'chq_timeline') {
+    parts.push(`- Week Number: ${formatValue(data.week_number)}`);
+    parts.push(`- Event: ${formatValue(data.event_name)}`);
+    parts.push(`- Date: ${formatValue(data.scheduled_date)}`);
+    if (data.duration_minutes) parts.push(`- Duration: ${formatValue(data.duration_minutes)} minutes`);
+    if (data.description) parts.push(`- Description: ${formatValue(data.description)}`);
+    return parts.join('\n');
+  }
+  
+  if (table === 'user_timeline_claims') {
+    parts.push(`- Timeline ID: ${formatValue(data.timeline_id)}`);
+    parts.push(`- Status: ${data.is_completed ? 'Completed' : 'Pending'}`);
+    if (data.completion_date) parts.push(`- Completed On: ${formatValue(data.completion_date)}`);
+    if (data.notes) parts.push(`- Notes: ${formatValue(data.notes)}`);
+    return parts.join('\n');
+  }
+
+  // Add all fields except system fields for other tables
   Object.entries(data)
     .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at'].includes(key))
     .forEach(([key, value]) => {
@@ -283,26 +335,68 @@ function formatTableData(table: string, data: any) {
 function prepareUserContext(userData: any) {
   if (!userData) return '';
   
-  const parts: string[] = ['USER DATA:\n'];
+  const parts: string[] = ['📊 USER DATA CONTEXT 📊\n'];
   
   // Format business info
   if (userData.businessInfo) {
     const info = userData.businessInfo;
     parts.push(`
-## USER INFORMATION:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 👤 USER INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Personal Details:
 - Full Name: ${info.full_name || 'Unknown'}
 - Business Name: ${info.business_name || 'Unknown'}
 - Email: ${info.email || 'Unknown'}
 - Phone: ${info.phone_number || 'Unknown'}
 - Role: ${info.role || 'user'}
+
+💰 Payment Information:
 - Payment Option: ${info.payment_option || 'Unknown'}
 - Payment Remaining: ${info.payment_remaining || '0'}
-- Command HQ: ${info.command_hq_created ? 'Created' : 'Not Created'}
-- Google Drive Folder: ${info.gd_folder_created ? 'Created' : 'Not Created'}
-- Meeting Scheduled: ${info.meeting_scheduled ? 'Yes' : 'No'}`);
+
+🔍 Onboarding Status:
+- Command HQ: ${info.command_hq_created ? 'Created ✅' : 'Not Created ❌'}
+- Google Drive Folder: ${info.gd_folder_created ? 'Created ✅' : 'Not Created ❌'}
+- Meeting Scheduled: ${info.meeting_scheduled ? 'Yes ✅' : 'No ❌'}`);
   }
   
-  // Process all relevant tables
+  // Special handling for timeline data
+  if (userData.additionalData && userData.additionalData['chq_timeline'] && userData.additionalData['user_timeline_claims']) {
+    const timelines = userData.additionalData['chq_timeline'];
+    const claims = userData.additionalData['user_timeline_claims'];
+    
+    if (timelines.length > 0) {
+      parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📅 COMMAND HQ TIMELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      
+      // Create a map of timeline IDs to claims for quick lookup
+      const timelineClaims = new Map<string, any>();
+      claims.forEach((claim: any) => {
+        timelineClaims.set(claim.timeline_id, claim);
+      });
+      
+      // Process each timeline event with its associated claim
+      timelines.forEach((timeline: any, index: number) => {
+        const claim = timelineClaims.get(timeline.id);
+        parts.push(`
+📍 Timeline Event #${index + 1} (Week ${timeline.week_number})
+────────────────────────────────────────────────────────
+${formatTableData('chq_timeline', timeline)}
+        
+${claim 
+    ? `🔖 User Claim Status:
+${formatTableData('user_timeline_claims', claim)}`
+    : '🔖 User Claim Status: Not claimed by user'}
+`);
+      });
+    }
+  }
+  
+  // Process all other relevant tables
   const relevantTables = [
     'battle_plan',
     'chain_of_command',
@@ -319,12 +413,22 @@ function prepareUserContext(userData: any) {
       .filter(([table]) => relevantTables.includes(table))
       .forEach(([table, data]) => {
         if (Array.isArray(data) && data.length > 0) {
-          parts.push(`\n## ${table.toUpperCase()} DATA:\n`);
+          const formattedTableName = table
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+            
+          parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📋 ${formattedTableName.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
           
           // Show all records for this table
-          data.forEach((record, index) => {
-            parts.push(`\nRecord #${index + 1}:`);
-            parts.push(formatTableData(table, record));
+          data.forEach((record: any, index: number) => {
+            parts.push(`
+🔢 Record #${index + 1}:
+────────────────────────────────────────────────────────
+${formatTableData(table, record)}`);
           });
         }
       });
@@ -332,10 +436,13 @@ function prepareUserContext(userData: any) {
   
   // Add recent chat history
   if (userData.chatHistory && userData.chatHistory.length > 0) {
-    parts.push("\n## RECENT CHAT HISTORY:\n");
+    parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 💬 RECENT CHAT HISTORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     const recentMessages = userData.chatHistory.slice(-3);
     recentMessages.forEach((msg: any) => {
-      parts.push(`${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`);
+      parts.push(`${msg.role === 'user' ? '👤 User' : '🤖 Assistant'}: ${msg.content}`);
     });
   }
   
@@ -344,7 +451,7 @@ function prepareUserContext(userData: any) {
 
 // Helper function to format instructions
 function formatInstructions(instructionsData: any[], userContext: string) {
-  let combinedInstructions = "";
+  const parts: string[] = ['🤖 AI ASSISTANT INSTRUCTIONS 🤖\n'];
   
   if (instructionsData && instructionsData.length > 0) {
     // Group instructions by priority
@@ -362,45 +469,88 @@ function formatInstructions(instructionsData: any[], userContext: string) {
     
     for (const priority of priorities) {
       const instructions = priorityGroups[priority];
+      const priorityLevel = Number(priority);
       
-      // Add priority header if there are high priority instructions
-      if (Number(priority) > 0) {
-        combinedInstructions += `\n=== HIGH PRIORITY INSTRUCTIONS (Priority ${priority}) ===\n\n`;
+      // Add priority header with appropriate formatting
+      if (priorityLevel > 0) {
+        parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## ⭐ HIGH PRIORITY INSTRUCTIONS (Priority ${priority})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      } else {
+        parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📝 STANDARD INSTRUCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
       }
       
-      combinedInstructions += instructions
-        .map((inst: any) => {
-          let instruction = inst.content + "\n";
+      // Format individual instructions with clear separation
+      const formattedInstructions = instructions
+        .map((inst: any, index: number) => {
+          const instructionParts = [];
+          
+          instructionParts.push(`📌 INSTRUCTION ${index + 1}:`);
+          instructionParts.push(`${inst.content}`);
+          
+          // Add metadata with better formatting
+          const metadataParts = [];
           
           if (inst.content_type) {
-            instruction += `[Type: ${inst.content_type}]\n`;
+            metadataParts.push(`Type: ${inst.content_type}`);
           }
           
           if (inst.url) {
-            instruction += `[Reference: ${inst.url}]\n`;
+            metadataParts.push(`Reference: ${inst.url}`);
           }
           
           if (inst.extraction_metadata) {
-            instruction += `[Metadata: ${JSON.stringify(inst.extraction_metadata)}]\n`;
+            metadataParts.push(`Metadata: ${JSON.stringify(inst.extraction_metadata)}`);
           }
           
           if (inst.updated_at) {
-            instruction += `[Last Updated: ${new Date(inst.updated_at).toLocaleString()}]\n`;
+            metadataParts.push(`Last Updated: ${new Date(inst.updated_at).toLocaleString()}`);
           }
           
           if (inst.created_at) {
-            instruction += `[Created: ${new Date(inst.created_at).toLocaleString()}]\n`;
+            metadataParts.push(`Created: ${new Date(inst.created_at).toLocaleString()}`);
           }
           
-          return instruction;
+          if (metadataParts.length > 0) {
+            instructionParts.push(`\nℹ️ Instruction Metadata:\n${metadataParts.map(p => `- ${p}`).join('\n')}`);
+          }
+          
+          return instructionParts.join('\n');
         })
-        .join("\n---\n\n");
+        .join('\n\n────────────────────────────────────────────────────────\n\n');
+      
+      parts.push(formattedInstructions);
     }
   }
 
-  return userContext 
-    ? `${combinedInstructions}\n\n${userContext}` 
-    : combinedInstructions;
+  // Add user context with clear separation
+  if (userContext) {
+    parts.push(`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                                 USER CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${userContext}`);
+  }
+
+  // Add final instructions for clarity
+  parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📋 RESPONSE GUIDELINES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Be helpful, accurate, and professional in your responses.
+2. When referencing data, clearly specify which part of the context you're using.
+3. Format your responses in an organized, easy-to-read way.
+4. If you're unsure about something, acknowledge your uncertainty rather than making assumptions.
+5. Be concise but thorough, focusing on providing real value in your answers.`);
+
+  return parts.join('\n');
 }
 
 // Chat endpoint
@@ -425,6 +575,12 @@ export async function POST(req: Request) {
       // Prepare context and instructions
       const userContext = prepareUserContext(userData);
       const formattedInstructions = formatInstructions(globalInstructions, userContext);
+
+      // Add server-side console log to show what's being sent to the model
+      console.log('\n=== MODEL INPUT START ===');
+      console.log('Instructions and context being sent to the Gemini model:');
+      console.log(formattedInstructions);
+      console.log('=== MODEL INPUT END ===\n');
 
       // Prepare the model
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
@@ -768,53 +924,226 @@ export async function POST(req: Request) {
   }
 }
 
-// Get chat history
+// Debug endpoint to see all data being sent to the model
 export async function GET(req: Request) {
+  const headersList = headers();
+  const url = new URL(req.url);
+  const action = url.searchParams.get('action');
+  
+  // View formatted context in browser
+  if (action === 'view') {
+    const userId = await getUserId(req);
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    try {
+      console.log('🔄 [API] Generating formatted view of model context');
+      
+      // Get user context and instructions
+      const [userData, globalInstructions] = await Promise.all([
+        serverCache.getUserData(userId, getUserData),
+        serverCache.getGlobalInstructions(getGlobalInstructions)
+      ]);
+
+      // Prepare context and instructions
+      const userContext = prepareUserContext(userData);
+      const formattedInstructions = formatInstructions(globalInstructions, userContext);
+      
+      // Return as HTML for better formatting in browser
+      const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Gemini Model Context</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body {
+              font-family: monospace;
+              line-height: 1.5;
+              margin: 20px;
+              padding: 0;
+              background-color: #f5f5f5;
+              color: #333;
+            }
+            .container {
+              max-width: 1200px;
+              margin: 0 auto;
+              padding: 20px;
+              background-color: white;
+              border-radius: 8px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            h1 {
+              text-align: center;
+              margin-bottom: 20px;
+              color: #2563eb;
+            }
+            pre {
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              padding: 15px;
+              background-color: #f0f7ff;
+              border-radius: 5px;
+              border: 1px solid #ccc;
+              overflow: auto;
+            }
+            .links {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            .links a {
+              margin: 0 10px;
+              color: #2563eb;
+              text-decoration: none;
+            }
+            .links a:hover {
+              text-decoration: underline;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>Gemini Model Context</h1>
+            <div class="links">
+              <a href="/api/gemini?action=debug">View Raw JSON</a>
+              <a href="/api/gemini?action=view">Refresh</a>
+            </div>
+            <pre>${
+              formattedInstructions
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                // Add some coloring to the headings
+                .replace(/━━+/g, '<span style="color:#888">$&</span>')
+                .replace(/##[^\n]+/g, '<span style="color:#2563eb;font-weight:bold">$&</span>')
+                // Add some coloring to emojis
+                .replace(/(📊|👤|📝|💰|🔍|✅|❌|📅|🔖|📍|📋|💬|🤖|👤|⭐|ℹ️|📌)/g, '<span style="color:#000">$&</span>')
+            }</pre>
+          </div>
+        </body>
+      </html>
+      `;
+      
+      return new Response(htmlContent, {
+        headers: {
+          "Content-Type": "text/html",
+        },
+      });
+    } catch (error) {
+      console.error("❌ [API] Error generating formatted view:", error);
+      return new NextResponse(
+        JSON.stringify({
+          type: 'error',
+          error: 'Failed to generate formatted view',
+          details: error instanceof Error ? error.message : String(error)
+        }),
+        { status: 500 }
+      );
+    }
+  }
+  
+  // Only return context data for the debug action
+  if (action !== 'debug') {
+    // Fall back to the original GET behavior for chat history
+    const userId = await getUserId(req);
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    try {
+      console.log('🔄 [API] Fetching chat history');
+      
+      // Try to get user data from cache first
+      const userData = await serverCache.getUserData(userId, getUserData);
+      
+      if (userData && userData.chatHistory) {
+        console.log('✅ [API] Returning chat history from cache');
+        return new NextResponse(
+          JSON.stringify({
+            type: 'chat_history',
+            history: userData.chatHistory || []
+          })
+        );
+      } else {
+        // Fallback to direct database query if cache doesn't have chat history
+        console.log('🔄 [API] Cache miss for chat history, fetching from database');
+        const supabase = await createClient();
+        const { data, error } = await supabase
+          .from('chat_history')
+          .select('messages')
+          .eq('user_id', userId)
+          .single();
+
+        if (error) throw error;
+
+        console.log('✅ [API] Fetched chat history from database');
+        return new NextResponse(
+          JSON.stringify({
+            type: 'chat_history',
+            history: data?.messages || []
+          })
+        );
+      }
+    } catch (error) {
+      console.error("❌ [API] Error fetching chat history:", error);
+      return new NextResponse(
+        JSON.stringify({
+          type: 'error',
+          error: 'Failed to fetch chat history',
+          details: error instanceof Error ? error.message : String(error)
+        }),
+        { status: 500 }
+      );
+    }
+  }
+  
+  // Handle debug request
   const userId = await getUserId(req);
   if (!userId) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
-    console.log('🔄 [API] Fetching chat history');
+    console.log('🔄 [API] Fetching debug data for model context');
     
-    // Try to get user data from cache first
-    const userData = await serverCache.getUserData(userId, getUserData);
+    // Get user context and instructions
+    const [userData, globalInstructions] = await Promise.all([
+      serverCache.getUserData(userId, getUserData),
+      serverCache.getGlobalInstructions(getGlobalInstructions)
+    ]);
+
+    // Prepare context and instructions
+    const userContext = prepareUserContext(userData);
+    const formattedInstructions = formatInstructions(globalInstructions, userContext);
     
-    if (userData && userData.chatHistory) {
-      console.log('✅ [API] Returning chat history from cache');
-      return new NextResponse(
-        JSON.stringify({
-          type: 'chat_history',
-          history: userData.chatHistory || []
-        })
-      );
-    } else {
-      // Fallback to direct database query if cache doesn't have chat history
-      console.log('🔄 [API] Cache miss for chat history, fetching from database');
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('chat_history')
-      .select('messages')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) throw error;
-
-      console.log('✅ [API] Fetched chat history from database');
+    // Format all the data that would be sent to the model
+    const modelInput = {
+      // Raw data
+      raw: {
+        instructions: globalInstructions,
+        userData: userData
+      },
+      // Formatted data (what the model actually sees)
+      formatted: {
+        formattedInstructions: formattedInstructions,
+        userContext: userContext
+      }
+    };
+    
+    console.log('✅ [API] Debug data prepared');
     return new NextResponse(
       JSON.stringify({
-        type: 'chat_history',
-        history: data?.messages || []
+        type: 'debug_data',
+        modelInput
       })
     );
-    }
   } catch (error) {
-    console.error("❌ [API] Error fetching chat history:", error);
+    console.error("❌ [API] Error preparing debug data:", error);
     return new NextResponse(
       JSON.stringify({
         type: 'error',
-        error: 'Failed to fetch chat history',
+        error: 'Failed to prepare debug data',
         details: error instanceof Error ? error.message : String(error)
       }),
       { status: 500 }

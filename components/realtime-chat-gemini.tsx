@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Play, Pause, Phone, PhoneOff } from "lucide-react";
+import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -31,6 +32,7 @@ interface ChatbotInstruction {
 }
 
 export function RealtimeChatGemini() {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +63,8 @@ export function RealtimeChatGemini() {
   const continuousAudioChunksRef = useRef<Blob[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [useStreaming, setUseStreaming] = useState(false);
+  const [debugData, setDebugData] = useState<any>(null);
+  const [showDebugPopup, setShowDebugPopup] = useState(false);
   
   const supabase = createClient();
 
@@ -1236,6 +1240,78 @@ export function RealtimeChatGemini() {
     }
   };
 
+  // Fetch debug data
+  const fetchDebugData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/gemini?action=debug', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Debug data fetch error:", errorData);
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to fetch debug data",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const data = await response.json();
+      console.log("Debug data:", data);
+      setDebugData(data.modelInput);
+      setShowDebugPopup(true);
+    } catch (error) {
+      console.error("Debug data fetch error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch debug data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast, setIsLoading]);
+
+  // Render the debug popup
+  const renderDebugPopup = () => {
+    if (!showDebugPopup || !debugData) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="w-[90%] h-[90%] bg-white rounded-lg p-4 overflow-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Model Context Debug Data</h2>
+            <Button variant="ghost" onClick={() => setShowDebugPopup(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-xl font-bold mb-2">Formatted Context (What the model sees)</h3>
+              <div className="p-2 border rounded bg-gray-50 overflow-auto h-[calc(100vh-200px)]">
+                <pre className="whitespace-pre-wrap text-sm">{debugData.formatted.formattedInstructions}</pre>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-xl font-bold mb-2">Raw Data</h3>
+              <div className="p-2 border rounded bg-gray-50 overflow-auto h-[calc(100vh-200px)]">
+                <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(debugData.raw, null, 2)}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 rounded-xl border max-w-6xl mx-auto w-full">
       {/* Header */}
@@ -1268,6 +1344,60 @@ export function RealtimeChatGemini() {
               Streaming
             </label>
           </div>
+          
+          {/* Debug button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchDebugData}
+            disabled={isLoading}
+            title="Show model context debug data"
+            className="mr-2"
+          >
+            <Bug className="h-4 w-4 mr-1" />
+            <span className="text-xs">Debug Data</span>
+          </Button>
+          
+          {/* Debug dropdown */}
+          <div className="relative group mr-2 hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              title="View model context data"
+              className="mr-2"
+            >
+              <Bug className="h-4 w-4 mr-1" />
+              <span className="text-xs">Context Data</span>
+            </Button>
+            <div className="absolute right-0 mt-1 w-40 bg-white shadow-lg rounded-md overflow-hidden hidden group-hover:block z-50">
+              <a
+                href="/api/gemini?action=view" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+              >
+                <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                Pretty View
+              </a>
+              <a
+                href="/api/gemini?action=debug" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+              >
+                <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                Raw JSON
+              </a>
+              <button
+                onClick={fetchDebugData}
+                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+              >
+                <Bug className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                Popup View
+              </button>
+            </div>
+          </div>
+          
           <Button
             variant="ghost"
             size="sm"
@@ -1275,23 +1405,23 @@ export function RealtimeChatGemini() {
             disabled={isClearingChat || isLoading}
             className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
           >
-            {isClearingChat ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                <span>Clearing...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
-                  <path d="M3 6h18"></path>
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                  <line x1="10" x2="10" y1="11" y2="17"></line>
-                  <line x1="14" x2="14" y1="11" y2="17"></line>
-                </svg>
-                <span>Clear Chat</span>
-              </div>
-            )}
+          {isClearingChat ? (
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+              <span>Clearing...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                <line x1="10" x2="10" y1="11" y2="17"></line>
+                <line x1="14" x2="14" y1="11" y2="17"></line>
+              </svg>
+              <span>Clear Chat</span>
+            </div>
+          )}
           </Button>
         </div>
       </div>
@@ -1524,13 +1654,19 @@ export function RealtimeChatGemini() {
       )}
 
       {/* Audio element for TTS */}
-      <audio 
-        ref={audioRef} 
-        className="hidden" 
-        preload="auto" 
-        onError={(e) => console.error("Audio element error:", e)}
+      <audio
+        ref={audioRef}
+        src={ttsAudioUrl || undefined}
+        className="hidden"
+        controls={false}
+        onEnded={() => setIsAudioPlaying(false)}
+        onPlay={() => setIsAudioPlaying(true)}
+        onPause={() => setIsAudioPlaying(false)}
         onLoadedData={() => console.log("Audio data loaded")}
       />
+
+      {/* Render the debug popup */}
+      {renderDebugPopup()}
     </div>
   );
 }
