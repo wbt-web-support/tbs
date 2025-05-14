@@ -68,6 +68,8 @@ export function Filters() {
               <SelectItem value="pdf">PDF</SelectItem>
               <SelectItem value="doc">Document</SelectItem>
               <SelectItem value="link">Link</SelectItem>
+              <SelectItem value="loom">Loom</SelectItem>
+
             </SelectContent>
           </Select>
         </div>

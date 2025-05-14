@@ -33,6 +33,13 @@ interface Instruction {
     file_name?: string;
     file_size?: number;
     extraction_date?: string;
+    loom_metadata?: {
+      thumbnailUrl?: string;
+      views?: number;
+      createdAt?: string;
+      owner?: string;
+      duration_formatted?: string;
+    };
   } | null;
 }
 
@@ -56,11 +63,19 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
     file_name: string;
     file_size?: number;
     extraction_date: string;
+    loom_metadata?: {
+      thumbnailUrl?: string;
+      views?: number;
+      createdAt?: string;
+      owner?: string;
+      duration_formatted?: string;
+    };
   } | null>(instruction?.extraction_metadata ? {
     extracted_text: instruction.extraction_metadata.extracted_text || '',
     file_name: instruction.extraction_metadata.file_name || '',
     file_size: instruction.extraction_metadata.file_size,
-    extraction_date: instruction.extraction_metadata.extraction_date || new Date().toISOString()
+    extraction_date: instruction.extraction_metadata.extraction_date || new Date().toISOString(),
+    loom_metadata: (instruction.extraction_metadata as any).loom_metadata
   } : null);
   const [isEditingExtractedContent, setIsEditingExtractedContent] = useState(false);
   const [editedExtractedContent, setEditedExtractedContent] = useState("");
@@ -194,6 +209,68 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
         } catch (error) {
           console.error('Error extracting content:', error);
           toast.error('Failed to extract content from URL');
+          setIsSubmitting(false);
+          setIsProcessing(false);
+          return;
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+      
+      // If it's a Loom video URL and we don't have extracted content yet, extract it first
+      if (contentType === 'loom' && url && !extractedContent) {
+        try {
+          setIsProcessing(true);
+          const response = await fetch('/api/extract/loom', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Failed to extract content' }));
+            console.error('Loom extraction error:', errorData);
+            throw new Error(errorData.error || errorData.details || 'Failed to extract content');
+          }
+          
+          const data = await response.json();
+          
+          // Log the data structure for debugging
+          console.log('Loom extraction response:', data);
+          
+          // Check if we got meaningful content
+          if (!data.content || data.content === 'No transcript available') {
+            toast.warning('No transcript was found in the Loom video. You may need to add content manually.');
+          }
+          
+          finalExtractedContent = {
+            extracted_text: data.content || 'No transcript available',
+            file_name: data.title || url.split('/').pop() || 'unknown',
+            file_size: data.duration ? Math.floor(data.duration) : undefined,
+            extraction_date: new Date().toISOString(),
+            ...(data.thumbnailUrl || data.views || data.createdAt || data.owner ? {
+              loom_metadata: {
+                thumbnailUrl: data.thumbnailUrl,
+                views: data.views,
+                createdAt: data.createdAt,
+                owner: data.owner,
+                duration_formatted: data.duration ? `${Math.floor(data.duration / 60)}:${(Math.floor(data.duration) % 60).toString().padStart(2, '0')} minutes` : undefined
+              }
+            } : {})
+          } as any; // Type assertion to avoid TypeScript errors
+          
+          // If there's a title from the API, use it for the instruction title if empty
+          if (data.title && !title.trim()) {
+            setTitle(data.title);
+          }
+          
+          setExtractedContent(finalExtractedContent);
+          toast.success('Loom video processed successfully');
+        } catch (error) {
+          console.error('Error extracting content:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to extract content from Loom video');
           setIsSubmitting(false);
           setIsProcessing(false);
           return;
@@ -348,7 +425,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                     <SelectItem value="pdf">PDF</SelectItem>
                     <SelectItem value="doc">Document</SelectItem>
                     <SelectItem value="link">Link</SelectItem>
-
+                    <SelectItem value="loom">Loom Video</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -470,6 +547,17 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                   />
                   <p className="text-xs text-muted-foreground">
                     Upload a file to extract content automatically
+                  </p>
+                </div>
+              )}
+
+              {contentType === 'loom' && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Enter a Loom video URL and click Extract to retrieve the video transcription
+                  </p>
+                  <p className="text-xs font-medium text-blue-600">
+                    Example: https://www.loom.com/share/12345abcde
                   </p>
                 </div>
               )}
