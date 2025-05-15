@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Link as LinkIcon, ExternalLink } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import BattlePlanDetails from "./components/battle-plan-details";
 import StrategicElements from "./components/strategic-elements";
@@ -140,11 +140,13 @@ export default function BattlePlanPage() {
                 
                 {editingLink ? (
                   <div className="flex flex-1 items-center gap-2">
-                    <Input
+                    <ExpandableInput
                       value={businessLink}
                       onChange={(e) => setBusinessLink(e.target.value)}
                       placeholder="https://example.com/my-business-plan"
-                      className="flex-1 h-8 text-sm"
+                      className="flex-1 text-sm"
+                      expandAfter={40}
+                      lined={true}
                     />
                     <Button
                       size="sm"

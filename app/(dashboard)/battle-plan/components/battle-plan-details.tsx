@@ -115,6 +115,8 @@ export default function BattlePlanDetails({
               onChange={(e) => setMission(e.target.value)}
               placeholder="Enter your mission statement..."
               className="min-h-[120px] text-sm"
+              autoExpand={true}
+              lined={true}
             />
           ) : (
             <div className="p-3 border rounded-md text-sm text-gray-700 bg-gray-50 min-h-[100px] border-gray-200">
@@ -137,6 +139,8 @@ export default function BattlePlanDetails({
               onChange={(e) => setVision(e.target.value)}
               placeholder="Enter your vision statement..."
               className="min-h-[120px] text-sm"
+              autoExpand={true}
+              lined={true}
             />
           ) : (
             <div className="p-3 border rounded-md text-sm text-gray-700 bg-gray-50 min-h-[100px] border-gray-200">

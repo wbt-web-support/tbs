@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { Input, ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Save, X, Building2, Pencil, DollarSign, PercentCircle, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
@@ -131,26 +131,30 @@ export default function CompanyInfo({ data, onUpdate, plannerId }: CompanyInfoPr
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Current
                   </label>
-                  <Input
+                  <ExpandableInput
                     value={formData.annualRevenue.current}
                     onChange={(e) =>
                       handleChange("annualRevenue", "current", e.target.value)
                     }
                     placeholder="e.g. $100,000"
-                    className="w-full h-8 text-sm"
+                    className="w-full text-sm"
+                    expandAfter={20}
+                    lined={true}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     3-Year Target
                   </label>
-                  <Input
+                  <ExpandableInput
                     value={formData.annualRevenue.target}
                     onChange={(e) =>
                       handleChange("annualRevenue", "target", e.target.value)
                     }
                     placeholder="e.g. $500,000"
-                    className="w-full h-8 text-sm"
+                    className="w-full text-sm"
+                    expandAfter={20}
+                    lined={true}
                   />
                 </div>
               </div>
@@ -167,26 +171,30 @@ export default function CompanyInfo({ data, onUpdate, plannerId }: CompanyInfoPr
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Current
                   </label>
-                  <Input
+                  <ExpandableInput
                     value={formData.profitMargin.current}
                     onChange={(e) =>
                       handleChange("profitMargin", "current", e.target.value)
                     }
                     placeholder="e.g. 10%"
-                    className="w-full h-8 text-sm"
+                    className="w-full text-sm"
+                    expandAfter={20}
+                    lined={true}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     3-Year Target
                   </label>
-                  <Input
+                  <ExpandableInput
                     value={formData.profitMargin.target}
                     onChange={(e) =>
                       handleChange("profitMargin", "target", e.target.value)
                     }
                     placeholder="e.g. 25%"
-                    className="w-full h-8 text-sm"
+                    className="w-full text-sm"
+                    expandAfter={20}
+                    lined={true}
                   />
                 </div>
               </div>
@@ -203,22 +211,26 @@ export default function CompanyInfo({ data, onUpdate, plannerId }: CompanyInfoPr
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Current
                   </label>
-                  <Input
+                  <ExpandableInput
                     value={formData.teamSize.current}
                     onChange={(e) => handleChange("teamSize", "current", e.target.value)}
                     placeholder="e.g. 5"
-                    className="w-full h-8 text-sm"
+                    className="w-full text-sm"
+                    expandAfter={20}
+                    lined={true}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     3-Year Target
                   </label>
-                  <Input
+                  <ExpandableInput
                     value={formData.teamSize.target}
                     onChange={(e) => handleChange("teamSize", "target", e.target.value)}
                     placeholder="e.g. 15"
-                    className="w-full h-8 text-sm"
+                    className="w-full text-sm"
+                    expandAfter={20}
+                    lined={true}
                   />
                 </div>
               </div>

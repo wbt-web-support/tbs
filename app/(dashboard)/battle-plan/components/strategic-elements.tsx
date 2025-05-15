@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { 
   Loader2, Save, X, Pencil, Plus, Trash2, 
   Heart, Anchor, Target, CalendarClock
@@ -278,10 +278,12 @@ export default function StrategicElements({
               <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
                 {items.map((item, index) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <Input
+                    <ExpandableInput
                       value={item.value}
                       onChange={(e) => handleChangeItem(section, index, e.target.value)}
-                      className="flex-1 h-8 text-sm"
+                      className="flex-1 text-sm"
+                      expandAfter={40}
+                      lined={true}
                     />
                     <Button
                       size="icon"
@@ -296,17 +298,13 @@ export default function StrategicElements({
               </div>
               
               <div className="flex items-center space-x-2 pt-2">
-                <Input
+                <ExpandableInput
                   value={newItems[section as keyof typeof newItems]}
                   onChange={(e) => setNewItems({...newItems, [section]: e.target.value})}
                   placeholder={placeholder}
-                  className="flex-1 h-8 text-sm"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddItem(section);
-                    }
-                  }}
+                  className="flex-1 text-sm"
+                  expandAfter={40}
+                  lined={true}
                 />
                 <Button
                   size="sm"

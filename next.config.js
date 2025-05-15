@@ -5,7 +5,7 @@ const nextConfig = {
     ignoreBuildErrors: true
   },
   images: {
-    domains: ['npeajhtemjbcpnhsqknf.supabase.co']
+    domains: ['npeajhtemjbcpnhsqknf.supabase.co', 'tradebusinessschool.com']
   },
   reactStrictMode: true,
   compiler: {

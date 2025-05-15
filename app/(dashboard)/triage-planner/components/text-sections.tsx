@@ -118,7 +118,9 @@ export default function TextSections({
               onChange={(e) => setWhatYouDoContent(e.target.value)}
               placeholder="Describe what your business does..."
               rows={3}
-              className="min-h-[80px] text-sm resize-none"
+              className="min-h-[80px] text-sm"
+              autoExpand={true}
+              lined={true}
             />
           ) : (
             <div className="text-sm text-gray-700 rounded-md">
@@ -145,7 +147,9 @@ export default function TextSections({
               onChange={(e) => setWhoYouServeContent(e.target.value)}
               placeholder="Describe who your business serves..."
               rows={3}
-              className="min-h-[80px] text-sm resize-none"
+              className="min-h-[80px] text-sm"
+              autoExpand={true}
+              lined={true}
             />
           ) : (
             <div className="text-sm text-gray-700 rounded-md ">
@@ -172,7 +176,9 @@ export default function TextSections({
               onChange={(e) => setNotesContent(e.target.value)}
               placeholder="Add your notes here..."
               rows={3}
-              className="min-h-[80px] text-sm resize-none"
+              className="min-h-[80px] text-sm"
+              autoExpand={true}
+              lined={true}
             />
           ) : (
             <div className="text-sm text-gray-700 rounded-md ">

@@ -18,7 +18,9 @@ import {
   Clock,
   Flag,
   Compass,
-  X
+  X,
+  GraduationCap,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -93,7 +95,7 @@ const navigationSections = [
     title: "Management",
     items: [
       {
-        name: "Playbook Planner",
+        name: "Playbook & Machine Planner",
         href: "/playbook-planner",
         icon: BookText,
       },
@@ -200,6 +202,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ))}
           </div>
         </nav>
+        
+        {/* Skool Classroom Link - Fixed at bottom */}
+        <div className="p-4 border-t mt-auto">
+          <a 
+            href="https://www.skool.com/tradesgang" 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between w-full p-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all"
+          >
+            <div className="flex items-center">
+              <GraduationCap className="h-5 w-5 mr-2" />
+              <span className="font-medium text-sm">Trades Gang Classroom</span>
+            </div>
+          </a>
+          <p className="text-xs text-center text-gray-500 mt-2">Access your training videos & community</p>
+        </div>
       </div>
     </>
   );

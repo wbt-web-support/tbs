@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Trash2, Save, X, ListTodo, Pencil, CheckSquare } from "lucide-react";
@@ -157,11 +157,13 @@ export default function InternalTasks({ data, onUpdate, plannerId }: InternalTas
               <div className="border rounded-md p-3 space-y-2 bg-gray-50">
                 <div className="grid grid-cols-1 gap-2">
                   <div>
-                    <Input
+                    <ExpandableInput
                       value={newTask.name}
                       onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
                       placeholder="Task name"
-                      className="text-xs h-8"
+                      className="text-xs"
+                      expandAfter={30}
+                      lined={true}
                     />
                   </div>
                   <div>
@@ -170,7 +172,9 @@ export default function InternalTasks({ data, onUpdate, plannerId }: InternalTas
                       onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                       placeholder="Task description"
                       rows={2}
-                      className="text-xs min-h-[50px] resize-none"
+                      className="text-xs min-h-[50px]"
+                      autoExpand={true}
+                      lined={true}
                     />
                   </div>
                   <div className="flex justify-between gap-2">
