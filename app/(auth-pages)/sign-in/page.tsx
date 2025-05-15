@@ -1,11 +1,11 @@
 import { signInAction } from "@/app/actions";
 import { FormMessage, Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { SmtpMessage } from "../smtp-message";
-import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default async function SignIn(props: {
   searchParams: Promise<Message>;
@@ -20,47 +20,66 @@ export default async function SignIn(props: {
   }
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full bg-gray-100">
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-left">
-            <h1 className="text-3xl font-bold">Welcome to Trades Business School Command HQ</h1>
-            <p className="mt-2 text-muted-foreground">
-              Sign in to access your business management tools
+        <div className="w-full max-w-md space-y-8 bg-white p-8 rounded">
+          <div className="flex flex-col items-center justify-center">
+            <div className="w-full flex justify-center mb-6">
+              <Image 
+                src="https://tradebusinessschool.com/wp-content/uploads/2024/11/TBS-coloured-logo-1.webp"
+                alt="Trades Business School Logo"
+                width={180}
+                height={60}
+                priority
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-center text-black-800">Command HQ</h1>
+            <p className="mt-2 text-muted-foreground text-center">
+              Your central hub for business growth and success
             </p>
           </div>
 
-          <form className="mt-8 space-y-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-600 font-medium">
+                Sign in to your account
+              </span>
+            </div>
+          </div>
+
+          <form className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-blue-600">Email</Label>
-                <Input
+                <Label htmlFor="email" className="text-gray-800 font-medium">Email</Label>
+                <ExpandableInput
                   id="email"
                   name="email"
                   type="email"
                   placeholder="you@example.com"
                   required
-                  className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
+                  className="rounded-xl border-gray-200 focus:border-gray-500 focus:ring-gray-500"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-blue-600">Password</Label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
+                  <Label htmlFor="password" className="text-gray-800 font-medium">Password</Label>
+                
                 </div>
-                <Input
+                <ExpandableInput
                   id="password"
                   name="password"
                   type="password"
                   placeholder="Your password"
                   required
-                  className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
+                  className="rounded-xl border-gray-200 focus:border-gray-500 focus:ring-gray-500"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
             </div>
@@ -68,47 +87,80 @@ export default async function SignIn(props: {
             <SubmitButton 
               formAction={signInAction} 
               pendingText="Signing in..." 
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full rounded-xl py-2.5 transition-colors duration-200 font-medium"
             >
               Sign in
             </SubmitButton>
 
-            <div className="text-sm text-center text-muted-foreground">
+            {/* <div className="text-sm text-center text-muted-foreground">
               Don't have an account?{" "}
-              <Link href="/sign-up" className="text-blue-600 hover:text-blue-800 hover:underline">
+              <Link href="/sign-up" className="text-gray-600 hover:text-gray-800 hover:underline font-medium">
                 Sign up
               </Link>
-            </div>
+            </div> */}
           </form>
         </div>
       </div>
 
-      <div className="hidden lg:block lg:w-1/2 bg-blue-50 relative" style={{backgroundImage: 'url(/background.jpg)', backgroundSize: 'cover', backgroundPosition: 'center'}}>
-        <div className="absolute inset-0 bg-black bg-opacity-70"></div>
-        <div className="h-full flex items-center justify-center p-8 relative z-10">
-          <div className="max-w-lg space-y-4">
-            <h2 className="text-2xl font-semibold text-white">Business Management Suite</h2>
-            <p className="text-white">
-              A comprehensive platform for managing your business operations, growth strategies, and team collaboration.
-            </p>
-            <ul className="space-y-2 text-white">
-              <li className="flex items-center gap-2 text-white">
-                <span className="h-2 w-2 rounded-full bg-blue-600" />
-                Strategic business planning and execution
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-blue-600" />
-                Growth and fulfillment tracking
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-blue-600" />
-                Team collaboration and performance metrics
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-blue-600" />
-                Comprehensive business analytics
-              </li>
-            </ul>
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden ">
+        <div className="absolute inset-0 bg-black/80"></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'url(/background.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          mixBlendMode: 'overlay',
+          opacity: 0.3
+        }}></div>
+        <div className="h-full flex items-center justify-center p-10 relative z-10">
+          <div className="max-w-lg space-y-8">
+            <div className="bg-white/10 p-6 rounded-xl backdrop-blur-sm border border-white/20">
+              <h2 className="text-3xl font-bold text-white mb-4">Trades Business Command Center</h2>
+              <p className="text-white/90 text-lg mb-6">
+                Take control of your trade business with our comprehensive management platform designed specifically for trades professionals.
+              </p>
+            </div>
+            
+            <div className="bg-white/10 p-6 rounded-xl backdrop-blur-sm border border-white/20">
+              <h3 className="text-xl font-semibold text-white mb-4">Business Tools Suite</h3>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3">
+                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <span className="text-white text-xs font-bold">1</span>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Strategic Planning</h4>
+                    <p className="text-white/80 text-sm">Build and execute your business strategy with expert guidance</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <span className="text-white text-xs font-bold">2</span>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Growth Tracking</h4>
+                    <p className="text-white/80 text-sm">Monitor and accelerate your business growth metrics</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <span className="text-white text-xs font-bold">3</span>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Team Management</h4>
+                    <p className="text-white/80 text-sm">Optimize team performance and collaboration</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <span className="text-white text-xs font-bold">4</span>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Business Analytics</h4>
+                    <p className="text-white/80 text-sm">Gain insights with comprehensive business reporting</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>

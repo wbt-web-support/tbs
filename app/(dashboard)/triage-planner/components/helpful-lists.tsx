@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Trash2, Pencil, Save, X, CheckCircle, XCircle, PlusCircle, HelpCircle, ListChecks } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
@@ -260,17 +260,13 @@ export default function HelpfulLists({
               
               {addingTo === section ? (
                 <div className="flex items-center space-x-2 pt-2">
-                  <Input
+                  <ExpandableInput
                     value={newItem}
                     onChange={(e) => setNewItem(e.target.value)}
                     placeholder="Add new item..."
-                    className="flex-1 h-8 text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddItem();
-                      }
-                    }}
+                    className="flex-1"
+                    expandAfter={40}
+                    lined={true}
                   />
                   <Button 
                     size="sm"
