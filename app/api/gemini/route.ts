@@ -269,19 +269,73 @@ function formatTableData(table: string, data: any) {
   
   const parts: string[] = [];
   
-  // Helper function to format a value
-  const formatValue = (value: any): string => {
+  // Helper function to try parsing JSON strings
+  const tryParseJSON = (value: any): any => {
+    if (typeof value !== 'string') return value;
+    
+    // Try to parse JSON strings
+    try {
+      const parsed = JSON.parse(value);
+      // Only return the parsed value if it's actually an object or array
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed;
+      }
+    } catch (e) {
+      // Not JSON, return the original value
+    }
+    
+    return value;
+  };
+  
+  // Helper function to format a value with proper handling of nested objects
+  const formatValue = (value: any, depth: number = 0): string => {
+    // Try to parse JSON strings
+    value = tryParseJSON(value);
+    
     if (value === null || value === undefined) return 'None';
+    
+    const indent = '  '.repeat(depth);
+    
     if (typeof value === 'object') {
       if (Array.isArray(value)) {
-        return value.join(', ');
+        if (value.length === 0) return '[]';
+        
+        // If array contains simple values, format as comma-separated list
+        if (value.every(item => typeof item !== 'object' || item === null)) {
+          return value.map(item => formatValue(item, depth)).join(', ');
+        }
+        
+        // Otherwise format as multi-line list
+        const itemsFormatted = value.map(item => `${indent}  - ${formatValue(item, depth + 1)}`).join('\n');
+        return `\n${itemsFormatted}`;
       }
-      return JSON.stringify(value, null, 2);
+      
+      // Handle Date objects
+      if (value instanceof Date) {
+        return value.toLocaleString();
+      }
+      
+      // For empty objects
+      if (Object.keys(value).length === 0) return '{}';
+      
+      // Format object properties as multi-line
+      const formattedProps = Object.entries(value).map(([key, val]) => {
+        const propName = key
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        return `${indent}  ${propName}: ${formatValue(val, depth + 1)}`;
+      }).join('\n');
+      
+      return `\n${formattedProps}`;
     }
+    
     if (typeof value === 'boolean') {
       return value ? 'Yes' : 'No';
     }
-    if (value instanceof Date || (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/))) {
+    
+    if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
       // Format ISO dates more nicely
       try {
         const date = new Date(value);
@@ -290,6 +344,7 @@ function formatTableData(table: string, data: any) {
         return String(value);
       }
     }
+    
     return String(value);
   };
 
@@ -316,6 +371,340 @@ function formatTableData(table: string, data: any) {
     parts.push(`- Status: ${data.is_completed ? 'Completed' : 'Pending'}`);
     if (data.completion_date) parts.push(`- Completed On: ${formatValue(data.completion_date)}`);
     if (data.notes) parts.push(`- Notes: ${formatValue(data.notes)}`);
+    return parts.join('\n');
+  }
+
+  // Special handling for machines table
+  if (table === 'machines') {
+    parts.push(`- Engine Name: ${formatValue(data.enginename)}`);
+    parts.push(`- Engine Type: ${formatValue(data.enginetype)}`);
+    if (data.description) parts.push(`- Description: ${formatValue(data.description)}`);
+    
+    // Handle complex nested objects with better formatting
+    if (data.triggeringevents) {
+      parts.push(`- Triggering Events:`);
+      if (Array.isArray(data.triggeringevents)) {
+        data.triggeringevents.forEach((event: any, index: number) => {
+          parts.push(`  Event #${index + 1}:`);
+          Object.entries(event).forEach(([key, val]) => {
+            if (key !== 'id' && val !== null && val !== undefined && val !== '') {
+              parts.push(`    ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+            }
+          });
+        });
+      } else {
+        Object.entries(data.triggeringevents).forEach(([key, val]) => {
+          if (key !== 'id' && val !== null && val !== undefined && val !== '') {
+            parts.push(`  ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+          }
+        });
+      }
+    }
+    
+    if (data.endingevent) {
+      parts.push(`- Ending Event:`);
+      Object.entries(data.endingevent).forEach(([key, val]) => {
+        if (key !== 'id' && val !== null && val !== undefined && val !== '') {
+          parts.push(`  ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+        }
+      });
+    }
+    
+    if (data.actionsactivities) {
+      parts.push(`- Actions/Activities:`);
+      if (Array.isArray(data.actionsactivities)) {
+        data.actionsactivities.forEach((action: any, index: number) => {
+          parts.push(`  Action #${index + 1}:`);
+          Object.entries(action).forEach(([key, val]) => {
+            if (key !== 'id' && val !== null && val !== undefined && val !== '') {
+              parts.push(`    ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+            }
+          });
+        });
+      }
+    }
+    
+    // Handle any remaining fields
+    Object.entries(data)
+      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'enginename', 'enginetype', 'description', 'triggeringevents', 'endingevent', 'actionsactivities'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for battle plan
+  if (table === 'battle_plan') {
+    // Handle complex nested fields individually
+    if (data.purposewhy) {
+      parts.push(`- Purpose/Why:`);
+      if (typeof data.purposewhy === 'object') {
+        Object.entries(data.purposewhy).forEach(([key, val]) => {
+          if (val !== null && val !== undefined && val !== '') {
+            parts.push(`  ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+          }
+        });
+      } else {
+        parts.push(`  ${formatValue(data.purposewhy)}`);
+      }
+    }
+    
+    if (data.strategicanchors) {
+      parts.push(`- Strategic Anchors:`);
+      if (Array.isArray(data.strategicanchors)) {
+        data.strategicanchors.forEach((anchor: any, index: number) => {
+          parts.push(`  Anchor #${index + 1}:`);
+          Object.entries(anchor).forEach(([key, val]) => {
+            if (key !== 'id' && val !== null && val !== undefined && val !== '') {
+              parts.push(`    ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+            }
+          });
+        });
+      }
+    }
+    
+    if (data.corevalues) {
+      parts.push(`- Core Values:`);
+      if (Array.isArray(data.corevalues)) {
+        data.corevalues.forEach((value: any, index: number) => {
+          parts.push(`  Value #${index + 1}:`);
+          Object.entries(value).forEach(([key, val]) => {
+            if (key !== 'id' && val !== null && val !== undefined && val !== '') {
+              parts.push(`    ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+            }
+          });
+        });
+      } else if (typeof data.corevalues === 'object') {
+        Object.entries(data.corevalues).forEach(([key, val]) => {
+          if (val !== null && val !== undefined && val !== '') {
+            parts.push(`  ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+          }
+        });
+      }
+    }
+    
+    if (data.threeyeartarget) {
+      parts.push(`- Three Year Target:`);
+      if (typeof data.threeyeartarget === 'object') {
+        Object.entries(data.threeyeartarget).forEach(([key, val]) => {
+          if (val !== null && val !== undefined && val !== '') {
+            parts.push(`  ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+          }
+        });
+      }
+    }
+    
+    // Handle other simple fields
+    ['missionstatement', 'visionstatement', 'businessplanlink'].forEach(field => {
+      if (data[field] !== null && data[field] !== undefined && data[field] !== '') {
+        parts.push(`- ${formatFieldName(field)}: ${formatValue(data[field])}`);
+      }
+    });
+    
+    // Handle any remaining fields
+    Object.entries(data)
+      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'missionstatement', 'visionstatement', 'purposewhy', 'strategicanchors', 'corevalues', 'threeyeartarget', 'businessplanlink'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for triage planner
+  if (table === 'triage_planner') {
+    // Handle company info first
+    if (data.company_info) {
+      parts.push(`- Company Info:`);
+      if (typeof data.company_info === 'object') {
+        Object.entries(data.company_info).forEach(([key, val]) => {
+          if (val !== null && val !== undefined && val !== '') {
+            parts.push(`  ${formatFieldName(key)}:`);
+            if (typeof val === 'object') {
+              Object.entries(val).forEach(([subKey, subVal]) => {
+                parts.push(`    ${formatFieldName(subKey)}: ${formatValue(subVal, 2)}`);
+              });
+            } else {
+              parts.push(`    ${formatValue(val, 2)}`);
+            }
+          }
+        });
+      }
+    }
+    
+    // Handle internal tasks
+    const internalTasksField = data.internal_tasks || data.internalTasks;
+    if (internalTasksField) {
+      parts.push(`- Internal Tasks:`);
+      if (Array.isArray(internalTasksField)) {
+        internalTasksField.forEach((task: any, index: number) => {
+          parts.push(`  Task #${index + 1}:`);
+          Object.entries(task).forEach(([key, val]) => {
+            if (key !== 'id' && val !== null && val !== undefined && val !== '') {
+              parts.push(`    ${formatFieldName(key)}: ${formatValue(val, 2)}`);
+            }
+          });
+        });
+      }
+    }
+    
+    // Handle text fields with specific ordering
+    const textFields = [
+      'what_is_right', 'whatIsRight', 
+      'what_is_wrong', 'whatIsWrong',
+      'what_is_missing', 'whatIsMissing',
+      'what_is_confusing', 'whatIsConfusing'
+    ];
+    
+    // First check if they exist in snake_case or camelCase
+    textFields.forEach(field => {
+      if (data[field] !== null && data[field] !== undefined && data[field] !== '') {
+        parts.push(`- ${formatFieldName(field)}: ${formatValue(data[field])}`);
+      }
+    });
+    
+    // Process remaining fields, excluding already processed ones
+    const processedFields = [
+      'company_info', 'companyInfo', 'internal_tasks', 'internalTasks',
+      ...textFields, 'id', 'user_id', 'created_at', 'updated_at'
+    ];
+    
+    Object.entries(data)
+      .filter(([key]) => !processedFields.includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for HWGT Plan
+  if (table === 'hwgt_plan') {
+    if (data.howwegetthereplan) {
+      parts.push(`- How We Get There Plan:`);
+      
+      // Try to parse it if it's a string
+      let planData = data.howwegetthereplan;
+      if (typeof planData === 'string') {
+        try {
+          planData = JSON.parse(planData);
+        } catch (e) {
+          // Keep as string if parsing fails
+        }
+      }
+      
+      if (typeof planData === 'object' && planData !== null && !Array.isArray(planData)) {
+        // Format each section
+        Object.entries(planData).forEach(([section, quarters]) => {
+          // Format section name nicely
+          const sectionName = section
+            .replace(/([A-Z])/g, ' $1')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          
+          parts.push(`  ${sectionName}:`);
+          
+          if (quarters !== null && typeof quarters === 'object' && !Array.isArray(quarters)) {
+            Object.entries(quarters as Record<string, any>).forEach(([quarter, value]) => {
+              parts.push(`    ${quarter}: ${formatValue(value, 2)}`);
+            });
+          } else {
+            parts.push(`    ${formatValue(quarters, 2)}`);
+          }
+        });
+      } else {
+        // Fallback for unexpected format
+        parts.push(`  ${formatValue(planData)}`);
+      }
+    }
+    
+    // Add any other fields
+    Object.entries(data)
+      .filter(([key]) => key !== 'howwegetthereplan' && !['id', 'user_id', 'created_at', 'updated_at'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for Quarterly Sprint Canvas
+  if (table === 'quarterly_sprint_canvas') {
+    // Handle revenue goals
+    if (data.revenuegoals) {
+      parts.push(`- Revenue Goals:`);
+      let revenueData = tryParseJSON(data.revenuegoals);
+      
+      if (typeof revenueData === 'object' && revenueData !== null) {
+        Object.entries(revenueData).forEach(([level, value]) => {
+          parts.push(`  ${formatFieldName(level)}: ${formatValue(value, 2)}`);
+        });
+      } else {
+        parts.push(`  ${formatValue(revenueData)}`);
+      }
+    }
+    
+    // Handle revenue by month
+    if (data.revenuebymonth) {
+      parts.push(`- Revenue By Month:`);
+      let revenueByMonth = tryParseJSON(data.revenuebymonth);
+      
+      if (typeof revenueByMonth === 'object' && revenueByMonth !== null) {
+        Object.entries(revenueByMonth).forEach(([month, value]) => {
+          parts.push(`  ${formatFieldName(month)}: ${formatValue(value, 2)}`);
+        });
+      } else {
+        parts.push(`  ${formatValue(revenueByMonth)}`);
+      }
+    }
+    
+    // Handle lists
+    const listFields = ['strategicpillars', 'northstarmetrics', 'keyinitiatives', 'unitgoals'];
+    listFields.forEach(field => {
+      if (data[field]) {
+        const fieldValue = tryParseJSON(data[field]);
+        
+        parts.push(`- ${formatFieldName(field)}:`);
+        
+        if (Array.isArray(fieldValue)) {
+          fieldValue.forEach((item, index) => {
+            parts.push(`  ${index + 1}. ${formatValue(item, 2)}`);
+          });
+        } else if (typeof fieldValue === 'object' && fieldValue !== null) {
+          Object.entries(fieldValue).forEach(([key, value]) => {
+            parts.push(`  ${formatFieldName(key)}: ${formatValue(value, 2)}`);
+          });
+        } else if (typeof data[field] === 'string') {
+          // Handle comma-separated values
+          const items = data[field].split(',').map((item: string) => item.trim()).filter(Boolean);
+          items.forEach((item: string, index: number) => {
+            parts.push(`  ${index + 1}. ${item}`);
+          });
+        } else {
+          parts.push(`  ${formatValue(data[field])}`);
+        }
+      }
+    });
+    
+    // Add any other fields
+    Object.entries(data)
+      .filter(([key]) => ![...listFields, 'revenuegoals', 'revenuebymonth', 'id', 'user_id', 'created_at', 'updated_at'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
     return parts.join('\n');
   }
 
@@ -388,9 +777,9 @@ function prepareUserContext(userData: any) {
 ${formatTableData('chq_timeline', timeline)}
         
 ${claim 
-    ? `🔖 User Claim Status:
+    ? `🔖 Complete status:
 ${formatTableData('user_timeline_claims', claim)}`
-    : '🔖 User Claim Status: Not claimed by user'}
+    : '🔖 Complete Status: Not Completed by user'}
 `);
       });
     }
