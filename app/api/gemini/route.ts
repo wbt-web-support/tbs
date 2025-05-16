@@ -363,6 +363,7 @@ function formatTableData(table: string, data: any) {
     parts.push(`- Date: ${formatValue(data.scheduled_date)}`);
     if (data.duration_minutes) parts.push(`- Duration: ${formatValue(data.duration_minutes)} minutes`);
     if (data.description) parts.push(`- Description: ${formatValue(data.description)}`);
+    if (data.meeting_link) parts.push(`- Meeting Link: ${formatValue(data.meeting_link)}`);
     return parts.join('\n');
   }
   
