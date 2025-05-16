@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Plus, Pencil, Trash2, Search, Filter, BarChart, Eye, Calendar, Target, User, FileText, Info } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Input, ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -335,11 +335,13 @@ export default function CompanyScorecardPage() {
               <div className="p-4 bg-white border-b border-gray-100 flex flex-col sm:flex-row items-center gap-4">
                 <div className="relative flex-1 max-w-md w-full">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
+                  <ExpandableInput
                     placeholder="Search by name, owner, source..."
                     className="pl-10 pr-4 py-2 w-full border-gray-200 rounded-md"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    expandAfter={40}
+                    lined={true}
                   />
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -698,103 +700,121 @@ export default function CompanyScorecardPage() {
               {/* Weekly Data Fields */}
               <div>
                 <Label htmlFor="week1" className="text-sm font-medium">Week 1</Label>
-                <Input
+                <ExpandableInput
                   id="week1"
                   value={formData.week1}
                   onChange={(e) => setFormData({ ...formData, week1: e.target.value })}
                   placeholder="Week 1 value"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               <div>
                 <Label htmlFor="week2" className="text-sm font-medium">Week 2</Label>
-                <Input
+                <ExpandableInput
                   id="week2"
                   value={formData.week2}
                   onChange={(e) => setFormData({ ...formData, week2: e.target.value })}
                   placeholder="Week 2 value"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               <div>
                 <Label htmlFor="week3" className="text-sm font-medium">Week 3</Label>
-                <Input
+                <ExpandableInput
                   id="week3"
                   value={formData.week3}
                   onChange={(e) => setFormData({ ...formData, week3: e.target.value })}
                   placeholder="Week 3 value"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               <div>
                 <Label htmlFor="week4" className="text-sm font-medium">Week 4</Label>
-                <Input
+                <ExpandableInput
                   id="week4"
                   value={formData.week4}
                   onChange={(e) => setFormData({ ...formData, week4: e.target.value })}
                   placeholder="Week 4 value"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               <div>
                 <Label htmlFor="remainder" className="text-sm font-medium">Remainder</Label>
-                <Input
+                <ExpandableInput
                   id="remainder"
                   value={formData.remainder}
                   onChange={(e) => setFormData({ ...formData, remainder: e.target.value })}
                   placeholder="Remainder value"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               {/* Monthly Data Fields */}
               <div>
                 <Label htmlFor="monthlyactual" className="text-sm font-medium">Monthly Actual</Label>
-                <Input
+                <ExpandableInput
                   id="monthlyactual"
                   value={formData.monthlyactual}
                   onChange={(e) => setFormData({ ...formData, monthlyactual: e.target.value })}
                   placeholder="Monthly actual value"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               <div>
                 <Label htmlFor="monthlytarget" className="text-sm font-medium">Monthly Target</Label>
-                <Input
+                <ExpandableInput
                   id="monthlytarget"
                   value={formData.monthlytarget}
                   onChange={(e) => setFormData({ ...formData, monthlytarget: e.target.value })}
                   placeholder="Monthly target value"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               {/* Metric Owner Field */}
               <div>
                 <Label htmlFor="metricowner" className="text-sm font-medium">Metric Owner</Label>
-                <Input
+                <ExpandableInput
                   id="metricowner"
                   value={formData.metricowner}
                   onChange={(e) => setFormData({ ...formData, metricowner: e.target.value })}
                   placeholder="Who owns this metric"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
               {/* Metric Source Field */}
               <div>
                 <Label htmlFor="metricsource" className="text-sm font-medium">Metric Source</Label>
-                <Input
+                <ExpandableInput
                   id="metricsource"
                   value={formData.metricsource}
                   onChange={(e) => setFormData({ ...formData, metricsource: e.target.value })}
                   placeholder="Source of the metric data"
                   className="mt-1"
+                  expandAfter={30}
+                  lined={true}
                 />
               </div>
 
@@ -808,6 +828,8 @@ export default function CompanyScorecardPage() {
                   placeholder="Additional notes"
                   className="mt-1"
                   rows={4}
+                  autoExpand={true}
+                  lined={true}
                 />
               </div>
             </div>

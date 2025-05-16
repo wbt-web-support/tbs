@@ -1,7 +1,7 @@
 import { signInAction } from "@/app/actions";
 import { FormMessage, Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
-import { ExpandableInput } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { SmtpMessage } from "../smtp-message";
@@ -54,32 +54,27 @@ export default async function SignIn(props: {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-800 font-medium">Email</Label>
-                <ExpandableInput
+                <Input
                   id="email"
                   name="email"
                   type="email"
                   placeholder="you@example.com"
                   required
                   className="rounded-xl border-gray-200 focus:border-gray-500 focus:ring-gray-500"
-                  expandAfter={30}
-                  lined={true}
                 />
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-gray-800 font-medium">Password</Label>
-                
                 </div>
-                <ExpandableInput
+                <Input
                   id="password"
                   name="password"
                   type="password"
                   placeholder="Your password"
                   required
                   className="rounded-xl border-gray-200 focus:border-gray-500 focus:ring-gray-500"
-                  expandAfter={30}
-                  lined={true}
                 />
               </div>
             </div>

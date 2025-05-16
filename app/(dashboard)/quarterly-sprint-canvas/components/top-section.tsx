@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { Pencil, Save, X, Plus, Trash2, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { format } from "date-fns";
 
 type RevenueGoals = {
   good: string;
@@ -223,11 +225,13 @@ export default function TopSection({
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Good</label>
               {editingRevenue ? (
-                <Input
+                <ExpandableInput
                   value={localRevenueGoals.good}
                   onChange={(e) => setLocalRevenueGoals({ ...localRevenueGoals, good: e.target.value })}
                   placeholder="£0"
                   className="h-8 text-sm"
+                  expandAfter={40}
+                  lined={true}
                 />
               ) : (
                 <div className="text-sm text-gray-900 p-2 border rounded-md border-gray-200 bg-gray-50">
@@ -238,11 +242,13 @@ export default function TopSection({
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Better</label>
               {editingRevenue ? (
-                <Input
+                <ExpandableInput
                   value={localRevenueGoals.better}
                   onChange={(e) => setLocalRevenueGoals({ ...localRevenueGoals, better: e.target.value })}
                   placeholder="£0"
                   className="h-8 text-sm"
+                  expandAfter={40}
+                  lined={true}
                 />
               ) : (
                 <div className="text-sm text-gray-900 p-2 border rounded-md border-gray-200 bg-gray-50">
@@ -253,11 +259,13 @@ export default function TopSection({
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Best</label>
               {editingRevenue ? (
-                <Input
+                <ExpandableInput
                   value={localRevenueGoals.best}
                   onChange={(e) => setLocalRevenueGoals({ ...localRevenueGoals, best: e.target.value })}
                   placeholder="£0"
                   className="h-8 text-sm"
+                  expandAfter={40}
+                  lined={true}
                 />
               ) : (
                 <div className="text-sm text-gray-900 p-2 border rounded-md border-gray-200 bg-gray-50">
@@ -311,7 +319,7 @@ export default function TopSection({
                 <div key={index} className="grid grid-cols-8 gap-2 items-center">
                   {editingUnits ? (
                     <>
-                      <Input
+                      <ExpandableInput
                         value={localUnitGoals[index].name}
                         onChange={(e) => {
                           const newGoals = [...localUnitGoals];
@@ -320,8 +328,10 @@ export default function TopSection({
                         }}
                         placeholder="Product/Service"
                         className="h-8 text-sm col-span-3"
+                        expandAfter={40}
+                        lined={true}
                       />
-                      <Input
+                      <ExpandableInput
                         value={localUnitGoals[index].units}
                         onChange={(e) => {
                           const newGoals = [...localUnitGoals];
@@ -330,6 +340,8 @@ export default function TopSection({
                         }}
                         placeholder="0"
                         className="h-8 text-sm col-span-4"
+                        expandAfter={40}
+                        lined={true}
                       />
                       <Button
                         variant="ghost"
@@ -415,7 +427,7 @@ export default function TopSection({
                 <div key={index} className="grid grid-cols-8 gap-2 items-center">
                   {editingMonthly ? (
                     <>
-                      <Input
+                      <ExpandableInput
                         value={localRevenueByMonth[index].month}
                         onChange={(e) => {
                           const newRevenue = [...localRevenueByMonth];
@@ -424,8 +436,10 @@ export default function TopSection({
                         }}
                         placeholder="Month"
                         className="h-8 text-sm col-span-3"
+                        expandAfter={40}
+                        lined={true}
                       />
-                      <Input
+                      <ExpandableInput
                         value={localRevenueByMonth[index].amount}
                         onChange={(e) => {
                           const newRevenue = [...localRevenueByMonth];
@@ -434,6 +448,8 @@ export default function TopSection({
                         }}
                         placeholder="£0"
                         className="h-8 text-sm col-span-4"
+                        expandAfter={40}
+                        lined={true}
                       />
                       <Button
                         variant="ghost"

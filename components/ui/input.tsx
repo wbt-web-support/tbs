@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Textarea, TextareaProps } from "./textarea";
@@ -112,6 +114,10 @@ const ExpandableInput = React.forwardRef<
       // Expand when content gets long enough
       if (!expanded && newValue.length > expandAfter) {
         setExpanded(true);
+      }
+      // Shrink when content becomes short enough
+      else if (expanded && newValue.length <= expandAfter) {
+        setExpanded(false);
       }
       
       if (onChange) {

@@ -23,6 +23,7 @@ type TimelineEvent = {
   scheduled_date: string;
   duration_minutes: number | null;
   description: string | null;
+  meeting_link: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -38,6 +39,7 @@ export default function AdminTimelinePage() {
     scheduled_date: "",
     duration_minutes: "",
     description: "",
+    meeting_link: "",
   });
   const supabase = createClient();
 
@@ -98,6 +100,7 @@ export default function AdminTimelinePage() {
         scheduled_date: "",
         duration_minutes: "",
         description: "",
+        meeting_link: "",
       });
       fetchEvents();
     } catch (error) {
@@ -114,6 +117,7 @@ export default function AdminTimelinePage() {
       scheduled_date: event.scheduled_date,
       duration_minutes: event.duration_minutes?.toString() || "",
       description: event.description || "",
+      meeting_link: event.meeting_link || "",
     });
     setIsDialogOpen(true);
   };
@@ -220,6 +224,18 @@ export default function AdminTimelinePage() {
                   }
                 />
               </div>
+              <div className="space-y-2">
+                <label htmlFor="meeting_link">Meeting Link</label>
+                <Input
+                  id="meeting_link"
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  value={formData.meeting_link}
+                  onChange={(e) =>
+                    setFormData({ ...formData, meeting_link: e.target.value })
+                  }
+                />
+              </div>
               <Button type="submit" className="w-full">
                 {editingEvent ? "Update" : "Create"}
               </Button>
@@ -248,6 +264,16 @@ export default function AdminTimelinePage() {
                   <p>📅 {new Date(event.scheduled_date).toLocaleDateString()}</p>
                   {event.duration_minutes && (
                     <p>⏱️ {event.duration_minutes} minutes</p>
+                  )}
+                  {event.meeting_link && (
+                    <a 
+                      href={event.meeting_link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      🔗 Join Meeting
+                    </a>
                   )}
                 </div>
               </div>

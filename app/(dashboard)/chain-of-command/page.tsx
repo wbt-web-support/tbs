@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Plus, Pencil, Trash2, Eye, Search, Filter, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -187,11 +187,13 @@ export default function ChainOfCommandPage() {
               <div className="p-4 bg-white border-b border-gray-100 flex items-center gap-4">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
+                  <ExpandableInput
                     placeholder="Search by name, title, department..."
                     className="pl-10 pr-4 py-2 w-full border-gray-200 rounded-md"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    expandAfter={40}
+                    lined={true}
                   />
                 </div>
                 <div className="flex items-center text-sm text-gray-500">
