@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 interface DynamicInputListProps {
@@ -21,11 +21,19 @@ export function DynamicInputList({ items, onChange, placeholder }: DynamicInputL
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    // Check for enter key in the input field and add item
+    const value = e.target.value;
+    if (e.nativeEvent instanceof KeyboardEvent && e.nativeEvent.key === 'Enter') {
       e.preventDefault();
-      handleAddItem();
+      if (value.trim()) {
+        onChange([...items, { value: value.trim() }]);
+        setNewItem("");
+      }
+      return;
     }
+    
+    setNewItem(value);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -37,12 +45,13 @@ export function DynamicInputList({ items, onChange, placeholder }: DynamicInputL
   return (
     <div className="space-y-3">
       <div className="flex space-x-2">
-        <Input
+        <ExpandableInput
           value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onChange={handleChange}
           placeholder={placeholder || "Add new item"}
           className="flex-1"
+          expandAfter={40}
+          lined={true}
         />
         <Button 
           type="button" 

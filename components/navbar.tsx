@@ -87,7 +87,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{fullName || user?.email?.split('@')[0]}</p>
-                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                <p className="text-xs hidden leading-none text-muted-foreground">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

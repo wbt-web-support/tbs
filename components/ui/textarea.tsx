@@ -59,12 +59,12 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             marginTop: '2px'
           }} />
         )}
-        <textarea
-          className={cn(
-            "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      <textarea
+        className={cn(
+          "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
             lined && "line-height-relaxed bg-transparent pt-3",
-            className
-          )}
+          className
+        )}
           onChange={handleChange}
           ref={(node) => {
             // Set both refs
@@ -76,8 +76,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             textareaRef.current = node;
           }}
           style={lined ? { lineHeight: '1.25rem' } : undefined}
-          {...props}
-        />
+        {...props}
+      />
       </div>
     )
   }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Pencil, Save, X, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -185,7 +185,7 @@ export default function MiddleSection({
             </div>
             <div className="p-4">
               {editingPillars ? (
-                <Input
+                <ExpandableInput
                   value={localStrategicPillars[index]}
                   onChange={(e) => {
                     const newPillars = [...localStrategicPillars];

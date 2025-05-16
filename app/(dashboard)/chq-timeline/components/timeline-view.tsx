@@ -14,6 +14,7 @@ type TimelineEvent = {
   scheduled_date: string;
   duration_minutes?: number;
   description?: string;
+  meeting_link?: string | null;
   is_completed?: boolean;
   completion_date?: string | null;
 };
@@ -42,7 +43,8 @@ export default function TimelineView() {
           event_name,
           scheduled_date,
           duration_minutes,
-          description
+          description,
+          meeting_link
         `)
         .order('week_number', { ascending: true });
 
@@ -183,14 +185,14 @@ export default function TimelineView() {
               {eventsByWeek[weekNumber].map((event) => (
                 <Card 
                   key={event.id} 
-                  className={`p-3 border border-blue-200 hover:border-blue-300 transition-all ${
+                  className={`p-4 border border-blue-200 hover:border-blue-300 transition-all ${
                     event.is_completed 
                       ? "bg-blue-50/50" 
                       : ""
                   }`}
                 >
-                  <div className="flex items-center">
-                    <div className="flex items-center gap-3 flex-1">
+                  <div className="flex gap-3 item-center justify-between">
+                    <div className="flex items-start gap-3">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -232,6 +234,20 @@ export default function TimelineView() {
                             </div>
                           )}
                           
+                          {event.meeting_link && (
+                            <a 
+                              href={event.meeting_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM11 7H13V13H11V7ZM11 15H13V17H11V15Z" fill="currentColor"/>
+                              </svg>
+                              <span>Join Meeting</span>
+                            </a>
+                          )}
+                          
                           {event.completion_date && (
                             <div className="flex items-center gap-1 text-blue-600">
                               <CheckCircle2 className="w-3 h-3" />
@@ -243,8 +259,11 @@ export default function TimelineView() {
                     </div>
 
                     {event.description && (
-                      <div className="ml-4 px-3 py-2 text-xs text-muted-foreground max-w-[240px]">
-                        <p>{event.description}</p>
+                      <div className="ml-8 pl-4 border-l-2 border-blue-100 flex items-center">
+                        <div className="flex items-start gap-2 items-center">
+                          <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-gray-600 leading-relaxed">{event.description}</p>
+                        </div>
                       </div>
                     )}
                   </div>

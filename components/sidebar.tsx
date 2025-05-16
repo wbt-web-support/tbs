@@ -20,11 +20,26 @@ import {
   Compass,
   X,
   GraduationCap,
-  ExternalLink
+  ExternalLink,
+  Sparkles,
+  Lightbulb,
+  LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navigationSections = [
+type NavigationItem = {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  disabled?: boolean;
+};
+
+type NavigationSection = {
+  title: string;
+  items: NavigationItem[];
+};
+
+const navigationSections: NavigationSection[] = [
   {
     title: "Overview",
     items: [
@@ -92,6 +107,17 @@ const navigationSections = [
     ]
   },
   {
+    title: "Innovation",
+    items: [
+      {
+        name: "Coming Soon",
+        href: "#",
+        icon: Lightbulb,
+        disabled: true,
+      },
+    ]
+  },
+  {
     title: "Management",
     items: [
       {
@@ -148,7 +174,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       
       {/* Sidebar */}
       <div className={cn(
-        "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-background flex flex-col transform transition-transform duration-200 ease-in-out",
+        "fixed lg:static inset-y-0 left-0 z-50 w-74 border-r bg-background flex flex-col transform transition-transform duration-200 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b">
@@ -173,8 +199,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
-                        onClick={() => {
+                        href={item.disabled ? "#" : item.href}
+                        onClick={(e) => {
+                          if (item.disabled) {
+                            e.preventDefault();
+                            return;
+                          }
                           // Close sidebar on mobile when clicking a link
                           if (window.innerWidth < 1024) {
                             onClose();
@@ -183,13 +213,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition-colors",
                           "hover:bg-blue-50/80 hover:text-blue-700",
-                          isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600"
+                          isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600",
+                          item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-600"
                         )}
+                        title={item.disabled ? "Coming Soon" : ""}
                       >
                         <item.icon 
                           className={cn(
                             "h-4 w-4 transition-transform group-hover:scale-110",
-                            isActive ? "text-blue-600" : "text-blue-500"
+                            isActive ? "text-blue-600" : "text-blue-500",
+                            item.disabled && "text-gray-400"
                           )}
                           strokeWidth={2}
                         />

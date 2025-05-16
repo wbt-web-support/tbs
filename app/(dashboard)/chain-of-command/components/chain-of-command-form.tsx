@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Input } from "@/components/ui/input";
+import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, Trash2, User, Users, Briefcase, ClipboardList, BookOpen, Building } from "lucide-react";
@@ -120,6 +120,32 @@ export default function ChainOfCommandForm({ data, onUpdate, commandId }: ChainO
     });
   };
 
+  const handleAccountabilityChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    // Check for Enter key in change event's native event
+    if (e.nativeEvent instanceof KeyboardEvent && e.nativeEvent.key === 'Enter') {
+      e.preventDefault();
+      if (value.trim()) {
+        handleAddAccountability();
+      }
+      return;
+    }
+    setNewAccountability(value);
+  };
+
+  const handlePlaybookChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    // Check for Enter key in change event's native event
+    if (e.nativeEvent instanceof KeyboardEvent && e.nativeEvent.key === 'Enter') {
+      e.preventDefault();
+      if (value.trim()) {
+        handleAddPlaybook();
+      }
+      return;
+    }
+    setNewPlaybook(value);
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -164,11 +190,13 @@ export default function ChainOfCommandForm({ data, onUpdate, commandId }: ChainO
             <User className="h-4 w-4 text-blue-600 mr-2" />
             <label className="block text-sm font-medium text-gray-700">Name</label>
           </div>
-          <Input
+          <ExpandableInput
             value={formData.name}
             onChange={(e) => handleInputChange("name", e.target.value)}
             placeholder="Enter name"
             className="w-full"
+            expandAfter={40}
+            lined={true}
           />
         </div>
 
@@ -178,11 +206,13 @@ export default function ChainOfCommandForm({ data, onUpdate, commandId }: ChainO
             <Users className="h-4 w-4 text-blue-600 mr-2" />
             <label className="block text-sm font-medium text-gray-700">Manager</label>
           </div>
-          <Input
+          <ExpandableInput
             value={formData.manager}
             onChange={(e) => handleInputChange("manager", e.target.value)}
             placeholder="Enter manager's name"
             className="w-full"
+            expandAfter={40}
+            lined={true}
           />
         </div>
 
@@ -192,11 +222,13 @@ export default function ChainOfCommandForm({ data, onUpdate, commandId }: ChainO
             <Briefcase className="h-4 w-4 text-blue-600 mr-2" />
             <label className="block text-sm font-medium text-gray-700">Job Title</label>
           </div>
-          <Input
+          <ExpandableInput
             value={formData.jobtitle}
             onChange={(e) => handleInputChange("jobtitle", e.target.value)}
             placeholder="Enter job title"
             className="w-full"
+            expandAfter={40}
+            lined={true}
           />
         </div>
 
@@ -254,17 +286,13 @@ export default function ChainOfCommandForm({ data, onUpdate, commandId }: ChainO
               <div className="text-gray-500 text-sm italic">No critical accountabilities added yet</div>
             )}
             <div className="flex mt-2">
-              <Input
+              <ExpandableInput
                 value={newAccountability}
-                onChange={(e) => setNewAccountability(e.target.value)}
+                onChange={handleAccountabilityChange}
                 placeholder="Add an accountability..."
                 className="flex-1"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddAccountability();
-                  }
-                }}
+                expandAfter={40}
+                lined={true}
               />
               <Button
                 type="button"
@@ -306,17 +334,13 @@ export default function ChainOfCommandForm({ data, onUpdate, commandId }: ChainO
               <div className="text-gray-500 text-sm italic">No playbooks added yet</div>
             )}
             <div className="flex mt-2">
-              <Input
+              <ExpandableInput
                 value={newPlaybook}
-                onChange={(e) => setNewPlaybook(e.target.value)}
+                onChange={handlePlaybookChange}
                 placeholder="Add a playbook..."
                 className="flex-1"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddPlaybook();
-                  }
-                }}
+                expandAfter={40}
+                lined={true}
               />
               <Button
                 type="button"
