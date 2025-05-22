@@ -6,6 +6,8 @@ import "./global-overrides.css";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
+import { initializeSupabaseStorage } from "@/utils/supabase/storage-init";
+import { Toaster as SonnerToaster } from "sonner";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -29,6 +31,11 @@ export default async function RootLayout({
 }) {
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
+
+  // Initialize Supabase storage buckets
+  await initializeSupabaseStorage().catch(err => {
+    console.error('Failed to initialize storage buckets:', err);
+  });
 
   // If user is authenticated and tries to access root, redirect to dashboard
   if (session && typeof window !== 'undefined' && window.location.pathname === '/') {
@@ -57,6 +64,7 @@ export default async function RootLayout({
             </div>
           </main>
           <Toaster />
+          <SonnerToaster position="top-right" />
       </body>
     </html>
   );

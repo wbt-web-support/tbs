@@ -93,6 +93,12 @@ file_size_limit = "50MiB"
 # [storage.image_transformation]
 # enabled = true
 
+# Configure the machines bucket
+[storage.buckets.machines]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp", "image/gif"]
+
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
 # public = false
