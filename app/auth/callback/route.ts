@@ -15,6 +15,23 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    // Check if user needs onboarding
+    const { data: onboardingData } = await supabase
+      .from('company_onboarding')
+      .select('completed')
+      .eq('user_id', user.id)
+      .single();
+
+    // If onboarding not completed, redirect to onboarding
+    if (!onboardingData?.completed) {
+      return NextResponse.redirect(`${origin}/onboarding`);
+    }
+  }
+
   if (redirectTo) {
     return NextResponse.redirect(`${origin}${redirectTo}`);
   }

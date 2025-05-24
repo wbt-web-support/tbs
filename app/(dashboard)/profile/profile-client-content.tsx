@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { DebugSession } from "@/components/debug-session"; // Keep if useful for debugging client side
 import type { User } from '@supabase/supabase-js';
+import { Textarea } from "@/components/ui/textarea";
 
 // Use the same BusinessInfo interface
 interface BusinessInfo {
@@ -157,6 +158,52 @@ export function ProfileClientContent({ user, initialBusinessInfo }: ProfileClien
       toast.error(error.message || 'Failed to upload profile picture');
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Onboarding info state
+  const [onboardingInfo, setOnboardingInfo] = useState<any>(null);
+  const [editingOnboarding, setEditingOnboarding] = useState(false);
+  const [onboardingForm, setOnboardingForm] = useState<any>({});
+  const [savingOnboarding, setSavingOnboarding] = useState(false);
+
+  useEffect(() => {
+    // Fetch onboarding info
+    async function fetchOnboarding() {
+      const { data, error } = await supabase
+        .from('company_onboarding')
+        .select('onboarding_data')
+        .eq('user_id', user.id)
+        .single();
+      if (data?.onboarding_data) {
+        setOnboardingInfo(data.onboarding_data);
+        setOnboardingForm(data.onboarding_data);
+      }
+    }
+    fetchOnboarding();
+  }, [user.id]);
+
+  const handleOnboardingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setOnboardingForm((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  const handleOnboardingSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingOnboarding(true);
+    try {
+      const { error } = await supabase
+        .from('company_onboarding')
+        .update({ onboarding_data: onboardingForm })
+        .eq('user_id', user.id);
+      if (error) throw error;
+      setOnboardingInfo(onboardingForm);
+      setEditingOnboarding(false);
+      toast.success('Onboarding info updated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update onboarding info');
+    } finally {
+      setSavingOnboarding(false);
     }
   };
 
@@ -332,7 +379,369 @@ export function ProfileClientContent({ user, initialBusinessInfo }: ProfileClien
             )}
           </form>
         </Card>
+
+        {/* Onboarding Info Section */}
+        <Card className="border-0 mt-10 overflow-hidden">
+          <CardHeader className="bg-blue-50/50 border-b px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-lg font-semibold text-blue-900">Company Onboarding Info</CardTitle>
+                <CardDescription className="text-sm text-blue-700">This information was provided during onboarding. You can update it here.</CardDescription>
+              </div>
+              <Button 
+                variant={editingOnboarding ? "secondary" : "outline"} 
+                size="sm"
+                onClick={() => setEditingOnboarding(!editingOnboarding)}
+                disabled={savingOnboarding}
+              >
+                {editingOnboarding ? <><X className="h-4 w-4 mr-1.5" /> Cancel</> : <><Edit className="h-4 w-4 mr-1.5" /> Edit</>}
+              </Button>
+            </div>
+          </CardHeader>
+          <form onSubmit={handleOnboardingSave}>
+            <CardContent className="p-6 space-y-8">
+              {onboardingInfo ? (
+                <>
+                  {/* Company Information */}
+                  <div>
+                    <h3 className="font-semibold text-blue-800 mb-2">Company Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Full Legal Company Name</Label>
+                        {editingOnboarding ? (
+                          <Input name="company_name_official_registered" value={onboardingForm.company_name_official_registered || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2">{onboardingInfo.company_name_official_registered}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label>Business Owners (Full Names & Roles)</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="list_of_business_owners_full_names" value={onboardingForm.list_of_business_owners_full_names || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.list_of_business_owners_full_names}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label>Primary Company Email Address</Label>
+                        {editingOnboarding ? (
+                          <Input name="primary_company_email_address" value={onboardingForm.primary_company_email_address || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2">{onboardingInfo.primary_company_email_address}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label>Primary Company Phone Number</Label>
+                        {editingOnboarding ? (
+                          <Input name="primary_company_phone_number" value={onboardingForm.primary_company_phone_number || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2">{onboardingInfo.primary_company_phone_number}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Main Office Physical Address (Full)</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="main_office_physical_address_full" value={onboardingForm.main_office_physical_address_full || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.main_office_physical_address_full}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label>Business Founding Date (YYYY-MM-DD)</Label>
+                        {editingOnboarding ? (
+                          <Input name="business_founding_date_iso" value={onboardingForm.business_founding_date_iso || ''} onChange={handleOnboardingChange} type="date" />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2">{onboardingInfo.business_founding_date_iso}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Company Origin Story & Founder Motivation</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="company_origin_story_and_founder_motivation" value={onboardingForm.company_origin_story_and_founder_motivation || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.company_origin_story_and_founder_motivation}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Main Competitors (List & Reasons)</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="main_competitors_list_and_reasons" value={onboardingForm.main_competitors_list_and_reasons || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.main_competitors_list_and_reasons}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Current Employees & Roles/Responsibilities</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="current_employees_and_roles_responsibilities" value={onboardingForm.current_employees_and_roles_responsibilities || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.current_employees_and_roles_responsibilities}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label>Last Full Year Annual Revenue</Label>
+                        {editingOnboarding ? (
+                          <Input name="last_full_year_annual_revenue_amount" value={onboardingForm.last_full_year_annual_revenue_amount || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2">{onboardingInfo.last_full_year_annual_revenue_amount}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label>Current Profit Margin (%)</Label>
+                        {editingOnboarding ? (
+                          <Input name="current_profit_margin_percentage" value={onboardingForm.current_profit_margin_percentage || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2">{onboardingInfo.current_profit_margin_percentage}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Company Long-Term Vision Statement</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="company_long_term_vision_statement" value={onboardingForm.company_long_term_vision_statement || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.company_long_term_vision_statement}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* War Machine Vision */}
+                  <div>
+                    <h3 className="font-semibold text-blue-800 mt-8 mb-2">War Machine Vision</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Ultimate Long-Term Goal for Business Owner</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="ultimate_long_term_goal_for_business_owner" value={onboardingForm.ultimate_long_term_goal_for_business_owner || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.ultimate_long_term_goal_for_business_owner}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Definition of Success in 5, 10, 20 Years</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="definition_of_success_in_5_10_20_years" value={onboardingForm.definition_of_success_in_5_10_20_years || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.definition_of_success_in_5_10_20_years}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Additional Income Streams or Investments Needed</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="additional_income_streams_or_investments_needed" value={onboardingForm.additional_income_streams_or_investments_needed || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.additional_income_streams_or_investments_needed}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Focus on Single Business or Multiple Long-Term</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="focus_on_single_business_or_multiple_long_term" value={onboardingForm.focus_on_single_business_or_multiple_long_term || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.focus_on_single_business_or_multiple_long_term}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Personal Skills, Knowledge, or Networks to Develop</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="personal_skills_knowledge_networks_to_develop" value={onboardingForm.personal_skills_knowledge_networks_to_develop || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.personal_skills_knowledge_networks_to_develop}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Products and Services */}
+                  <div>
+                    <h3 className="font-semibold text-blue-800 mt-8 mb-2">Products and Services</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Business Overview for Potential Investor</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="business_overview_for_potential_investor" value={onboardingForm.business_overview_for_potential_investor || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.business_overview_for_potential_investor}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Description of Target Customers for Investor</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="description_of_target_customers_for_investor" value={onboardingForm.description_of_target_customers_for_investor || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.description_of_target_customers_for_investor}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Things Going Right in Business</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="list_of_things_going_right_in_business" value={onboardingForm.list_of_things_going_right_in_business || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.list_of_things_going_right_in_business}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Things Going Wrong in Business</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="list_of_things_going_wrong_in_business" value={onboardingForm.list_of_things_going_wrong_in_business || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.list_of_things_going_wrong_in_business}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Things Missing in Business</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="list_of_things_missing_in_business" value={onboardingForm.list_of_things_missing_in_business || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.list_of_things_missing_in_business}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Things Confusing in Business</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="list_of_things_confusing_in_business" value={onboardingForm.list_of_things_confusing_in_business || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.list_of_things_confusing_in_business}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Plans to Expand Services or Locations</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="plans_to_expand_services_or_locations" value={onboardingForm.plans_to_expand_services_or_locations || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.plans_to_expand_services_or_locations}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Sales & Customer Journey */}
+                  <div>
+                    <h3 className="font-semibold text-blue-800 mt-8 mb-2">Sales & Customer Journey</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Detailed Sales Process (First Contact to Close)</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="detailed_sales_process_from_first_contact_to_close" value={onboardingForm.detailed_sales_process_from_first_contact_to_close || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.detailed_sales_process_from_first_contact_to_close}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Structured Follow-Up Process for Unconverted Leads</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="structured_follow_up_process_for_unconverted_leads" value={onboardingForm.structured_follow_up_process_for_unconverted_leads || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.structured_follow_up_process_for_unconverted_leads}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Customer Experience & Fulfillment Process</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="customer_experience_and_fulfillment_process" value={onboardingForm.customer_experience_and_fulfillment_process || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.customer_experience_and_fulfillment_process}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Operations & Systems */}
+                  <div>
+                    <h3 className="font-semibold text-blue-800 mt-8 mb-2">Operations & Systems</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Documented Systems or SOPs (Links)</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="documented_systems_or_sops_links" value={onboardingForm.documented_systems_or_sops_links || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.documented_systems_or_sops_links}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Software & Tools Used for Operations</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="software_and_tools_used_for_operations" value={onboardingForm.software_and_tools_used_for_operations || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.software_and_tools_used_for_operations}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Team Structure & Admin/Sales/Marketing Roles</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="team_structure_and_admin_sales_marketing_roles" value={onboardingForm.team_structure_and_admin_sales_marketing_roles || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.team_structure_and_admin_sales_marketing_roles}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Regular Team Meetings (Frequency, Attendees, Agenda)</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="regular_team_meetings_frequency_attendees_agenda" value={onboardingForm.regular_team_meetings_frequency_attendees_agenda || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.regular_team_meetings_frequency_attendees_agenda}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>KPI Scorecards, Metrics Tracked & Review Frequency</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="kpi_scorecards_metrics_tracked_and_review_frequency" value={onboardingForm.kpi_scorecards_metrics_tracked_and_review_frequency || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.kpi_scorecards_metrics_tracked_and_review_frequency}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Biggest Current Operational Headache</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="biggest_current_operational_headache" value={onboardingForm.biggest_current_operational_headache || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.biggest_current_operational_headache}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Final Section */}
+                  <div>
+                    <h3 className="font-semibold text-blue-800 mt-8 mb-2">Final Section</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Most Exciting Aspect of Bootcamp for You</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="most_exciting_aspect_of_bootcamp_for_you" value={onboardingForm.most_exciting_aspect_of_bootcamp_for_you || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.most_exciting_aspect_of_bootcamp_for_you}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Specific Expectations or Requests for Bootcamp</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="specific_expectations_or_requests_for_bootcamp" value={onboardingForm.specific_expectations_or_requests_for_bootcamp || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.specific_expectations_or_requests_for_bootcamp}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Additional Comments or Items for Attention</Label>
+                        {editingOnboarding ? (
+                          <Textarea name="additional_comments_or_items_for_attention" value={onboardingForm.additional_comments_or_items_for_attention || ''} onChange={handleOnboardingChange} />
+                        ) : (
+                          <p className="text-gray-800 bg-gray-50 border rounded px-3 py-2 whitespace-pre-line">{onboardingInfo.additional_comments_or_items_for_attention}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-500">No onboarding info found.</p>
+              )}
+            </CardContent>
+            {editingOnboarding && (
+              <div className="px-6 py-4 bg-blue-50/50 border-t flex justify-end">
+                <Button type="submit" disabled={savingOnboarding}>
+                  {savingOnboarding ? <LoadingSpinner className="mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Changes
+                </Button>
+              </div>
+            )}
+          </form>
+        </Card>
       </div>
     </div>
   );
-} 
+}
