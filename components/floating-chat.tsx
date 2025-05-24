@@ -21,9 +21,12 @@ export function FloatingChat() {
     if (window.innerWidth >= 1024) padding = 32; // lg:p-8
     else if (window.innerWidth >= 640) padding = 24; // sm:p-6
     
+    // Add extra space for scrollbar (typically 17px) and some margin
+    const scrollbarWidth = 20;
+    
     return {
       top: padding,
-      right: includeSidebarWidth ? padding + sidebarWidth - 20 : padding,
+      right: includeSidebarWidth ? padding + sidebarWidth + scrollbarWidth : padding,
       bottom: padding,
       left: padding
     };
@@ -116,7 +119,7 @@ export function FloatingChat() {
       <div
         ref={sidebarRef}
         style={{ width: `${sidebarWidth}px` }}
-        className={`fixed top-16 bottom-0 right-0 z-50 bg-white transform transition-transform duration-300 ${
+        className={`fixed sm:top-16 top-0 bottom-0 right-0 z-50 bg-white transform transition-transform duration-300 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -149,7 +152,7 @@ export function FloatingChat() {
           </div>
 
           {/* Chat component */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
             <RealtimeChatGemini hideDebugButton showHeader={false} />
           </div>
         </div>
