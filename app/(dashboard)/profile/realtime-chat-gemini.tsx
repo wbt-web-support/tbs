@@ -1028,11 +1028,11 @@ export function RealtimeChatGemini() {
                         ? message.isVoiceMessage 
                           ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                           : "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
-                        : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
+                        : "bg-white text-gray-800  border border-gray-100"
                     }`}
                   >
                     <div className="w-full">
-                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
+                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[13px] sm:!text-[14px]`}>
                           <ReactMarkdown
                             components={{
                               h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
@@ -1098,7 +1098,7 @@ export function RealtimeChatGemini() {
             {/* Bot typing indicator placeholder with glowing lines */}
             {showBotTyping && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100">
+                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800  border border-gray-100">
                   <div className="flex flex-col gap-1.5 w-36">
                     <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
                     <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
@@ -1115,7 +1115,7 @@ export function RealtimeChatGemini() {
                   className={`max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ${
                     audioPlaceholder.role === "user"
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
-                      : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
+                      : "bg-white text-gray-800  border border-gray-100"
                   }`}
                 >
                   <div className="w-full">

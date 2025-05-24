@@ -1540,7 +1540,7 @@ export function RealtimeChat() {
                         ? message.type === "audio" 
                           ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                           : "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
-                        : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
+                        : "bg-white text-gray-800  border border-gray-100"
                     } ${message.type === "audio" && !message.isComplete ? "opacity-80" : ""}`}
                   >
                     <div className="w-full">
@@ -1614,7 +1614,7 @@ export function RealtimeChat() {
             ))}
             {isLoading && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100">
+                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800  border border-gray-100">
                   <div className="flex flex-col gap-1.5 w-36">
                     <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
                     <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
