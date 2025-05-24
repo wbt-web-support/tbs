@@ -1,4 +1,3 @@
-import HeaderAuth from "@/components/header-auth";
 import { Geist } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
@@ -8,6 +7,7 @@ import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 import { initializeSupabaseStorage } from "@/utils/supabase/storage-init";
 import { Toaster as SonnerToaster } from "sonner";
+// import { FloatingChat } from "@/components/floating-chat";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -48,23 +48,14 @@ export default async function RootLayout({
     
           <main className="min-h-screen flex flex-col items-center">
             <div className="w-full">
-              {/* <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-                <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-                  <div className="flex gap-5 items-center font-semibold">
-                    <Link href={"/"} className="text-2xl" >TBS</Link>
-                  
-                  </div>
-                  <HeaderAuth />
-                </div>
-              </nav> */}
-              <div className="min-h-screen flex justify-center items-center w-full">
+              <div id="page-content" className="min-h-screen flex justify-center items-center w-full transition-[padding] duration-300 ease-in-out">
                 {children}
               </div>
-
             </div>
           </main>
           <Toaster />
           <SonnerToaster position="top-right" />
+          
       </body>
     </html>
   );

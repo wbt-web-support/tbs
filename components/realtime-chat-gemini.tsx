@@ -31,7 +31,7 @@ interface ChatbotInstruction {
   extraction_metadata: any;
 }
 
-export function RealtimeChatGemini() {
+export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true }: { hideDebugButton?: boolean, showHeader?: boolean } = {}) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -773,11 +773,13 @@ export function RealtimeChatGemini() {
                       if (audioRef.current) {
                         console.log("🎤 Setting audio source and preparing to play");
                         audioRef.current.src = audioUrl;
+                        // Wait longer for the audio to be ready
                         audioRef.current.oncanplay = () => {
-                          console.log("🎤 Audio ready, auto-playing");
+                          console.log("🎤 Audio can play now, auto-playing");
+                          setIsAudioPlaying(true); // Set this before play() to avoid race conditions
                           audioRef.current?.play().catch(e => {
                             console.error("🎤 Auto-play error:", e);
-                            // Audio playback might be blocked by browser policy, show a message or indicator
+                            setIsAudioPlaying(false); // Reset if play fails
                           });
                         };
                       }
@@ -1313,122 +1315,161 @@ export function RealtimeChatGemini() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 rounded-xl border max-w-6xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 border max-w-6xl mx-auto w-full">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm rounded-t-xl">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-          C
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
-            <p className="text-xs text-gray-500">Trades Business School</p>
-          </div>
-          {isLoadingHistory && (
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-              <span className="text-sm text-gray-500">Loading history...</span>
+      {showHeader && (
+        <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm h-16">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
+              G
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Add streaming toggle */}
-          <div className="flex items-center gap-1 mr-2 hidden">
-            <label className="text-xs text-gray-500">
-              <input 
-                type="checkbox" 
-                checked={useStreaming} 
-                onChange={() => setUseStreaming(!useStreaming)} 
-                className="mr-1"
-              />
-              Streaming
-            </label>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
+              <p className="text-xs text-gray-500">Trades Business School</p>
+            </div>
+            {isLoadingHistory && (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+              </div>
+            )}
           </div>
-          
-          {/* Debug button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchDebugData}
-            disabled={isLoading}
-            title="Show model context debug data"
-            className="mr-2"
-          >
-            <Bug className="h-4 w-4 mr-1" />
-            <span className="text-xs">Debug Data</span>
-          </Button>
-          
-          {/* Debug dropdown */}
-          <div className="relative group mr-2 hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              title="View model context data"
-              className="mr-2"
-            >
-              <Bug className="h-4 w-4 mr-1" />
-              <span className="text-xs">Context Data</span>
-            </Button>
-            <div className="absolute right-0 mt-1 w-40 bg-white shadow-lg rounded-md overflow-hidden hidden group-hover:block z-50">
-              <a
-                href="/api/gemini?action=view" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-              >
-                <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                Pretty View
-              </a>
-              <a
-                href="/api/gemini?action=debug" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-              >
-                <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                Raw JSON
-              </a>
-              <button
+          <div className="flex items-center gap-2">
+            {/* Add streaming toggle */}
+            <div className="flex items-center gap-1 mr-2 hidden">
+              <label className="text-xs text-gray-500">
+                <input 
+                  type="checkbox" 
+                  checked={useStreaming} 
+                  onChange={() => setUseStreaming(!useStreaming)} 
+                  className="mr-1"
+                />
+                Streaming
+              </label>
+            </div>
+            
+            {/* Debug button */}
+            {!hideDebugButton && (
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={fetchDebugData}
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                disabled={isLoading}
+                title="Show model context debug data"
+                className="mr-2"
               >
-                <Bug className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                Popup View
-              </button>
+                <Bug className="h-4 w-4 mr-1" />
+                <span className="text-xs">Debug Data</span>
+              </Button>
+            )}
+            
+            {/* Debug dropdown */}
+            <div className="relative group mr-2 hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                title="View model context data"
+                className="mr-2"
+              >
+                <Bug className="h-4 w-4 mr-1" />
+                <span className="text-xs">Context Data</span>
+              </Button>
+              <div className="absolute right-0 mt-1 w-40 bg-white shadow-lg rounded-md overflow-hidden hidden group-hover:block z-50">
+                <a
+                  href="/api/gemini?action=view" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                  Pretty View
+                </a>
+                <a
+                  href="/api/gemini?action=debug" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                  Raw JSON
+                </a>
+                <button
+                  onClick={fetchDebugData}
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                >
+                  <Bug className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                  Popup View
+                </button>
+              </div>
             </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearChatHistory}
+              disabled={isClearingChat || isLoading}
+              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
+            >
+            {isClearingChat ? (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                <span>Clearing...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                  <line x1="10" x2="10" y1="11" y2="17"></line>
+                  <line x1="14" x2="14" y1="11" y2="17"></line>
+                </svg>
+                <span>Clear Chat</span>
+              </div>
+            )}
+            </Button>
           </div>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearChatHistory}
-            disabled={isClearingChat || isLoading}
-            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
-          >
-          {isClearingChat ? (
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-              <span>Clearing...</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
-                <path d="M3 6h18"></path>
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                <line x1="10" x2="10" y1="11" y2="17"></line>
-                <line x1="14" x2="14" y1="11" y2="17"></line>
-              </svg>
-              <span>Clear Chat</span>
-            </div>
-          )}
-          </Button>
         </div>
-      </div>
-
+      )}
+      {!showHeader && (
+        <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm h-16">
+          <div />
+          <div className="flex items-center gap-2">
+            {isLoadingHistory && (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearChatHistory}
+              disabled={isClearingChat || isLoading}
+              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
+            >
+              {isClearingChat ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                  <span>Clearing...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                    <line x1="10" x2="10" y1="11" y2="17"></line>
+                    <line x1="14" x2="14" y1="11" y2="17"></line>
+                  </svg>
+                  <span>Clear Chat</span>
+                </div>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Chat Area */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-280px)] sm:h-[calc(100vh-280px)]" ref={scrollAreaRef}>
+        <ScrollArea className="h-full" ref={scrollAreaRef}>
           <div className="space-y-6 p-6 pt-12">
             {/* Error display with suggestion to disable streaming */}
             {error && (
@@ -1454,11 +1495,11 @@ export function RealtimeChatGemini() {
                         ? message.isVoiceMessage 
                           ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                           : "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
-                        : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
+                        : "bg-white text-gray-800  border border-gray-200"
                     }`}
                   >
                     <div className="w-full">
-                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
+                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[13px] sm:!text-[14px]`}>
                           <ReactMarkdown
                             components={{
                               h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
@@ -1524,7 +1565,7 @@ export function RealtimeChatGemini() {
             {/* Bot typing indicator placeholder with glowing lines */}
             {showBotTyping && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100">
+                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800  border border-gray-200">
                   <div className="flex flex-col gap-1.5 w-36">
                     <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
                     <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
@@ -1541,7 +1582,7 @@ export function RealtimeChatGemini() {
                   className={`max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ${
                     audioPlaceholder.role === "user"
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
-                      : "bg-white text-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100"
+                      : "bg-white text-gray-800  border border-gray-200"
                   }`}
                 >
                   <div className="w-full">
