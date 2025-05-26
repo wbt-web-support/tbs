@@ -11,6 +11,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
+import { signOutAction } from "@/app/actions";
+import Image from "next/image";
+import Link from "next/link";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check } from "lucide-react";
 
 
 // Highly descriptive schema for AI training
@@ -156,7 +160,7 @@ const questions = [
   // War Machine Vision
   { name: 'ultimate_long_term_goal_for_business_owner', label: 'What is your ultimate long-term goal? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false },
   { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 5, 10, and 20 years?', type: 'textarea', required: false },
-  { name: 'additional_income_streams_or_investments_needed', label: 'If your current business isn’t enough to reach this goal, what other income streams, investments, or businesses might be needed?', type: 'textarea', required: false },
+  { name: 'additional_income_streams_or_investments_needed', label: "If your current business isn't enough to reach this goal, what other income streams, investments, or businesses might be needed?", type: 'textarea', required: false },
   { name: 'focus_on_single_business_or_multiple_long_term', label: 'Do you see yourself focusing on one business long-term, or do you want to build a group of companies?', type: 'textarea', required: false },
   { name: 'personal_skills_knowledge_networks_to_develop', label: 'What personal skills, knowledge, or networks do you think you would need to develop to build your War Machine successfully?', type: 'textarea', required: false },
 
@@ -171,7 +175,7 @@ const questions = [
 
   // Sales & Customer Journey
   { name: 'detailed_sales_process_from_first_contact_to_close', label: 'What does your sales process look like? (From first contact to closed deal - please be as detailed as possible)', type: 'textarea', required: false },
-  { name: 'structured_follow_up_process_for_unconverted_leads', label: 'Do you have a structured follow-up process for leads that don’t convert immediately?', type: 'textarea', required: false },
+  { name: 'structured_follow_up_process_for_unconverted_leads', label: "Do you have a structured follow-up process for leads that don't convert immediately?", type: 'textarea', required: false },
   { name: 'customer_experience_and_fulfillment_process', label: 'How do you ensure customers have a great experience with your business? (From closed deal to completing the job - please be as detailed as possible as to the fulfilment process)', type: 'textarea', required: false },
 
   // Operations & Systems
@@ -180,7 +184,7 @@ const questions = [
   { name: 'team_structure_and_admin_sales_marketing_roles', label: 'Do you have a team that handles admin, sales, or marketing, or are you doing most of it yourself?', type: 'textarea', required: false },
   { name: 'regular_team_meetings_frequency_attendees_agenda', label: 'Do you currently hold regular team meetings? If so, how often do they happen, who attends, and do you follow a set agenda?', type: 'textarea', required: false },
   { name: 'kpi_scorecards_metrics_tracked_and_review_frequency', label: 'Do you currently use scorecards or track key performance indicators (KPIs) for your team members? If so, what metrics do you monitor, and how frequently do you review them? If not, what challenges have prevented you from implementing a tracking system?', type: 'textarea', required: false },
-  { name: 'biggest_current_operational_headache', label: 'What’s your biggest operational headache right now?', type: 'textarea', required: false },
+  { name: 'biggest_current_operational_headache', label: 'What is your biggest operational headache right now?', type: 'textarea', required: false },
 
   // Final Section
   { name: 'most_exciting_aspect_of_bootcamp_for_you', label: 'What are you most excited about in this Bootcamp?', type: 'textarea', required: false },
@@ -188,15 +192,130 @@ const questions = [
   { name: 'additional_comments_or_items_for_attention', label: 'Please list any additional comments or items that you would like to bring to our attention before we get started.', type: 'textarea', required: false },
 ];
 
+// Define categories
+const categories = [
+  {
+    id: 'company-info',
+    title: 'Company Information',
+    description: 'Basic details about your company',
+    questions: questions.slice(0, 12)
+  },
+  {
+    id: 'war-machine',
+    title: 'War Machine Vision',
+    description: 'Your long-term business goals and vision',
+    questions: questions.slice(12, 17)
+  },
+  {
+    id: 'products-services',
+    title: 'Products and Services',
+    description: 'Details about your business offerings',
+    questions: questions.slice(17, 24)
+  },
+  {
+    id: 'sales-customer',
+    title: 'Sales & Customer Journey',
+    description: 'Your sales process and customer experience',
+    questions: questions.slice(24, 27)
+  },
+  {
+    id: 'operations',
+    title: 'Operations & Systems',
+    description: 'Your business operations and systems',
+    questions: questions.slice(27, 33)
+  },
+  {
+    id: 'final-section',
+    title: 'Final Section',
+    description: 'Final thoughts and expectations',
+    questions: questions.slice(23, 36)
+  }
+];
+
+function StepIndicator({ step, title, description, isActive, isCompleted, onClick }: { step: number; title: string; description: string; isActive: boolean; isCompleted: boolean; onClick: () => void }) {
+  return (
+    <button 
+      className={`flex items-start gap-4 py-3 w-full text-left ${isActive ? 'border-l-2 border-blue-600 pl-3' : 'pl-4'} ${isCompleted ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+      onClick={onClick}
+      disabled={!isCompleted}
+    >
+      <div className={`w-6 h-6 flex items-center justify-center rounded-full text-sm font-semibold ${isCompleted ? 'bg-blue-600 text-white' : isActive ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-600'}`}>
+        {isCompleted ? <Check size={14} /> : step}
+      </div>
+      <div className="flex flex-col">
+        <div className={`font-semibold text-sm ${isActive ? 'text-blue-800' : 'text-gray-800'}`}>Step {step}: {title}</div>
+        {/* <p className="text-sm text-gray-600 mt-1">{description}</p> */}
+      </div>
+    </button>
+  );
+}
+
+function OnboardingHeader({ userName }: { userName: string }) {
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b">
+      <div className="px-4 h-16 flex items-center justify-between">
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center">
+            {/* <Image
+              src="/logo.png"
+              alt="Logo"
+              width={32}
+              height={32}
+              className="mr-2"
+            /> */}
+            <span className="font-semibold text-lg">TBS</span>
+          </Link>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild className="flex items-center gap-2">
+            <Link href="/help">
+              <HelpCircle className="h-4 w-4" />
+              Need Help?
+            </Link>
+          </Button>
+          <div className="text-sm text-gray-600">
+            {userName}
+          </div>
+          <form action={signOutAction}>
+            <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </Button>
+          </form>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function WelcomeScreen({ userEmail, onStart }: { userEmail: string; onStart: () => void }) {
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-white p-8">
+      <div className="w-full max-w-2xl text-center rounded-xl p-8 bg-white">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome, {userEmail}!</h1>
+        <p className="text-lg text-gray-700 mb-8">
+          Welcome to TBS. Let's take a moment to set up your workspace and get you ready to go. This process will help us tailor your experience and ensure everything runs smoothly.
+        </p>
+        <Button size="lg" onClick={onStart}>
+          Let's Begin
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function OnboardingClient() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<any>({});
+  const [currentCategory, setCurrentCategory] = useState(0);
+  const [userName, setUserName] = useState<string>("");
+  const [showWelcome, setShowWelcome] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    mode: "onChange", // Enable real-time validation
     defaultValues: {
       company_name_official_registered: "",
       list_of_business_owners_full_names: "",
@@ -237,6 +356,28 @@ export default function OnboardingClient() {
     },
   });
 
+  // Watch form changes and save them
+  useEffect(() => {
+    const subscription = form.watch((data) => {
+      // Save form data when it changes
+      const saveData = async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        await supabase
+          .from('company_onboarding')
+          .upsert({
+            user_id: user.id,
+            onboarding_data: data,
+            completed: false,
+          });
+      };
+      saveData();
+    });
+
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   // Load onboarding data on mount
   useEffect(() => {
     const fetchOnboardingData = async () => {
@@ -249,41 +390,116 @@ export default function OnboardingClient() {
         .eq('user_id', user.id)
         .single();
       if (data && data.onboarding_data) {
-        setAnswers(data.onboarding_data);
+        // Use reset to set form values from fetched data
+        form.reset(data.onboarding_data);
       }
     };
     fetchOnboardingData();
   }, []);
 
-  // Autosave on answer change
-  const saveAnswer = async (field: string, value: string) => {
-    setAnswers((prev: any) => ({ ...prev, [field]: value }));
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase
-      .from('company_onboarding')
-      .upsert({
-        user_id: user.id,
-        onboarding_data: { ...answers, [field]: value },
-        completed: false,
-      });
+  // Fetch user name on mount
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('business_info')
+          .select('full_name')
+          .eq('user_id', user.id)
+          .single();
+        if (data) {
+          setUserName(data.full_name);
+        } else if (error) {
+          console.error("Error fetching business info:", error);
+          // Fallback to email if name not found or error
+          setUserName(user.email || "");
+        } else {
+           // Fallback to email if name data is null
+           setUserName(user.email || "");
+        }
+      } else {
+        setUserName(""); // Clear name if no user
+      }
+    };
+    fetchUserName();
+  }, []);
+
+  const handleStartOnboarding = () => {
+    setShowWelcome(false);
   };
 
   const handleNext = async () => {
-    // Optionally validate here
-    setCurrentIndex((prev) => Math.min(prev + 1, questions.length - 1));
+    // Trigger form validation for the current category's questions
+    const currentCategoryQuestions = categories[currentCategory].questions;
+    const fieldsToValidate = currentCategoryQuestions.filter(q => q.required).map(q => q.name);
+
+    const isValid = await form.trigger(fieldsToValidate as (keyof z.infer<typeof formSchema>)[]);
+
+    if (isValid) {
+      setCurrentCategory((prev) => Math.min(prev + 1, categories.length - 1));
+    } else {
+       toast({
+        title: "Incomplete Section",
+        description: "Please complete all required fields in the current section before proceeding.",
+        variant: "destructive",
+      });
+    }
   };
+
   const handleBack = () => {
-    setCurrentIndex((prev) => Math.max(prev - 1, 0));
+    setCurrentCategory((prev) => Math.max(prev - 1, 0));
   };
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    saveAnswer(name, value);
+
+  const isCategoryComplete = (categoryIndex: number) => {
+    const category = categories[categoryIndex];
+    // Get values directly from react-hook-form
+    const formValues = form.getValues();
+    return category.questions.every(q => {
+      if (q.required) {
+        const answer = formValues[q.name as keyof z.infer<typeof formSchema>];
+        return answer !== undefined && answer !== null && answer !== '';
+      }
+      return true; // Optional fields are considered complete
+    });
   };
+
+  const handleCategoryClick = (index: number) => {
+    if (index <= currentCategory) {
+      // Allow navigating back to any previous or current section
+      setCurrentCategory(index);
+    } else if (index === currentCategory + 1) {
+      // Allow navigating to the next section if the current section is complete
+      if (isCategoryComplete(currentCategory)) {
+        setCurrentCategory(index);
+      } else {
+        toast({
+          title: "Incomplete Section",
+          description: "Please complete the current section before moving to the next.",
+          variant: "destructive",
+        });
+      }
+    }
+    // Do not allow skipping sections beyond the next one via sidebar click
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    // Validate the final section before submitting
+    if (!isCategoryComplete(categories.length - 1)) {
+       toast({
+        title: "Incomplete Section",
+        description: "Please complete all required fields in the final section before submitting.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+    
+    // Get all form values for submission
+    const allFormValues = form.getValues();
+
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -292,7 +508,7 @@ export default function OnboardingClient() {
         .from('company_onboarding')
         .upsert({
           user_id: user.id,
-          onboarding_data: answers,
+          onboarding_data: allFormValues, // Use values from react-hook-form
           completed: true,
         });
       toast({ title: "Success", description: "Your company information has been saved" });
@@ -305,58 +521,124 @@ export default function OnboardingClient() {
     }
   };
 
-  const q = questions[currentIndex];
-  const total = questions.length;
+  const currentQuestions = categories[currentCategory].questions;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#f8fafc] to-[#e0e7ef]">
-      <form onSubmit={handleSubmit} className="w-full max-w-xl  rounded-xl p-8 flex flex-col items-center justify-center min-h-[80vh]">
-        <div className="w-full mb-8">
-          <Progress value={((currentIndex + 1) / total) * 100} className="w-full h-2 bg-gray-200 rounded-full" indicatorClassName="bg-blue-600 transition-all duration-300 ease-in-out" />
-          <p className="text-sm text-gray-600 mt-2 text-left">Question {currentIndex + 1} of {total}</p>
-        </div>
-        <div className="w-full flex flex-col items-center">
-          <label className="block text-lg font-semibold text-gray-800 mb-4 text-left" htmlFor={q.name}>{q.label}</label>
-          {q.type === 'input' ? (
-            <Input
-              id={q.name}
-              name={q.name}
-              type={q.inputType || 'text'}
-              value={answers[q.name] || ''}
-              onChange={handleChange}
-              placeholder={q.placeholder}
-              className="rounded-lg w-full text-base"
-              required={q.required}
-              autoFocus
-            />
-          ) : (
-            <Textarea
-              id={q.name}
-              name={q.name}
-              value={answers[q.name] || ''}
-              onChange={handleChange}
-              placeholder={q.placeholder}
-              className="rounded-lg w-full min-h-[100px] text-base"
-              required={q.required}
-              autoFocus
-            />
-          )}
-        </div>
-        <div className="flex w-full justify-between mt-10 gap-4">
-          <Button type="button" variant="outline" onClick={handleBack} disabled={currentIndex === 0 || isLoading}>
-            Back
-          </Button>
-          {currentIndex < total - 1 ? (
-            <Button type="button" onClick={handleNext} disabled={isLoading}>
-              Next
-            </Button>
-          ) : (
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Saving..." : "Complete Onboarding"}
-            </Button>
-          )}
-        </div>
-      </form>
+    <div className="min-h-screen bg-gray-50 w-full">
+      <OnboardingHeader userName={userName} />
+      <main className="mx-auto p-0">
+        {showWelcome ? (
+          <WelcomeScreen userEmail={userName} onStart={handleStartOnboarding} />
+        ) : (
+          <div className="min-h-screen w-full flex">
+            {/* Left Sidebar for Steps */}
+            <div className="w-full max-w-sm bg-white p-8 sticky top-16 self-start min-h-[calc(100vh-4rem)] border-r z-10">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Get started</h3>
+              <div className="flex flex-col space-y-1">
+                {categories.map((category, index) => (
+                  <StepIndicator
+                    key={category.id}
+                    step={index + 1}
+                    title={category.title}
+                    description={category.description}
+                    isActive={index === currentCategory}
+                    isCompleted={index < currentCategory}
+                    onClick={() => handleCategoryClick(index)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Right Content Area for Questions */}
+            <div className="flex justify-center items-center w-full p-8 relative pt-20">
+              <form onSubmit={handleSubmit} className="w-full max-w-3xl flex flex-col items-center min-h-[calc(100vh-10rem)]">
+              <Progress value={(currentCategory + 1) / categories.length * 100} className="mb-6" />
+
+                <div className="w-full mb-8 text-left">
+                  <h2 className="text-2xl font-bold text-gray-900">Step {currentCategory + 1}: {categories[currentCategory].title}</h2>
+                  <p className="text-sm text-gray-600 mt-2">{categories[currentCategory].description}</p>
+                </div>
+                
+                <div className="w-full space-y-6">
+                  {currentQuestions.map((q) => (
+                    <div key={q.name} className="p-0">
+                      <label 
+                        className="block text-sm font-semibold text-gray-800 mb-2" 
+                        htmlFor={q.name}
+                      >
+                        {q.label}
+                      </label>
+                      {q.type === 'input' ? (
+                        <>
+                          <Input
+                            id={q.name}
+                            type={q.inputType || 'text'}
+                            placeholder={q.placeholder}
+                            className="rounded-md w-full text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                            required={q.required}
+                            {...form.register(q.name as keyof z.infer<typeof formSchema>)}
+                          />
+                          {form.formState.errors[q.name as keyof z.infer<typeof formSchema>] && (
+                            <p className="text-red-500 text-sm mt-1">{form.formState.errors[q.name as keyof z.infer<typeof formSchema>]?.message}</p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Textarea
+                            id={q.name}
+                            placeholder={q.placeholder}
+                            className="rounded-md w-full min-h-[100px] text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                            required={q.required}
+                            {...form.register(q.name as keyof z.infer<typeof formSchema>)}
+                          />
+                           {form.formState.errors[q.name as keyof z.infer<typeof formSchema>] && (
+                            <p className="text-red-500 text-sm mt-1">{form.formState.errors[q.name as keyof z.infer<typeof formSchema>]?.message}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="w-full pt-6 flex justify-center">
+                  <div className="w-full max-w-3xl flex justify-between gap-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleBack} 
+                      disabled={currentCategory === 0 || isLoading}
+                      className="flex items-center gap-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Back
+                    </Button>
+                    {currentCategory < categories.length - 1 ? (
+                      <Button 
+                        type="button" 
+                        onClick={handleNext} 
+                        disabled={isLoading}
+                        className="flex items-center gap-2"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button 
+                        type="submit" 
+                        disabled={isLoading}
+                        className="flex items-center gap-2"
+                      >
+                        {isLoading ? "Saving..." : "Complete Onboarding"}
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

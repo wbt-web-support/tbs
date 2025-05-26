@@ -48,7 +48,7 @@ export default async function RootLayout({
     
           <main className="min-h-screen flex flex-col items-center">
             <div className="w-full">
-              <div id="page-content" className="min-h-screen flex justify-center items-center w-full transition-[padding] duration-300 ease-in-out">
+              <div id="page-content" className="min-h-screen flex justify-center items-center w-full transition-[padding] duration-300 ease-in-out bg-white">
                 {children}
               </div>
             </div>
