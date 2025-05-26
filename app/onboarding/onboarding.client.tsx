@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -14,7 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Image from "next/image";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check, Menu, X, User, ArrowRight, Settings, Zap, Target, Clock } from "lucide-react";
 
 
 // Highly descriptive schema for AI training
@@ -23,15 +24,15 @@ const formSchema = z.object({
   company_name_official_registered: z.string().min(2, "Company name must be at least 2 characters"),
   list_of_business_owners_full_names: z.string().min(2, "Please list at least one business owner"),
   primary_company_email_address: z.string().email("Please enter a valid email"),
-  primary_company_phone_number: z.string().min(10, "Please enter a valid phone number"),
-  main_office_physical_address_full: z.string().min(10, "Please enter a complete address"),
+  primary_company_phone_number: z.string().min(2, "Please enter a valid phone number"),
+  main_office_physical_address_full: z.string().min(2, "Please enter a complete address"),
   business_founding_date_iso: z.string().min(1, "Please enter the founding date"),
-  company_origin_story_and_founder_motivation: z.string().min(10, "Please provide more details about your company's story"),
-  main_competitors_list_and_reasons: z.string().min(10, "Please list 3-5 competitors with reasons"),
-  current_employees_and_roles_responsibilities: z.string().min(10, "Please list employees with their roles"),
+  company_origin_story_and_founder_motivation: z.string().min(2, "Please provide more details about your company's story"),
+  main_competitors_list_and_reasons: z.string().min(2, "Please list 3-5 competitors with reasons"),
+  current_employees_and_roles_responsibilities: z.string().min(2, "Please list employees with their roles"),
   last_full_year_annual_revenue_amount: z.string().min(1, "Please enter annual revenue"),
   current_profit_margin_percentage: z.string().min(1, "Please enter profit margin"),
-  company_long_term_vision_statement: z.string().min(10, "Please provide your company's vision"),
+  company_long_term_vision_statement: z.string().min(2, "Please provide your company's vision"),
 
   // War Machine Vision
   ultimate_long_term_goal_for_business_owner: z.string().optional(),
@@ -235,16 +236,31 @@ const categories = [
 function StepIndicator({ step, title, description, isActive, isCompleted, onClick }: { step: number; title: string; description: string; isActive: boolean; isCompleted: boolean; onClick: () => void }) {
   return (
     <button 
-      className={`flex items-start gap-4 py-3 w-full text-left ${isActive ? 'border-l-2 border-blue-600 pl-3' : 'pl-4'} ${isCompleted ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+      className={`group relative flex text-left items-center w-full px-4 py-3 transition-all duration-200
+        ${isActive ? 'bg-blue-50/50' : 'hover:bg-gray-50'} 
+        ${isCompleted ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
       onClick={onClick}
       disabled={!isCompleted}
     >
-      <div className={`w-6 h-6 flex items-center justify-center rounded-full text-sm font-semibold ${isCompleted ? 'bg-blue-600 text-white' : isActive ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-600'}`}>
-        {isCompleted ? <Check size={14} /> : step}
+      {/* Active indicator */}
+      {isActive && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r" />
+      )}
+      
+      {/* Step indicator */}
+      <div className={`relative w-8 h-8 flex items-center justify-center rounded-full mr-4 transition-all duration-200
+        ${isCompleted ? 'bg-blue-600 text-white' : isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'} 
+        group-hover:${isCompleted || isActive ? 'scale-105' : ''}`}
+      >
+        {isCompleted ? <Check size={16} className="stroke-[2.5]" /> : step}
       </div>
-      <div className="flex flex-col">
-        <div className={`font-semibold text-sm ${isActive ? 'text-blue-800' : 'text-gray-800'}`}>Step {step}: {title}</div>
-        {/* <p className="text-sm text-gray-600 mt-1">{description}</p> */}
+
+      {/* Text content */}
+      <div className="flex flex-col min-w-0">
+        <div className={`font-medium text-sm truncate ${isActive ? 'text-blue-800' : 'text-gray-700'}`}>
+          {title}
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5 truncate">{description}</p>
       </div>
     </button>
   );
@@ -289,21 +305,111 @@ function OnboardingHeader({ userName }: { userName: string }) {
   );
 }
 
-function WelcomeScreen({ userEmail, onStart }: { userEmail: string; onStart: () => void }) {
+function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console.log("Getting started...") }: { userEmail?: string; onStart?: () => void }) {
+  const firstName = userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1);
+  
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-white p-8">
-      <div className="w-full max-w-2xl text-center rounded-xl p-8 bg-white">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome, {userEmail}!</h1>
-        <p className="text-lg text-gray-700 mb-8">
-          Welcome to TBS. Let's take a moment to set up your workspace and get you ready to go. This process will help us tailor your experience and ensure everything runs smoothly.
-        </p>
-        <Button size="lg" onClick={onStart}>
-          Let's Begin
-        </Button>
+    <div className="min-h-screen w-full flex items-center justify-center p-0">
+      <div className="w-full max-w-5xl">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">TBS</span>
+            </div>
+            <span className="text-sm text-gray-500 font-medium">Trades business School</span>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="bg-white rounded-2xl md:p-12 p-6 border border-blue-100">
+          <div className="flex items-start gap-8">
+            {/* Icon section */}
+          
+            
+            {/* Content section */}
+            <div className="flex-1">
+              <div className="mb-6">
+                <h1 className="text-4xl font-bold text-gray-900 mb-3">
+                  Welcome, <span className="text-blue-600">{firstName}</span>
+                </h1>
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Ready to get started</span>
+                </div>
+              </div>
+              
+              <p className="text-xl text-gray-600 mb-6 leading-relaxed">
+                Let's set up your personalized workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">TBS</span>. 
+                We'll configure everything to match your workflow and preferences.
+              </p>
+              
+              {/* Enhanced features grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Settings size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Workspace Setup</h3>
+                    <p className="text-sm text-gray-600">Personalized dashboard and tools</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Target size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Preferences</h3>
+                    <p className="text-sm text-gray-600">Tailored experience configuration</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Zap size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Quick Start</h3>
+                    <p className="text-sm text-gray-600">Ready in under 5 minutes</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* CTA section */}
+              <div className="flex items-center justify-between flex-wrap gap-6">
+                <div>
+                  <Button size="lg" onClick={onStart}>
+                    Start Setup
+                  </Button>
+                  <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
+                    <Clock size={14} />
+                    Estimated time: 3-5 minutes
+                  </p>
+                </div>
+                
+                <div className="text-right text-sm text-gray-500">
+                  <p>Step 0 of 6</p>
+                  <div className="flex gap-1 mt-1">
+                    <div className="w-8 h-1 bg-blue-600 rounded"></div>
+                    <div className="w-8 h-1 bg-gray-200 rounded"></div>
+                    <div className="w-8 h-1 bg-gray-200 rounded"></div>
+                    <div className="w-8 h-1 bg-gray-200 rounded"></div>
+                    <div className="w-8 h-1 bg-gray-200 rounded"></div>
+                    <div className="w-8 h-1 bg-gray-200 rounded"></div>
+                    <div className="w-8 h-1 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
 
 export default function OnboardingClient() {
   const router = useRouter();
@@ -312,6 +418,7 @@ export default function OnboardingClient() {
   const [currentCategory, setCurrentCategory] = useState(0);
   const [userName, setUserName] = useState<string>("");
   const [showWelcome, setShowWelcome] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -530,28 +637,98 @@ export default function OnboardingClient() {
         {showWelcome ? (
           <WelcomeScreen userEmail={userName} onStart={handleStartOnboarding} />
         ) : (
-          <div className="min-h-screen w-full flex">
-            {/* Left Sidebar for Steps */}
-            <div className="w-full max-w-sm bg-white p-8 sticky top-16 self-start min-h-[calc(100vh-4rem)] border-r z-10">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Get started</h3>
-              <div className="flex flex-col space-y-1">
-                {categories.map((category, index) => (
-                  <StepIndicator
-                    key={category.id}
-                    step={index + 1}
-                    title={category.title}
-                    description={category.description}
-                    isActive={index === currentCategory}
-                    isCompleted={index < currentCategory}
-                    onClick={() => handleCategoryClick(index)}
-                  />
-                ))}
+          <div className="min-h-screen w-full flex relative">
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              className="md:hidden fixed top-20 left-4 z-20 bg-white border p-2 shadow-md hover:bg-gray-100 transition-colors"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+
+            {/* Sidebar for desktop */}
+            <div className="hidden md:block w-full max-w-[380px] bg-white sticky top-16 self-start min-h-[calc(100vh-4rem)] border-r z-10 shadow-sm">
+              <div className="flex flex-col h-full">
+                {/* Sidebar header */}
+                <div className="px-6 py-6 border-b">
+                  <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
+                  <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
+                </div>
+                
+                {/* Steps list */}
+                <div className="flex-1 overflow-y-auto py-2">
+                  <div className="flex flex-col gap-2">
+                    {categories.map((category, index) => (
+                      <StepIndicator
+                        key={category.id}
+                        step={index + 1}
+                        title={category.title}
+                        description={category.description}
+                        isActive={index === currentCategory}
+                        isCompleted={index < currentCategory}
+                        onClick={() => handleCategoryClick(index)}
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Progress indicator */}
+                <div className="p-6 border-t bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                    <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
+                  </div>
+                  <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
+                </div>
               </div>
             </div>
 
+            {/* Mobile sidebar using Sheet */}
+            <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+              <SheetContent side="left" className="w-full max-w-[280px] p-0">
+                <div className="flex flex-col h-full">
+                  {/* Sidebar header */}
+                  <div className="px-6 py-6 border-b">
+                    <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
+                    <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
+                  </div>
+                  
+                  {/* Steps list */}
+                  <div className="flex-1 overflow-y-auto py-2">
+                    <div className="flex flex-col">
+                      {categories.map((category, index) => (
+                        <StepIndicator
+                          key={category.id}
+                          step={index + 1}
+                          title={category.title}
+                          description={category.description}
+                          isActive={index === currentCategory}
+                          isCompleted={index < currentCategory}
+                          onClick={() => {
+                            handleCategoryClick(index);
+                            setIsSidebarOpen(false);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Progress indicator */}
+                  <div className="p-6 border-t bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                      <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
+                    </div>
+                    <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+
             {/* Right Content Area for Questions */}
-            <div className="flex justify-center items-center w-full p-8 relative pt-20">
-              <form onSubmit={handleSubmit} className="w-full max-w-3xl flex flex-col items-center min-h-[calc(100vh-10rem)]">
+            <div className="flex justify-center items-center w-full p-4 md:p-8 relative pb-24 md:pb-8 pt-24">
+              <form onSubmit={handleSubmit} className="w-full max-w-3xl flex flex-col items-center min-h-[calc(100vh-10rem)] pt-0 md:pt-20">
               <Progress value={(currentCategory + 1) / categories.length * 100} className="mb-6" />
 
                 <div className="w-full mb-8 text-left">
@@ -563,7 +740,7 @@ export default function OnboardingClient() {
                   {currentQuestions.map((q) => (
                     <div key={q.name} className="p-0">
                       <label 
-                        className="block text-sm font-semibold text-gray-800 mb-2" 
+                        className="block text-sm text-gray-800 mb-2" 
                         htmlFor={q.name}
                       >
                         {q.label}
@@ -600,7 +777,8 @@ export default function OnboardingClient() {
                   ))}
                 </div>
 
-                <div className="w-full pt-6 flex justify-center">
+                {/* Desktop navigation buttons */}
+                <div className="hidden md:flex w-full pt-6 justify-center">
                   <div className="w-full max-w-3xl flex justify-between gap-4">
                     <Button 
                       type="button" 
@@ -635,6 +813,44 @@ export default function OnboardingClient() {
                   </div>
                 </div>
               </form>
+
+              {/* Mobile bottom navigation bar */}
+              <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleBack} 
+                  disabled={currentCategory === 0 || isLoading}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </Button>
+                <span className="text-sm font-medium text-gray-500">
+                  Step {currentCategory + 1} of {categories.length}
+                </span>
+                {currentCategory < categories.length - 1 ? (
+                  <Button 
+                    type="button" 
+                    onClick={handleNext} 
+                    disabled={isLoading}
+                    className="flex items-center gap-2"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="flex items-center gap-2"
+                    form="onboarding-form"
+                  >
+                    {isLoading ? "Saving..." : "Complete"}
+                    <CheckCircle className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}
