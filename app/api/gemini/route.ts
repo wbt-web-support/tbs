@@ -165,58 +165,37 @@ async function getUserData(userId: string) {
   }
 }
 
-// Helper function to save message to history
-async function saveMessageToHistory(userId: string, message: string, role: 'user' | 'assistant') {
+// Helper function to save message to history for a specific instance
+async function saveMessageToHistory(userId: string, message: string, role: 'user' | 'assistant', instanceId?: string) {
   if (!userId) {
     console.log('⚠️ [Supabase] No userId provided, not saving message to history');
-    return;
+    return null;
   }
 
   try {
-    console.log(`🔄 [Supabase] Saving ${role} message to history for user: ${userId}`);
+    console.log(`🔄 [Supabase] Saving ${role} message to history for user: ${userId}, instance: ${instanceId || 'current'}`);
     
-    // First, check if user has a chat history record
     const supabase = await createClient();
-    const { data: existingHistory, error: fetchError } = await supabase
-      .from('chat_history')
-      .select('id, messages')
-      .eq('user_id', userId)
-      .single();
-
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('❌ [Supabase] Error fetching chat history:', fetchError);
-      return;
-    }
-    
     const messageObj = {
       role: role,
       content: message,
       timestamp: new Date().toISOString()
     };
 
-    if (!existingHistory) {
-      console.log('🔄 [Supabase] Creating new chat history');
-      const { error: insertError } = await supabase
-        .from('chat_history')
-        .insert({
-          user_id: userId,
-          messages: [messageObj]
-        });
-      
-      if (insertError) {
-        console.error('❌ [Supabase] Error creating chat history:', insertError);
-      } else {
-        console.log('✅ [Supabase] Created new chat history');
-        
-        // Get the user cache data and update chat history in memory without invalidating
-        const cachedUser = serverCache.userData.get(userId);
-        if (cachedUser) {
-          console.log('🔄 [Cache] Updating chat history in memory cache without re-fetching');
-          cachedUser.chatHistory = [messageObj];
-        }
+    if (instanceId) {
+      // Update specific instance
+    const { data: existingHistory, error: fetchError } = await supabase
+      .from('chat_history')
+      .select('id, messages')
+        .eq('id', instanceId)
+      .eq('user_id', userId)
+      .single();
+
+      if (fetchError) {
+        console.error('❌ [Supabase] Error fetching chat instance:', fetchError);
+        return null;
       }
-    } else {
-      console.log('🔄 [Supabase] Updating existing chat history');
+
       const messages = existingHistory.messages || [];
       messages.push(messageObj);
       
@@ -226,38 +205,245 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       const { error: updateError } = await supabase
         .from('chat_history')
         .update({ messages: limitedMessages })
-        .eq('id', existingHistory.id);
+        .eq('id', instanceId);
       
       if (updateError) {
-        console.error('❌ [Supabase] Error updating chat history:', updateError);
-      } else {
-        console.log('✅ [Supabase] Updated chat history');
-        
-        // Get the user cache data and update chat history in memory without invalidating
-        const cachedUser = serverCache.userData.get(userId);
-        if (cachedUser) {
-          console.log('🔄 [Cache] Updating chat history in memory cache without re-fetching');
-          cachedUser.chatHistory = limitedMessages;
+        console.error('❌ [Supabase] Error updating chat instance:', updateError);
+        return null;
+    }
+    
+      console.log('✅ [Supabase] Updated chat instance');
+      return instanceId;
+    } else {
+      // Get the user's most recent instance or create a new one
+      const { data: recentInstance, error: recentError } = await supabase
+        .from('chat_history')
+        .select('id, messages')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (recentError && recentError.code !== 'PGRST116') {
+        console.error('❌ [Supabase] Error fetching recent chat instance:', recentError);
+        return null;
+      }
+
+      if (!recentInstance) {
+        // Create new instance
+        console.log('🔄 [Supabase] Creating new chat instance');
+        const { data: newInstance, error: insertError } = await supabase
+        .from('chat_history')
+        .insert({
+          user_id: userId,
+            title: 'New Chat',
+          messages: [messageObj]
+          })
+          .select('id')
+          .single();
+      
+      if (insertError) {
+          console.error('❌ [Supabase] Error creating chat instance:', insertError);
+          return null;
         }
+
+        console.log('✅ [Supabase] Created new chat instance');
+        return newInstance.id;
+    } else {
+        // Update existing instance
+        console.log('🔄 [Supabase] Updating recent chat instance');
+        const messages = recentInstance.messages || [];
+      messages.push(messageObj);
+      
+      // Limit to the last 50 messages
+      const limitedMessages = messages.slice(-50);
+
+      const { error: updateError } = await supabase
+        .from('chat_history')
+        .update({ messages: limitedMessages })
+          .eq('id', recentInstance.id);
+      
+      if (updateError) {
+          console.error('❌ [Supabase] Error updating chat instance:', updateError);
+          return null;
+        }
+
+        console.log('✅ [Supabase] Updated chat instance');
+        return recentInstance.id;
       }
     }
   } catch (error) {
     console.error('❌ [Supabase] Error saving message to history:', error);
+    return null;
   }
 }
 
-// Helper function to clear chat history
-async function clearChatHistory(userId: string) {
-  if (!userId) return false;
+// Helper function to get all chat instances for a user
+async function getChatInstances(userId: string) {
+  if (!userId) return [];
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('chat_history')
+      .select('id, title, created_at, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ [Supabase] Error fetching chat instances:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('❌ [Supabase] Error fetching chat instances:', error);
+    return [];
+  }
+}
+
+// Helper function to get a specific chat instance
+async function getChatInstance(userId: string, instanceId: string) {
+  if (!userId || !instanceId) return null;
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('chat_history')
+      .select('*')
+      .eq('id', instanceId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('❌ [Supabase] Error fetching chat instance:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ [Supabase] Error fetching chat instance:', error);
+    return null;
+  }
+}
+
+// Helper function to create a new chat instance
+async function createChatInstance(userId: string, title: string = 'New Chat') {
+  if (!userId) return null;
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('chat_history')
+      .insert({
+        user_id: userId,
+        title: title,
+        messages: []
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('❌ [Supabase] Error creating chat instance:', error);
+      return null;
+    }
+
+    console.log('✅ [Supabase] Created new chat instance');
+    return data;
+  } catch (error) {
+    console.error('❌ [Supabase] Error creating chat instance:', error);
+    return null;
+  }
+}
+
+// Helper function to update chat instance title
+async function updateChatInstanceTitle(userId: string, instanceId: string, title: string) {
+  if (!userId || !instanceId) return false;
 
   try {
     const supabase = await createClient();
     const { error } = await supabase
       .from('chat_history')
+      .update({ title })
+      .eq('id', instanceId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('❌ [Supabase] Error updating chat instance title:', error);
+      return false;
+    }
+
+    console.log('✅ [Supabase] Updated chat instance title');
+    return true;
+  } catch (error) {
+    console.error('❌ [Supabase] Error updating chat instance title:', error);
+    return false;
+  }
+}
+
+// Helper function to delete a chat instance
+async function deleteChatInstance(userId: string, instanceId: string) {
+  if (!userId || !instanceId) return false;
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('chat_history')
+      .delete()
+      .eq('id', instanceId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('❌ [Supabase] Error deleting chat instance:', error);
+      return false;
+    }
+
+    console.log('✅ [Supabase] Deleted chat instance');
+    return true;
+  } catch (error) {
+    console.error('❌ [Supabase] Error deleting chat instance:', error);
+    return false;
+  }
+}
+
+// Helper function to clear chat history for a specific instance
+async function clearChatHistory(userId: string, instanceId?: string) {
+  if (!userId) return false;
+
+  try {
+    const supabase = await createClient();
+    
+    if (instanceId) {
+      // Clear specific instance
+    const { error } = await supabase
+      .from('chat_history')
       .update({ messages: [] })
+        .eq('id', instanceId)
       .eq('user_id', userId);
 
     return !error;
+    } else {
+      // Clear the most recent instance (for backward compatibility)
+      const { data: recentInstance, error: fetchError } = await supabase
+        .from('chat_history')
+        .select('id')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ [Supabase] Error fetching recent instance for clearing:', fetchError);
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('chat_history')
+        .update({ messages: [] })
+        .eq('id', recentInstance.id);
+
+      return !error;
+    }
   } catch (error) {
     console.error("Error clearing chat history:", error);
     return false;
@@ -840,18 +1026,6 @@ ${formatTableData('user_timeline_claims', claim)}`
 ${formatTableData(table, record)}`);
           });
         }
-      });
-  }
-  
-  // Add recent chat history
-  if (userData.chatHistory && userData.chatHistory.length > 0) {
-    parts.push(`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## 💬 RECENT CHAT HISTORY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    const recentMessages = userData.chatHistory.slice(-3);
-    recentMessages.forEach((msg: any) => {
-      parts.push(`${msg.role === 'user' ? '👤 User' : '🤖 Assistant'}: ${msg.content}`);
     });
   }
   
@@ -970,10 +1144,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { message, type, audio, history, generateTTS = false, useStreaming = true } = await req.json();
+    const { message, type, audio, history, generateTTS = false, useStreaming = true, instanceId } = await req.json();
 
     if (type === "chat") {
-      console.log('🔄 [API] Processing chat request', useStreaming ? '(streaming)' : '(non-streaming)');
+      console.log('🔄 [API] Processing chat request', useStreaming ? '(streaming)' : '(non-streaming)', instanceId ? `for instance: ${instanceId}` : '');
       
       // Get user context and instructions using cache - do not invalidate cache after each request
       const [userData, globalInstructions] = await Promise.all([
@@ -996,7 +1170,7 @@ export async function POST(req: Request) {
 
       // Save user message to history but don't invalidate cache for user data
       // Only chat history is changing, which we'll handle separately
-      await saveMessageToHistory(userId, message, 'user');
+      const savedInstanceId = await saveMessageToHistory(userId, message, 'user', instanceId);
 
       // Create content with system instructions and conversation history
       const contents = [];
@@ -1064,11 +1238,15 @@ export async function POST(req: Request) {
             }
 
             // Save assistant's response to history but don't invalidate cache
-            await saveMessageToHistory(userId, fullText, 'assistant');
+            await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId);
 
             // Send completion message
             await writer.write(new TextEncoder().encode(
-              JSON.stringify({ type: 'stream-complete', content: fullText }) + '\n'
+              JSON.stringify({ 
+                type: 'stream-complete', 
+                content: fullText,
+                instanceId: savedInstanceId 
+              }) + '\n'
             ));
 
           } catch (error) {
@@ -1104,11 +1282,12 @@ export async function POST(req: Request) {
           const fullText = result.response.text();
           
           // Save assistant's response to history but don't invalidate cache
-          await saveMessageToHistory(userId, fullText, 'assistant');
+          await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId);
           
           return NextResponse.json({ 
             type: 'chat_response',
-            content: fullText
+            content: fullText,
+            instanceId: savedInstanceId
           });
         } catch (error) {
           console.error("Error generating response:", error);
@@ -1160,7 +1339,7 @@ export async function POST(req: Request) {
       const transcription = transcriptionResult.response.text();
       
       // Save transcription as user message but don't invalidate cache
-      await saveMessageToHistory(userId, transcription, 'user');
+      const savedInstanceId = await saveMessageToHistory(userId, transcription, 'user', instanceId);
 
       // Create streaming response for the chat response
       const stream = new TransformStream();
@@ -1230,7 +1409,7 @@ export async function POST(req: Request) {
           }
 
           // Save assistant's response to history but don't invalidate cache
-          await saveMessageToHistory(userId, fullText, 'assistant');
+          await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId);
 
           // Send completion message
           await writer.write(new TextEncoder().encode(
@@ -1338,14 +1517,67 @@ export async function GET(req: Request) {
   const headersList = headers();
   const url = new URL(req.url);
   const action = url.searchParams.get('action');
+  const instanceId = url.searchParams.get('instanceId');
   
-  // View formatted context in browser
-  if (action === 'view') {
     const userId = await getUserId(req);
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+  // Handle different actions
+  switch (action) {
+    case 'instances':
+      // Get all chat instances for the user
+      try {
+        console.log('🔄 [API] Fetching chat instances');
+        const instances = await getChatInstances(userId);
+        return NextResponse.json({
+          type: 'chat_instances',
+          instances
+        });
+      } catch (error) {
+        console.error("❌ [API] Error fetching chat instances:", error);
+        return NextResponse.json({
+          type: 'error',
+          error: 'Failed to fetch chat instances',
+          details: error instanceof Error ? error.message : String(error)
+        }, { status: 500 });
+      }
+
+    case 'instance':
+      // Get a specific chat instance
+      if (!instanceId) {
+        return NextResponse.json({
+          type: 'error',
+          error: 'Instance ID is required'
+        }, { status: 400 });
+      }
+
+      try {
+        console.log('🔄 [API] Fetching chat instance:', instanceId);
+        const instance = await getChatInstance(userId, instanceId);
+        if (!instance) {
+          return NextResponse.json({
+            type: 'error',
+            error: 'Chat instance not found'
+          }, { status: 404 });
+        }
+
+        return NextResponse.json({
+          type: 'chat_instance',
+          instance
+        });
+      } catch (error) {
+        console.error("❌ [API] Error fetching chat instance:", error);
+        return NextResponse.json({
+          type: 'error',
+          error: 'Failed to fetch chat instance',
+          details: error instanceof Error ? error.message : String(error)
+        }, { status: 500 });
+      }
+
+    case 'view':
+      // View formatted context in browser
     try {
       console.log('🔄 [API] Generating formatted view of model context');
       
@@ -1450,69 +1682,9 @@ export async function GET(req: Request) {
         { status: 500 }
       );
     }
-  }
-  
-  // Only return context data for the debug action
-  if (action !== 'debug') {
-    // Fall back to the original GET behavior for chat history
-    const userId = await getUserId(req);
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
 
-    try {
-      console.log('🔄 [API] Fetching chat history');
-      
-      // Try to get user data from cache first
-      const userData = await serverCache.getUserData(userId, getUserData);
-      
-      if (userData && userData.chatHistory) {
-        console.log('✅ [API] Returning chat history from cache');
-        return new NextResponse(
-          JSON.stringify({
-            type: 'chat_history',
-            history: userData.chatHistory || []
-          })
-        );
-      } else {
-        // Fallback to direct database query if cache doesn't have chat history
-        console.log('🔄 [API] Cache miss for chat history, fetching from database');
-        const supabase = await createClient();
-        const { data, error } = await supabase
-          .from('chat_history')
-          .select('messages')
-          .eq('user_id', userId)
-          .single();
-
-        if (error) throw error;
-
-        console.log('✅ [API] Fetched chat history from database');
-        return new NextResponse(
-          JSON.stringify({
-            type: 'chat_history',
-            history: data?.messages || []
-          })
-        );
-      }
-    } catch (error) {
-      console.error("❌ [API] Error fetching chat history:", error);
-      return new NextResponse(
-        JSON.stringify({
-          type: 'error',
-          error: 'Failed to fetch chat history',
-          details: error instanceof Error ? error.message : String(error)
-        }),
-        { status: 500 }
-      );
-    }
-  }
-  
+    case 'debug':
   // Handle debug request
-  const userId = await getUserId(req);
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
   try {
     console.log('🔄 [API] Fetching debug data for model context');
     
@@ -1530,17 +1702,17 @@ export async function GET(req: Request) {
     const modelInput = {
       // Raw data
       raw: {
-        instructions: globalInstructions,
-        userData: userData
+            userData,
+            globalInstructions,
+            userContext
       },
       // Formatted data (what the model actually sees)
       formatted: {
-        formattedInstructions: formattedInstructions,
-        userContext: userContext
+            formattedInstructions
       }
     };
     
-    console.log('✅ [API] Debug data prepared');
+        console.log('✅ [API] Returning debug data');
     return new NextResponse(
       JSON.stringify({
         type: 'debug_data',
@@ -1548,19 +1720,70 @@ export async function GET(req: Request) {
       })
     );
   } catch (error) {
-    console.error("❌ [API] Error preparing debug data:", error);
+        console.error("❌ [API] Error fetching debug data:", error);
     return new NextResponse(
       JSON.stringify({
         type: 'error',
-        error: 'Failed to prepare debug data',
+            error: 'Failed to fetch debug data',
         details: error instanceof Error ? error.message : String(error)
       }),
       { status: 500 }
     );
   }
+
+    default:
+      // Default behavior - get chat history for most recent instance (backward compatibility)
+      try {
+        console.log('🔄 [API] Fetching chat history for most recent instance');
+        
+        if (instanceId) {
+          // Get specific instance
+          const instance = await getChatInstance(userId, instanceId);
+          if (!instance) {
+            return NextResponse.json({
+              type: 'error',
+              error: 'Chat instance not found'
+            }, { status: 404 });
+          }
+
+          return NextResponse.json({
+            type: 'chat_history',
+            history: instance.messages || [],
+            instanceId: instance.id,
+            title: instance.title
+          });
+        } else {
+          // Get most recent instance for backward compatibility
+          const instances = await getChatInstances(userId);
+          if (instances.length === 0) {
+            return NextResponse.json({
+              type: 'chat_history',
+              history: [],
+              instanceId: null,
+              title: 'New Chat'
+            });
+          }
+
+          const recentInstance = await getChatInstance(userId, instances[0].id);
+          return NextResponse.json({
+            type: 'chat_history',
+            history: recentInstance?.messages || [],
+            instanceId: recentInstance?.id || null,
+            title: recentInstance?.title || 'New Chat'
+          });
+        }
+      } catch (error) {
+        console.error("❌ [API] Error fetching chat history:", error);
+        return NextResponse.json({
+          type: 'error',
+          error: 'Failed to fetch chat history',
+          details: error instanceof Error ? error.message : String(error)
+        }, { status: 500 });
+      }
+  }
 }
 
-// Clear chat history
+// Handle multiple actions for chat instances
 export async function DELETE(req: Request) {
   const userId = await getUserId(req);
   if (!userId) {
@@ -1568,36 +1791,143 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    const success = await clearChatHistory(userId);
+    const { action, instanceId, title } = await req.json();
+
+    switch (action) {
+      case 'clear':
+        // Clear chat history for a specific instance
+        const success = await clearChatHistory(userId, instanceId);
     
     if (success) {
-      console.log(`✅ [Supabase] Chat history cleared successfully for user: ${userId}`);
-      // Update the chat history in the cache without invalidating the whole user object
-      const cachedUser = serverCache.userData.get(userId);
-      if (cachedUser) {
-        console.log('🔄 [Cache] Clearing chat history in memory cache');
-        cachedUser.chatHistory = [];
-        // No need to set lastUserFetch here, as the main data is still valid
-      }
+          console.log(`✅ [Supabase] Chat history cleared successfully for user: ${userId}, instance: ${instanceId || 'recent'}`);
+        } else {
+          console.error(`❌ [Supabase] Failed to clear chat history for user: ${userId}, instance: ${instanceId || 'recent'}`);
+        }
+        
+        return NextResponse.json({
+          type: 'history_cleared',
+          success,
+          instanceId
+        });
+
+      case 'delete':
+        // Delete a specific chat instance
+        if (!instanceId) {
+          return NextResponse.json({
+            type: 'error',
+            error: 'Instance ID is required for deletion'
+          }, { status: 400 });
+        }
+
+        const deleteSuccess = await deleteChatInstance(userId, instanceId);
+        
+        if (deleteSuccess) {
+          console.log(`✅ [Supabase] Chat instance deleted successfully: ${instanceId}`);
+        } else {
+          console.error(`❌ [Supabase] Failed to delete chat instance: ${instanceId}`);
+        }
+        
+        return NextResponse.json({
+          type: 'instance_deleted',
+          success: deleteSuccess,
+          instanceId
+        });
+
+      default:
+        // Default behavior - clear most recent instance (backward compatibility)
+        const defaultSuccess = await clearChatHistory(userId);
+        
+        if (defaultSuccess) {
+          console.log(`✅ [Supabase] Chat history cleared successfully for user: ${userId}`);
     } else {
       console.error(`❌ [Supabase] Failed to clear chat history for user: ${userId}`);
     }
     
-    return new NextResponse(
-      JSON.stringify({
+        return NextResponse.json({
         type: 'history_cleared',
-        success
-      })
-    );
+          success: defaultSuccess
+        });
+    }
   } catch (error) {
-    console.error("❌ [API] Error clearing chat history:", error);
-    return new NextResponse(
-      JSON.stringify({
+    console.error("❌ [API] Error processing DELETE request:", error);
+    return NextResponse.json({
         type: 'error',
-        error: 'Failed to clear chat history',
+      error: 'Failed to process request',
         details: error instanceof Error ? error.message : String(error)
-      }),
-      { status: 500 }
-    );
+    }, { status: 500 });
+  }
+}
+
+// Handle PUT requests for updating chat instances
+export async function PUT(req: Request) {
+  const userId = await getUserId(req);
+  if (!userId) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const { action, instanceId, title } = await req.json();
+
+    switch (action) {
+      case 'create':
+        // Create a new chat instance
+        const newInstance = await createChatInstance(userId, title || 'New Chat');
+        
+        if (newInstance) {
+          console.log(`✅ [Supabase] Created new chat instance: ${newInstance.id}`);
+        } else {
+          console.error(`❌ [Supabase] Failed to create new chat instance`);
+        }
+        
+        return NextResponse.json({
+          type: 'instance_created',
+          success: !!newInstance,
+          instance: newInstance
+        });
+
+      case 'update_title':
+        // Update chat instance title
+        if (!instanceId) {
+          return NextResponse.json({
+            type: 'error',
+            error: 'Instance ID is required for title update'
+          }, { status: 400 });
+        }
+
+        if (!title || !title.trim()) {
+          return NextResponse.json({
+            type: 'error',
+            error: 'Title is required for title update'
+          }, { status: 400 });
+        }
+
+        const updateSuccess = await updateChatInstanceTitle(userId, instanceId, title.trim());
+        
+        if (updateSuccess) {
+          console.log(`✅ [Supabase] Updated chat instance title: ${instanceId}`);
+        } else {
+          console.error(`❌ [Supabase] Failed to update chat instance title: ${instanceId}`);
+        }
+        
+        return NextResponse.json({
+          type: 'title_updated',
+          success: updateSuccess,
+          instanceId,
+          title
+        });
+
+      default:
+        return NextResponse.json({
+          type: 'error',
+          error: 'Invalid action'
+        }, { status: 400 });
+    }
+  } catch (error) {
+    console.error("❌ [API] Error processing PUT request:", error);
+    return NextResponse.json({
+      type: 'error',
+      error: 'Failed to process request',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 } 

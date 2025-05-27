@@ -22,33 +22,26 @@ export default async function SignIn(props: {
   return (
     <div className="flex min-h-screen w-full bg-gray-100">
       <div className="flex-1 flex items-center justify-center p-8">
+
+      
+
         <div className="w-full max-w-md space-y-8 bg-white p-8 rounded">
-          <div className="flex flex-col items-center justify-center">
-            <div className="w-full flex justify-center mb-6">
+          <div className="flex flex-col items-start justify-start">
+          <div className="flex justify-center mb-6 ">
               <Image 
                 src="https://tradebusinessschool.com/wp-content/uploads/2024/11/TBS-coloured-logo-1.webp"
                 alt="Trades Business School Logo"
-                width={180}
+                width={130}
                 height={60}
                 priority
               />
             </div>
-            <h1 className="text-2xl font-bold text-center text-black-800">Command HQ</h1>
-            <p className="mt-2 text-muted-foreground text-center">
+            <h1 className="text-2xl font-bold text-left text-black-800">Command HQ</h1>
+            <p className="mt-2 text-muted-foreground text-left">
               Your central hub for business growth and success
             </p>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-600 font-medium">
-                Sign in to your account
-              </span>
-            </div>
-          </div>
 
           <form className="space-y-6">
             <div className="space-y-4">
@@ -106,17 +99,12 @@ export default async function SignIn(props: {
           mixBlendMode: 'overlay',
           opacity: 0.3
         }}></div>
-        <div className="h-full flex items-center justify-center p-10 relative z-10">
+        <div className="h-full flex items-center justify-center p-10 relative z-10 backdrop-blur-sm">
           <div className="max-w-lg space-y-8">
-            <div className="bg-white/10 p-6 rounded-xl backdrop-blur-sm border border-white/20">
-              <h2 className="text-3xl font-bold text-white mb-4">Trades Business Command Center</h2>
-              <p className="text-white/90 text-lg mb-6">
-                Take control of your trade business with our comprehensive management platform designed specifically for trades professionals.
-              </p>
-            </div>
+            <div className="p-6 rounded-xl ">
+              <h2 className="text-2xl font-bold text-white mb-4">Trades Business Command Center</h2>
+              <p className="text-white/80 mb-5">Take control of your trade business with our comprehensive management platform designed specifically for trades professionals.</p>
             
-            <div className="bg-white/10 p-6 rounded-xl backdrop-blur-sm border border-white/20">
-              <h3 className="text-xl font-semibold text-white mb-4">Business Tools Suite</h3>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
                   <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
