@@ -7,15 +7,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
-import Image from "next/image";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check, Menu, X, User, ArrowRight, Settings, Zap, Target, Clock } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2 } from "lucide-react";
+import { SubmissionLoader } from "./components/submission-loader";
+
+
 
 
 // Highly descriptive schema for AI training
@@ -235,21 +237,22 @@ const categories = [
 
 function StepIndicator({ step, title, description, isActive, isCompleted, onClick }: { step: number; title: string; description: string; isActive: boolean; isCompleted: boolean; onClick: () => void }) {
   return (
-    <button 
+    <button
       className={`group relative flex text-left items-center w-full px-4 py-3 transition-all duration-200
-        ${isActive ? 'bg-blue-50/50' : 'hover:bg-gray-50'} 
-        ${isCompleted ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+        ${isActive ? 'bg-blue-50/50' : 'hover:bg-gray-50'}
+        ${isCompleted ? 'cursor-pointer' : 'cursor-not-allowed'}`}
       onClick={onClick}
       disabled={!isCompleted}
     >
+
       {/* Active indicator */}
       {isActive && (
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r" />
       )}
-      
+
       {/* Step indicator */}
       <div className={`relative w-8 h-8 flex items-center justify-center rounded-full mr-4 transition-all duration-200
-        ${isCompleted ? 'bg-blue-600 text-white' : isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'} 
+        ${isCompleted ? 'bg-blue-600 text-white' : isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}
         group-hover:${isCompleted || isActive ? 'scale-105' : ''}`}
       >
         {isCompleted ? <Check size={16} className="stroke-[2.5]" /> : step}
@@ -282,7 +285,7 @@ function OnboardingHeader({ userName }: { userName: string }) {
             <span className="font-semibold text-lg">TBS</span>
           </Link>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild className="flex items-center gap-2">
             <Link href="/help">
@@ -307,7 +310,7 @@ function OnboardingHeader({ userName }: { userName: string }) {
 
 function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console.log("Getting started...") }: { userEmail?: string; onStart?: () => void }) {
   const firstName = userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1);
-  
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-0">
       <div className="w-full max-w-5xl">
@@ -325,8 +328,8 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
         <div className="bg-white rounded-2xl md:p-12 p-6 border border-blue-100">
           <div className="flex items-start gap-8">
             {/* Icon section */}
-          
-            
+
+
             {/* Content section */}
             <div className="flex-1">
               <div className="mb-6">
@@ -338,12 +341,12 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                   <span className="text-sm">Ready to get started</span>
                 </div>
               </div>
-              
+
               <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                Let's set up your personalized workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">TBS</span>. 
+                Let's set up your personalized workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">TBS</span>.
                 We'll configure everything to match your workflow and preferences.
               </p>
-              
+
               {/* Enhanced features grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
@@ -355,7 +358,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                     <p className="text-sm text-gray-600">Personalized dashboard and tools</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Target size={20} className="text-white" />
@@ -365,7 +368,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                     <p className="text-sm text-gray-600">Tailored experience configuration</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Zap size={20} className="text-white" />
@@ -376,7 +379,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                   </div>
                 </div>
               </div>
-              
+
               {/* CTA section */}
               <div className="flex items-center justify-between flex-wrap gap-6">
                 <div>
@@ -388,7 +391,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                     Estimated time: 3-5 minutes
                   </p>
                 </div>
-                
+
                 <div className="text-right text-sm text-gray-500">
                   <p>Step 0 of 6</p>
                   <div className="flex gap-1 mt-1">
@@ -419,6 +422,27 @@ export default function OnboardingClient() {
   const [userName, setUserName] = useState<string>("");
   const [showWelcome, setShowWelcome] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [submissionSteps, setSubmissionSteps] = useState<{
+    title: string;
+    done: boolean;
+  }[]>([
+    { title: "Saving your information", done: false },
+    { title: "Preparing your workspace", done: false },
+    { title: "Redirecting to dashboard", done: false },
+  ]);
+
+  // State for AI assistance per question
+  const [aiState, setAiState] = useState<{
+    [key: string]: {
+      isLoading: boolean;
+      generatedContent: string | null;
+      customPrompt: string;
+    };
+  }>({});
+
+  // State to track which question's AI popup is open
+  const [activeAiQuestion, setActiveAiQuestion] = useState<string | null>(null);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -473,11 +497,17 @@ export default function OnboardingClient() {
         if (!user) return;
         await supabase
           .from('company_onboarding')
-          .upsert({
-            user_id: user.id,
-            onboarding_data: data,
-            completed: false,
-          });
+          .upsert(
+            {
+              user_id: user.id,
+              onboarding_data: data,
+              completed: false,
+            },
+            {
+              onConflict: 'user_id',
+              ignoreDuplicates: false
+            }
+          );
       };
       saveData();
     });
@@ -603,28 +633,235 @@ export default function OnboardingClient() {
       setIsLoading(false);
       return;
     }
-    
+
     // Get all form values for submission
     const allFormValues = form.getValues();
 
     try {
+      // Update first step
+      setSubmissionSteps(steps => steps.map((step, i) =>
+        i === 0 ? { ...step, done: true } : step
+      ));
+
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
+
       await supabase
         .from('company_onboarding')
-        .upsert({
-          user_id: user.id,
-          onboarding_data: allFormValues, // Use values from react-hook-form
-          completed: true,
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            onboarding_data: allFormValues,
+            completed: true,
+          },
+          {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
+          }
+        );
+
+      // Update second step
+      setSubmissionSteps(steps => steps.map((step, i) =>
+        i === 1 ? { ...step, done: true } : step
+      ));
+
+      // Small delay to show the animation
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Update final step
+      setSubmissionSteps(steps => steps.map((step, i) =>
+        i === 2 ? { ...step, done: true } : step
+      ));
+
+      // Small delay before redirect
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       toast({ title: "Success", description: "Your company information has been saved" });
       router.push('/dashboard');
       router.refresh();
     } catch (error) {
       toast({ title: "Error", description: "Failed to save your information. Please try again.", variant: "destructive" });
-    } finally {
       setIsLoading(false);
+    }
+  };
+
+  // AI Assistance Handlers
+  const toggleAiAssist = (questionName: string) => {
+    setActiveAiQuestion(activeAiQuestion === questionName ? null : questionName);
+    // Initialize state for the question if it doesn't exist
+    if (!aiState[questionName]) {
+      setAiState(prevState => ({
+        ...prevState,
+        [questionName]: { isLoading: false, generatedContent: null, customPrompt: "" },
+      }));
+    }
+  };
+
+  const handleCustomPromptChange = (questionName: string, value: string) => {
+    setAiState(prevState => ({
+      ...prevState,
+      [questionName]: {
+        ...prevState[questionName],
+        customPrompt: value,
+      },
+    }));
+  };
+
+  const handleGenerateContent = async (questionName: string) => {
+    setAiState(prevState => ({
+      ...prevState,
+      [questionName]: {
+        ...prevState[questionName],
+        isLoading: true,
+        generatedContent: null,
+      },
+    }));
+
+    const currentFormValues = form.getValues();
+    const currentQuestion = questions.find(q => q.name === questionName);
+    const currentCategoryObj = categories.find(cat => cat.questions.some(q => q.name === questionName));
+    const customPrompt = aiState[questionName]?.customPrompt || "";
+
+    try {
+      const response = await fetch('/api/gemini/generate-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentFormValues,
+          questionName,
+          questionLabel: currentQuestion?.label,
+          categoryTitle: currentCategoryObj?.title,
+          customPrompt,
+          action: 'generate',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error generating content: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setAiState(prevState => ({
+        ...prevState,
+        [questionName]: {
+          ...prevState[questionName],
+          generatedContent: data.generatedContent,
+          isLoading: false,
+        },
+      }));
+    } catch (error: any) {
+      console.error("AI Generation Error:", error);
+      toast({
+        title: "AI Error",
+        description: error.message || "Failed to generate content. Please try again.",
+        variant: "destructive",
+      });
+      setAiState(prevState => ({
+        ...prevState,
+        [questionName]: {
+          ...prevState[questionName],
+          isLoading: false,
+          generatedContent: null,
+        },
+      }));
+    }
+  };
+
+   const handleImproveContent = async (questionName: string) => {
+    setAiState(prevState => ({
+      ...prevState,
+      [questionName]: {
+        ...prevState[questionName],
+        isLoading: true,
+        generatedContent: null,
+      },
+    }));
+
+    const currentFormValues = form.getValues();
+    const currentQuestion = questions.find(q => q.name === questionName);
+    const currentCategoryObj = categories.find(cat => cat.questions.some(q => q.name === questionName));
+    const customPrompt = aiState[questionName]?.customPrompt || "";
+    const existingContent = form.getValues(questionName as keyof z.infer<typeof formSchema>);
+
+
+    try {
+      const response = await fetch('/api/gemini/generate-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentFormValues,
+          questionName,
+          questionLabel: currentQuestion?.label,
+          categoryTitle: currentCategoryObj?.title,
+          customPrompt,
+          existingContent, // Include existing content for improvement
+          action: 'improve', // Indicate improvement action
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error improving content: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setAiState(prevState => ({
+        ...prevState,
+        [questionName]: {
+          ...prevState[questionName],
+          generatedContent: data.generatedContent,
+          isLoading: false,
+        },
+      }));
+    } catch (error: any) {
+      console.error("AI Improvement Error:", error);
+      toast({
+        title: "AI Error",
+        description: error.message || "Failed to improve content. Please try again.",
+        variant: "destructive",
+      });
+      setAiState(prevState => ({
+        ...prevState,
+        [questionName]: {
+          ...prevState[questionName],
+          isLoading: false,
+          generatedContent: null,
+        },
+      }));
+    }
+  };
+
+
+  const handleAcceptContent = (questionName: string) => {
+    const generatedContent = aiState[questionName]?.generatedContent;
+    if (generatedContent) {
+      form.setValue(questionName as keyof z.infer<typeof formSchema>, generatedContent, { shouldValidate: true });
+      setAiState(prevState => ({
+        ...prevState,
+        [questionName]: {
+          ...prevState[questionName],
+          generatedContent: null, // Clear generated content after accepting
+          customPrompt: "", // Clear custom prompt
+        },
+      }));
+      setActiveAiQuestion(null); // Close popup after accepting
+    }
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, questionName: string) => {
+    if (event.key === 'Enter' && !aiState[questionName]?.isLoading) {
+      event.preventDefault(); // Prevent default form submission
+      const fieldValue = form.getValues(questionName as keyof z.infer<typeof formSchema>);
+      const hasContent = !!fieldValue;
+      if (hasContent) {
+        handleImproveContent(questionName);
+      } else {
+        handleGenerateContent(questionName);
+      }
     }
   };
 
@@ -632,6 +869,7 @@ export default function OnboardingClient() {
 
   return (
     <div className="min-h-screen bg-gray-50 w-full">
+      {isLoading && <SubmissionLoader loadingSteps={submissionSteps} />}
       <OnboardingHeader userName={userName} />
       <main className="mx-auto p-0">
         {showWelcome ? (
@@ -655,7 +893,7 @@ export default function OnboardingClient() {
                   <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
                   <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
                 </div>
-                
+
                 {/* Steps list */}
                 <div className="flex-1 overflow-y-auto py-2">
                   <div className="flex flex-col gap-2">
@@ -672,10 +910,10 @@ export default function OnboardingClient() {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Progress indicator */}
                 <div className="p-6 border-t bg-gray-50">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-0">
                     <span className="text-sm font-medium text-gray-700">Overall Progress</span>
                     <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
                   </div>
@@ -693,7 +931,7 @@ export default function OnboardingClient() {
                     <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
                     <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
                   </div>
-                  
+
                   {/* Steps list */}
                   <div className="flex-1 overflow-y-auto py-2">
                     <div className="flex flex-col">
@@ -713,10 +951,10 @@ export default function OnboardingClient() {
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Progress indicator */}
                   <div className="p-6 border-t bg-gray-50">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-0">
                       <span className="text-sm font-medium text-gray-700">Overall Progress</span>
                       <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
                     </div>
@@ -735,55 +973,173 @@ export default function OnboardingClient() {
                   <h2 className="text-2xl font-bold text-gray-900">Step {currentCategory + 1}: {categories[currentCategory].title}</h2>
                   <p className="text-sm text-gray-600 mt-2">{categories[currentCategory].description}</p>
                 </div>
-                
-                <div className="w-full space-y-6">
-                  {currentQuestions.map((q) => (
-                    <div key={q.name} className="p-0">
-                      <label 
-                        className="block text-sm text-gray-800 mb-2" 
-                        htmlFor={q.name}
-                      >
-                        {q.label}
-                      </label>
-                      {q.type === 'input' ? (
-                        <>
-                          <Input
-                            id={q.name}
-                            type={q.inputType || 'text'}
-                            placeholder={q.placeholder}
-                            className="rounded-md w-full text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                            required={q.required}
-                            {...form.register(q.name as keyof z.infer<typeof formSchema>)}
-                          />
-                          {form.formState.errors[q.name as keyof z.infer<typeof formSchema>] && (
-                            <p className="text-red-500 text-sm mt-1">{form.formState.errors[q.name as keyof z.infer<typeof formSchema>]?.message}</p>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <Textarea
-                            id={q.name}
-                            placeholder={q.placeholder}
-                            className="rounded-md w-full min-h-[100px] text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                            required={q.required}
-                            {...form.register(q.name as keyof z.infer<typeof formSchema>)}
-                          />
-                           {form.formState.errors[q.name as keyof z.infer<typeof formSchema>] && (
-                            <p className="text-red-500 text-sm mt-1">{form.formState.errors[q.name as keyof z.infer<typeof formSchema>]?.message}</p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ))}
+
+                <div className="w-full space-y-4">
+                  {currentQuestions.map((q) => {
+                    const fieldName = q.name as keyof z.infer<typeof formSchema>;
+                    const fieldValue = form.getValues(fieldName);
+                    const hasContent = !!fieldValue;
+                    const currentAiState = aiState[q.name] || { isLoading: false, generatedContent: null, customPrompt: "" };
+                    const isAiSectionOpen = activeAiQuestion === q.name;
+
+                    return (
+                      <div key={q.name} className="relative bg-white p-5 pt-3 rounded-xl border"> {/* Added relative positioning */}
+                        <div className="flex items-center justify-between mb-0">
+                          <label
+                            className="block text-sm text-gray-600"
+                            htmlFor={q.name}
+                          >
+                            {q.label}
+                          </label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            type="button"
+                            onClick={() => toggleAiAssist(q.name)}
+                            className="flex items-center gap-1 text-blue-600 hover:text-blue-600 p-0 hover:bg-transparent hover:text-blue-800 transition-colors"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            AI Assist
+                          </Button>
+                        </div>
+
+                        {q.type === 'input' ? (
+                          <>
+                            <Input
+                              id={q.name}
+                              type={q.inputType || 'text'}
+                              placeholder={q.placeholder}
+                              className="rounded-md w-full text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-gray-700 text-sm"
+                              required={q.required}
+                              {...form.register(fieldName)}
+                            />
+                            {form.formState.errors[fieldName] && (
+                              <p className="text-red-500 text-sm mt-1">{form.formState.errors[fieldName]?.message}</p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <Textarea
+                              id={q.name}
+                              placeholder={q.placeholder}
+                              className="rounded-md w-full min-h-[100px] text-base 
+ border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-gray-700 text-sm"
+                              required={q.required}
+                              {...form.register(fieldName)}
+                            />
+                             {form.formState.errors[fieldName] && (
+                              <p className="text-red-500 text-sm mt-1">{form.formState.errors[fieldName]?.message}</p>
+                            )}
+                          </>
+                        )}
+
+                        {/* AI Assistance Section (Popup) */}
+                        {isAiSectionOpen && (
+                          <div className="absolute z-10 right-0 mt-2 w-80 p-3 bg-blue-50 rounded-md border border-blue-100 shadow-lg"> {/* Adjusted styling for popup */}
+                            <div className="flex items-center gap-2 text-blue-800 mb-2"> {/* Adjusted margin */}
+                              <Sparkles className="h-4 w-4" /> {/* Adjusted size */}
+                              <span className="font-semibold text-sm">AI Assistance</span> {/* Adjusted font size */}
+                            </div>
+                            <div className="mb-2"> {/* Adjusted margin */}
+                              <label htmlFor={`${q.name}-ai-prompt`} className="block text-xs text-gray-700 mb-1"> {/* Adjusted font size */}
+                                Custom Instructions (Optional):
+                              </label>
+                              <Input
+                                id={`${q.name}-ai-prompt`}
+                                type="text"
+                                placeholder="e.g., Make it sound more professional"
+                                value={currentAiState.customPrompt}
+                                onChange={(e) => handleCustomPromptChange(q.name, e.target.value)}
+                                onKeyPress={(e) => handleKeyPress(e, q.name)} // Added key press handler
+                                className="rounded-md w-full text-xs border-gray-300 focus:border-blue-500 focus:ring-blue-500" // Adjusted font size
+                                disabled={currentAiState.isLoading}
+                              />
+                            </div>
+                            <div className="flex gap-2 mb-2"> {/* Adjusted margin */}
+                              {!hasContent && (
+                                <Button
+                                  type="button"
+                                  size="sm" // Kept size sm for compactness
+                                  onClick={() => handleGenerateContent(q.name)}
+                                  disabled={currentAiState.isLoading}
+                                  className="flex items-center gap-1 text-xs" // Adjusted font size
+                                >
+                                  {currentAiState.isLoading ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" /> // Adjusted size
+                                  ) : (
+                                    <Wand2 className="h-3 w-3" /> // Adjusted size
+                                  )}
+                                  Generate
+                                </Button>
+                              )}
+                              {hasContent && (
+                                <Button
+                                  type="button"
+                                  size="sm" // Kept size sm for compactness
+                                  variant="outline"
+                                  onClick={() => handleImproveContent(q.name)}
+                                  disabled={currentAiState.isLoading}
+                                  className="flex items-center gap-1 text-xs" // Adjusted font size
+                                >
+                                   {currentAiState.isLoading ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" /> // Adjusted size
+                                  ) : (
+                                    <RefreshCw className="h-3 w-3" /> // Adjusted size
+                                  )}
+                                  Improve
+                                </Button>
+                              )}
+                            </div>
+
+                            {currentAiState.isLoading && (
+                              <div className="hidden flex items-center gap-2 text-gray-600 text-xs"> {/* Adjusted font size */}
+                                <Loader2 className="h-3 w-3 animate-spin" /> // Adjusted size
+                                <span>Generating...</span>
+                              </div>
+                            )}
+
+                            {currentAiState.generatedContent && (
+                              <div className="mt-2 p-2 bg-white rounded-md border border-gray-200 text-gray-800 text-xs max-h-64 overflow-scroll"> {/* Adjusted padding and font size */}
+                                <p className="font-semibold mb-1">Generated Content Preview:</p> {/* Adjusted margin */}
+                                <p>{currentAiState.generatedContent}</p>
+                              </div>
+                            )}
+                            {/* Buttons moved outside the preview div */}
+                            {currentAiState.generatedContent && (
+                                <div className="flex gap-2 mt-2"> {/* Adjusted margin */}
+                                  <Button
+                                    type="button"
+                                    size="sm" // Kept size sm for compactness
+                                    onClick={() => handleAcceptContent(q.name)}
+                                    className="text-xs" // Adjusted font size
+                                  >
+                                    Accept
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm" // Kept size sm for compactness
+                                    variant="outline"
+                                    onClick={() => hasContent ? handleImproveContent(q.name) : handleGenerateContent(q.name)} // Regenerate
+                                    className="text-xs" // Adjusted font size
+                                  >
+                                    Regenerate
+                                  </Button>
+                                </div>
+                              )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Desktop navigation buttons */}
                 <div className="hidden md:flex w-full pt-6 justify-center">
                   <div className="w-full max-w-3xl flex justify-between gap-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleBack} 
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleBack}
                       disabled={currentCategory === 0 || isLoading}
                       className="flex items-center gap-2"
                     >
@@ -791,18 +1147,18 @@ export default function OnboardingClient() {
                       Back
                     </Button>
                     {currentCategory < categories.length - 1 ? (
-                      <Button 
-                        type="button" 
-                        onClick={handleNext} 
+                      <Button
+                        type="button"
+                        onClick={handleNext}
                         disabled={isLoading}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                       >
                         Next
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     ) : (
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         disabled={isLoading}
                         className="flex items-center gap-2"
                       >
@@ -816,10 +1172,10 @@ export default function OnboardingClient() {
 
               {/* Mobile bottom navigation bar */}
               <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={handleBack} 
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBack}
                   disabled={currentCategory === 0 || isLoading}
                   className="flex items-center gap-2"
                 >
@@ -830,9 +1186,9 @@ export default function OnboardingClient() {
                   Step {currentCategory + 1} of {categories.length}
                 </span>
                 {currentCategory < categories.length - 1 ? (
-                  <Button 
-                    type="button" 
-                    onClick={handleNext} 
+                  <Button
+                    type="button"
+                    onClick={handleNext}
                     disabled={isLoading}
                     className="flex items-center gap-2"
                   >
@@ -840,8 +1196,8 @@ export default function OnboardingClient() {
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isLoading}
                     className="flex items-center gap-2"
                     form="onboarding-form"
