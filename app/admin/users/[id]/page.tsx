@@ -52,6 +52,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import OnboardingDataModal from "@/components/admin/OnboardingDataModal"; // Added import
 
 // Types
 interface UserProfile {
@@ -223,11 +224,51 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
     triagePlanner: null as TriagePlanner | null,
   });
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [onboardingData, setOnboardingData] = useState<any>(null);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
+  const [loadingOnboardingData, setLoadingOnboardingData] = useState(true);
 
   // Load user data
   useEffect(() => {
     fetchUser();
   }, [id]);
+
+  useEffect(() => {
+    const fetchOnboardingData = async () => {
+      if (user?.user_id) { // Check if user and user.user_id are available
+        setLoadingOnboardingData(true);
+        // supabase client is already defined at component scope
+        const { data, error } = await supabase
+          .from("company_onboarding")
+          .select("onboarding_data, completed") // Fetching the specific fields
+          .eq("user_id", user.user_id) // Use user.user_id
+          .single();
+
+        if (error && error.code !== "PGRST116") { // PGRST116 means no rows found
+          console.error("Error fetching onboarding data:", error);
+          toast.error("Failed to load onboarding data.");
+          setOnboardingData(null);
+        } else {
+          setOnboardingData(data); // Store the whole data object
+        }
+        setLoadingOnboardingData(false);
+      } else {
+        // If no user.user_id, it means no onboarding data can be fetched for this relation yet, or user is not loaded
+        setLoadingOnboardingData(false); // Set to false as we are not fetching
+        setOnboardingData(null);
+      }
+    };
+
+    // Only attempt to fetch if user.user_id is present
+    if (user?.user_id) {
+      fetchOnboardingData();
+    } else {
+      // If user or user.user_id is not yet available, reflect that we're not actively loading onboarding data for a non-existent/unidentified user.
+      // This prevents showing "Loading data..." indefinitely if the main user object hasn't loaded its user_id.
+      setLoadingOnboardingData(false); 
+      setOnboardingData(null);
+    }
+  }, [user?.user_id, supabase]); // Depend on user.user_id and supabase client
 
   const fetchUser = async () => {
     try {
@@ -719,6 +760,27 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                   <p className="text-sm font-medium">User ID</p>
                   <p className="text-muted-foreground text-xs truncate">{user.user_id}</p>
                 </div>
+
+                {/* START: Added Company Onboarding Section */}
+                <div>
+                  <p className="text-sm font-medium mt-2">Company Onboarding</p>
+                  {loadingOnboardingData ? (
+                    <p className="text-muted-foreground text-sm">Loading data...</p>
+                  ) : onboardingData && onboardingData.onboarding_data ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-1 w-full justify-start text-left"
+                      onClick={() => setIsOnboardingModalOpen(true)}
+                    >
+                      View Onboarding Data
+                    </Button>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No data submitted.</p>
+                  )}
+                </div>
+                {/* END: Added Company Onboarding Section */}
+
               </div>
             </div>
           </Card>
@@ -2237,6 +2299,15 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
           </Tabs>
         </div>
       </div>
+
+      {/* Add the Modal component here, within the main return structure */}
+      <OnboardingDataModal
+        isOpen={isOnboardingModalOpen}
+        onClose={() => setIsOnboardingModalOpen(false)}
+        data={onboardingData?.onboarding_data} // Pass the actual JSONB data
+        companyName={user?.business_name || "Company"} // Changed from userName to companyName, using business_name
+      />
+
     </div>
   );
-} 
+}

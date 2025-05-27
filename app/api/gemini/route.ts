@@ -94,6 +94,7 @@ async function getUserData(userId: string) {
     const regularTables = [
       'battle_plan',
       'chain_of_command',
+      'company_onboarding',
       'hwgt_plan',
       'machines',
       'meeting_rhythm_planner',
@@ -709,6 +710,23 @@ function formatTableData(table: string, data: any) {
     return parts.join('\n');
   }
 
+  // Special handling for company_onboarding
+  if (table === 'company_onboarding') {
+    parts.push(`- Completed: ${data.completed ? 'Yes' : 'No'}`);
+    if (data.onboarding_data) {
+      parts.push(`- Onboarding Data: ${formatValue(data.onboarding_data)}`);
+    }
+    // Add any other fields if necessary, excluding system fields and already handled ones
+    Object.entries(data)
+      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'completed', 'onboarding_data'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    return parts.join('\n');
+  }
+
   // Add all fields except system fields for other tables
   Object.entries(data)
     .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at'].includes(key))
@@ -790,6 +808,7 @@ ${formatTableData('user_timeline_claims', claim)}`
   const relevantTables = [
     'battle_plan',
     'chain_of_command',
+    'company_onboarding',
     'hwgt_plan',
     'machines',
     'meeting_rhythm_planner',
