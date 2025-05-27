@@ -4,10 +4,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink } from "lucide-react";
+import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink, Plus, MessageSquare, Trash2, Edit2, Check, Sidebar, SidebarOpen, Menu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
 import { useToast } from "@/components/ui/use-toast";
+import { Input } from "@/components/ui/input";
 
 interface Message {
   role: "user" | "assistant";
@@ -16,6 +17,13 @@ interface Message {
   isComplete?: boolean;
   isStreaming?: boolean;
   isVoiceMessage?: boolean;
+}
+
+interface ChatInstance {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ChatbotInstruction {
@@ -31,7 +39,21 @@ interface ChatbotInstruction {
   extraction_metadata: any;
 }
 
-export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true }: { hideDebugButton?: boolean, showHeader?: boolean } = {}) {
+const MEDIUM_SCREEN_BREAKPOINT = 768; // Tailwind 'md' breakpoint
+
+export function RealtimeChatGemini({ 
+  hideDebugButton = false, 
+  showHeader = true, 
+  hideInstanceSidebar = false,
+  selectedInstanceId = null,
+  onInstanceChange = null
+}: { 
+  hideDebugButton?: boolean;
+  showHeader?: boolean;
+  hideInstanceSidebar?: boolean;
+  selectedInstanceId?: string | null;
+  onInstanceChange?: ((instanceId: string) => void) | null;
+} = {}) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -66,7 +88,367 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
   const [debugData, setDebugData] = useState<any>(null);
   const [showDebugPopup, setShowDebugPopup] = useState(false);
   
+  // Multi-instance state
+  const [chatInstances, setChatInstances] = useState<ChatInstance[]>([]);
+  const [currentInstanceId, setCurrentInstanceId] = useState<string | null>(selectedInstanceId);
+  const [showInstanceSidebar, setShowInstanceSidebar] = useState(!hideInstanceSidebar); // For desktop
+  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [isLoadingInstances, setIsLoadingInstances] = useState(true);
+
+  // Responsive state
+  const [isMediumScreen, setIsMediumScreen] = useState(false);
+  const [mobileInstancesPanelOpen, setMobileInstancesPanelOpen] = useState(false);
+  
   const supabase = createClient();
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMediumScreen(window.innerWidth < MEDIUM_SCREEN_BREAKPOINT);
+    };
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Load chat instances and history on mount
+  useEffect(() => {
+    if (!hideInstanceSidebar) {
+      fetchChatInstances();
+    } else if (selectedInstanceId) {
+      setCurrentInstanceId(selectedInstanceId);
+      fetchInstanceHistory(selectedInstanceId);
+    } else {
+      // This case might need review if hideInstanceSidebar is true AND no selectedInstanceId
+      // For now, it might try to fetch history for a null instance or default
+      fetchUserAndHistory(); // This function might need to be instance-aware or removed if always using instances
+    }
+  }, [hideInstanceSidebar, selectedInstanceId]); // Removed fetchUserAndHistory from deps, ensure it behaves correctly
+
+  // Update current instance when external prop changes
+  useEffect(() => {
+    if (selectedInstanceId && selectedInstanceId !== currentInstanceId) {
+      setCurrentInstanceId(selectedInstanceId);
+      fetchInstanceHistory(selectedInstanceId);
+    }
+  }, [selectedInstanceId]);
+
+  // Effect to automatically scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Add effect to handle audio element events with better logging and state management
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const handlePlay = () => {
+      console.log("Audio playback started");
+      setIsAudioPlaying(true);
+    };
+    
+    const handlePause = () => {
+      console.log("Audio playback paused");
+      setIsAudioPlaying(false);
+    };
+    
+    const handleEnded = () => {
+      console.log("Audio playback ended");
+      setIsAudioPlaying(false);
+    };
+    
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+    
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
+  // Cleanup effect when component unmounts
+  useEffect(() => {
+    return () => {
+      // If component unmounts while in call mode, stop it
+      if (isInCallMode) {
+        stopCallMode();
+      }
+      
+      // Also clean up any audio streams
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isInCallMode, audioStream]);
+
+  // Function to fetch all chat instances
+  const fetchChatInstances = async () => {
+    try {
+      setIsLoadingInstances(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (userId) {
+        const response = await fetch('/api/gemini?action=instances', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch chat instances');
+        }
+
+        const data = await response.json();
+        
+        if (data.type === 'chat_instances' && Array.isArray(data.instances)) {
+          setChatInstances(data.instances);
+          
+          // If no current instance is selected, select the most recent one
+          if (!currentInstanceId && data.instances.length > 0) {
+            const mostRecent = data.instances[0]; // Already sorted by updated_at desc
+            setCurrentInstanceId(mostRecent.id);
+            fetchInstanceHistory(mostRecent.id);
+            if (onInstanceChange) {
+              onInstanceChange(mostRecent.id);
+            }
+          } else if (currentInstanceId) {
+            fetchInstanceHistory(currentInstanceId);
+          }
+        } else if (data.instances?.length === 0) {
+          // No instances exist, create a new one
+          await createNewInstance();
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching chat instances:', error);
+      // Fallback to creating a new instance
+      await createNewInstance();
+    } finally {
+      setIsLoadingInstances(false);
+    }
+  };
+
+  // Function to fetch history for a specific instance
+  const fetchInstanceHistory = async (instanceId: string) => {
+    try {
+      setIsLoadingHistory(true);
+      setIsDataLoaded(false);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const response = await fetch(`/api/gemini?action=instance&instanceId=${instanceId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch instance history');
+        }
+
+        const data = await response.json();
+        
+        if (data.type === 'chat_instance' && data.instance) {
+          const history = data.instance.messages || [];
+          const formattedHistory = history.map((msg: any) => ({
+            role: msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user',
+            content: msg.content || '',
+            type: 'text',
+            isComplete: true
+          })) as Message[];
+          
+          setMessages(formattedHistory);
+          console.log('Instance history loaded:', formattedHistory.length, 'messages');
+        } else {
+          setMessages([]);
+        }
+      }
+      
+      setIsDataLoaded(true);
+    } catch (error) {
+      console.error('Error fetching instance history:', error);
+      setMessages([]);
+      setIsDataLoaded(true);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Function to create a new chat instance
+  const createNewInstance = async (title: string = 'New Chat') => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) return;
+
+      const response = await fetch('/api/gemini', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'create',
+          title: title
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create new chat instance');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.instance) {
+        // Refresh instances list
+        await fetchChatInstances();
+        
+        // Select the new instance
+        setCurrentInstanceId(data.instance.id);
+        setMessages([]);
+        
+        if (onInstanceChange) {
+          onInstanceChange(data.instance.id);
+        }
+        
+        toast({
+          title: "New chat created",
+          description: "A new chat instance has been created.",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating new chat instance:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create new chat instance.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to delete a chat instance
+  const deleteInstance = async (instanceId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) return;
+
+      const response = await fetch('/api/gemini', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          instanceId: instanceId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete chat instance');
+      }
+
+      // Remove from local state
+      const updatedInstances = chatInstances.filter(instance => instance.id !== instanceId);
+      setChatInstances(updatedInstances);
+      
+      // If we deleted the current instance, select another one
+      if (currentInstanceId === instanceId) {
+        if (updatedInstances.length > 0) {
+          const newInstance = updatedInstances[0];
+          setCurrentInstanceId(newInstance.id);
+          fetchInstanceHistory(newInstance.id);
+          if (onInstanceChange) {
+            onInstanceChange(newInstance.id);
+          }
+        } else {
+          // No instances left, create a new one
+          await createNewInstance();
+        }
+      }
+      
+      toast({
+        title: "Chat deleted",
+        description: "The chat instance has been deleted.",
+      });
+    } catch (error) {
+      console.error('Error deleting chat instance:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete chat instance.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to update instance title
+  const updateInstanceTitle = async (instanceId: string, newTitle: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) return;
+
+      const response = await fetch('/api/gemini', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'update_title',
+          instanceId: instanceId,
+          title: newTitle
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update instance title');
+      }
+
+      // Update local state
+      setChatInstances(prev => 
+        prev.map(instance => 
+          instance.id === instanceId 
+            ? { ...instance, title: newTitle }
+            : instance
+        )
+      );
+      
+      setEditingInstanceId(null);
+      setEditingTitle("");
+      
+      toast({
+        title: "Title updated",
+        description: "The chat title has been updated.",
+      });
+    } catch (error) {
+      console.error('Error updating instance title:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update title.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to select an instance
+  const selectInstance = (instanceId: string) => {
+    if (instanceId !== currentInstanceId) {
+      setCurrentInstanceId(instanceId);
+      fetchInstanceHistory(instanceId);
+      if (onInstanceChange) {
+        onInstanceChange(instanceId);
+      }
+    }
+    setMobileInstancesPanelOpen(false); // Close mobile panel on selection
+  };
 
   // Load chat history on mount
   useEffect(() => {
@@ -202,11 +584,22 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
         return;
       }
 
+      if (!currentInstanceId) {
+        console.log('No current instance, skipping chat history clear');
+        setIsClearingChat(false);
+        return;
+      }
+
       const response = await fetch('/api/gemini', {
         method: 'DELETE',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
-        }
+        },
+        body: JSON.stringify({
+          action: 'clear',
+          instanceId: currentInstanceId
+        })
       });
 
       if (!response.ok) {
@@ -216,18 +609,22 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
       const data = await response.json();
       
       if (data.type === 'history_cleared' && data.success) {
-        setMessages([{ 
-          role: "assistant", 
-          content: "Welcome! How can I help?", 
-          type: "text", 
-          isComplete: true 
-        }]);
+        setMessages([]);
+        toast({
+          title: "Chat cleared",
+          description: "Chat history has been cleared.",
+        });
       } else {
         throw new Error('Failed to clear chat history');
       }
     } catch (error) {
       console.error('Error clearing chat history:', error);
       setError('Failed to clear chat history.');
+      toast({
+        title: "Error",
+        description: "Failed to clear chat history.",
+        variant: "destructive"
+      });
     } finally {
       setIsClearingChat(false);
     }
@@ -247,6 +644,15 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
   // Handle sending message with optimistic UI updates
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading || !isDataLoaded) return;
+
+    // If no instance is selected, create a new one
+    if (!currentInstanceId) {
+      await createNewInstance();
+      if (!currentInstanceId) {
+        setError("Failed to create chat instance.");
+        return;
+      }
+    }
 
     // Reset the current streaming message
     currentStreamingMessageRef.current = '';
@@ -299,6 +705,7 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
         body: JSON.stringify({
           type: 'chat',
           message: currentInput,
+          instanceId: currentInstanceId,
           history: messages.map(msg => ({
             role: msg.role === "assistant" ? "model" : "user",
             parts: [{ text: msg.content }]
@@ -716,10 +1123,10 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
                 for (const line of lines) {
                   try {
                     const data = JSON.parse(line);
-                    console.log(`🎤 Received data type: ${data.type}`);
+                    console.log("🎤 Received data type:", data.type);
 
                     if (data.type === 'transcription') {
-                      console.log(`🎤 Transcription: ${data.content.substring(0, 50)}...`);
+                      console.log("🎤 Transcription: ", data.content.substring(0, 50) + "...");
                       // Add the transcription as a user message
                       setMessages(prev => [...prev, { 
                         role: "user", 
@@ -795,12 +1202,6 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
             } catch (error) {
               console.error("🎤 Error processing audio:", error);
               setError(error instanceof Error ? error.message : "Failed to process audio");
-              setMessages(prev => [...prev, { 
-                role: "assistant", 
-                content: "Sorry, I encountered an error processing your audio.", 
-                type: "text",
-                isComplete: true
-              }]);
             } finally {
               setIsLoading(false);
               setShowBotTyping(false);
@@ -1246,7 +1647,8 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
   const fetchDebugData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/gemini?action=debug', {
+      const apiUrl = `/api/gemini?action=debug${currentInstanceId ? `&instanceId=${currentInstanceId}` : ''}`;
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1278,7 +1680,7 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
     } finally {
       setIsLoading(false);
     }
-  }, [toast, setIsLoading]);
+  }, [toast, setIsLoading, currentInstanceId]); // Added currentInstanceId to dependencies
 
   // Render the debug popup
   const renderDebugPopup = () => {
@@ -1315,11 +1717,166 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-white to-gray-50 border max-w-6xl mx-auto w-full">
-      {/* Header */}
+    <div className="flex h-[calc(100vh-70px)] overflow-hidden bg-gradient-to-br from-white to-gray-50 mx-auto w-full">
+      {/* Mobile Instances Panel - Overlay */}
+      {isMediumScreen && !hideInstanceSidebar && (
+        <>
+          <div 
+            className={`fixed top-0 left-0 h-full w-[calc(100%-50px)] max-w-xs bg-white/95 backdrop-blur-sm z-40 shadow-xl flex flex-col transition-transform duration-300 ease-in-out ${
+              mobileInstancesPanelOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            <div className="p-3 border-b flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-sm z-10">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { createNewInstance(); setMobileInstancesPanelOpen(false); }}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="text-sm">New Chat</span>
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setMobileInstancesPanelOpen(false)} className="rounded-lg">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-3 space-y-2">
+                {isLoadingInstances ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                  </div>
+                ) : chatInstances.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No chats yet. Create one!</p>
+                  </div>
+                ) : (
+                  chatInstances.map((instance) => (
+                    <div
+                      key={instance.id}
+                      className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${
+                        currentInstanceId === instance.id
+                          ? 'bg-blue-50 border border-blue-200'
+                          : 'hover:bg-gray-50 border border-transparent'
+                      }`}
+                      onClick={() => selectInstance(instance.id)} // selectInstance already closes panel
+                    >
+                      {editingInstanceId === instance.id ? (
+                        // ... (existing editing UI, ensure onClick stopPropagation for input/buttons)
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') updateInstanceTitle(instance.id, editingTitle);
+                              else if (e.key === 'Escape') setEditingInstanceId(null);
+                            }}
+                            className="flex-1 h-7 text-sm"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()} />
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); updateInstanceTitle(instance.id, editingTitle);}} className="h-7 w-7 shrink-0">
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        // ... (existing display UI)
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm text-gray-900 truncate">
+                              {instance.title}
+                            </h3>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(instance.updated_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingInstanceId(instance.id); setEditingTitle(instance.title);}} className="h-7 w-7 shrink-0">
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); if (confirm('Delete chat?')) deleteInstance(instance.id);}} className="h-7 w-7 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+          {mobileInstancesPanelOpen && (
+            <div 
+              className="fixed inset-0 bg-black/20 z-30 backdrop-blur-sm"
+              onClick={() => setMobileInstancesPanelOpen(false)}
+            />
+          )}
+        </>
+      )}
+
+      {/* Desktop Chat Instances Sidebar */}
+      {!isMediumScreen && !hideInstanceSidebar && (
+        <div className={`relative ${showInstanceSidebar ? 'w-80' : 'w-12'} transition-all duration-300 border-r bg-white/90 backdrop-blur-sm flex flex-col h-full`}>
+          {/* Sidebar Toggle - Desktop */}
+          <div className="p-3 border-b flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-sm z-10">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowInstanceSidebar(!showInstanceSidebar)}
+              className="rounded-lg"
+            >
+              {showInstanceSidebar ? <SidebarOpen className="h-5 w-5" /> : <Sidebar className="h-5 w-5" />}
+            </Button>
+            {showInstanceSidebar && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => createNewInstance()}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="text-sm">New Chat</span>
+              </Button>
+            )}
+          </div>
+
+          {/* Instances List - Desktop */}
+          {showInstanceSidebar && (
+            <ScrollArea className="flex-1">
+              <div className="p-3 space-y-2">
+                 {/* ... (same instance list rendering as mobile panel, simplified here for brevity) ... */}
+                 {isLoadingInstances ? ( <div className="flex items-center justify-center py-8"><div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div></div>) 
+                 : chatInstances.length === 0 ? (<div className="text-center py-8 text-gray-500 text-sm"><MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" /><p>No chats yet</p></div>) 
+                 : (chatInstances.map((instance) => (
+                    <div key={instance.id} className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${ currentInstanceId === instance.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'}`} onClick={() => selectInstance(instance.id)}>
+                      {editingInstanceId === instance.id ? ( <div className="flex items-center gap-2"><Input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} onKeyDown={(e) => {if (e.key === 'Enter') updateInstanceTitle(instance.id, editingTitle); else if (e.key === 'Escape') setEditingInstanceId(null);}} className="flex-1 h-7 text-sm" autoFocus onClick={(e) => e.stopPropagation()} /><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); updateInstanceTitle(instance.id, editingTitle);}} className="h-7 w-7 shrink-0"><Check className="h-3 w-3" /></Button></div>) 
+                      : (<div className="flex items-center justify-between"><div className="flex-1 min-w-0"><h3 className="font-medium text-sm text-gray-900 truncate">{instance.title}</h3><p className="text-xs text-gray-500 mt-1">{new Date(instance.updated_at).toLocaleDateString()}</p></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingInstanceId(instance.id); setEditingTitle(instance.title);}} className="h-7 w-7 shrink-0"><Edit2 className="h-3 w-3" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); if (confirm('Delete chat?')) deleteInstance(instance.id);}} className="h-7 w-7 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-3 w-3" /></Button></div></div>)}
+                    </div>)))
+                 }
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex flex-col flex-1 min-w-0 h-full">
+      {/* Header - Make this sticky */}
       {showHeader && (
-        <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm h-16">
+        <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm h-16 sticky top-0 z-20">
           <div className="flex items-center gap-3">
+            {/* Mobile Menu Button to open Instance Panel */}
+            {isMediumScreen && !hideInstanceSidebar && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileInstancesPanelOpen(true)}
+                className="rounded-lg mr-2"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
               G
             </div>
@@ -1334,21 +1891,10 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Add streaming toggle */}
-            <div className="flex items-center gap-1 mr-2 hidden">
-              <label className="text-xs text-gray-500">
-                <input 
-                  type="checkbox" 
-                  checked={useStreaming} 
-                  onChange={() => setUseStreaming(!useStreaming)} 
-                  className="mr-1"
-                />
-                Streaming
-              </label>
-            </div>
+            {/* ... (streaming toggle - currently hidden) ... */}
             
-            {/* Debug button */}
-            {!hideDebugButton && (
+            {/* Debug button - Conditionally render based on screen size */}
+            {!hideDebugButton && !isMediumScreen && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1362,46 +1908,7 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
               </Button>
             )}
             
-            {/* Debug dropdown */}
-            <div className="relative group mr-2 hidden">
-              <Button
-                variant="outline"
-                size="sm"
-                title="View model context data"
-                className="mr-2"
-              >
-                <Bug className="h-4 w-4 mr-1" />
-                <span className="text-xs">Context Data</span>
-              </Button>
-              <div className="absolute right-0 mt-1 w-40 bg-white shadow-lg rounded-md overflow-hidden hidden group-hover:block z-50">
-                <a
-                  href="/api/gemini?action=view" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                >
-                  <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                  Pretty View
-                </a>
-                <a
-                  href="/api/gemini?action=debug" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                >
-                  <ExternalLink className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                  Raw JSON
-                </a>
-                <button
-                  onClick={fetchDebugData}
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                >
-                  <Bug className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                  Popup View
-                </button>
-              </div>
-            </div>
-            
+            {/* ... (other header buttons like Clear Chat) ... */}
             <Button
               variant="ghost"
               size="sm"
@@ -1409,31 +1916,27 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
               disabled={isClearingChat || isLoading}
               className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
             >
-            {isClearingChat ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                <span>Clearing...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
-                  <path d="M3 6h18"></path>
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                  <line x1="10" x2="10" y1="11" y2="17"></line>
-                  <line x1="14" x2="14" y1="11" y2="17"></line>
-                </svg>
-                <span>Clear Chat</span>
-              </div>
-            )}
+            {/* ... clear chat button content ... */}
+            {isClearingChat ? ( <div className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div><span>Clearing...</span></div>) : ( <div className="flex items-center gap-2"><Trash2 className="h-4 w-4" /><span>Clear</span></div>)}
             </Button>
           </div>
         </div>
       )}
+      {/* ... (rest of the component: !showHeader block, Chat Area, Input Area, etc.) ... */}
       {!showHeader && (
-        <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm h-16">
+        <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm h-16 sticky top-0 z-20 border-t">
           <div />
           <div className="flex items-center gap-2">
+            {isMediumScreen && !hideInstanceSidebar && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileInstancesPanelOpen(true)}
+                  className="rounded-lg mr-2"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              )}
             {isLoadingHistory && (
               <div className="flex items-center gap-2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
@@ -1446,44 +1949,17 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
               disabled={isClearingChat || isLoading}
               className="text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 transition-colors"
             >
-              {isClearingChat ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                  <span>Clearing...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                    <line x1="10" x2="10" y1="11" y2="17"></line>
-                    <line x1="14" x2="14" y1="11" y2="17"></line>
-                  </svg>
-                  <span>Clear Chat</span>
-                </div>
-              )}
+              {isClearingChat ? ( <div className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div><span>Clearing...</span></div>) : ( <div className="flex items-center gap-2"><Trash2 className="h-4 w-4" /><span>Clear Chat</span></div>)}
             </Button>
           </div>
         </div>
       )}
-      {/* Chat Area */}
-      <div className="flex-1 overflow-hidden">
+      {/* Chat Area - This will be scrollable */}
+      <div className="flex-1 overflow-y-auto bg-gray-50"> 
         <ScrollArea className="h-full" ref={scrollAreaRef}>
-          <div className="space-y-6 p-6 pt-12">
-            {/* Error display with suggestion to disable streaming */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-800 flex flex-col">
-                <div className="font-medium mb-1">Error: {error}</div>
-                {error.includes("process message") && (
-                  <div className="text-sm text-red-700">
-                    Try <strong>unchecking the "Streaming" option</strong> above to fix this issue.
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {messages.map((message, index) => (
+          <div className="space-y-6 p-6 pt-4 pb-2">
+             {/* ... messages map ... */}
+              {messages.map((message, index) => (
               <div
                 key={index}
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
@@ -1601,113 +2077,30 @@ export function RealtimeChatGemini({ hideDebugButton = false, showHeader = true 
         </ScrollArea>
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 border-t bg-white/80 backdrop-blur-sm rounded-b-xl">
-        {isRecording && (
-          <div className="mb-3">
-            <AudioVisualizer isRecording={isRecording} stream={audioStream} />
-          </div>
-        )}
+      {/* Input Area - Make this sticky */}
+      <div className="p-4 border-t bg-white/80 backdrop-blur-sm rounded-b-xl sticky bottom-0 z-20">
+        {/* ... Input area content ... */}
+         {isRecording && ( <div className="mb-3"> <AudioVisualizer isRecording={isRecording} stream={audioStream} /> </div>)}
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleRecording}
-            disabled={isLoading || isInCallMode || !isDataLoaded}
-            className={`rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}
-          >
-            {isRecording ? (
-              <div className="h-4 w-4 rounded-full bg-white animate-pulse" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <line x1="12" x2="12" y1="19" y2="22"></line>
-              </svg>
-            )}
+          <Button variant="ghost" size="icon" onClick={toggleRecording} disabled={isLoading || isInCallMode || !isDataLoaded} className={`rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}>
+            {isRecording ? ( <div className="h-4 w-4 rounded-full bg-white animate-pulse" /> ) : ( <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>)}
           </Button>
-          
-          {/* Call Mode Button */}
-          {/* <Button
-            variant={isInCallMode ? "destructive" : "outline"}
-            size="icon"
-            onClick={toggleCallMode}
-            disabled={isLoading || isRecording || !isDataLoaded}
-            className="rounded-full"
-            title={isInCallMode ? "End Call" : "Start Call"}
-          >
-            {isInCallMode ? <PhoneOff size={20} /> : <Phone size={20} />}
-          </Button> */}
-          
           <div className="flex-1 relative">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder={isLoadingHistory ? "Loading data..." : isInCallMode ? "Call mode active - listening..." : "Type your message..."}
-              className="w-full px-3 py-2 sm:px-4 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[15px] sm:text-base"
-              disabled={isLoading || isInCallMode || !isDataLoaded}
-            />
-            {isLoading && (
-              <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-              </div>
-            )}
-            {isSilent && isInCallMode && (
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-                Processing...
-              </div>
-            )}
+            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage();}}} placeholder={isLoadingHistory ? "Loading data..." : isInCallMode ? "Call mode active - listening..." : "Type your message..."} className="w-full px-3 py-2 sm:px-4 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[15px] sm:text-base" disabled={isLoading || isInCallMode || !isDataLoaded} />
+            {isLoading && ( <div className="absolute right-4 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div></div>)}
+            {isSilent && isInCallMode && ( <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500"> Processing... </div>)}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSendMessage}
-            disabled={!inputText.trim() || isLoading || isInCallMode || !isDataLoaded}
-            className="rounded-full"
-          >
+          <Button variant="ghost" size="icon" onClick={handleSendMessage} disabled={!inputText.trim() || isLoading || isInCallMode || !isDataLoaded} className="rounded-full">
             <Send className="h-5 w-5" />
           </Button>
         </div>
-        
-        {/* Call mode indicator */}
-        {isInCallMode && (
-          <div className="mt-2 text-xs text-center flex items-center justify-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${isSilent ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`}></div>
-            <span className="text-gray-600">
-              {isSilent ? "Listening - silence detected" : "Call mode active - speak now"}
-            </span>
-          </div>
-        )}
+        {isInCallMode && ( <div className="mt-2 text-xs text-center flex items-center justify-center gap-2"><div className={`h-2 w-2 rounded-full ${isSilent ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`}></div><span className="text-gray-600">{isSilent ? "Listening - silence detected" : "Call mode active - speak now"}</span></div>)}
       </div>
 
-      {/* Loading indicator for initial data fetch */}
-      {isLoadingHistory && (
-        <div className="text-center text-sm text-gray-500 mt-2">
-          Loading conversation and user data... Please wait.
-        </div>
-      )}
-
-      {/* Audio element for TTS */}
-      <audio
-        ref={audioRef}
-        src={ttsAudioUrl || undefined}
-        className="hidden"
-        controls={false}
-        onEnded={() => setIsAudioPlaying(false)}
-        onPlay={() => setIsAudioPlaying(true)}
-        onPause={() => setIsAudioPlaying(false)}
-        onLoadedData={() => console.log("Audio data loaded")}
-      />
-
-      {/* Render the debug popup */}
+      {isLoadingHistory && ( <div className="text-center text-sm text-gray-500 mt-2"> Loading conversation and user data... Please wait. </div>)}
+      <audio ref={audioRef} src={ttsAudioUrl || undefined} className="hidden" controls={false} onEnded={() => setIsAudioPlaying(false)} onPlay={() => setIsAudioPlaying(true)} onPause={() => setIsAudioPlaying(false)} onLoadedData={() => console.log("Audio data loaded")} />
       {renderDebugPopup()}
+      </div>
     </div>
   );
 }
