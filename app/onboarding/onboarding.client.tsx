@@ -603,7 +603,7 @@ export default function OnboardingClient() {
 
   const handleCategoryClick = (index: number) => {
     if (index <= currentCategory) {
-      // Allow navigating back to any previous or current sectionn
+      // Allow navigating back to any previous or current section
       setCurrentCategory(index);
     } else if (index === currentCategory + 1) {
       // Allow navigating to the next section if the current section is complete
