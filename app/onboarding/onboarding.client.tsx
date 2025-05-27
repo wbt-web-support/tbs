@@ -231,7 +231,7 @@ const categories = [
     id: 'final-section',
     title: 'Final Section',
     description: 'Final thoughts and expectations',
-    questions: questions.slice(23, 36)
+    questions: questions.slice(33, 36)
   }
 ];
 
@@ -622,7 +622,19 @@ export default function OnboardingClient() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // NEW CHECK: Only allow submission if we are truly on the last category page.
+    if (currentCategory !== categories.length - 1) {
+      toast({
+        title: "Submission Error",
+        description: "Form can only be submitted from the final section.",
+        variant: "destructive",
+      });
+      setIsLoading(false); // Ensure loading state is reset
+      return;
+    }
     setIsLoading(true);
+
     // Validate the final section before submitting
     if (!isCategoryComplete(categories.length - 1)) {
        toast({
@@ -966,7 +978,7 @@ export default function OnboardingClient() {
 
             {/* Right Content Area for Questions */}
             <div className="flex justify-center items-center w-full p-4 md:p-8 relative pb-24 md:pb-8 pt-24">
-              <form onSubmit={handleSubmit} className="w-full max-w-3xl flex flex-col items-center min-h-[calc(100vh-10rem)] pt-0 md:pt-20">
+              <form onSubmit={handleSubmit} id="onboarding-form" className="w-full max-w-3xl flex flex-col items-center min-h-[calc(100vh-10rem)] pt-0 md:pt-20">
               <Progress value={(currentCategory + 1) / categories.length * 100} className="mb-6" />
 
                 <div className="w-full mb-8 text-left">
@@ -1158,7 +1170,8 @@ export default function OnboardingClient() {
                       </Button>
                     ) : (
                       <Button
-                        type="submit"
+                        type="button"
+                        onClick={handleSubmit}
                         disabled={isLoading}
                         className="flex items-center gap-2"
                       >
@@ -1197,10 +1210,10 @@ export default function OnboardingClient() {
                   </Button>
                 ) : (
                   <Button
-                    type="submit"
+                    type="button"
+                    onClick={handleSubmit}
                     disabled={isLoading}
                     className="flex items-center gap-2"
-                    form="onboarding-form"
                   >
                     {isLoading ? "Saving..." : "Complete"}
                     <CheckCircle className="h-4 w-4" />
