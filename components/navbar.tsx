@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { User, LogOut, MessageSquare, Menu } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface NavbarProps {
@@ -58,16 +58,17 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          {/* <Link href="/chat">
-            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
+        
+          <Link href="/chat">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 hover:text-white rounded">
               <MessageSquare className="h-4 w-4" />
               <span>Chat</span>
             </Button>
-          </Link> */}
-          <Link href="/chat">
-            <Button variant="ghost" size="sm" className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 hover:text-white rounded-full">
-              <MessageSquare className="h-4 w-4" />
-              <span>Chat</span>
+          </Link>
+          <Link href="/sop">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
+              <FileText className="h-4 w-4" />
+              <span>SOP</span>
             </Button>
           </Link>
           
