@@ -688,6 +688,28 @@ export default function OnboardingClient() {
         i === 1 ? { ...step, done: true } : step
       ));
 
+      // Generate SOP automatically after successful onboarding
+      try {
+        const sopResponse = await fetch('/api/sop/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            onboardingData: allFormValues,
+          }),
+        });
+
+        if (sopResponse.ok) {
+          console.log('✅ SOP generated successfully');
+        } else {
+          console.warn('⚠️ SOP generation failed, but onboarding completed');
+        }
+      } catch (sopError) {
+        console.warn('⚠️ SOP generation error:', sopError);
+        // Don't fail the onboarding if SOP generation fails
+      }
+
       // Small delay to show the animation
       await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -699,7 +721,7 @@ export default function OnboardingClient() {
       // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      toast({ title: "Success", description: "Your company information has been saved" });
+      toast({ title: "Success", description: "Your company information has been saved and SOP generated!" });
       router.push('/dashboard');
       router.refresh();
     } catch (error) {
