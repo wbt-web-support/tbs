@@ -255,27 +255,68 @@ async function updateInnovationInstanceTitle(userId: string, instanceId: string,
   }
 }
 
-// Delete innovation instance (actually delete permanently)
-async function deleteInnovationInstance(userId: string, instanceId: string) {
-  if (!userId || !instanceId) return false;
+// Helper function to archive chat data for training before clearing/deleting
+async function archiveForTraining(userId: string, instanceId: string, archiveReason: 'cleared' | 'deleted' | 'manual') {
+  if (!userId || !instanceId) {
+    console.log('⚠️ [Training Archive] No userId or instanceId provided');
+    return false;
+  }
 
   try {
+    console.log(`🔄 [Training Archive] Archiving innovation chat for training: ${instanceId} (reason: ${archiveReason})`);
+    
     const supabase = await createClient();
-    const { error } = await supabase
+    
+    // First, get the complete chat data
+    const { data: chatData, error: fetchError } = await supabase
       .from('innovation_chat_history')
-      .delete()
+      .select('*')
       .eq('id', instanceId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .single();
 
-    if (error) {
-      console.error('❌ [Supabase] Error deleting innovation instance:', error);
+    if (fetchError || !chatData) {
+      console.error('❌ [Training Archive] Error fetching chat data for archiving:', fetchError);
       return false;
     }
 
-    console.log('✅ [Supabase] Deleted innovation instance');
+    // Only archive if there are messages (no point archiving empty chats)
+    if (!chatData.messages || chatData.messages.length === 0) {
+      console.log('ℹ️ [Training Archive] Skipping archive - no messages to preserve');
+      return true; // Not an error, just nothing to archive
+    }
+
+    // Prepare metadata for training context
+    const sessionMetadata = {
+      original_created_at: chatData.created_at,
+      original_updated_at: chatData.updated_at,
+      message_count: chatData.messages.length,
+      conversation_duration: new Date(chatData.updated_at).getTime() - new Date(chatData.created_at).getTime(),
+      archive_timestamp: new Date().toISOString(),
+      was_active: chatData.is_active
+    };
+
+    // Insert into training data table
+    const { error: insertError } = await supabase
+      .from('innovation_chat_training_data')
+      .insert({
+        original_chat_id: chatData.id,
+        user_id: userId,
+        title: chatData.title,
+        messages: chatData.messages,
+        session_metadata: sessionMetadata,
+        archive_reason: archiveReason
+      });
+
+    if (insertError) {
+      console.error('❌ [Training Archive] Error inserting training data:', insertError);
+      return false;
+    }
+
+    console.log(`✅ [Training Archive] Successfully archived ${chatData.messages.length} messages for training`);
     return true;
   } catch (error) {
-    console.error('❌ [Supabase] Error deleting innovation instance:', error);
+    console.error('❌ [Training Archive] Error archiving chat for training:', error);
     return false;
   }
 }
@@ -285,14 +326,20 @@ async function clearInnovationChat(userId: string, instanceId: string) {
   if (!userId || !instanceId) return false;
 
   try {
+    // First, archive the data for training
+    const archiveSuccess = await archiveForTraining(userId, instanceId, 'cleared');
+    if (!archiveSuccess) {
+      console.warn('⚠️ [Supabase] Failed to archive data for training, but continuing with clear operation');
+    }
+
     const supabase = await createClient();
     
-    // Instead of deleting messages, mark as inactive so we keep data for training
+    // Now clear the user-facing data (keep the record but clear messages)
     const { error } = await supabase
       .from('innovation_chat_history')
       .update({ 
-        is_active: false,
-        messages: [] // Clear messages from user view
+        messages: [], // Clear messages from user view
+        updated_at: new Date().toISOString()
       })
       .eq('id', instanceId)
       .eq('user_id', userId);
@@ -302,7 +349,7 @@ async function clearInnovationChat(userId: string, instanceId: string) {
       return false;
     }
 
-    console.log('✅ [Supabase] Cleared innovation chat (marked inactive)');
+    console.log('✅ [Supabase] Cleared innovation chat (data preserved for training)');
     return true;
   } catch (error) {
     console.error('❌ [Supabase] Error clearing innovation chat:', error);
@@ -807,6 +854,39 @@ function formatTableData(table: string, data: any) {
     });
   
   return parts.join('\n');
+}
+
+// Delete innovation instance (archive for training then soft delete)
+async function deleteInnovationInstance(userId: string, instanceId: string) {
+  if (!userId || !instanceId) return false;
+
+  try {
+    // First, archive the data for training
+    const archiveSuccess = await archiveForTraining(userId, instanceId, 'deleted');
+    if (!archiveSuccess) {
+      console.warn('⚠️ [Supabase] Failed to archive data for training, but continuing with delete operation');
+    }
+
+    const supabase = await createClient();
+    
+    // Now delete the user-facing record
+    const { error } = await supabase
+      .from('innovation_chat_history')
+      .delete()
+      .eq('id', instanceId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('❌ [Supabase] Error deleting innovation instance:', error);
+      return false;
+    }
+
+    console.log('✅ [Supabase] Deleted innovation instance (data preserved for training)');
+    return true;
+  } catch (error) {
+    console.error('❌ [Supabase] Error deleting innovation instance:', error);
+    return false;
+  }
 }
 
 // GET - Fetch innovation instances or specific instance history or debug data
