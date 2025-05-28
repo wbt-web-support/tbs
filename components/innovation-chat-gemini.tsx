@@ -812,7 +812,7 @@ export function InnovationChatGemini({
               className="fixed inset-0 bg-black/20 z-30 backdrop-blur-sm"
               onClick={() => setMobileInstancesPanelOpen(false)}
             />
-          )}
+          )} 
         </>
       )}
 
@@ -1052,7 +1052,7 @@ export function InnovationChatGemini({
                           ? message.isVoiceMessage 
                             ? "bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/20"
                             : "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/20"
-                          : "bg-white text-gray-800 border border-gray-200"
+                          : "bg-white text-gray-800 border border-gray-200 "
                       }`}
                     >
                       <div className="w-full">

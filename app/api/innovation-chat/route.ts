@@ -924,6 +924,9 @@ export async function POST(req: Request) {
       // Save user message
       await saveInnovationMessage(userId, message, 'user', instanceId);
 
+      // Get chat history for context
+      const chatHistory = await getInnovationInstance(userId, instanceId);
+      
       const innovationChatCategories = [
         'innovation_instruction',
         'course_videos',
@@ -1010,7 +1013,34 @@ You are the Innovation Machine - a specialized AI designed to help businesses di
       const stream = new ReadableStream({
         async start(controller) {
           try {
-            const result = await model.generateContentStream([message]);
+            // Create conversation history for the model
+            const contents: any[] = [];
+            
+            // Add chat history if available
+            if (chatHistory?.messages && Array.isArray(chatHistory.messages)) {
+              // Limit history to last 10 messages to avoid context limits
+              const recentHistory = chatHistory.messages.slice(-10);
+              recentHistory.forEach((msg: any) => {
+                if (msg.role && msg.content) {
+                  contents.push({
+                    role: msg.role === 'assistant' ? 'model' : 'user',
+                    parts: [{ text: msg.content }]
+                  });
+                }
+              });
+            }
+            
+            // Add current user message
+            contents.push({
+              role: 'user',
+              parts: [{ text: message }]
+            });
+
+            console.log(`🔄 [Innovation API] Including ${contents.length - 1} previous messages in context`);
+
+            const result = await model.generateContentStream({
+              contents
+            });
             
             for await (const chunk of result.stream) {
               const chunkText = chunk.text();
