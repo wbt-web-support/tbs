@@ -110,10 +110,10 @@ const navigationSections: NavigationSection[] = [
     title: "Innovation",
     items: [
       {
-        name: "Coming Soon",
-        href: "#",
+        name: "Create Innovations",
+        href: "/innovation-machine",
         icon: Lightbulb,
-        disabled: true,
+        disabled: false,
       },
     ]
   },

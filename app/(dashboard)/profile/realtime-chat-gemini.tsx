@@ -1032,7 +1032,7 @@ export function RealtimeChatGemini() {
                     }`}
                   >
                     <div className="w-full">
-                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[13px] sm:!text-[14px]`}>
+                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
                           <ReactMarkdown
                             components={{
                               h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,

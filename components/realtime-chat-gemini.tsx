@@ -41,19 +41,24 @@ interface ChatbotInstruction {
 
 const MEDIUM_SCREEN_BREAKPOINT = 768; // Tailwind 'md' breakpoint
 
-export function RealtimeChatGemini({ 
-  hideDebugButton = false, 
-  showHeader = true, 
-  hideInstanceSidebar = false,
-  selectedInstanceId = null,
-  onInstanceChange = null
-}: { 
+// Add onReady to the props type
+interface RealtimeChatGeminiProps {
   hideDebugButton?: boolean;
   showHeader?: boolean;
   hideInstanceSidebar?: boolean;
   selectedInstanceId?: string | null;
   onInstanceChange?: ((instanceId: string) => void) | null;
-} = {}) {
+  onReady?: () => void; // New prop
+}
+
+export function RealtimeChatGemini({ 
+  hideDebugButton = false, 
+  showHeader = true, 
+  hideInstanceSidebar = false,
+  selectedInstanceId = null,
+  onInstanceChange = null,
+  onReady // Destructure new prop
+}: RealtimeChatGeminiProps = {}) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -113,17 +118,22 @@ export function RealtimeChatGemini({
 
   // Load chat instances and history on mount
   useEffect(() => {
+    const loadInitialData = async () => {
     if (!hideInstanceSidebar) {
-      fetchChatInstances();
+        await fetchChatInstances();
     } else if (selectedInstanceId) {
       setCurrentInstanceId(selectedInstanceId);
-      fetchInstanceHistory(selectedInstanceId);
+        await fetchInstanceHistory(selectedInstanceId);
     } else {
-      // This case might need review if hideInstanceSidebar is true AND no selectedInstanceId
-      // For now, it might try to fetch history for a null instance or default
-      fetchUserAndHistory(); // This function might need to be instance-aware or removed if always using instances
+        await fetchUserAndHistory();
+      }
+      // Call onReady after initial data is fetched
+      if (onReady) {
+        onReady();
     }
-  }, [hideInstanceSidebar, selectedInstanceId]); // Removed fetchUserAndHistory from deps, ensure it behaves correctly
+    };
+    loadInitialData();
+  }, [hideInstanceSidebar, selectedInstanceId, onReady]); // Added onReady to dependency array
 
   // Update current instance when external prop changes
   useEffect(() => {
@@ -212,12 +222,15 @@ export function RealtimeChatGemini({
           if (!currentInstanceId && data.instances.length > 0) {
             const mostRecent = data.instances[0]; // Already sorted by updated_at desc
             setCurrentInstanceId(mostRecent.id);
-            fetchInstanceHistory(mostRecent.id);
+            await fetchInstanceHistory(mostRecent.id); // Ensure history is fetched before ready
             if (onInstanceChange) {
               onInstanceChange(mostRecent.id);
             }
           } else if (currentInstanceId) {
-            fetchInstanceHistory(currentInstanceId);
+            await fetchInstanceHistory(currentInstanceId); // Ensure history is fetched before ready
+          } else if (data.instances?.length === 0) {
+            // No instances exist, create a new one then fetch its history
+            await createNewInstance(); // createNewInstance will set currentInstanceId and fetch history
           }
         } else if (data.instances?.length === 0) {
           // No instances exist, create a new one
@@ -230,6 +243,7 @@ export function RealtimeChatGemini({
       await createNewInstance();
     } finally {
       setIsLoadingInstances(false);
+      setIsDataLoaded(true); // Mark data as loaded here
     }
   };
 
@@ -237,7 +251,7 @@ export function RealtimeChatGemini({
   const fetchInstanceHistory = async (instanceId: string) => {
     try {
       setIsLoadingHistory(true);
-      setIsDataLoaded(false);
+      // setIsDataLoaded(false); // Let's control isDataLoaded more carefully
       
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -270,13 +284,14 @@ export function RealtimeChatGemini({
         }
       }
       
-      setIsDataLoaded(true);
+      // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
     } catch (error) {
       console.error('Error fetching instance history:', error);
       setMessages([]);
-      setIsDataLoaded(true);
+      // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
     } finally {
       setIsLoadingHistory(false);
+      // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
     }
   };
 
@@ -306,12 +321,12 @@ export function RealtimeChatGemini({
       const data = await response.json();
       
       if (data.success && data.instance) {
-        // Refresh instances list
+        // Refresh instances list and select the new instance
+        // This will implicitly call fetchInstanceHistory via fetchChatInstances
         await fetchChatInstances();
         
-        // Select the new instance
-        setCurrentInstanceId(data.instance.id);
-        setMessages([]);
+        // setCurrentInstanceId(data.instance.id); // This is handled by fetchChatInstances now
+        // setMessages([]); // Also handled by fetchInstanceHistory
         
         if (onInstanceChange) {
           onInstanceChange(data.instance.id);
@@ -510,7 +525,7 @@ export function RealtimeChatGemini({
   const fetchUserAndHistory = async () => {
     try {
       setIsLoadingHistory(true);
-      setIsDataLoaded(false);
+      // setIsDataLoaded(false); // Controlled by initial load effect
       
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
@@ -771,162 +786,70 @@ export function RealtimeChatGemini({
 
       // Processing depends on whether streaming is enabled
       if (useStreaming && response.body) {
-        // Process the streaming response with improved error handling
+        // Process the streaming response using SSE format like innovation chat
         try {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
-          let buffer = '';
-          let lastUpdate = Date.now();
-          const UPDATE_INTERVAL = 50; // Update UI every 50ms
+          let accumulatedContent = "";
 
           while (true) {
-            let readResult;
-            try {
-              readResult = await reader.read();
-            } catch (readError) {
-              console.error('Error reading from stream:', readError);
-              break;
-            }
-            
-            const { done, value } = readResult;
+            const { done, value } = await reader.read();
             if (done) break;
 
-            let chunk;
-            try {
-              chunk = decoder.decode(value);
-              console.log('Raw chunk data (sample):', chunk.substring(0, Math.min(100, chunk.length)));
-            } catch (decodeError) {
-              console.error('Error decoding chunk:', decodeError);
-              continue;
-            }
-            
-            buffer += chunk;
-            
-            // Process complete JSON objects
-            try {
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
 
-              for (const line of lines) {
+            for (const line of lines) {
+              if (line.trim() === '') continue;
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                  // Mark message as complete
+                  setMessages(prevMessages => 
+                    prevMessages.map((msg, index) => 
+                      index === prevMessages.length - 1 
+                        ? { ...msg, isStreaming: false, isComplete: true }
+                        : msg
+                    )
+                  );
+                  continue;
+                }
+
                 try {
-                  if (!line.trim()) continue; // Skip empty lines
-                  
-                  let data;
-                  try {
-                    data = JSON.parse(line);
-                    console.log('Parsed data type:', data?.type);
-                  } catch (parseError) {
-                    console.error('Failed to parse JSON response:', parseError, 'Raw line:', line);
-                    continue; // Skip this line and try the next one
+                  const parsed = JSON.parse(data);
+                  if (parsed.content) {
+                    accumulatedContent += parsed.content;
+                    currentStreamingMessageRef.current = accumulatedContent;
+                    setMessages(prevMessages => 
+                      prevMessages.map((msg, index) => 
+                        index === prevMessages.length - 1 
+                          ? { ...msg, content: accumulatedContent }
+                          : msg
+                      )
+                    );
                   }
-
-                  if (!data || typeof data !== 'object') {
-                    console.error('Invalid data format received, expected object:', data);
-                    continue;
-                  }
-
-                  if (data.type === 'stream-chunk') {
-                    try {
-                      currentStreamingMessageRef.current += data.content || '';
-                      
-                      // Throttle UI updates to every 50ms
-                      const now = Date.now();
-                      if (now - lastUpdate >= UPDATE_INTERVAL) {
-                        setMessages(prev => {
-                          try {
-                            const updated = [...prev];
-                            const lastIdx = updated.length - 1;
-                            if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
-                              updated[lastIdx] = {
-                                ...updated[lastIdx],
-                                content: currentStreamingMessageRef.current
-                              };
-                            }
-                            return updated;
-                          } catch (stateError) {
-                            console.error('Error updating message state:', stateError);
-                            return prev; // Return unchanged state on error
-                          }
-                        });
-                        lastUpdate = now;
-                      }
-                    } catch (chunkError) {
-                      console.error('Error processing stream chunk:', chunkError);
-                    }
-                  } else if (data.type === 'stream-complete') {
-                    // Always update on completion
-                    try {
-                      setMessages(prev => {
-                        const updated = [...prev];
-                        const lastIdx = updated.length - 1;
-                        if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
-                          updated[lastIdx] = {
-                            ...updated[lastIdx],
-                            content: data.content,
-                            isComplete: true,
-                            isStreaming: false
-                          };
-                        }
-                        return updated;
-                      });
-                    } catch (completeError) {
-                      console.error('Error processing stream complete:', completeError);
-                    }
-                  } else if (data.type === 'tts-audio') {
-                    try {
-                      const audioUrl = `data:${data.mimeType};base64,${data.audio}`;
-                      console.log("Received TTS audio for voice message response", audioUrl.substring(0, 50) + "...");
-                      setTtsAudioUrl(audioUrl);
-                      
-                      if (audioRef.current) {
-                        console.log("Setting audio source and preparing to play");
-                        audioRef.current.src = audioUrl;
-                        audioRef.current.oncanplay = () => {
-                          console.log("Audio can play now, auto-playing");
-                          audioRef.current?.play().catch(e => {
-                            console.error("Auto-play error:", e);
-                          });
-                        };
-                      }
-                    } catch (audioError) {
-                      console.error('Error processing TTS audio:', audioError);
-                    }
-                  } else if (data.type === 'error') {
-                    throw new Error(data.error || 'Unknown API error');
-                  } else {
-                    console.warn('Unknown data type received:', data.type);
-                  }
-                } catch (error) {
-                  console.error('Error processing chunk:', error);
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e);
                 }
               }
-            } catch (bufferError) {
-              console.error('Error processing buffer:', bufferError);
             }
           }
         } catch (streamError) {
           console.error("Error processing response stream:", streamError);
-          setError(streamError instanceof Error ? streamError.message : "Failed to process response");
-          setMessages(prev => {
-            const updated = [...prev];
-            const lastIdx = updated.length - 1;
-            if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
-              updated[lastIdx] = {
-                ...updated[lastIdx],
-                content: "Sorry, I encountered an error processing the response. Please try again.",
-                isComplete: true,
-                isStreaming: false
-              };
-            } else {
-              updated.push({
-                role: "assistant",
-                content: "Sorry, I encountered an error processing the response. Please try again.",
-                type: "text",
-                isComplete: true
-              });
-            }
-            return updated;
-          });
+          setShowBotTyping(false);
+          
+          // Remove any incomplete assistant message and add the error message
+          setMessages(prevMessages => 
+            prevMessages.filter(msg => !(msg.role === 'assistant' && msg.isStreaming && !msg.isComplete))
+            .concat([{
+              role: "assistant",
+              content: "I apologize, but I'm having trouble processing your request right now. Please try again.",
+              type: "text",
+              isComplete: true
+            }])
+          );
+          
+          setError("Failed to process response. Please try again.");
         }
       } else {
         // Non-streaming mode: get the full response at once
@@ -965,48 +888,24 @@ export function RealtimeChatGemini({
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      // Make sure the showBotTyping is hidden when there's an error
-      setShowBotTyping(false);
+      setShowBotTyping(false); // Hide typing indicator on error
       
-      // If we were using streaming and got an error, try again with non-streaming
-      if (useStreaming && !(error instanceof Error && error.message?.includes('No user session'))) {
-        console.log("Streaming failed, falling back to non-streaming mode");
-        setUseStreaming(false);
-        
-        // Show fallback message to the user
-        setError("Streaming mode failed. Automatically switching to non-streaming mode. Please try sending your message again.");
-        
-        // Remove the failed assistant message if it exists
-        setMessages(prev => {
-          const updated = [...prev];
-          const lastIdx = updated.length - 1;
-          if (lastIdx >= 0 && updated[lastIdx].role === "assistant" && !updated[lastIdx].isComplete) {
-            return updated.slice(0, -1);
-          }
-          return updated;
-        });
-        
-        return; // Don't add the error message to the chat
-      }
+      // Remove any incomplete assistant message and add the error message
+      setMessages(prevMessages => 
+        prevMessages.filter(msg => !(msg.role === 'assistant' && msg.isStreaming && !msg.isComplete))
+        .concat([{
+          role: "assistant",
+          content: "I apologize, but I'm having trouble processing your request right now. Please try again.",
+          type: "text",
+          isComplete: true
+        }])
+      );
       
-      // Add a more descriptive error message
-      let errorMessage = "Failed to send message";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (error && typeof error === 'object' && 'toString' in error) {
-        errorMessage = error.toString();
-      }
-      
-      setError(errorMessage);
-      setMessages(prev => [...prev, { 
-        role: "assistant", 
-        content: "Sorry, I encountered an error: " + errorMessage, 
-        type: "text",
-        isComplete: true
-      }]);
+      setError("Failed to process your message. Please try again.");
     } finally {
       clearTimeout(timeoutId);
       setIsLoading(false);
+      setShowBotTyping(false); // Ensure typing indicator is hidden in all cases
     }
   };
 
@@ -1180,13 +1079,10 @@ export function RealtimeChatGemini({
                       if (audioRef.current) {
                         console.log("🎤 Setting audio source and preparing to play");
                         audioRef.current.src = audioUrl;
-                        // Wait longer for the audio to be ready
                         audioRef.current.oncanplay = () => {
                           console.log("🎤 Audio can play now, auto-playing");
-                          setIsAudioPlaying(true); // Set this before play() to avoid race conditions
                           audioRef.current?.play().catch(e => {
                             console.error("🎤 Auto-play error:", e);
-                            setIsAudioPlaying(false); // Reset if play fails
                           });
                         };
                       }
@@ -1975,7 +1871,7 @@ export function RealtimeChatGemini({
                     }`}
                   >
                     <div className="w-full">
-                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[13px] sm:!text-[14px]`}>
+                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
                           <ReactMarkdown
                             components={{
                               h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,

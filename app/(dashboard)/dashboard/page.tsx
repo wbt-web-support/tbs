@@ -40,6 +40,7 @@ import {
   CircleDot,
   MessageSquare,
   Cog,
+  Lightbulb,
 } from "lucide-react";
 
 // Types
@@ -443,7 +444,7 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Cog className="h-4 w-4 text-blue-600" />
+                    <Rocket className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold">{data.machines.length}</h3>
@@ -805,6 +806,16 @@ export default function DashboardPage() {
                     <h3 className="font-medium text-sm">Growth Machine</h3>
                   </div>
                   <p className="text-xs text-gray-500 mt-auto">Lead generation</p>
+                </div>
+              </Link>
+
+              <Link href="/innovation-machine" className="block">
+                <div className="p-3 rounded-md border border-gray-200 hover:border-orange-300 transition-all h-full flex flex-col">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lightbulb className="h-4 w-4 text-orange-600" />
+                    <h3 className="font-medium text-sm">Innovation Machine</h3>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-auto">Business innovation ideas</p>
                 </div>
               </Link>
 
