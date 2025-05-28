@@ -1749,7 +1749,7 @@ export function RealtimeChatGemini({
                       {editingInstanceId === instance.id ? ( <div className="flex items-center gap-2"><Input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} onKeyDown={(e) => {if (e.key === 'Enter') updateInstanceTitle(instance.id, editingTitle); else if (e.key === 'Escape') setEditingInstanceId(null);}} className="flex-1 h-7 text-sm" autoFocus onClick={(e) => e.stopPropagation()} /><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); updateInstanceTitle(instance.id, editingTitle);}} className="h-7 w-7 shrink-0"><Check className="h-3 w-3" /></Button></div>) 
                       : (<div className="flex items-center justify-between"><div className="flex-1 min-w-0"><h3 className="font-medium text-sm text-gray-900 truncate">{instance.title}</h3><p className="text-xs text-gray-500 mt-1">{new Date(instance.updated_at).toLocaleDateString()}</p></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingInstanceId(instance.id); setEditingTitle(instance.title);}} className="h-7 w-7 shrink-0"><Edit2 className="h-3 w-3" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); if (confirm('Delete chat?')) deleteInstance(instance.id);}} className="h-7 w-7 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-3 w-3" /></Button></div></div>)}
                     </div>)))
-                 }
+                 } 
               </div>
             </ScrollArea>
           )}
