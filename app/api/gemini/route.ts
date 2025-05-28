@@ -23,16 +23,23 @@ async function getUserId(req: Request) {
 }
 
 // Helper function to get global instructions
-async function getGlobalInstructions() {
+async function getGlobalInstructions(categories?: string[]) {
   try {
     console.log('🔄 [Supabase] Fetching global instructions');
     const supabase = await createClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from('chatbot_instructions')
-      .select('content, content_type, url, updated_at, created_at, extraction_metadata, priority')
+      .select('content, content_type, url, updated_at, created_at, extraction_metadata, priority, category')
       .eq('is_active', true)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: true });
+
+    if (categories && categories.length > 0) {
+      query = query.in('category', categories);
+      console.log(`✅ [Supabase] Filtering instructions by categories: ${categories.join(', ')}`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('❌ [Supabase] Error fetching global instructions:', error);
@@ -1149,10 +1156,20 @@ export async function POST(req: Request) {
     if (type === "chat") {
       console.log('🔄 [API] Processing chat request', useStreaming ? '(streaming)' : '(non-streaming)', instanceId ? `for instance: ${instanceId}` : '');
       
+      const regularChatCategories = [
+        'course_videos',
+        'main_chat_instructions',
+        'global_instructions',
+        'product_features',
+        'faq_content',
+        'internal_knowledge_base',
+        'uncategorized'
+      ];
+
       // Get user context and instructions using cache - do not invalidate cache after each request
       const [userData, globalInstructions] = await Promise.all([
         serverCache.getUserData(userId, getUserData),
-        serverCache.getGlobalInstructions(getGlobalInstructions)
+        serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories))
       ]);
 
       // Prepare context and instructions
@@ -1231,33 +1248,29 @@ export async function POST(req: Request) {
               const chunkText = chunk.text();
               if (chunkText) {
                 fullText += chunkText;
-                await writer.write(new TextEncoder().encode(
-                  JSON.stringify({ type: 'stream-chunk', content: chunkText }) + '\n'
-                ));
+                // Encode in SSE format
+                const sseChunk = `data: ${JSON.stringify({ content: chunkText })}\n\n`;
+                await writer.write(new TextEncoder().encode(sseChunk));
               }
             }
 
             // Save assistant's response to history but don't invalidate cache
             await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId);
 
-            // Send completion message
-            await writer.write(new TextEncoder().encode(
-              JSON.stringify({ 
-                type: 'stream-complete', 
-                content: fullText,
-                instanceId: savedInstanceId 
-              }) + '\n'
-            ));
+            // Send completion message in SSE format
+            const doneMessage = `data: [DONE]\n\n`;
+            await writer.write(new TextEncoder().encode(doneMessage));
 
           } catch (error) {
             console.error("Streaming error:", error);
-            await writer.write(new TextEncoder().encode(
-              JSON.stringify({
-                type: 'error',
-                error: 'Failed to process message',
-                details: error instanceof Error ? error.message : String(error)
-              }) + '\n'
-            ));
+            // Send error in SSE format (though the client might not explicitly handle SSE-formatted errors yet)
+            const errorPayload = {
+              type: 'error',
+              error: 'Failed to process message',
+              details: error instanceof Error ? error.message : String(error)
+            };
+            const sseError = `data: ${JSON.stringify(errorPayload)}\n\n`;
+            await writer.write(new TextEncoder().encode(sseError));
           } finally {
             await writer.close();
           }
@@ -1303,10 +1316,20 @@ export async function POST(req: Request) {
     if (type === "audio") {
       console.log('🔄 [API] Processing audio request');
       
+      const regularChatCategories = [
+        'course_videos',
+        'main_chat_instructions',
+        'global_instructions',
+        'product_features',
+        'faq_content',
+        'internal_knowledge_base',
+        'uncategorized'
+      ];
+
       // Get user context and instructions using cache - do not invalidate cache
       const [userData, globalInstructions] = await Promise.all([
         serverCache.getUserData(userId, getUserData),
-        serverCache.getGlobalInstructions(getGlobalInstructions)
+        serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories))
       ]);
 
       // Prepare context and instructions
@@ -1581,10 +1604,19 @@ export async function GET(req: Request) {
     try {
       console.log('🔄 [API] Generating formatted view of model context');
       
+      const regularChatCategories = [
+        'course_videos',
+        'main_chat_instructions',
+        'global_instructions',
+        'product_features',
+        'faq_content',
+        'internal_knowledge_base',
+        'uncategorized'
+      ];
       // Get user context and instructions
       const [userData, globalInstructions] = await Promise.all([
         serverCache.getUserData(userId, getUserData),
-        serverCache.getGlobalInstructions(getGlobalInstructions)
+        serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories))
       ]);
 
       // Prepare context and instructions
@@ -1688,10 +1720,19 @@ export async function GET(req: Request) {
   try {
     console.log('🔄 [API] Fetching debug data for model context');
     
+    const regularChatCategories = [
+      'course_videos',
+      'main_chat_instructions',
+      'global_instructions',
+      'product_features',
+      'faq_content',
+      'internal_knowledge_base',
+      'uncategorized'
+    ];
     // Get user context and instructions
     const [userData, globalInstructions] = await Promise.all([
       serverCache.getUserData(userId, getUserData),
-      serverCache.getGlobalInstructions(getGlobalInstructions)
+      serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories))
     ]);
 
     // Prepare context and instructions

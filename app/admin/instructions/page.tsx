@@ -11,7 +11,7 @@ import { ExtractedContentDialog } from "./extracted-content-dialog";
 export default async function InstructionsPage({
   searchParams,
 }: {
-  searchParams: { type?: string; search?: string };
+  searchParams: { type?: string; search?: string; category?: string };
 }) {
   const supabase = await createClient();
   
@@ -25,6 +25,10 @@ export default async function InstructionsPage({
     query = query.eq("content_type", searchParams.type);
   }
   
+  if (searchParams.category) {
+    query = query.eq("category", searchParams.category);
+  }
+  
   if (searchParams.search) {
     query = query.ilike("title", `%${searchParams.search}%`);
   }
@@ -34,6 +38,25 @@ export default async function InstructionsPage({
   // Get counts
   const activeCount = instructions?.filter(i => i.is_active).length || 0;
   const priorityCount = instructions?.filter(i => i.priority > 0).length || 0;
+  
+  // Get category counts
+  const categoryCounts = instructions?.reduce((acc, instruction) => {
+    const category = instruction.category || 'uncategorized';
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>) || {};
+
+  // Category display names
+  const categoryDisplayNames: Record<string, string> = {
+    'innovation_instruction': 'Innovation Instructions',
+    'course_videos': 'Course Videos',
+    'main_chat_instructions': 'Main Chat Instructions',
+    'global_instructions': 'Global Instructions',
+    'product_features': 'Product Features',
+    'faq_content': 'FAQ Content',
+    'internal_knowledge_base': 'Internal Knowledge Base',
+    'uncategorized': 'Uncategorized'
+  };
     
   return (
     <div className="max-w-[1600px] mx-auto py-0 px-0">
@@ -68,6 +91,30 @@ export default async function InstructionsPage({
         </CardContent>
       </Card>
       
+      {/* Category Overview */}
+      <Card className="mb-6 border-neutral-200 hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Category Overview</CardTitle>
+          <CardDescription>Distribution of instructions across categories</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+            {Object.entries(categoryDisplayNames).map(([category, displayName]) => {
+              const count = categoryCounts[category] || 0;
+              return (
+                <div
+                  key={category}
+                  className="text-center p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="text-lg font-semibold text-foreground">{count}</div>
+                  <div className="text-xs text-muted-foreground truncate">{displayName}</div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      
       <Card className="border-neutral-200">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -89,6 +136,7 @@ export default async function InstructionsPage({
               <thead>
                 <tr className="border-b">
                   <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs uppercase tracking-wider">Title</th>
+                  <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs uppercase tracking-wider">Category</th>
                   <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs uppercase tracking-wider">Priority</th>
                   <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
                   <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs uppercase tracking-wider">Source</th>
@@ -106,6 +154,11 @@ export default async function InstructionsPage({
                       <div className="flex items-center gap-2">
                         <span className="truncate max-w-[200px]">{instruction.title}</span>
                       </div>
+                    </td>
+                    <td className="p-4 align-middle">
+                      <Badge variant="outline" className="text-xs">
+                        {categoryDisplayNames[instruction.category || 'uncategorized']}
+                      </Badge>
                     </td>
                     <td className="p-4 align-middle">
                       <div className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
@@ -179,7 +232,7 @@ export default async function InstructionsPage({
                 ))}
                 {!instructions?.length && (
                   <tr>
-                    <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                    <td colSpan={10} className="py-10 text-center text-muted-foreground">
                       <div className="flex flex-col items-center justify-center">
                         <FileText className="h-10 w-10 mb-4 text-muted-foreground/50" />
                         <p>No instructions found</p>

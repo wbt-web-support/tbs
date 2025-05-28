@@ -25,6 +25,7 @@ interface Instruction {
   url?: string | null;
   is_active: boolean;
   priority: number;
+  category?: string | null;
   created_at: string;
   updated_at: string;
   created_by?: string | null;
@@ -52,6 +53,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
   const [title, setTitle] = useState(instruction?.title || "");
   const [content, setContent] = useState(instruction?.content || "");
   const [contentType, setContentType] = useState(instruction?.content_type || "text");
+  const [category, setCategory] = useState(instruction?.category || "uncategorized");
   const [url, setUrl] = useState(instruction?.url || "");
   const [isActive, setIsActive] = useState(instruction?.is_active ?? true);
   const [priority, setPriority] = useState(instruction?.priority || 0);
@@ -286,6 +288,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
         url: url.trim() || null,
         is_active: isActive,
         priority: priority,
+        category: category,
         extraction_metadata: finalExtractedContent || null,
         embedding: null,
         embedding_updated_at: null
@@ -429,6 +432,25 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category" className="text-sm font-medium">Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                  <SelectItem value="innovation_instruction">Innovation Instructions</SelectItem>
+                  <SelectItem value="course_videos">Course Videos</SelectItem>
+                  <SelectItem value="main_chat_instructions">Main Chat Instructions</SelectItem>
+                  <SelectItem value="global_instructions">Global Instructions</SelectItem>
+                  <SelectItem value="product_features">Product Features</SelectItem>
+                  <SelectItem value="faq_content">FAQ Content</SelectItem>
+                  <SelectItem value="internal_knowledge_base">Internal Knowledge Base</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

@@ -18,8 +18,6 @@ import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check, Menu
 import { SubmissionLoader } from "./components/submission-loader";
 
 
-
-
 // Highly descriptive schema for AI training
 const formSchema = z.object({
   // Company Information
@@ -80,6 +78,7 @@ const questions = [
     type: 'input',
     placeholder: "Enter your business's legal name",
     required: true,
+    aiAssist: false,
   },
   {
     name: 'list_of_business_owners_full_names',
@@ -87,6 +86,7 @@ const questions = [
     type: 'input',
     placeholder: "e.g. Jane Doe (CEO), John Smith (COO)",
     required: true,
+    aiAssist: false,
   },
   {
     name: 'primary_company_email_address',
@@ -95,6 +95,7 @@ const questions = [
     inputType: 'email',
     placeholder: "Enter business email",
     required: true,
+    aiAssist: false,
   },
   {
     name: 'primary_company_phone_number',
@@ -102,6 +103,7 @@ const questions = [
     type: 'input',
     placeholder: "Enter business phone number",
     required: true,
+    aiAssist: false,
   },
   {
     name: 'main_office_physical_address_full',
@@ -109,6 +111,7 @@ const questions = [
     type: 'textarea',
     placeholder: "Enter full business address",
     required: true,
+    aiAssist: false,
   },
   {
     name: 'business_founding_date_iso',
@@ -116,6 +119,7 @@ const questions = [
     type: 'input',
     inputType: 'date',
     required: true,
+    aiAssist: false,
   },
   {
     name: 'company_origin_story_and_founder_motivation',
@@ -123,6 +127,7 @@ const questions = [
     type: 'textarea',
     placeholder: "Share your company's origin story and motivation",
     required: true,
+    aiAssist: true,
   },
   {
     name: 'main_competitors_list_and_reasons',
@@ -130,6 +135,7 @@ const questions = [
     type: 'textarea',
     placeholder: "List competitors and reasons",
     required: true,
+    aiAssist: true,
   },
   {
     name: 'current_employees_and_roles_responsibilities',
@@ -137,6 +143,7 @@ const questions = [
     type: 'textarea',
     placeholder: "List employees, roles, and responsibilities",
     required: true,
+    aiAssist: true,
   },
   {
     name: 'last_full_year_annual_revenue_amount',
@@ -144,6 +151,7 @@ const questions = [
     type: 'input',
     placeholder: "Enter annual revenue",
     required: true,
+    aiAssist: false,
   },
   {
     name: 'current_profit_margin_percentage',
@@ -151,6 +159,7 @@ const questions = [
     type: 'input',
     placeholder: "Enter profit margin (%)",
     required: true,
+    aiAssist: false,
   },
   {
     name: 'company_long_term_vision_statement',
@@ -158,41 +167,42 @@ const questions = [
     type: 'textarea',
     placeholder: "Describe vision and impact",
     required: true,
+    aiAssist: true,
   },
 
   // War Machine Vision
-  { name: 'ultimate_long_term_goal_for_business_owner', label: 'What is your ultimate long-term goal? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false },
-  { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 5, 10, and 20 years?', type: 'textarea', required: false },
-  { name: 'additional_income_streams_or_investments_needed', label: "If your current business isn't enough to reach this goal, what other income streams, investments, or businesses might be needed?", type: 'textarea', required: false },
-  { name: 'focus_on_single_business_or_multiple_long_term', label: 'Do you see yourself focusing on one business long-term, or do you want to build a group of companies?', type: 'textarea', required: false },
-  { name: 'personal_skills_knowledge_networks_to_develop', label: 'What personal skills, knowledge, or networks do you think you would need to develop to build your War Machine successfully?', type: 'textarea', required: false },
+  { name: 'ultimate_long_term_goal_for_business_owner', label: 'What is your ultimate long-term goal? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false, aiAssist: true },
+  { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 5, 10, and 20 years?', type: 'textarea', required: false, aiAssist: true },
+  { name: 'additional_income_streams_or_investments_needed', label: "If your current business isn't enough to reach this goal, what other income streams, investments, or businesses might be needed?", type: 'textarea', required: false, aiAssist: true },
+  { name: 'focus_on_single_business_or_multiple_long_term', label: 'Do you see yourself focusing on one business long-term, or do you want to build a group of companies?', type: 'textarea', required: false, aiAssist: true },
+  { name: 'personal_skills_knowledge_networks_to_develop', label: 'What personal skills, knowledge, or networks do you think you would need to develop to build your War Machine successfully?', type: 'textarea', required: false, aiAssist: true },
 
   // Products and Services
-  { name: 'business_overview_for_potential_investor', label: 'Please give a short overview of what your business does as if you were explaining it to a potential investor.', type: 'textarea', required: false },
-  { name: 'description_of_target_customers_for_investor', label: 'Please give a short overview of who your business serves as if you were explaining it to a potential investor.', type: 'textarea', required: false },
-  { name: 'list_of_things_going_right_in_business', label: 'Please list all the things that you feel are going right in the business right now.', type: 'textarea', required: false },
-  { name: 'list_of_things_going_wrong_in_business', label: 'Please list all the things that you feel are going wrong in the business right now.', type: 'textarea', required: false },
-  { name: 'list_of_things_missing_in_business', label: 'Please list all the things that you feel are missing in the business right now.', type: 'textarea', required: false },
-  { name: 'list_of_things_confusing_in_business', label: 'Please list all the things that you feel are confusing in the business right now.', type: 'textarea', required: false },
-  { name: 'plans_to_expand_services_or_locations', label: 'Do you have plans to expand into new services or locations?', type: 'textarea', required: false },
+  { name: 'business_overview_for_potential_investor', label: 'Please give a short overview of what your business does as if you were explaining it to a potential investor.', type: 'textarea', required: false, aiAssist: true },
+  { name: 'description_of_target_customers_for_investor', label: 'Please give a short overview of who your business serves as if you were explaining it to a potential investor.', type: 'textarea', required: false, aiAssist: true },
+  { name: 'list_of_things_going_right_in_business', label: 'Please list all the things that you feel are going right in the business right now.', type: 'textarea', required: false, aiAssist: true },
+  { name: 'list_of_things_going_wrong_in_business', label: 'Please list all the things that you feel are going wrong in the business right now.', type: 'textarea', required: false, aiAssist: true },
+  { name: 'list_of_things_missing_in_business', label: 'Please list all the things that you feel are missing in the business right now.', type: 'textarea', required: false, aiAssist: true },
+  { name: 'list_of_things_confusing_in_business', label: 'Please list all the things that you feel are confusing in the business right now.', type: 'textarea', required: false, aiAssist: true },
+  { name: 'plans_to_expand_services_or_locations', label: 'Do you have plans to expand into new services or locations?', type: 'textarea', required: false, aiAssist: true },
 
   // Sales & Customer Journey
-  { name: 'detailed_sales_process_from_first_contact_to_close', label: 'What does your sales process look like? (From first contact to closed deal - please be as detailed as possible)', type: 'textarea', required: false },
-  { name: 'structured_follow_up_process_for_unconverted_leads', label: "Do you have a structured follow-up process for leads that don't convert immediately?", type: 'textarea', required: false },
-  { name: 'customer_experience_and_fulfillment_process', label: 'How do you ensure customers have a great experience with your business? (From closed deal to completing the job - please be as detailed as possible as to the fulfilment process)', type: 'textarea', required: false },
+  { name: 'detailed_sales_process_from_first_contact_to_close', label: 'What does your sales process look like? (From first contact to closed deal - please be as detailed as possible)', type: 'textarea', required: false, aiAssist: true },
+  { name: 'structured_follow_up_process_for_unconverted_leads', label: "Do you have a structured follow-up process for leads that don't convert immediately?", type: 'textarea', required: false, aiAssist: true },
+  { name: 'customer_experience_and_fulfillment_process', label: 'How do you ensure customers have a great experience with your business? (From closed deal to completing the job - please be as detailed as possible as to the fulfilment process)', type: 'textarea', required: false, aiAssist: true },
 
   // Operations & Systems
-  { name: 'documented_systems_or_sops_links', label: 'Do you currently have documented systems or SOPs in place? (If so, please share link to them below so we can review before your 3-1 kick-off meeting).', type: 'textarea', required: false },
-  { name: 'software_and_tools_used_for_operations', label: 'What software or tools are you currently using for operations? (E.g., CRM, job management, accounting, etc.)', type: 'textarea', required: false },
-  { name: 'team_structure_and_admin_sales_marketing_roles', label: 'Do you have a team that handles admin, sales, or marketing, or are you doing most of it yourself?', type: 'textarea', required: false },
-  { name: 'regular_team_meetings_frequency_attendees_agenda', label: 'Do you currently hold regular team meetings? If so, how often do they happen, who attends, and do you follow a set agenda?', type: 'textarea', required: false },
-  { name: 'kpi_scorecards_metrics_tracked_and_review_frequency', label: 'Do you currently use scorecards or track key performance indicators (KPIs) for your team members? If so, what metrics do you monitor, and how frequently do you review them? If not, what challenges have prevented you from implementing a tracking system?', type: 'textarea', required: false },
-  { name: 'biggest_current_operational_headache', label: 'What is your biggest operational headache right now?', type: 'textarea', required: false },
+  { name: 'documented_systems_or_sops_links', label: 'Do you currently have documented systems or SOPs in place? (If so, please share link to them below so we can review before your 3-1 kick-off meeting).', type: 'textarea', required: false, aiAssist: true },
+  { name: 'software_and_tools_used_for_operations', label: 'What software or tools are you currently using for operations? (E.g., CRM, job management, accounting, etc.)', type: 'textarea', required: false, aiAssist: true },
+  { name: 'team_structure_and_admin_sales_marketing_roles', label: 'Do you have a team that handles admin, sales, or marketing, or are you doing most of it yourself?', type: 'textarea', required: false, aiAssist: true },
+  { name: 'regular_team_meetings_frequency_attendees_agenda', label: 'Do you currently hold regular team meetings? If so, how often do they happen, who attends, and do you follow a set agenda?', type: 'textarea', required: false, aiAssist: true },
+  { name: 'kpi_scorecards_metrics_tracked_and_review_frequency', label: 'Do you currently use scorecards or track key performance indicators (KPIs) for your team members? If so, what metrics do you monitor, and how frequently do you review them? If not, what challenges have prevented you from implementing a tracking system?', type: 'textarea', required: false, aiAssist: true },
+  { name: 'biggest_current_operational_headache', label: 'What is your biggest operational headache right now?', type: 'textarea', required: false, aiAssist: true },
 
   // Final Section
-  { name: 'most_exciting_aspect_of_bootcamp_for_you', label: 'What are you most excited about in this Bootcamp?', type: 'textarea', required: false },
-  { name: 'specific_expectations_or_requests_for_bootcamp', label: 'Do you have any specific expectations or requests for us?', type: 'textarea', required: false },
-  { name: 'additional_comments_or_items_for_attention', label: 'Please list any additional comments or items that you would like to bring to our attention before we get started.', type: 'textarea', required: false },
+  { name: 'most_exciting_aspect_of_bootcamp_for_you', label: 'What are you most excited about in this Bootcamp?', type: 'textarea', required: false, aiAssist: true },
+  { name: 'specific_expectations_or_requests_for_bootcamp', label: 'Do you have any specific expectations or requests for us?', type: 'textarea', required: false, aiAssist: true },
+  { name: 'additional_comments_or_items_for_attention', label: 'Please list any additional comments or items that you would like to bring to our attention before we get started.', type: 'textarea', required: false, aiAssist: true },
 ];
 
 // Define categories
@@ -343,7 +353,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
               </div>
 
               <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                Let's set up your personalized workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">TBS</span>.
+                Let's set up your personalised workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">TBS</span>.
                 We'll configure everything to match your workflow and preferences.
               </p>
 
@@ -1003,16 +1013,18 @@ export default function OnboardingClient() {
                           >
                             {q.label}
                           </label>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            type="button"
-                            onClick={() => toggleAiAssist(q.name)}
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-600 p-0 hover:bg-transparent hover:text-blue-800 transition-colors"
-                          >
-                            <Sparkles className="h-4 w-4" />
-                            AI Assist
-                          </Button>
+                          {q.aiAssist && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              type="button"
+                              onClick={() => toggleAiAssist(q.name)}
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-600 p-0 hover:bg-transparent hover:text-blue-800 transition-colors"
+                            >
+                              <Sparkles className="h-4 w-4" />
+                              AI Assist
+                            </Button>
+                          )}
                         </div>
 
                         {q.type === 'input' ? (
@@ -1173,7 +1185,7 @@ export default function OnboardingClient() {
                         type="button"
                         onClick={handleSubmit}
                         disabled={isLoading}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
                       >
                         {isLoading ? "Saving..." : "Complete Onboarding"}
                         <CheckCircle className="h-4 w-4" />
