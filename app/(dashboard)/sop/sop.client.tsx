@@ -296,7 +296,7 @@ export default function SopClient() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+      <div className="">
         <div className="flex flex-col items-center justify-center min-h-screen p-6">
           <div className="relative">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
@@ -711,7 +711,7 @@ export default function SopClient() {
         {/* Footer */}
         <footer className="text-center mt-12 py-8">
           <div className="bg-white/50 backdrop-blur-sm rounded border border-slate-200/50 py-4 px-6">
-            <p className="text-sm text-slate-500 font-medium">Powered by TBS SOP Generator</p>
+            <p className="text-sm text-slate-500 font-medium">Powered by Trade Business School</p>
           </div>
         </footer>
       </div>
