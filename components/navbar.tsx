@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
@@ -30,6 +30,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const sopButtonRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
 
   useEffect(() => {
@@ -62,6 +63,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       router.replace(url.pathname + url.search, { scroll: false });
     }
   }, [searchParams, router]);
+
+  useEffect(() => {
+    if (pathname === '/sop') {
+      setShowSopNotification(false);
+    }
+  }, [pathname]);
 
   return (
     <div className="border-b">

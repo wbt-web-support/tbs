@@ -570,141 +570,192 @@ export default function SopClient() {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-8 pb-8">
-            <article className="prose prose-slate max-w-none">
-              <ReactMarkdown
-                components={{
-                  h1: ({children}) => (
-                    <h1 className="text-3xl font-bold text-slate-800 mb-6 mt-0 pb-3 border-b border-slate-200">
-                      {children}
-                    </h1>
-                  ),
-                  h2: ({children}) => (
-                    <h2 className="text-2xl font-semibold text-slate-800 mb-4 mt-8">
-                      {children}
-                    </h2>
-                  ),
-                  h3: ({children}) => (
-                    <h3 className="text-xl font-semibold text-slate-800 mb-3 mt-6">
-                      {children}
-                    </h3>
-                  ),
-                  h4: ({children}) => (
-                    <h4 className="text-lg font-semibold text-slate-700 mb-2 mt-4">
-                      {children}
-                    </h4>
-                  ),
-                  h5: ({children}) => (
-                    <h5 className="text-base font-semibold text-slate-700 mb-2 mt-3">
-                      {children}
-                    </h5>
-                  ),
-                  h6: ({children}) => (
-                    <h6 className="text-sm font-semibold text-slate-700 mb-2 mt-3">
-                      {children}
-                    </h6>
-                  ),
-                  p: ({ children }) => (
-                    <p className="text-slate-700 leading-relaxed mb-4 last:mb-0">
-                      {children}
-                    </p>
-                  ),
-                  ul: ({children}) => (
-                    <ul className="list-disc pl-6 mb-4 space-y-2 text-slate-700">
-                      {children}
-                    </ul>
-                  ),
-                  ol: ({children}) => (
-                    <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-700">
-                      {children}
-                    </ol>
-                  ),
-                  li: ({children}) => (
-                    <li className="text-slate-700 leading-relaxed">
-                      {children}
-                    </li>
-                  ),
-                  a: ({ href, children }) => (
-                    <a 
-                      href={href} 
-                      className="text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                    >
-                      {children}
-                    </a>
-                  ),
-                  strong: ({ children }) => (
-                    <strong className="font-semibold text-slate-800">
-                      {children}
-                    </strong>
-                  ),
-                  em: ({ children }) => (
-                    <em className="italic text-slate-700">
-                      {children}
-                    </em>
-                  ),
-                  code: ({ children }) => (
-                    <code className="bg-slate-100 text-slate-800 px-2 py-1 rounded text-sm font-mono">
-                      {children}
-                    </code>
-                  ),
-                  pre: ({ children }) => (
-                    <pre className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-sm overflow-x-auto my-4 font-mono">
-                      {children}
-                    </pre>
-                  ),
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-blue-200 bg-blue-50/50 rounded-r-lg px-4 py-3 my-4 text-slate-600 italic">
-                      {children}
-                    </blockquote>
-                  ),
-                  hr: () => (
-                    <hr className="my-8 border-t border-slate-200" />
-                  ),
-                  table: ({ children }) => (
-                    <div className="overflow-x-auto my-4">
-                      <table className="min-w-full border border-slate-200 rounded-lg">
-                        {children}
-                      </table>
-                    </div>
-                  ),
-                  thead: ({ children }) => (
-                    <thead className="bg-slate-50">
-                      {children}
-                    </thead>
-                  ),
-                  tbody: ({ children }) => (
-                    <tbody className="divide-y divide-slate-200">
-                      {children}
-                    </tbody>
-                  ),
-                  tr: ({ children }) => (
-                    <tr className="hover:bg-slate-50/50 transition-colors">
-                      {children}
-                    </tr>
-                  ),
-                  th: ({ children }) => (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">
-                      {children}
-                    </th>
-                  ),
-                  td: ({ children }) => (
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      {children}
-                    </td>
-                  ),
-                  img: ({ src, alt }) => (
-                    <img 
-                      src={src} 
-                      alt={alt} 
-                      className="max-w-full h-auto rounded-lg border border-slate-200 my-4 shadow-sm"
+            {isUpdating ? (
+              // Animated placeholder while updating
+              <div className="space-y-4">
+                <div className="text-center mb-8">
+                  <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                  <p className="text-slate-600 font-medium">Updating your SOP...</p>
+                  <p className="text-slate-500 text-sm mt-1">This may take a few moments</p>
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      className="h-4 bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 rounded animate-pulse"
+                      style={{
+                        width: `${85 + Math.random() * 15}%`,
+                        animationDelay: `${i * 0.2}s`,
+                        animationDuration: '2s'
+                      }}
                     />
-                  ),
-                }}
-              >
-                {currentSop.content}
-              </ReactMarkdown>
-            </article>
+                  ))}
+                </div>
+                <div className="space-y-3 mt-8">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i + 5}
+                      className="h-4 bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 rounded animate-pulse"
+                      style={{
+                        width: `${75 + Math.random() * 20}%`,
+                        animationDelay: `${(i + 5) * 0.2}s`,
+                        animationDuration: '2s'
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="space-y-3 mt-8">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i + 9}
+                      className="h-4 bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 rounded animate-pulse"
+                      style={{
+                        width: `${80 + Math.random() * 15}%`,
+                        animationDelay: `${(i + 9) * 0.2}s`,
+                        animationDuration: '2s'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              // Actual SOP content
+              <article className="prose prose-slate max-w-none">
+                <ReactMarkdown
+                  components={{
+                    h1: ({children}) => (
+                      <h1 className="text-3xl font-bold text-slate-800 mb-6 mt-0 pb-3 border-b border-slate-200">
+                        {children}
+                      </h1>
+                    ),
+                    h2: ({children}) => (
+                      <h2 className="text-2xl font-semibold text-slate-800 mb-4 mt-8">
+                        {children}
+                      </h2>
+                    ),
+                    h3: ({children}) => (
+                      <h3 className="text-xl font-semibold text-slate-800 mb-3 mt-6">
+                        {children}
+                      </h3>
+                    ),
+                    h4: ({children}) => (
+                      <h4 className="text-lg font-semibold text-slate-700 mb-2 mt-4">
+                        {children}
+                      </h4>
+                    ),
+                    h5: ({children}) => (
+                      <h5 className="text-base font-semibold text-slate-700 mb-2 mt-3">
+                        {children}
+                      </h5>
+                    ),
+                    h6: ({children}) => (
+                      <h6 className="text-sm font-semibold text-slate-700 mb-2 mt-3">
+                        {children}
+                      </h6>
+                    ),
+                    p: ({ children }) => (
+                      <p className="text-slate-700 leading-relaxed mb-4 last:mb-0">
+                        {children}
+                      </p>
+                    ),
+                    ul: ({children}) => (
+                      <ul className="list-disc pl-6 mb-4 space-y-2 text-slate-700">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({children}) => (
+                      <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-700">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({children}) => (
+                      <li className="text-slate-700 leading-relaxed">
+                        {children}
+                      </li>
+                    ),
+                    a: ({ href, children }) => (
+                      <a 
+                        href={href} 
+                        className="text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                      >
+                        {children}
+                      </a>
+                    ),
+                    strong: ({ children }) => (
+                      <strong className="font-semibold text-slate-800">
+                        {children}
+                      </strong>
+                    ),
+                    em: ({ children }) => (
+                      <em className="italic text-slate-700">
+                        {children}
+                      </em>
+                    ),
+                    code: ({ children }) => (
+                      <code className="bg-slate-100 text-slate-800 px-2 py-1 rounded text-sm font-mono">
+                        {children}
+                      </code>
+                    ),
+                    pre: ({ children }) => (
+                      <pre className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-sm overflow-x-auto my-4 font-mono">
+                        {children}
+                      </pre>
+                    ),
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-blue-200 bg-blue-50/50 rounded-r-lg px-4 py-3 my-4 text-slate-600 italic">
+                        {children}
+                      </blockquote>
+                    ),
+                    hr: () => (
+                      <hr className="my-8 border-t border-slate-200" />
+                    ),
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-4">
+                        <table className="min-w-full border border-slate-200 rounded-lg">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-slate-50">
+                        {children}
+                      </thead>
+                    ),
+                    tbody: ({ children }) => (
+                      <tbody className="divide-y divide-slate-200">
+                        {children}
+                      </tbody>
+                    ),
+                    tr: ({ children }) => (
+                      <tr className="hover:bg-slate-50/50 transition-colors">
+                        {children}
+                      </tr>
+                    ),
+                    th: ({ children }) => (
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="px-4 py-3 text-sm text-slate-700">
+                        {children}
+                      </td>
+                    ),
+                    img: ({ src, alt }) => (
+                      <img 
+                        src={src} 
+                        alt={alt} 
+                        className="max-w-full h-auto rounded-lg border border-slate-200 my-4 shadow-sm"
+                      />
+                    ),
+                  }}
+                >
+                  {currentSop.content}
+                </ReactMarkdown>
+              </article>
+            )}
           </CardContent>
         </Card>
         

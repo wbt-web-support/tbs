@@ -643,6 +643,7 @@ export default function OnboardingClient() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     // NEW CHECK: Only allow submission if we are truly on the last category page.
     if (currentCategory !== categories.length - 1) {
@@ -651,10 +652,8 @@ export default function OnboardingClient() {
         description: "Form can only be submitted from the final section.",
         variant: "destructive",
       });
-      setIsLoading(false); // Ensure loading state is reset
       return;
     }
-    setIsLoading(true);
 
     // Validate the final section before submitting
     if (!isCategoryComplete(categories.length - 1)) {
@@ -663,7 +662,6 @@ export default function OnboardingClient() {
         description: "Please complete all required fields in the final section before submitting.",
         variant: "destructive",
       });
-      setIsLoading(false);
       return;
     }
 
@@ -680,19 +678,37 @@ export default function OnboardingClient() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      await supabase
+      // Check if user already has onboarding data
+      const { data: existingOnboarding } = await supabase
         .from('company_onboarding')
-        .upsert(
-          {
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingOnboarding) {
+        // Update existing record
+        console.log('📝 Updating existing onboarding record for user:', user.id);
+        await supabase
+          .from('company_onboarding')
+          .update({
+            onboarding_data: allFormValues,
+            completed: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+        console.log('✅ Successfully updated onboarding record');
+      } else {
+        // Insert new record
+        console.log('🆕 Creating new onboarding record for user:', user.id);
+        await supabase
+          .from('company_onboarding')
+          .insert({
             user_id: user.id,
             onboarding_data: allFormValues,
             completed: true,
-          },
-          {
-            onConflict: 'user_id',
-            ignoreDuplicates: false
-          }
-        );
+          });
+        console.log('✅ Successfully created onboarding record');
+      }
 
       // Update second step - Creating your SOP
       setSubmissionSteps(steps => steps.map((step, i) =>
@@ -744,6 +760,7 @@ export default function OnboardingClient() {
       router.refresh();
     } catch (error) {
       toast({ title: "Error", description: "Failed to save your information. Please try again.", variant: "destructive" });
+    } finally {
       setIsLoading(false);
     }
   };
