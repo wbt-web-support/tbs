@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
@@ -41,6 +42,7 @@ import {
   MessageSquare,
   Cog,
   Lightbulb,
+  X,
 } from "lucide-react";
 
 // Types
