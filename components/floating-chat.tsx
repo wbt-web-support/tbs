@@ -7,7 +7,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { createClient } from "@/utils/supabase/client";
-import { useToast } from "./ui/use-toast";
 import { usePathname } from 'next/navigation';
 
 const MIN_SIDEBAR_WIDTH = 450;
@@ -23,7 +22,6 @@ interface ChatInstance {
 
 export function FloatingChat() {
   const pathname = usePathname();
-  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [showInstancePopup, setShowInstancePopup] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(MIN_SIDEBAR_WIDTH);
@@ -147,19 +145,9 @@ export function FloatingChat() {
         setCurrentInstanceId(data.instance.id);
         setShowInstancePopup(false);
         setIsOpen(true);
-        
-        toast({
-          title: "New chat created",
-          description: "A new chat instance has been created.",
-        });
       }
     } catch (error) {
       console.error('Error creating new chat instance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create new chat instance.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -200,18 +188,8 @@ export function FloatingChat() {
           await createNewInstance();
         }
       }
-      
-      toast({
-        title: "Chat deleted",
-        description: "The chat instance has been deleted.",
-      });
     } catch (error) {
       console.error('Error deleting chat instance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete chat instance.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -250,18 +228,8 @@ export function FloatingChat() {
       
       setEditingInstanceId(null);
       setEditingTitle("");
-      
-      toast({
-        title: "Title updated",
-        description: "The chat title has been updated.",
-      });
     } catch (error) {
       console.error('Error updating instance title:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update title.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -554,7 +522,7 @@ export function FloatingChat() {
           <div
             ref={sidebarRef}
             style={{ width: isSmallScreen && isOpen ? '100vw' : `${sidebarWidth}px` }}
-            className={`fixed sm:top-16 top-0 bottom-0 right-0 z-50 bg-white transform transition-transform duration-300 ${
+            className={`border-l shadow-lg fixed sm:top-16 top-0 bottom-0 right-0 z-50 bg-white transform transition-transform duration-300 ${
               isOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
           >

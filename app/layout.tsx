@@ -32,9 +32,10 @@ export default async function RootLayout({
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
-  // Initialize Supabase storage buckets
-  await initializeSupabaseStorage().catch(err => {
-    console.error('Failed to initialize storage buckets:', err);
+  // Initialize Supabase storage buckets (silently handle failures)
+  await initializeSupabaseStorage().catch(() => {
+    // Storage initialization failed - this is handled gracefully
+    // The app will still work, but file uploads to machines bucket may fail
   });
 
   // If user is authenticated and tries to access root, redirect to dashboard

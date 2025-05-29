@@ -351,7 +351,7 @@ export default function SopClient() {
           </div>
         </div>
       </div>
-    );
+    ); 
   }
 
   return (
