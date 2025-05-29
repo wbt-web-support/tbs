@@ -41,6 +41,36 @@ export async function POST(req: NextRequest) {
       dataToUse = onboardingRecord.onboarding_data;
     }
 
+    // Check if user already has an SOP and get the highest version number
+    const { data: existingSops, error: sopCheckError } = await supabase
+      .from('sop_data')
+      .select('id, version, is_current')
+      .eq('user_id', user.id)
+      .order('version', { ascending: false });
+
+    if (sopCheckError) {
+      console.error("Error checking existing SOPs:", sopCheckError);
+      return NextResponse.json({ error: "Failed to check existing SOPs" }, { status: 500 });
+    }
+
+    // Determine the next version number
+    let nextVersion = 1;
+    if (existingSops && existingSops.length > 0) {
+      const highestVersion = existingSops[0].version;
+      nextVersion = highestVersion + 1;
+      console.log(`📋 Found ${existingSops.length} existing SOPs. Creating version ${nextVersion}`);
+
+      // Mark all current SOPs as not current
+      await supabase
+        .from('sop_data')
+        .update({ is_current: false })
+        .eq('user_id', user.id)
+        .eq('is_current', true);
+      console.log('✅ Marked existing SOPs as not current');
+    } else {
+      console.log('🆕 Creating first SOP for user (version 1)');
+    }
+
     // Build comprehensive prompt for SOP generation
     const prompt = `You are an expert business consultant creating a comprehensive Standard Operating Procedure (SOP) document for a trades business. 
 
@@ -97,7 +127,7 @@ The SOP should be professional, comprehensive, and tailored specifically to this
         user_id: user.id,
         title,
         content: sopContent,
-        version: 1,
+        version: nextVersion,
         is_current: true,
         metadata: {
           generated_from: 'onboarding_data',
