@@ -17,6 +17,16 @@ import Link from "next/link";
 import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2 } from "lucide-react";
 import { SubmissionLoader } from "./components/submission-loader";
 
+// Question interface for type safety
+interface Question {
+  name: string;
+  label: string;
+  type: 'input' | 'textarea';
+  placeholder?: string;
+  inputType?: string;
+  required: boolean;
+  aiAssist?: boolean;
+}
 
 // Highly descriptive schema for AI training
 const formSchema = z.object({
@@ -70,7 +80,7 @@ const formSchema = z.object({
 });
 
 // Define all questions in a config array
-const questions = [
+const questions: Question[] = [
   // Company Information
   {
     name: 'company_name_official_registered',
@@ -437,6 +447,7 @@ export default function OnboardingClient() {
     done: boolean;
   }[]>([
     { title: "Saving your information", done: false },
+    { title: "Creating your SOP", done: false },
     { title: "Preparing your workspace", done: false },
     { title: "Redirecting to dashboard", done: false },
   ]);
@@ -660,7 +671,7 @@ export default function OnboardingClient() {
     const allFormValues = form.getValues();
 
     try {
-      // Update first step
+      // Update first step - Saving your information
       setSubmissionSteps(steps => steps.map((step, i) =>
         i === 0 ? { ...step, done: true } : step
       ));
@@ -683,7 +694,7 @@ export default function OnboardingClient() {
           }
         );
 
-      // Update second step
+      // Update second step - Creating your SOP
       setSubmissionSteps(steps => steps.map((step, i) =>
         i === 1 ? { ...step, done: true } : step
       ));
@@ -710,19 +721,26 @@ export default function OnboardingClient() {
         // Don't fail the onboarding if SOP generation fails
       }
 
+      // Update third step - Preparing your workspace
+      setSubmissionSteps(steps => steps.map((step, i) =>
+        i === 2 ? { ...step, done: true } : step
+      ));
+
       // Small delay to show the animation
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // Update final step
+      // Update final step - Redirecting to dashboard
       setSubmissionSteps(steps => steps.map((step, i) =>
-        i === 2 ? { ...step, done: true } : step
+        i === 3 ? { ...step, done: true } : step
       ));
 
       // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 500));
 
       toast({ title: "Success", description: "Your company information has been saved and SOP generated!" });
-      router.push('/dashboard');
+      
+      // Add URL parameter to indicate fresh onboarding completion
+      router.push('/dashboard?onboarding=completed');
       router.refresh();
     } catch (error) {
       toast({ title: "Error", description: "Failed to save your information. Please try again.", variant: "destructive" });
@@ -1035,7 +1053,7 @@ export default function OnboardingClient() {
                           >
                             {q.label}
                           </label>
-                          {q.aiAssist && (
+                          {(q.aiAssist ?? false) && (
                             <Button
                               variant="ghost"
                               size="sm"
