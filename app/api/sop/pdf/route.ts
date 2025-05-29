@@ -6,6 +6,8 @@ import MarkdownIt from 'markdown-it';
 const md = new MarkdownIt();
 
 export async function POST(req: NextRequest) {
+  let browser: any = null;
+  
   try {
     const supabase = await createClient();
     
@@ -416,20 +418,44 @@ export async function POST(req: NextRequest) {
       </html>
     `;
 
-    // Launch Puppeteer
-    const browser = await puppeteer.launch({
+    console.log("Starting PDF generation for SOP:", sopId);
+
+    // Launch Puppeteer with better error handling and timeouts
+    browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: '/home/ubuntu/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome'
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-web-security'
+      ],
+      executablePath: '/home/ubuntu/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome',
+      timeout: 30000 // 30 second timeout for browser launch
     });
+
+    console.log("Browser launched successfully");
 
     const page = await browser.newPage();
     
-    // Set content and generate PDF
-    await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
+    // Set a shorter timeout for page operations
+    page.setDefaultTimeout(30000); // 30 seconds instead of default 30 seconds
+    
+    // Set content with a faster wait strategy
+    await page.setContent(htmlTemplate, { 
+      waitUntil: 'domcontentloaded', // Changed from 'networkidle0' to 'domcontentloaded'
+      timeout: 20000 // 20 second timeout for content loading
+    });
+    
+    console.log("Page content set successfully");
     
     const generationDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric'});
     const pageMarginMm = 20;
+
+    console.log("Generating PDF...");
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -450,12 +476,18 @@ export async function POST(req: NextRequest) {
         </div>
       `,
       printBackground: true,
-      preferCSSPageSize: false
+      preferCSSPageSize: false,
+      timeout: 60000 // 60 second timeout for PDF generation
     });
 
+    console.log("PDF generated successfully");
+
     await browser.close();
+    browser = null; // Set to null after successful close
     
     const filename = `${sop.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_v${sop.version}.pdf`;
+
+    console.log("Returning PDF response");
 
     return new Response(pdfBuffer, {
       headers: {
@@ -466,6 +498,16 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("PDF Generation API Error:", error);
+    
+    // Ensure browser is closed even on error
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error("Error closing browser:", closeError);
+      }
+    }
+    
     return NextResponse.json({ 
       error: error.message || "Failed to generate PDF" 
     }, { status: 500 });
