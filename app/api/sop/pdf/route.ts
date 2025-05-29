@@ -1,55 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import MarkdownIt from 'markdown-it';
 
 const md = new MarkdownIt();
-
-// Helper function to get Chrome executable path
-const getChromePath = () => {
-  if (process.env.NODE_ENV === 'production') {
-    // In production, use bundled Chromium or system Chrome
-    if (process.platform === 'linux') {
-      // Common paths for different hosting providers
-      const possiblePaths = [
-        '/usr/bin/google-chrome-stable',
-        '/usr/bin/google-chrome',
-        '/usr/bin/chromium-browser',
-        '/usr/bin/chromium',
-        // Vercel/Netlify serverless environments
-        '/usr/bin/google-chrome-stable',
-        // For containerized environments
-        '/opt/google/chrome/chrome'
-      ];
-      
-      // Try to find an existing Chrome installation
-      const fs = require('fs');
-      for (const path of possiblePaths) {
-        try {
-          if (fs.existsSync(path)) {
-            return path;
-          }
-        } catch (error) {
-          // Continue to next path
-        }
-      }
-    }
-    // Return undefined to use bundled Chromium
-    return undefined;
-  } else {
-    // Development environment - use your local Chrome if it exists
-    const fs = require('fs');
-    const localPath = '/home/ubuntu/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
-    try {
-      if (fs.existsSync(localPath)) {
-        return localPath;
-      }
-    } catch (error) {
-      // Fall back to bundled Chromium
-    }
-    return undefined;
-  }
-};
 
 export async function POST(req: NextRequest) {
   let browser: any = null;
@@ -466,38 +421,48 @@ export async function POST(req: NextRequest) {
 
     console.log("Starting PDF generation for SOP:", sopId);
 
-    // Get Chrome path and log for debugging
-    const chromePath = getChromePath();
-    console.log("Chrome executable path:", chromePath || "Using bundled Chromium");
+    // Configure Chromium for serverless environment
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    
+    const browserArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--disable-web-security'
+    ];
 
-    // Launch Puppeteer with better error handling and timeouts
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor',
-        '--disable-extensions',
+    if (isServerless) {
+      // Add additional args for serverless environments
+      browserArgs.push(
+        '--single-process',
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding',
-        '--disable-features=TranslateUI',
-        '--disable-ipc-flooding-protection',
-        '--disable-default-apps',
-        '--disable-sync',
-        '--hide-scrollbars',
-        '--mute-audio',
-        '--single-process' // This can help in some containerized environments
-      ],
-      executablePath: chromePath,
-      timeout: 60000 // Increased timeout for slow environments
-    });
+        '--disable-renderer-backgrounding'
+      );
+    }
+
+    // Launch Puppeteer with environment-specific configuration
+    const launchOptions: any = {
+      headless: true,
+      args: browserArgs,
+      timeout: 30000
+    };
+
+    if (isServerless) {
+      // Use @sparticuz/chromium for serverless deployment
+      launchOptions.executablePath = await chromium.executablePath();
+    } else {
+      // For local development, let Puppeteer find Chrome automatically
+      // or use a local installation
+      const localChromePath = '/home/ubuntu/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
+      launchOptions.executablePath = localChromePath;
+    }
+
+    browser = await puppeteer.launch(launchOptions);
 
     console.log("Browser launched successfully");
 

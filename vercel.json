@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/sop/pdf/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "builds": [
+    {
+      "src": "next.config.js",
+      "use": "@vercel/next"
+    }
+  ]
+} 
