@@ -5,6 +5,52 @@ import MarkdownIt from 'markdown-it';
 
 const md = new MarkdownIt();
 
+// Helper function to get Chrome executable path
+const getChromePath = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // In production, use bundled Chromium or system Chrome
+    if (process.platform === 'linux') {
+      // Common paths for different hosting providers
+      const possiblePaths = [
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        // Vercel/Netlify serverless environments
+        '/usr/bin/google-chrome-stable',
+        // For containerized environments
+        '/opt/google/chrome/chrome'
+      ];
+      
+      // Try to find an existing Chrome installation
+      const fs = require('fs');
+      for (const path of possiblePaths) {
+        try {
+          if (fs.existsSync(path)) {
+            return path;
+          }
+        } catch (error) {
+          // Continue to next path
+        }
+      }
+    }
+    // Return undefined to use bundled Chromium
+    return undefined;
+  } else {
+    // Development environment - use your local Chrome if it exists
+    const fs = require('fs');
+    const localPath = '/home/ubuntu/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
+    try {
+      if (fs.existsSync(localPath)) {
+        return localPath;
+      }
+    } catch (error) {
+      // Fall back to bundled Chromium
+    }
+    return undefined;
+  }
+};
+
 export async function POST(req: NextRequest) {
   let browser: any = null;
   
@@ -420,6 +466,10 @@ export async function POST(req: NextRequest) {
 
     console.log("Starting PDF generation for SOP:", sopId);
 
+    // Get Chrome path and log for debugging
+    const chromePath = getChromePath();
+    console.log("Chrome executable path:", chromePath || "Using bundled Chromium");
+
     // Launch Puppeteer with better error handling and timeouts
     browser = await puppeteer.launch({
       headless: true,
@@ -431,10 +481,22 @@ export async function POST(req: NextRequest) {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
-        '--disable-web-security'
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--disable-extensions',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--disable-default-apps',
+        '--disable-sync',
+        '--hide-scrollbars',
+        '--mute-audio',
+        '--single-process' // This can help in some containerized environments
       ],
-      executablePath: '/home/ubuntu/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome',
-      timeout: 30000 // 30 second timeout for browser launch
+      executablePath: chromePath,
+      timeout: 60000 // Increased timeout for slow environments
     });
 
     console.log("Browser launched successfully");
