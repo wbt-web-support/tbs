@@ -23,7 +23,8 @@ import {
   ExternalLink,
   Sparkles,
   Lightbulb,
-  LucideIcon
+  LucideIcon,
+  Brain
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,11 @@ const navigationSections: NavigationSection[] = [
         name: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
+      },
+      {
+        name: "AI Dashboard",
+        href: "/ai-dashboard",
+        icon: Brain,
       },
       {
         name: "CHQ Timeline",
