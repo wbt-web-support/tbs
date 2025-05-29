@@ -1,14 +1,458 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
-import MarkdownIt from 'markdown-it';
+import { Document, Page, Text, View, StyleSheet, renderToStream } from '@react-pdf/renderer';
+import React from 'react';
 
-const md = new MarkdownIt();
+// Create styles for the PDF
+const styles = StyleSheet.create({
+  page: {
+    flexDirection: 'column',
+    backgroundColor: '#FFFFFF',
+    padding: 50,
+    paddingBottom: 80,
+    fontSize: 11,
+    fontFamily: 'Helvetica',
+    lineHeight: 1.5,
+  },
+  header: {
+    marginBottom: 30,
+    paddingBottom: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: '#1E40AF',
+    borderBottomStyle: 'solid',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 8,
+    fontFamily: 'Helvetica-Bold',
+    lineHeight: 1.3,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    fontFamily: 'Helvetica-Bold',
+  },
+  content: {
+    marginBottom: 40,
+  },
+  // Heading styles with much better hierarchy
+  h1: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginTop: 25,
+    marginBottom: 15,
+    fontFamily: 'Helvetica-Bold',
+    backgroundColor: '#EFF6FF',
+    padding: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2563EB',
+    borderLeftStyle: 'solid',
+  },
+  h2: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#334155',
+    marginTop: 20,
+    marginBottom: 12,
+    fontFamily: 'Helvetica-Bold',
+    borderBottomWidth: 1,
+    borderBottomColor: '#CBD5E1',
+    borderBottomStyle: 'solid',
+    paddingBottom: 4,
+  },
+  h3: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#475569',
+    marginTop: 18,
+    marginBottom: 10,
+    fontFamily: 'Helvetica-Bold',
+  },
+  h4: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#64748B',
+    marginTop: 16,
+    marginBottom: 8,
+    fontFamily: 'Helvetica-Bold',
+  },
+  h5: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#64748B',
+    marginTop: 14,
+    marginBottom: 6,
+    fontFamily: 'Helvetica-Bold',
+  },
+  h6: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#64748B',
+    marginTop: 12,
+    marginBottom: 5,
+    fontFamily: 'Helvetica-Bold',
+  },
+  // Text styles
+  paragraph: {
+    fontSize: 11,
+    lineHeight: 1.6,
+    color: '#374151',
+    marginBottom: 12,
+    textAlign: 'left',
+  },
+  // Improved list styles
+  listContainer: {
+    marginBottom: 15,
+    marginTop: 5,
+  },
+  listItem: {
+    flexDirection: 'row',
+    marginBottom: 6,
+    alignItems: 'flex-start',
+  },
+  listBullet: {
+    width: 20,
+    fontSize: 11,
+    color: '#1E40AF',
+    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
+    paddingTop: 1,
+  },
+  listContent: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 1.5,
+    color: '#374151',
+  },
+  // Nested list styles
+  nestedListContainer: {
+    marginLeft: 20,
+    marginTop: 5,
+    marginBottom: 10,
+  },
+  nestedListItem: {
+    flexDirection: 'row',
+    marginBottom: 6,
+    alignItems: 'flex-start',
+  },
+  nestedListBullet: {
+    width: 20,
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
+  },
+  nestedListContent: {
+    flex: 1,
+    fontSize: 10,
+    lineHeight: 1.4,
+    color: '#475569',
+  },
+  // Code styles
+  codeBlock: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    padding: 15,
+    marginVertical: 15,
+    fontSize: 10,
+    fontFamily: 'Courier',
+    color: '#1E293B',
+    lineHeight: 1.4,
+  },
+  // Quote styles
+  blockquote: {
+    backgroundColor: '#FEF7CD',
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+    borderLeftStyle: 'solid',
+    padding: 15,
+    marginVertical: 15,
+    fontStyle: 'italic',
+    color: '#92400E',
+    fontSize: 11,
+  },
+  // Horizontal rule
+  horizontalRule: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    borderBottomStyle: 'solid',
+    marginVertical: 20,
+    height: 1,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 50,
+    right: 50,
+    textAlign: 'center',
+    fontSize: 8,
+    color: '#9CA3AF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    borderTopStyle: 'solid',
+    paddingTop: 10,
+  },
+});
+
+// Enhanced markdown parser with better formatting
+function parseMarkdownToElements(content: string) {
+  const lines = content.split('\n');
+  const elements: React.ReactElement[] = [];
+  let currentList: React.ReactElement[] = [];
+  let listCounter = 0;
+  let inCodeBlock = false;
+  let codeBlockLines: string[] = [];
+  let isOrderedList = false;
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        React.createElement(View, { key: `list-${elements.length}`, style: styles.listContainer }, currentList)
+      );
+      currentList = [];
+      listCounter = 0;
+      isOrderedList = false;
+    }
+  };
+
+  const flushCodeBlock = () => {
+    if (codeBlockLines.length > 0) {
+      elements.push(
+        React.createElement(Text, { 
+          key: `code-${elements.length}`, 
+          style: styles.codeBlock 
+        }, codeBlockLines.join('\n'))
+      );
+      codeBlockLines = [];
+    }
+  };
+
+  // Function to parse inline formatting (bold, italic)
+  const parseInlineText = (text: string) => {
+    // Remove markdown bold syntax and return clean text
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove **bold**
+      .replace(/\*(.*?)\*/g, '$1')      // Remove *italic*
+      .replace(/`(.*?)`/g, '$1')        // Remove `code`
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1'); // Remove [links](url)
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    // Handle code blocks
+    if (trimmedLine.startsWith('```')) {
+      if (inCodeBlock) {
+        flushCodeBlock();
+        inCodeBlock = false;
+      } else {
+        flushList();
+        inCodeBlock = true;
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      continue;
+    }
+
+    // Empty line
+    if (!trimmedLine) {
+      flushList();
+      continue;
+    }
+
+    // Horizontal rule
+    if (trimmedLine === '---') {
+      flushList();
+      elements.push(
+        React.createElement(View, { key: `hr-${i}`, style: styles.horizontalRule })
+      );
+      continue;
+    }
+
+    // Check for headings first - look for lines that start with **number. text:**
+    const headingPattern = /^\*\*(\d+(?:\.\d+)*)\.\s+(.+?):\*\*(.*)$/;
+    const headingMatch = trimmedLine.match(headingPattern);
+    
+    if (headingMatch) {
+      flushList();
+      const number = headingMatch[1];
+      const title = headingMatch[2];
+      const rest = headingMatch[3];
+      
+      // Determine heading level based on number of dots
+      const level = (number.match(/\./g) || []).length + 1;
+      const headingStyle = level === 1 ? styles.h1 : 
+                          level === 2 ? styles.h2 : 
+                          level === 3 ? styles.h3 : 
+                          level === 4 ? styles.h4 : 
+                          level === 5 ? styles.h5 : styles.h6;
+      
+      const fullTitle = `${number}. ${title}`;
+      elements.push(
+        React.createElement(Text, { 
+          key: `heading-${i}`, 
+          style: headingStyle 
+        }, fullTitle)
+      );
+      
+      // If there's content after the colon, add it as a paragraph
+      if (rest.trim()) {
+        elements.push(
+          React.createElement(Text, { 
+            key: `para-after-heading-${i}`, 
+            style: styles.paragraph 
+          }, parseInlineText(rest.trim()))
+        );
+      }
+      continue;
+    }
+
+    // Regular markdown headings (# ## ### etc.)
+    const markdownHeadingMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
+    if (markdownHeadingMatch) {
+      flushList();
+      const level = markdownHeadingMatch[1].length;
+      const text = parseInlineText(markdownHeadingMatch[2]);
+      const headingStyle = level === 1 ? styles.h1 : 
+                          level === 2 ? styles.h2 : 
+                          level === 3 ? styles.h3 : 
+                          level === 4 ? styles.h4 : 
+                          level === 5 ? styles.h5 : styles.h6;
+      
+      elements.push(
+        React.createElement(Text, { 
+          key: `heading-${i}`, 
+          style: headingStyle 
+        }, text)
+      );
+      continue;
+    }
+
+    // Lists - both bullet and numbered
+    const bulletMatch = trimmedLine.match(/^[-*+]\s+(.+)$/);
+    const numberedMatch = trimmedLine.match(/^\d+\.\s+(.+)$/);
+    
+    if (bulletMatch || numberedMatch) {
+      const content = bulletMatch ? bulletMatch[1] : numberedMatch![1];
+      const isThisOrdered = !!numberedMatch;
+      
+      // Reset counter if switching list types
+      if (isThisOrdered !== isOrderedList) {
+        listCounter = 0;
+        isOrderedList = isThisOrdered;
+      }
+      
+      if (isThisOrdered) {
+        listCounter++;
+      }
+      
+      currentList.push(
+        React.createElement(View, { key: `list-item-${i}`, style: styles.listItem },
+          React.createElement(Text, { style: styles.listBullet }, 
+            isThisOrdered ? `${listCounter}.` : '•'
+          ),
+          React.createElement(Text, { style: styles.listContent }, parseInlineText(content))
+        )
+      );
+      continue;
+    }
+
+    // Blockquotes
+    if (trimmedLine.startsWith('>')) {
+      flushList();
+      const content = parseInlineText(trimmedLine.replace(/^>\s*/, ''));
+      elements.push(
+        React.createElement(Text, { 
+          key: `quote-${i}`, 
+          style: styles.blockquote 
+        }, content)
+      );
+      continue;
+    }
+
+    // Regular paragraphs
+    if (trimmedLine) {
+      flushList();
+      
+      // Check if this line starts with **text:** pattern (like a definition or key point)
+      const boldLabelMatch = trimmedLine.match(/^\*\*([^*]+):\*\*\s*(.*)$/);
+      if (boldLabelMatch) {
+        const label = boldLabelMatch[1];
+        const content = boldLabelMatch[2];
+        
+        elements.push(
+          React.createElement(View, { key: `bold-para-${i}`, style: { marginBottom: 10 } },
+            React.createElement(Text, { 
+              style: { ...styles.paragraph, fontFamily: 'Helvetica-Bold', marginBottom: 0 } 
+            }, `${label}: `),
+            React.createElement(Text, { 
+              style: { ...styles.paragraph, marginBottom: 0 } 
+            }, parseInlineText(content))
+          )
+        );
+      } else {
+        // Regular paragraph
+        elements.push(
+          React.createElement(Text, { 
+            key: `para-${i}`, 
+            style: styles.paragraph 
+          }, parseInlineText(trimmedLine))
+        );
+      }
+    }
+  }
+
+  flushList();
+  flushCodeBlock();
+  return elements;
+}
+
+// Create the PDF Document
+function createSOPDocument(sop: any) {
+  const currentDate = new Date().toLocaleDateString('en-GB', { 
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric' 
+  });
+
+  return React.createElement(Document, {
+    title: sop.title,
+    author: 'Trade Business School',
+    subject: 'Standard Operating Procedure',
+    creator: 'Trade Business School SOP Generator'
+  },
+    React.createElement(Page, { size: "A4", style: styles.page },
+      // Header
+      React.createElement(View, { style: styles.header },
+        React.createElement(Text, { style: styles.title }, sop.title),
+        React.createElement(Text, { style: styles.subtitle }, "Standard Operating Procedure")
+      ),
+      
+      // Content
+      React.createElement(View, { style: styles.content }, 
+        ...parseMarkdownToElements(sop.content)
+      ),
+      
+      // Footer
+      React.createElement(Text, { style: styles.footer, fixed: true }, 
+        `Generated by Trade Business School on ${currentDate} | This document is confidential and proprietary`
+      )
+    )
+  );
+}
 
 export async function POST(req: NextRequest) {
-  let browser: any = null;
-  
   try {
     const supabase = await createClient();
     
@@ -36,481 +480,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "SOP not found" }, { status: 404 });
     }
 
-    // Convert markdown content to HTML
-    const renderedHtmlContent = md.render(sop.content);
-
-    const htmlTemplate = `
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${sop.title}</title>
-          <style>
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6;
-              color: #1a1a1a;
-              background: white;
-              font-size: 11pt;
-              padding: 0;
-              margin: 0;
-            }
-
-            .container {
-              max-width: 100%;
-              margin: 0 auto;
-              padding: 40px 50px 60px 50px;
-              min-height: 100vh;
-              position: relative;
-            }
-
-            /* Header Section */
-            .header {
-              text-align: left;
-              margin-bottom: 20px;
-              padding-bottom: 30px;
-              border-bottom: 1px solid #e5e5e5;
-            }
-
-            .header h1 {
-              font-size: 28pt;
-              font-weight: 300;
-              color: #1a1a1a;
-              margin-bottom: 12px;
-              letter-spacing: -0.02em;
-              line-height: 1.2;
-            }
-
-            .header .subtitle {
-              font-size: 11pt;
-              color: #6b7280;
-              font-weight: 400;
-              text-transform: uppercase;
-              letter-spacing: 0.15em;
-            }
-
-            /* Metadata Section */
-            .metadata {
-              background: #fafafa;
-              border: 1px solid #e5e5e5;
-              border-radius: 4px;
-              padding: 30px;
-              margin-bottom: 20px;
-            }
-
-            .metadata-title {
-              font-size: 13pt;
-              font-weight: 600;
-              color: #1a1a1a;
-              margin-bottom: 20px;
-              display: flex;
-              align-items: center;
-              text-transform: uppercase;
-              letter-spacing: 0.1em;
-            }
-
-            .metadata-title::before {
-              content: "•";
-              margin-right: 10px;
-              font-size: 14pt;
-              color: #6b7280;
-            }
-
-            .metadata-grid {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 16px;
-            }
-
-            .metadata-item {
-              display: flex;
-              align-items: flex-start;
-              font-size: 10pt;
-              line-height: 1.5;
-            }
-
-            .metadata-label {
-              font-weight: 600;
-              color: #1a1a1a;
-              min-width: 100px;
-              margin-right: 15px;
-            }
-
-            .metadata-value {
-              color: #4b5563;
-              flex: 1;
-            }
-
-            /* Content Section */
-            .content {
-              line-height: 1.8;
-              color: #1a1a1a;
-              padding-bottom: 70px;
-            }
-
-            /* Typography */
-            .content h1 {
-              font-size: 22pt;
-              font-weight: 400;
-              color: #1a1a1a;
-              margin: 40px 0 20px 0;
-              padding-bottom: 12px;
-              border-bottom: 1px solid #e5e5e5;
-              page-break-after: avoid;
-              letter-spacing: -0.01em;
-            }
-
-            .content h2 {
-              font-size: 18pt;
-              font-weight: 500;
-              color: #1a1a1a;
-              margin: 35px 0 18px 0;
-              page-break-after: avoid;
-              letter-spacing: -0.01em;
-            }
-
-            .content h3 {
-              font-size: 15pt;
-              font-weight: 500;
-              color: #1a1a1a;
-              margin: 30px 0 15px 0;
-              page-break-after: avoid;
-            }
-
-            .content h4 {
-              font-size: 13pt;
-              font-weight: 500;
-              color: #1a1a1a;
-              margin: 25px 0 12px 0;
-              page-break-after: avoid;
-            }
-
-            .content h5 {
-              font-size: 12pt;
-              font-weight: 500;
-              color: #1a1a1a;
-              margin: 20px 0 10px 0;
-              page-break-after: avoid;
-            }
-
-            .content h6 {
-              font-size: 11pt;
-              font-weight: 500;
-              color: #1a1a1a;
-              margin: 18px 0 8px 0;
-              page-break-after: avoid;
-            }
-
-            .content p {
-              margin-bottom: 16px;
-              text-align: justify;
-              orphans: 3;
-              widows: 3;
-              color: #374151;
-            }
-
-            /* Lists */
-            .content ul, .content ol {
-              margin: 20px 0;
-              padding-left: 30px;
-            }
-
-            .content li {
-              margin-bottom: 8px;
-              line-height: 1.7;
-              page-break-inside: avoid;
-              color: #374151;
-            }
-
-            .content ul li::marker {
-              color: #6b7280;
-            }
-
-            .content ol li::marker {
-              color: #6b7280;
-              font-weight: 500;
-            }
-
-            /* Text formatting */
-            .content strong, .content b {
-              font-weight: 600;
-              color: #1a1a1a;
-            }
-
-            .content em, .content i {
-              font-style: italic;
-              color: #4b5563;
-            }
-
-            /* Blockquotes */
-            .content blockquote {
-              margin: 25px 0;
-              padding: 20px 25px;
-              background: #f9f9f9;
-              border-left: 3px solid #d1d5db;
-              border-radius: 0 4px 4px 0;
-              font-style: italic;
-              color: #4b5563;
-              position: relative;
-            }
-
-            .content blockquote::before {
-              content: """;
-              font-size: 28pt;
-              color: #d1d5db;
-              position: absolute;
-              top: 10px;
-              left: 10px;
-              font-family: Georgia, serif;
-              line-height: 1;
-            }
-
-            /* Code */
-            .content code {
-              background: #f5f5f5;
-              color: #e11d48;
-              padding: 3px 6px;
-              border-radius: 3px;
-              font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-              font-size: 9pt;
-              border: 1px solid #e5e5e5;
-            }
-
-            .content pre {
-              background: #f8f8f8;
-              border: 1px solid #e5e5e5;
-              border-radius: 4px;
-              padding: 25px;
-              margin: 25px 0;
-              overflow-x: auto;
-              font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-              font-size: 9pt;
-              line-height: 1.6;
-            }
-
-            .content pre code {
-              background: none;
-              border: none;
-              padding: 0;
-              color: #374151;
-            }
-
-            /* Tables */
-            .content table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 30px 0;
-              font-size: 10pt;
-              border: 1px solid #e5e5e5;
-              border-radius: 4px;
-              overflow: hidden;
-            }
-
-            .content th {
-              background: #1a1a1a;
-              color: white;
-              padding: 15px 18px;
-              text-align: left;
-              font-weight: 500;
-              font-size: 9pt;
-              text-transform: uppercase;
-              letter-spacing: 0.1em;
-            }
-
-            .content td {
-              padding: 15px 18px;
-              border-bottom: 1px solid #f0f0f0;
-              background: white;
-              color: #374151;
-            }
-
-            .content tr:nth-child(even) td {
-              background: #fafafa;
-            }
-
-            /* Links */
-            .content a {
-              color: #1a1a1a;
-              text-decoration: underline;
-              text-decoration-color: #d1d5db;
-              text-underline-offset: 2px;
-              font-weight: 400;
-              transition: text-decoration-color 0.2s;
-            }
-
-            .content a:hover {
-              text-decoration-color: #1a1a1a;
-            }
-
-            /* Horizontal Rule */
-            .content hr {
-              margin: 40px 0;
-              border: none;
-              height: 1px;
-              background: #e5e5e5;
-            }
-
-            /* Print optimizations */
-            @media print {
-              .container {
-                padding: 20px 30px 40px 30px;
-              }
-              
-              .content h1, .content h2, .content h3, .content h4, .content h5, .content h6 {
-                page-break-after: avoid;
-              }
-              
-              .content img, .content table, .content blockquote, .content pre {
-                page-break-inside: avoid;
-              }
-              
-              .content p {
-                orphans: 3;
-                widows: 3;
-              }
-            }
-
-            /* Page break utilities */
-            .page-break {
-              page-break-before: always;
-            }
-
-            .avoid-break {
-              page-break-inside: avoid;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <!-- Header -->
-            <div class="header">
-              <h1>${sop.title}</h1>
-              <div class="subtitle">Standard Operating Procedure</div>
-            </div>
-            
-            <!-- Metadata Section -->
-            <div class="metadata">
-              <div class="metadata-grid">
-                
-                <div class="metadata-item">
-                  <span class="metadata-label">Created:</span>
-                  <span class="metadata-value">${new Date(sop.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric'})}</span>
-                </div>
-                <div class="metadata-item">
-                  <span class="metadata-label">Last Updated:</span>
-                  <span class="metadata-value">${new Date(sop.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric'})}</span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Content -->
-            <div class="content">
-              ${renderedHtmlContent}
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
     console.log("Starting PDF generation for SOP:", sopId);
 
-    // Configure Chromium for serverless environment
-    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    // Generate PDF using @react-pdf/renderer
+    const document = createSOPDocument(sop);
+    const stream = await renderToStream(document);
     
-    const browserArgs = [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--disable-web-security'
-    ];
-
-    if (isServerless) {
-      // Add additional args for serverless environments
-      browserArgs.push(
-        '--single-process',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding'
-      );
-    }
-
-    // Launch Puppeteer with environment-specific configuration
-    const launchOptions: any = {
-      headless: true,
-      args: browserArgs,
-      timeout: 30000
-    };
-
-    if (isServerless) {
-      // Use @sparticuz/chromium for serverless deployment
-      launchOptions.executablePath = await chromium.executablePath();
-    } else {
-      // For local development, let Puppeteer find Chrome automatically
-      // or use a local installation
-      const localChromePath = '/home/ubuntu/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
-      launchOptions.executablePath = localChromePath;
-    }
-
-    browser = await puppeteer.launch(launchOptions);
-
-    console.log("Browser launched successfully");
-
-    const page = await browser.newPage();
-    
-    // Set a shorter timeout for page operations
-    page.setDefaultTimeout(30000); // 30 seconds instead of default 30 seconds
-    
-    // Set content with a faster wait strategy
-    await page.setContent(htmlTemplate, { 
-      waitUntil: 'domcontentloaded', // Changed from 'networkidle0' to 'domcontentloaded'
-      timeout: 20000 // 20 second timeout for content loading
-    });
-    
-    console.log("Page content set successfully");
-    
-    const generationDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric'});
-    const pageMarginMm = 20;
-
-    console.log("Generating PDF...");
-
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      margin: {
-        top: `${pageMarginMm}mm`,
-        right: `${pageMarginMm}mm`,
-        bottom: `${pageMarginMm + 5}mm`, // Increased bottom margin slightly for more footer space
-        left: `${pageMarginMm}mm`
-      },
-      displayHeaderFooter: true,
-      headerTemplate: '<div></div>', // Keeping header empty
-      footerTemplate: `
-        <div style="font-size: 8pt; color: #9ca3af; text-align: center; width: 100%; box-sizing: border-box; padding: 0 ${pageMarginMm}mm;">
-          <div style="margin-bottom: 3px;">By Trade Business School on ${generationDate}</div>
-          <div>
-            <span class="pageNumber"></span> / <span class="totalPages"></span>
-          </div>
-        </div>
-      `,
-      printBackground: true,
-      preferCSSPageSize: false,
-      timeout: 60000 // 60 second timeout for PDF generation
+    // Convert stream to buffer
+    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+      const buffers: Buffer[] = [];
+      stream.on('data', (data: Buffer) => {
+        buffers.push(data);
+      });
+      stream.on('end', () => {
+        resolve(Buffer.concat(buffers));
+      });
+      stream.on('error', reject);
     });
 
     console.log("PDF generated successfully");
-
-    await browser.close();
-    browser = null; // Set to null after successful close
     
     const filename = `${sop.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_v${sop.version}.pdf`;
 
@@ -525,15 +513,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("PDF Generation API Error:", error);
-    
-    // Ensure browser is closed even on error
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (closeError) {
-        console.error("Error closing browser:", closeError);
-      }
-    }
     
     return NextResponse.json({ 
       error: error.message || "Failed to generate PDF" 
