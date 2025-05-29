@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink, Plus, MessageSquare, Trash2, Edit2, Check, Sidebar, SidebarOpen, Menu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
-import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 
 interface Message {
@@ -59,7 +58,6 @@ export function RealtimeChatGemini({
   onInstanceChange = null,
   onReady // Destructure new prop
 }: RealtimeChatGeminiProps = {}) {
-  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -332,18 +330,18 @@ export function RealtimeChatGemini({
           onInstanceChange(data.instance.id);
         }
         
-        toast({
-          title: "New chat created",
-          description: "A new chat instance has been created.",
-        });
+        // toast({
+        //   title: "New chat created",
+        //   description: "A new chat instance has been created.",
+        // });
       }
     } catch (error) {
       console.error('Error creating new chat instance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create new chat instance.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Error",
+      //   description: "Failed to create new chat instance.",
+      //   variant: "destructive"
+      // });
     }
   };
 
@@ -389,17 +387,17 @@ export function RealtimeChatGemini({
         }
       }
       
-      toast({
-        title: "Chat deleted",
-        description: "The chat instance has been deleted.",
-      });
+      // toast({
+      //   title: "Chat deleted",
+      //   description: "The chat instance has been deleted.",
+      // });
     } catch (error) {
       console.error('Error deleting chat instance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete chat instance.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Error",
+      //   description: "Failed to delete chat instance.",
+      //   variant: "destructive"
+      // });
     }
   };
 
@@ -439,17 +437,17 @@ export function RealtimeChatGemini({
       setEditingInstanceId(null);
       setEditingTitle("");
       
-      toast({
-        title: "Title updated",
-        description: "The chat title has been updated.",
-      });
+      // toast({
+      //   title: "Title updated",
+      //   description: "The chat title has been updated.",
+      // });
     } catch (error) {
       console.error('Error updating instance title:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update title.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Error",
+      //   description: "Failed to update title.",
+      //   variant: "destructive"
+      // });
     }
   };
 
@@ -625,21 +623,21 @@ export function RealtimeChatGemini({
       
       if (data.type === 'history_cleared' && data.success) {
         setMessages([]);
-        toast({
-          title: "Chat cleared",
-          description: "Chat history has been cleared.",
-        });
+        // toast({
+        //   title: "Chat cleared",
+        //   description: "Chat history has been cleared.",
+        // });
       } else {
         throw new Error('Failed to clear chat history');
       }
     } catch (error) {
       console.error('Error clearing chat history:', error);
       setError('Failed to clear chat history.');
-      toast({
-        title: "Error",
-        description: "Failed to clear chat history.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Error",
+      //   description: "Failed to clear chat history.",
+      //   variant: "destructive"
+      // });
     } finally {
       setIsClearingChat(false);
     }
@@ -1554,11 +1552,11 @@ export function RealtimeChatGemini({
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Debug data fetch error:", errorData);
-        toast({
-          title: "Error",
-          description: errorData.error || "Failed to fetch debug data",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "Error",
+        //   description: errorData.error || "Failed to fetch debug data",
+        //   variant: "destructive",
+        // });
         return;
       }
 
@@ -1568,15 +1566,15 @@ export function RealtimeChatGemini({
       setShowDebugPopup(true);
     } catch (error) {
       console.error("Debug data fetch error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch debug data",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Error",
+      //   description: "Failed to fetch debug data",
+      //   variant: "destructive",
+      // });
     } finally {
       setIsLoading(false);
     }
-  }, [toast, setIsLoading, currentInstanceId]); // Added currentInstanceId to dependencies
+  }, [setIsLoading, currentInstanceId]); // Removed toast from dependencies since it's no longer used
 
   // Render the debug popup
   const renderDebugPopup = () => {

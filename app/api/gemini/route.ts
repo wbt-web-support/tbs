@@ -29,7 +29,7 @@ async function getGlobalInstructions(categories?: string[]) {
     const supabase = await createClient();
     let query = supabase
       .from('chatbot_instructions')
-      .select('content, content_type, url, updated_at, created_at, extraction_metadata, priority, category')
+      .select('title, content, content_type, url, updated_at, created_at, extraction_metadata, priority, category')
       .eq('is_active', true)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: true });
@@ -1084,6 +1084,10 @@ function formatInstructions(instructionsData: any[], userContext: string) {
           
           // Add metadata with better formatting
           const metadataParts = [];
+
+          if (inst.title) {
+            metadataParts.push(`Title: ${inst.title}`);
+          }
           
           if (inst.content_type) {
             metadataParts.push(`Type: ${inst.content_type}`);

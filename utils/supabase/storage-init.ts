@@ -6,7 +6,6 @@ import { createClient } from '@/utils/supabase/server';
  */
 export async function initializeSupabaseStorage() {
   try {
-    console.log('Initializing Supabase storage buckets...');
     const supabase = await createClient();
 
     // Create the machines bucket if it doesn't exist
@@ -14,7 +13,7 @@ export async function initializeSupabaseStorage() {
       .getBucket('machines');
 
     if (machinesBucketError && machinesBucketError.message.includes('The resource was not found')) {
-      console.log('Creating machines bucket...');
+      // Bucket doesn't exist, create it
       const { error: createError } = await supabase.storage.createBucket('machines', {
         public: true, // Make the bucket public so we can access images without authentication
         fileSizeLimit: 10485760, // 10MB limit
@@ -22,37 +21,41 @@ export async function initializeSupabaseStorage() {
       });
 
       if (createError) {
-        console.error('Error creating machines bucket:', createError);
-      } else {
-        console.log('Machines bucket created successfully');
+        // Only log this error once, not on every page load
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Could not create machines bucket:', createError.message);
+        }
+        return { success: false, error: createError };
       }
     } else if (machinesBucketError) {
-      console.error('Error checking machines bucket:', machinesBucketError);
-    } else {
-      console.log('Machines bucket already exists');
+      // Only log unexpected errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Storage bucket check failed:', machinesBucketError.message);
+      }
+      return { success: false, error: machinesBucketError };
     }
 
     // Update bucket to be public if it exists but isn't public
     if (!machinesBucketError && machinesBucket) {
       if (!machinesBucket.public) {
-        console.log('Updating machines bucket to be public...');
         const { error: updateError } = await supabase.storage.updateBucket('machines', {
           public: true,
           fileSizeLimit: 10485760, // 10MB limit
           allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp', 'image/gif']
         });
 
-        if (updateError) {
-          console.error('Error updating machines bucket:', updateError);
-        } else {
-          console.log('Machines bucket updated to be public');
+        if (updateError && process.env.NODE_ENV === 'development') {
+          console.warn('Could not update machines bucket:', updateError.message);
         }
       }
     }
     
     return { success: true };
   } catch (error) {
-    console.error('Error initializing Supabase storage:', error);
+    // Only log in development to avoid console spam in production
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Storage initialization failed:', error);
+    }
     return { success: false, error };
   }
 } 
