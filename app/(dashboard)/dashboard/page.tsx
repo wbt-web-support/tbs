@@ -1,52 +1,107 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import { format } from "date-fns";
-import { LoadingSpinner } from "@/components/loading-spinner";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
 import {
-  LayoutDashboard,
-  Calendar,
+  Brain,
+  TrendingUp,
+  TrendingDown,
   AlertTriangle,
-  Swords,
+  CheckCircle2,
+  Clock,
+  Target,
+  BarChart3,
+  Zap,
+  RefreshCw,
+  Activity,
+  Calendar,
   Users,
   Rocket,
-  LineChart,
-  BookOpen,
-  Package,
-  Gauge,
-  Wrench,
-  BookText,
-  Clock,
-  Flag,
-  Compass,
-  Link as LinkIcon,
-  ArrowRight,
+  Shield,
   Settings,
-  UserCircle,
-  Star,
-  CheckCircle2,
-  CircleX,
-  Info,
   ChevronRight,
-  Plus,
-  CircleDot,
+  Star,
+  AlertCircle,
+  ArrowRight,
   MessageSquare,
-  Cog,
   Lightbulb,
-  X,
+  BookOpen,
+  Building,
+  MapPin,
+  ExternalLink,
+  Navigation,
+  Swords,
+  Gauge,
+  Flag,
+  LayoutDashboard,
+  Plus,
+  Mail,
+  Phone,
+  Briefcase,
+  Hash,
+  Eye,
+  Bug,
+  Info,
+  UserCircle
 } from "lucide-react";
 
-// Types
-type BusinessInfo = {
+// Types for the dashboard data
+interface BusinessHealthItem {
+  issue: string;
+  quick_fix: string;
+}
+
+interface BusinessHealth {
+  working_well: string[];
+  lagging_areas: BusinessHealthItem[];
+  critical_fixes: BusinessHealthItem[];
+}
+
+interface Task {
+  task: string;
+  reason: string;
+  deadline: string;
+  guidance: string;
+}
+
+interface TasksAndPriorities {
+  high_priority: Task[];
+  medium_priority: Task[];
+}
+
+interface ProgressMetrics {
+  overall_progress: number;
+  completion_rate: number;
+  setup_progress: number;
+  strategic_progress: number;
+  operational_progress: number;
+  insights: string[];
+}
+
+interface DashboardAnalysis {
+  business_health: BusinessHealth;
+  tasks_and_priorities: TasksAndPriorities;
+  progress_metrics: ProgressMetrics;
+}
+
+interface DashboardData {
+  type: string;
+  analysis?: DashboardAnalysis;
+  timestamp?: string;
+  error?: string;
+}
+
+interface BusinessInfo {
   id: string;
   user_id: string;
   business_name: string;
@@ -54,155 +109,165 @@ type BusinessInfo = {
   email: string;
   phone_number: string;
   profile_picture_url: string | null;
-};
+}
 
-type PlaybookData = {
-  id: string;
-  playbookname: string;
-  description: string;
-  enginetype: "GROWTH" | "FULFILLMENT" | "INNOVATION";
-  owner: string;
-  status: "Backlog" | "In Progress" | "Behind" | "Completed";
-  link: string | null;
-};
-
-type TeamMember = {
+interface TeamMember {
   id: string;
   name: string;
   jobtitle: string;
   department: string;
   manager: string;
-};
+}
 
-type TimelineEvent = {
+interface MeetingData {
+  id: string;
+  meeting_title: string;
+  meeting_date: string;
+  meeting_type: string;
+}
+
+interface TimelineEvent {
   id: string;
   week_number: number;
   event_name: string;
   scheduled_date: string;
   is_completed?: boolean;
+}
+
+// Helper function to convert markdown links to clickable links
+const renderMarkdownLinks = (text: string): React.ReactNode => {
+  // Replace [text](url) with clickable links
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    
+    // Add the clickable link
+    parts.push(
+      <Link 
+        key={match.index} 
+        href={match[2]} 
+        className="text-blue-600 hover:text-blue-800 underline font-medium"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {match[1]}
+      </Link>
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  
+  return parts.length > 1 ? <>{parts}</> : text;
 };
 
-type PendingTask = {
-  id: string;
-  checklist_item: string;
-  is_completed: boolean;
+// Circular Progress Component
+const CircularProgress = ({ percentage, size = 120, strokeWidth = 8 }: { percentage: number; size?: number; strokeWidth?: number }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#e5e7eb"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        {/* Progress circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#3b82f6"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-500 ease-in-out"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className="text-2xl font-bold text-gray-900">{percentage}%</span>
+        <span className="text-xs text-gray-500">Complete</span>
+      </div>
+    </div>
+  );
 };
 
-type MachineData = {
-  id: string;
-  enginename: string;
-  enginetype: string;
-  description: string;
-};
+export default function AIDashboard() {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [meetings, setMeetings] = useState<MeetingData[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [currentWeek, setCurrentWeek] = useState(1);
 
-type ScoreCardMetric = {
-  id: string;
-  name: string;
-  status: string;
-};
-
-type BenefitData = {
-  id: string;
-  benefit_name: string;
-  is_claimed: boolean;
-};
-
-type MeetingData = {
-  id: string;
-  meeting_title: string;
-  meeting_date: string;
-  meeting_type: string;
-};
-
-type DashboardData = {
-  businessInfo: BusinessInfo | null;
-  playbooks: PlaybookData[];
-  teamMembers: TeamMember[];
-  metrics: ScoreCardMetric[];
-  machines: MachineData[];
-  timelineEvents: TimelineEvent[];
-  pendingTasks: PendingTask[];
-  benefits: BenefitData[];
-  meetings: MeetingData[];
-  currentWeek: number;
-};
-
-export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<DashboardData>({
-    businessInfo: null,
-    playbooks: [],
-    teamMembers: [],
-    metrics: [],
-    machines: [],
-    timelineEvents: [],
-    pendingTasks: [],
-    benefits: [],
-    meetings: [],
-    currentWeek: 0
-  });
   const supabase = createClient();
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  // Function to fetch business info and related data
+  const fetchBusinessData = async () => {
     try {
-      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      if (!user) return;
 
-      // Fetch data in parallel
-      const [
-        businessInfoResult,
-        playbooksResult,
-        teamMembersResult,
-        metricsResult,
-        machinesResult,
-        timelineResult,
-        timelineClaimsResult,
-        pendingTasksResult,
-        benefitsResult,
-        meetingsResult
-      ] = await Promise.all([
-        // Business Info
-        supabase
-          .from("business_info")
-          .select("*")
-          .eq("user_id", user.id)
-          .single(),
-        
-        // Playbooks
-        supabase
-          .from("playbooks")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(5),
-        
-        // Team Members
-        supabase
-          .from("chain_of_command")
-          .select("id, name, jobtitle, department, manager")
-          .eq("user_id", user.id)
-          .order("name", { ascending: true })
-          .limit(5),
-        
-        // Metrics
-        supabase
-          .from("company_scorecards")
-          .select("id, name, status")
-          .eq("user_id", user.id)
-          .limit(5),
-        
-        // Machines
-        supabase
-          .from("machines")
-          .select("id, enginename, enginetype, description")
-          .eq("user_id", user.id),
-        
+      // Fetch business info
+      const { data: businessData } = await supabase
+        .from("business_info")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (businessData) {
+        setBusinessInfo(businessData);
+      }
+
+      // Fetch team members (following dashboard pattern)
+      const { data: teamData } = await supabase
+        .from("chain_of_command")
+        .select("id, name, jobtitle, department, manager")
+        .eq("user_id", user.id)
+        .order("name", { ascending: true })
+        .limit(5);
+
+      if (teamData) {
+        setTeamMembers(teamData);
+      }
+
+      // Fetch upcoming meetings (following dashboard pattern)
+      const { data: meetingData } = await supabase
+        .from("meeting_rhythm_planner")
+        .select("id, meeting_title, meeting_date, meeting_type")
+        .eq("user_id", user.id)
+        .gte("meeting_date", new Date().toISOString().split('T')[0])
+        .order("meeting_date", { ascending: true })
+        .limit(3);
+
+      if (meetingData) {
+        setMeetings(meetingData);
+      }
+
+      // Fetch timeline events with proper completion status
+      const [timelineResult, timelineClaimsResult] = await Promise.all([
         // Timeline Events
         supabase
           .from("chq_timeline")
@@ -220,92 +285,36 @@ export default function DashboardPage() {
         supabase
           .from("user_timeline_claims")
           .select("*")
-          .eq("user_id", user.id),
-        
-        // Pending Tasks
-        supabase
-          .from("chq_checklist")
-          .select(`
-            id, 
-            checklist_item,
-            user_checklist_claims!inner(
-              is_completed
-            )
-          `)
-          .eq("user_checklist_claims.user_id", user.id)
-          .eq("user_checklist_claims.is_completed", false)
-          .limit(5),
-        
-        // Benefits
-        supabase
-          .from("chq_benefits")
-          .select(`
-            id, 
-            benefit_name,
-            user_benefit_claims(
-              is_claimed
-            )
-          `)
-          .limit(6),
-        
-        // Upcoming Meetings
-        supabase
-          .from("meeting_rhythm_planner")
-          .select("id, meeting_title, meeting_date, meeting_type")
           .eq("user_id", user.id)
-          .gte("meeting_date", new Date().toISOString().split('T')[0])
-          .order("meeting_date", { ascending: true })
-          .limit(3)
       ]);
 
-      // Process timeline data to find current week
-      const timelineEvents = timelineResult.data || [];
-      const userClaims = timelineClaimsResult.data || [];
-      const currentWeek = calculateCurrentWeek(timelineEvents);
+      if (timelineResult.data && timelineClaimsResult.data) {
+        const timelineEvents = timelineResult.data || [];
+        const userClaims = timelineClaimsResult.data || [];
+        const currentWeek = calculateCurrentWeek(timelineEvents);
 
-      // Combine timeline events with user claims (same approach as the timeline page)
-      const eventsWithClaims = timelineEvents.map(event => {
-        const claim = userClaims.find(claim => claim.timeline_id === event.id);
-        return {
-          id: event.id,
-          week_number: event.week_number,
-          event_name: event.event_name,
-          scheduled_date: event.scheduled_date,
-          is_completed: claim?.is_completed || false
-        };
-      });
+        // Combine timeline events with user claims (same approach as the dashboard)
+        const eventsWithClaims = timelineEvents.map(event => {
+          const claim = userClaims.find(claim => claim.timeline_id === event.id);
+          return {
+            id: event.id,
+            week_number: event.week_number,
+            event_name: event.event_name,
+            scheduled_date: event.scheduled_date,
+            is_completed: claim?.is_completed || false
+          };
+        });
 
-      // Transform data into the format we need
-      const processedData: DashboardData = {
-        businessInfo: businessInfoResult.data,
-        playbooks: playbooksResult.data || [],
-        teamMembers: teamMembersResult.data || [],
-        metrics: metricsResult.data || [],
-        machines: machinesResult.data || [],
-        timelineEvents: eventsWithClaims,
-        pendingTasks: (pendingTasksResult.data || []).map(task => ({
-          id: task.id,
-          checklist_item: task.checklist_item,
-          is_completed: false
-        })),
-        benefits: (benefitsResult.data || []).map(benefit => ({
-          id: benefit.id,
-          benefit_name: benefit.benefit_name,
-          is_claimed: benefit.user_benefit_claims?.length > 0 ? 
-            benefit.user_benefit_claims[0].is_claimed : false
-        })),
-        meetings: meetingsResult.data || [],
-        currentWeek: currentWeek
-      };
-
-      setData(processedData);
-      } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
+        setTimelineEvents(eventsWithClaims);
+        setCurrentWeek(currentWeek);
       }
-    };
 
+    } catch (error) {
+      console.error("Error fetching business data:", error);
+    }
+  };
+
+  // Calculate current week function (same as dashboard)
   const calculateCurrentWeek = (events: any[]): number => {
     // Sort events by week number
     const sortedEvents = [...events].sort((a, b) => a.week_number - b.week_number);
@@ -327,513 +336,727 @@ export default function DashboardPage() {
       sortedEvents[sortedEvents.length - 1].week_number : 1;
   };
 
-  // Helper for status colors
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Green":
-      case "Completed":
-        return "bg-green-100 text-green-800";
-      case "Light Green":
-      case "In Progress":
-        return "bg-blue-100 text-blue-800";
-      case "Yellow":
-      case "Backlog":
-        return "bg-amber-100 text-amber-800";
-      case "Light Red":
-      case "Behind":
-        return "bg-red-100 text-red-800";
-      case "Red":
-        return "bg-rose-100 text-rose-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+  // Function to fetch dashboard analysis
+  const fetchDashboardAnalysis = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      // First, check if we have cached data (without force refresh)
+      const checkResponse = await fetch('/api/ai-dashboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'dashboard_analysis',
+          force_refresh: false
+        })
+      });
+
+      if (!checkResponse.ok) {
+        throw new Error(`HTTP ${checkResponse.status}: Failed to check dashboard cache`);
+      }
+
+      const checkData = await checkResponse.json();
+      
+      // If we have cached data, use it
+      if (checkData.type === 'dashboard_analysis' && checkData.analysis) {
+        setDashboardData(checkData);
+        setLastUpdated(new Date());
+        console.log('✅ [Dashboard] Using cached data');
+        return;
+      }
+      
+      // If no cached data exists or this is a force refresh, generate fresh data
+      if (checkData.type === 'no_cache' || isRefresh) {
+        console.log('🔄 [Dashboard] No cached data found, generating fresh analysis...');
+        
+        const response = await fetch('/api/ai-dashboard', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'dashboard_analysis',
+            force_refresh: true
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: Failed to generate dashboard analysis`);
+        }
+
+        const data = await response.json();
+        
+        if (data.type === 'error') {
+          throw new Error(data.error || 'Unknown error occurred');
+        }
+        
+        setDashboardData(data);
+        setLastUpdated(new Date());
+        console.log('✅ [Dashboard] Generated and cached fresh data');
+        return;
+      }
+      
+      // Handle error case
+      if (checkData.type === 'error') {
+        throw new Error(checkData.error || 'Unknown error occurred');
+      }
+      
+    } catch (error) {
+      console.error("Error fetching dashboard analysis:", error);
+      setDashboardData({
+        type: 'error',
+        error: 'Failed to load dashboard analysis. Please try refreshing.'
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
-  // Display loading state
-  if (loading) {
+  useEffect(() => {
+    fetchBusinessData();
+    fetchDashboardAnalysis();
+  }, []);
+
+  const handleRefresh = () => {
+    fetchDashboardAnalysis(true);
+  };
+
+  const getGreetingMessage = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const getUserInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
+  };
+
+  const quickLinks = [
+    {
+      title: "Chat",
+      icon: MessageSquare,
+      description: "Connect with your team",
+      href: "/chat",
+      color: "bg-blue-500/10",
+      iconColor: "text-blue-600"
+    },
+    {
+      title: "Innovation",
+      icon: Lightbulb,
+      description: "Explore new ideas",
+      href: "/innovation-chat",
+      color: "bg-green-500/10",
+      iconColor: "text-green-600"
+    },
+    {
+      title: "SOP",
+      icon: BookOpen,
+      description: "Standard Operating Procedures",
+      href: "/sop",
+      color: "bg-purple-500/10",
+      iconColor: "text-purple-600"
+    },
+    {
+      title: "Team Members",
+        icon: Users,
+      description: "Manage team",
+      href: "/chain-of-command",
+      color: "bg-orange-500/10",
+      iconColor: "text-orange-600"
+    }
+  ];
+
+  if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] space-y-4">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Brain className="w-6 h-6 text-blue-600 animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-semibold text-gray-900">Loading Your Personalized AI Dashboard</h3>
+          <p className="text-sm text-gray-600 max-w-md">
+            Our AI is analyzing your business data to generate customized insights and recommendations just for you...
+          </p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen pb-6">
-      <div className="space-y-5">
-        {/* Header */}
-        <div className="flex justify-between mb-4 items-center">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-500">Welcome to your Command HQ</p>
-          </div>
-          
-          {data.businessInfo && (
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-sm font-medium">{data.businessInfo.full_name}</p>
-                <p className="text-xs text-gray-500">{data.businessInfo.business_name}</p>
+    return (
+    <TooltipProvider>
+      <div className="min-h-screen">
+        <div className="space-y-6">
+          {/* Greeting Section */}
+          <Card className="bg-transparent border-none ">
+            <CardContent className="p-0">
+              <div className="flex justify-between items-start flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                    Hi, {businessInfo?.full_name?.split(' ')[0] || 'there'} 👋
+                  </h1>
+                  <p className="text-gray-600 mb-4">
+                    Here's what we think you should focus on to improve your business performance today. 
+                    Our AI has analyzed your data and identified key areas for growth and optimization.
+                  </p>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <span>Business Overview</span>
+                    <span>•</span>
+                    <span>Performance Insights</span>
+                    <span>•</span>
+                    <span>Action Items</span>
+                  </div>
+                </div>
+                <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline" size="sm">
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
               </div>
-              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium">
-                {data.businessInfo.profile_picture_url ? (
-                  <Image 
-                    src={data.businessInfo.profile_picture_url} 
-                    alt={data.businessInfo.full_name}
-                    width={32}
-                    height={32}
-                    className="rounded-full"
-                  />
-                ) : (
-                  data.businessInfo.full_name.charAt(0).toUpperCase()
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Top Metrics Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <Link href="/chat" className="block">
-            <Card className="border border-gray-200 hover:border-blue-300 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <MessageSquare className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">Chat</h3>
-                    <p className="text-xs text-gray-500">Command HQ Assistant</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/playbook-planner" className="block">
-            <Card className="border border-gray-200 hover:border-blue-300 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <BookOpen className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">{data.playbooks.length}</h3>
-                    <p className="text-xs text-gray-500">Playbooks</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/chain-of-command" className="block">
-            <Card className="border border-gray-200 hover:border-blue-300 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">{data.teamMembers.length}</h3>
-                    <p className="text-xs text-gray-500">Team Members</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/growth-machine" className="block">
-            <Card className="border border-gray-200 hover:border-blue-300 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Rocket className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">{data.machines.length}</h3>
-                    <p className="text-xs text-gray-500">Machines</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-        
-        {/* Timeline Summary */}
-        <Card className="border border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-gray-900">Timeline Summary</h2>
-              <Link href="/chq-timeline" className="text-xs text-blue-600 hover:underline flex items-center">
-                View Timeline <ChevronRight className="h-3 w-3 ml-1" />
-              </Link>
-            </div>
-            
-            <div className="flex items-center gap-6 mb-3">
-              <div className="p-2 rounded-full bg-blue-100">
-                <Calendar className="h-4 w-4 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium mb-1 flex justify-between">
-                  <span>Currently in Week {data.currentWeek}</span>
-                  <span className="text-blue-600">
-                    {data.timelineEvents.length > 0
-                      ? Math.round((data.timelineEvents.filter(event => event.is_completed).length / data.timelineEvents.length) * 100)
-                      : 0}% Complete
-                  </span>
-                </div>
-                <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-500" 
-                    style={{ width: `${data.timelineEvents.length > 0
-                      ? (data.timelineEvents.filter(event => event.is_completed).length / data.timelineEvents.length) * 100
-                      : 0}%` }}
-                  />
-                </div>
-                <div className="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>{data.timelineEvents.filter(event => event.is_completed).length} of {data.timelineEvents.length} events completed</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-              {data.timelineEvents.slice(0, 3).map(event => (
-                <div key={event.id} className="flex items-start p-3 rounded-md border border-gray-200">
-                  <div className="mt-0.5 mr-2">
-                    {event.is_completed ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Clock className="h-4 w-4 text-amber-500" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium">Week {event.week_number}: {event.event_name}</p>
-                    <p className="text-xs text-gray-500">{format(new Date(event.scheduled_date), 'MMM d, yyyy')}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
-        
-        {/* Main Grid - Now with 3 columns and no Machines or Playbooks sections */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Profile Card */}
-          <Card className="border border-gray-200">
-            <CardHeader className="pb-3 pt-6 px-6">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-base">Profile</CardTitle>
-                <Link href="/profile" className="text-xs text-blue-600 hover:underline">
-                  Edit Profile
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              {data.businessInfo ? (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xl font-medium">
-                      {data.businessInfo.profile_picture_url ? (
-                        <Image 
-                          src={data.businessInfo.profile_picture_url} 
-                          alt={data.businessInfo.full_name}
-                          width={48}
-                          height={48}
-                          className="rounded-full"
-                        />
-                      ) : (
-                        data.businessInfo.full_name.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{data.businessInfo.full_name}</h3>
-                      <p className="text-sm text-gray-500">{data.businessInfo.business_name}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm mt-1">
-                    <div className="flex flex-col">
-                      <span className="text-gray-500 text-xs">Email</span>
-                      <span className="truncate">{data.businessInfo.email}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-gray-500 text-xs">Phone</span>
-                      <span>{data.businessInfo.phone_number}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">Complete your profile</p>
-                  <Link href="/profile">
-                    <Button variant="outline" size="sm" className="mt-2">
-                      Set Up Profile
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Team Members */}
-          <Card className="border border-gray-200">
-            <CardHeader className="pb-3 pt-6 px-6">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-base">Team Members</CardTitle>
-                <Link href="/chain-of-command" className="text-xs text-blue-600 hover:underline">
-                  View All
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              {data.teamMembers.length > 0 ? (
-                <div className="space-y-3">
-                  {data.teamMembers.map(member => (
-                    <div key={member.id} className="flex items-center gap-3 p-2.5 border border-gray-200 rounded-md">
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium text-xs">
-                        {member.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{member.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{member.jobtitle}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <Users className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500 mb-2">No team members yet</p>
-                  <Link href="/chain-of-command">
-                    <Button size="sm">
-                      Add Team Members
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Metrics */}
-          <Card className="border border-gray-200">
-            <CardHeader className="pb-3 pt-6 px-6">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-base">Metrics</CardTitle>
-                <Link href="/company-scorecard" className="text-xs text-blue-600 hover:underline">
-                  View All
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              {data.metrics.length > 0 ? (
-                <div className="space-y-3">
-                  {data.metrics.map(metric => (
-                    <div key={metric.id} className="flex items-center justify-between gap-3 p-2.5 border border-gray-200 rounded-md">
-                      <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${
-                          metric.status === 'Green' ? 'bg-green-500' :
-                          metric.status === 'Light Green' ? 'bg-emerald-400' :
-                          metric.status === 'Yellow' ? 'bg-amber-500' :
-                          metric.status === 'Light Red' ? 'bg-orange-500' :
-                          'bg-red-500'
-                        }`} />
-                        <p className="text-sm">{metric.name}</p>
-                      </div>
-                      <Badge 
-                        variant="secondary" 
-                        className={`${getStatusColor(metric.status)} border-0`}
-                      >
-                        {metric.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <LineChart className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500 mb-2">No metrics yet</p>
-                  <Link href="/company-scorecard">
-                    <Button size="sm">
-                      Set Up Metrics
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Pending Tasks */}
-          <Card className="border border-gray-200">
-            <CardHeader className="pb-3 pt-6 px-6">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-base">Pending Tasks</CardTitle>
-                <Link href="/chq-timeline" className="text-xs text-blue-600 hover:underline">
-                  View All
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              {data.pendingTasks.length > 0 ? (
-                <div className="space-y-3">
-                  {data.pendingTasks.map(task => (
-                    <div key={task.id} className="flex items-start gap-3 p-2.5 border border-gray-200 rounded-md">
-                      <div className="mt-0.5">
-                        <CircleDot className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <p className="text-sm">{task.checklist_item}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <CheckCircle2 className="h-8 w-8 mx-auto text-green-500 mb-2" />
-                  <p className="text-sm text-gray-600">All tasks completed!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Upcoming Meetings */}
-          <Card className="border border-gray-200">
-            <CardHeader className="pb-3 pt-6 px-6">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-base">Upcoming Meetings</CardTitle>
-                <Link href="/meeting-rhythm-planner" className="text-xs text-blue-600 hover:underline">
-                  View All
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              {data.meetings.length > 0 ? (
-                <div className="space-y-3">
-                  {data.meetings.map(meeting => (
-                    <div key={meeting.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-md">
-                      <div className="mt-0.5">
-                        <Calendar className="h-4 w-4 text-blue-600" />
+
+          {/* Quick Links Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {quickLinks.map((link, index) => (
+              <Link key={index} href={link.href}>
+                <Card className="bg-white hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200 hover:border-gray-300">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 md:w-14 md:h-14 ${link.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                        <link.icon className={`w-7 h-7 md:w-8 md:h-8 ${link.iconColor}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm mb-1">{meeting.meeting_title}</h3>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
-                            {format(new Date(meeting.meeting_date), 'MMM d, yyyy')}
-                          </span>
-                          <Badge variant="outline" className="font-normal">
-                            {meeting.meeting_type}
-                          </Badge>
-                        </div>
+                        <h3 className="font-semibold text-gray-900 mb-1 text-sm">{link.title}</h3>
+                        <p className="text-xs text-gray-500 truncate">{link.description}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <Calendar className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500 mb-2">No upcoming meetings</p>
-                  <Link href="/meeting-rhythm-planner">
-                    <Button size="sm">
-                      Schedule Meetings
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Benefits */}
-          <Card className="border border-gray-200">
-            <CardHeader className="pb-3 pt-6 px-6">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-base">CHQ Benefits</CardTitle>
-                <Link href="/chq-timeline" className="text-xs text-blue-600 hover:underline">
-                  View All
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              <div className="space-y-3">
-                {data.benefits.slice(0, 2).map(benefit => (
-                  <div key={benefit.id} className="flex items-start gap-3 p-2.5 border border-gray-200 rounded-md">
-                    <div className="mt-0.5">
-                      {benefit.is_claimed ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Star className="h-5 w-5 text-amber-400" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-sm">{benefit.benefit_name}</h3>
-                      <Badge 
-                        variant="secondary" 
-                        className={`mt-1 ${benefit.is_claimed ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'} border-0`}
-                      >
-                        {benefit.is_claimed ? 'Claimed' : 'Available'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+
+          {/* Business Health Cards */}
+          {dashboardData?.analysis && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Critical Fixes */}
+              <Card className="bg-white border border-gray-200">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">Critical Fixes</CardTitle>
         </div>
-        
-        {/* Resources */}
-        <Card className="border border-gray-200">
-          <CardHeader className="pb-3 pt-6 px-6">
-            <CardTitle className="text-base">Resources</CardTitle>
+                  <CardDescription className="text-gray-500">
+                    Urgent issues requiring immediate attention.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Link href="/battle-plan" className="block">
-                <div className="p-3 rounded-md border border-gray-200 hover:border-blue-300 transition-all h-full flex flex-col">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Swords className="h-4 w-4 text-blue-600" />
-                    <h3 className="font-medium text-sm">Battle Plan</h3>
+                <CardContent>
+                  <div className="space-y-3">
+                    {dashboardData.analysis.business_health.critical_fixes.length > 0 ? (
+                      dashboardData.analysis.business_health.critical_fixes.map((fix, index) => (
+                        <div key={index} className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg flex items-start justify-between">
+                          <span className="flex-1">{fix.issue}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="ml-2 flex-shrink-0">
+                                <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                              <div className="text-sm p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                                    <Lightbulb className="w-3 h-3 text-amber-600" />
+                                  </div>
+                                  <p className="font-semibold text-gray-900">Quick Fix</p>
+                                </div>
+                                <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(fix.quick_fix)}</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+                        No critical fixes identified
+          </div>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-auto">Strategic vision & values</p>
-                </div>
-              </Link>
-              
-              <Link href="/playbook-planner" className="block">
-                <div className="p-3 rounded-md border border-gray-200 hover:border-blue-300 transition-all h-full flex flex-col">
-                  <div className="flex items-center gap-2 mb-1">
-                    <BookOpen className="h-4 w-4 text-blue-600" />
-                    <h3 className="font-medium text-sm">Playbook Library</h3>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-auto">Company processes</p>
-                </div>
-              </Link>
-              
-              <Link href="/growth-machine" className="block">
-                <div className="p-3 rounded-md border border-gray-200 hover:border-blue-300 transition-all h-full flex flex-col">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Rocket className="h-4 w-4 text-blue-600" />
-                    <h3 className="font-medium text-sm">Growth Machine</h3>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-auto">Lead generation</p>
-                </div>
-              </Link>
+          </CardContent>
+        </Card>
 
-              <Link href="/innovation-machine" className="block">
-                <div className="p-3 rounded-md border border-gray-200 hover:border-orange-300 transition-all h-full flex flex-col">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Lightbulb className="h-4 w-4 text-orange-600" />
-                    <h3 className="font-medium text-sm">Innovation Machine</h3>
+        {/* What's Lagging */}
+              <Card className="bg-white border border-gray-200">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">What's Lagging</CardTitle>
+        </div>
+                  <CardDescription className="text-gray-500">
+                    Projects or tasks behind schedule.
+                  </CardDescription>
+          </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {dashboardData.analysis.business_health.lagging_areas.length > 0 ? (
+                      dashboardData.analysis.business_health.lagging_areas.map((area, index) => (
+                        <div key={index} className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg flex items-start justify-between">
+                          <span className="flex-1">{area.issue}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="ml-2 flex-shrink-0">
+                                <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                              <div className="text-sm p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <TrendingUp className="w-3 h-3 text-blue-600" />
                   </div>
-                  <p className="text-xs text-gray-500 mt-auto">Business innovation ideas</p>
+                                  <p className="font-semibold text-gray-900">Improvement Tip</p>
                 </div>
-              </Link>
-
-              <Link href="/fulfillment-machine" className="block">
-                <div className="p-3 rounded-md border border-gray-200 hover:border-blue-300 transition-all h-full flex flex-col">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Package className="h-4 w-4 text-blue-600" />
-                    <h3 className="font-medium text-sm">Fulfillment Machine</h3>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-auto">Workflow metrics</p>
-                </div>
-              </Link>
+                                <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(area.quick_fix)}</p>
+      </div>
+                            </TooltipContent>
+                          </Tooltip>
             </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+                        All tasks are on track
+                      </div>
+                    )}
+          </div>
+          </CardContent>
+        </Card>
+
+        {/* What's Working */}
+              <Card className="bg-white border border-gray-200">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">What's Working</CardTitle>
+                  </div>
+                  <CardDescription className="text-gray-500">
+                    Successful projects and tasks on track.
+                  </CardDescription>
+          </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {dashboardData.analysis.business_health.working_well.length > 0 ? (
+                      dashboardData.analysis.business_health.working_well.map((item, index) => (
+                        <div key={index} className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                          {item}
+                  </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+                        No successful items identified yet
+                </div>
+            )}
+                  </div>
           </CardContent>
         </Card>
       </div>
+          )}
+
+          {/* Priority Tasks and Key Insights Row */}
+          {dashboardData?.analysis && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Priority Tasks */}
+              <Card className="bg-white border border-gray-200">
+          <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900">Priority Tasks</CardTitle>
+          </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="high" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="high" className="text-sm data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                        <Flag className="w-4 h-4 mr-2 text-red-500" />
+                        High Priority
+                      </TabsTrigger>
+                      <TabsTrigger value="medium" className="text-sm data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700">
+                        <Clock className="w-4 h-4 mr-2 text-amber-500" />
+                        Medium Priority
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="high" className="mt-0">
+                      <div className="space-y-3">
+                        {dashboardData.analysis.tasks_and_priorities.high_priority.length > 0 ? (
+                          dashboardData.analysis.tasks_and_priorities.high_priority.map((task, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 text-sm">{task.task}</h4>
+                                <p className="text-xs text-gray-500 mt-1">Due: {task.deadline}</p>
+                          </div>
+                              <div className="flex items-center gap-2">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button>
+                                      <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                    <div className="text-sm p-3">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                          <Navigation className="w-3 h-3 text-green-600" />
+                                        </div>
+                                        <p className="font-semibold text-gray-900">Where to go</p>
+                                      </div>
+                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(task.guidance)}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+                            No high priority tasks
+              </div>
+            )}
+                </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="medium" className="mt-0">
+                      <div className="space-y-3">
+                        {dashboardData.analysis.tasks_and_priorities.medium_priority.length > 0 ? (
+                          dashboardData.analysis.tasks_and_priorities.medium_priority.map((task, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 text-sm">{task.task}</h4>
+                                <p className="text-xs text-gray-500 mt-1">Due: {task.deadline}</p>
+                          </div>
+                              <div className="flex items-center gap-2">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button>
+                                      <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                    <div className="text-sm p-3">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                          <Navigation className="w-3 h-3 text-green-600" />
+                                        </div>
+                                        <p className="font-semibold text-gray-900">Where to go</p>
+                                      </div>
+                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(task.guidance)}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+                            No medium priority tasks
+              </div>
+            )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+          </CardContent>
+        </Card>
+
+              {/* Key Insights */}
+              <Card className="bg-white border border-gray-200">
+                 
+                 <img src="/background.jpg" alt="Key Insights" 
+                 className="w-full h-full object-cover rounded-lg mb-4 max-h-48
+                 " />
+ 
+                  <CardContent className="space-y-4">
+                    {/* Full width image instead of graph */}
+                  
+ 
+                   
+                   <CardTitle className="text-lg font-semibold text-gray-900">Key Insights</CardTitle>
+  
+                    <div className="space-y-2">
+                      {dashboardData.analysis.progress_metrics.insights.length > 0 ? (
+                        dashboardData.analysis.progress_metrics.insights.map((insight, index) => {
+                          // Array of icons to cycle through for insights
+                          const insightIcons = [
+                            { icon: TrendingUp, color: "text-green-600", bg: "bg-green-100" },
+                            { icon: Target, color: "text-blue-600", bg: "bg-blue-100" },
+                            { icon: Lightbulb, color: "text-amber-600", bg: "bg-amber-100" },
+                            { icon: Zap, color: "text-purple-600", bg: "bg-purple-100" },
+                            { icon: Activity, color: "text-red-600", bg: "bg-red-100" },
+                            { icon: BarChart3, color: "text-indigo-600", bg: "bg-indigo-100" }
+                          ];
+                          const iconData = insightIcons[index % insightIcons.length];
+                          const IconComponent = iconData.icon;
+                          
+                          return (
+                            <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-start gap-3">
+                                <div className={`w-8 h-8 ${iconData.bg} rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                  <IconComponent className={`w-4 h-4 ${iconData.color}`} />
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-sm text-gray-900 mb-1">
+                                    Insight {index + 1}
+                                  </h4>
+                                  <p className="text-xs text-gray-600">{insight}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-4">
+                          <BarChart3 className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">No insights available yet</p>
+                          <p className="text-xs text-gray-400">Refresh to generate AI insights</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+          {/* Progress Overview */}
+          {dashboardData?.analysis && (
+            <Card className="bg-white border border-gray-200">
+          <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900">Progress Overview</CardTitle>
+          </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">Overall Progress</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {dashboardData.analysis.progress_metrics.overall_progress}%
+                </span>
+              </div>
+                  <Progress 
+                    value={dashboardData.analysis.progress_metrics.overall_progress} 
+                    className="h-2"
+                  />
+            </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Bottom Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Upcoming Meetings */}
+            <Card className="bg-white border border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Upcoming Meetings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {meetings.length > 0 ? (
+                    meetings.map((meeting, index) => (
+                      <div key={meeting.id} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <Calendar className="w-4 h-4 text-white" />
+                </div>
+                          <div className="flex-1">
+                          <h4 className="font-medium text-sm text-gray-900">{meeting.meeting_title}</h4>
+                          <p className="text-xs text-gray-500">
+                            {new Date(meeting.meeting_date).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </p>
+                          <Badge variant="outline" className="text-xs mt-1">
+                            {meeting.meeting_type}
+                          </Badge>
+                </div>
+              </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No upcoming meetings scheduled</p>
+                      <Link href="/meeting-rhythm-planner">
+                        <Button variant="outline" size="sm" className="mt-2">
+                          Schedule Meeting
+                        </Button>
+                      </Link>
+                </div>
+            )}
+                </div>
+          </CardContent>
+        </Card>
+
+            {/* Team Members */}
+            <Card className="bg-white border border-gray-200">
+          <CardHeader>
+              <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Team Members
+            </CardTitle>
+                  <Link href="/chain-of-command">
+                    <Button variant="ghost" size="sm">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+          </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2 mb-4">
+                  {teamMembers.length > 0 ? (
+                    teamMembers.slice(0, 5).map((member, index) => (
+                      <Tooltip key={member.id}>
+                        <TooltipTrigger asChild>
+                          <Avatar className="h-10 w-10 border-2 border-white shadow-sm hover:border-blue-200 transition-colors cursor-pointer">
+                            <AvatarFallback className="text-xs bg-gray-100 text-gray-600 hover:bg-blue-50">
+                              {getUserInitials(member.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-white border border-gray-200 shadow-lg">
+                          <div className="text-sm p-2">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="text-blue-600 font-medium text-xs">{getUserInitials(member.name)}</span>
+                </div>
+                              <div>
+                                <p className="font-semibold text-gray-900">{member.name}</p>
+                                <p className="text-xs text-gray-500">{member.jobtitle}</p>
+              </div>
+                            </div>
+                            <div className="space-y-1 border-t border-gray-100 pt-2">
+                <div className="flex items-center gap-2">
+                                <Building className="w-3 h-3 text-gray-400" />
+                                <span className="text-xs text-gray-600">{member.department}</span>
+                </div>
+                              {member.manager && (
+                <div className="flex items-center gap-2">
+                                  <UserCircle className="w-3 h-3 text-gray-400" />
+                                  <span className="text-xs text-gray-600">Reports to: {member.manager}</span>
+                </div>
+                              )}
+              </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 w-full">
+                      <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No team members added yet</p>
+                      <Link href="/chain-of-command">
+                        <Button variant="outline" size="sm" className="mt-2">
+                          Add Team Members
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                  {teamMembers.length > 0 && (
+                    <Link href="/chain-of-command">
+                      <Button variant="ghost" size="sm" className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300">
+                        <Plus className="w-4 h-4 text-gray-400" />
+                      </Button>
+                    </Link>
+                  )}
+            </div>
+
+            <div>
+                  <h4 className="font-medium text-sm text-gray-900">Project Timeline</h4>
+                  {timelineEvents.length > 0 ? (
+                    <>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)}% Complete
+                      </p>
+                      <Progress 
+                        value={Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)} 
+                        className="h-2" 
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-500 mb-2">No timeline data available</p>
+                      <Progress value={0} className="h-2" />
+                    </>
+                  )}
+            </div>
+          </CardContent>
+        </Card>
+
+            {/* Project Timeline with Circular Progress */}
+            <Card className="bg-white border border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900">Project Timeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {timelineEvents.length > 0 ? (
+                  <div className="flex flex-col items-center space-y-4">
+                    {/* Circular Progress Bar */}
+                    <CircularProgress 
+                      percentage={Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)} 
+                    />
+                    
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-gray-900">Currently in Week {currentWeek}</p>
+                      <p className="text-xs text-gray-500">
+                        {timelineEvents.filter(event => event.is_completed).length} of {timelineEvents.length} events completed
+                      </p>
+              </div>
+
+                    
+            </div>
+          ) : (
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">No Timeline Data</h3>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Your project timeline will appear here once events are scheduled
+                    </p>
+                    <Button variant="outline" size="sm">
+                      View Timeline
+                    </Button>
+            </div>
+          )}
+              </CardContent>
+            </Card>
     </div>
+
+          {/* Error State */}
+          {dashboardData?.type === 'error' && (
+            <Card className="border-red-200 bg-red-50/50">
+              <CardContent className="p-6 text-center">
+                <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                <p className="text-red-700">{dashboardData.error}</p>
+                <Button onClick={handleRefresh} className="mt-4" variant="outline">
+                  Try Again
+                </Button>
+                  </CardContent>
+                </Card>
+          )}
+    </div>
+      </div>
+    </TooltipProvider>
   );
 } 

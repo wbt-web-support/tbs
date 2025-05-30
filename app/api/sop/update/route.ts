@@ -58,6 +58,7 @@ REQUIREMENTS:
 - Keep the content comprehensive and detailed
 - Use clear headings, bullet points, and numbered lists
 - Make sure the revised content flows naturally
+- Increase the version number by +1 so if it's 2 then it will be 3 every time you update the SOP don't use decimal points like 2.1 or 2.2 etc.
 
 Return the complete revised SOP document.`;
 
