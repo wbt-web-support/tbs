@@ -456,7 +456,7 @@ export default function AIDashboard() {
       title: "Innovation",
       icon: Lightbulb,
       description: "Explore new ideas",
-      href: "/innovation-chat",
+      href: "/innovation-machine",
       color: "bg-green-500/10",
       iconColor: "text-green-600"
     },
