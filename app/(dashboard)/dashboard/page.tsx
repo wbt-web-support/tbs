@@ -211,6 +211,57 @@ const CircularProgress = ({ percentage, size = 120, strokeWidth = 8 }: { percent
   );
 };
 
+// Donut Chart Component
+const DonutChart = ({ data, size = 200 }: { data: { label: string; value: number; color: string; percentage: number }[]; size?: number }) => {
+  const strokeWidth = 20;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  
+  let cumulativePercentage = 0;
+  
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#f3f4f6"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        {/* Data segments */}
+        {data.map((segment, index) => {
+          const strokeDasharray = `${(segment.percentage / 100) * circumference} ${circumference}`;
+          const strokeDashoffset = -cumulativePercentage * circumference / 100;
+          cumulativePercentage += segment.percentage;
+          
+          return (
+            <circle
+              key={index}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={segment.color}
+              strokeWidth={strokeWidth}
+              fill="transparent"
+              strokeDasharray={strokeDasharray}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              className="transition-all duration-500 ease-in-out"
+            />
+          );
+        })}
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className="text-2xl font-bold text-gray-900">100%</span>
+        <span className="text-xs text-gray-500">Overview</span>
+      </div>
+    </div>
+  );
+};
+
 export default function AIDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
@@ -345,7 +396,38 @@ export default function AIDashboard() {
         setIsLoading(true);
       }
 
-      // First, check if we have cached data (without force refresh)
+      // If this is a refresh, immediately force fresh data
+      if (isRefresh) {
+        console.log('🔄 [Dashboard] Forcing refresh - generating fresh analysis...');
+        
+        const response = await fetch('/api/ai-dashboard', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'dashboard_analysis',
+            force_refresh: true
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: Failed to generate dashboard analysis`);
+        }
+
+        const data = await response.json();
+        
+        if (data.type === 'error') {
+          throw new Error(data.error || 'Unknown error occurred');
+        }
+        
+        setDashboardData(data);
+        setLastUpdated(new Date());
+        console.log('✅ [Dashboard] Generated and cached fresh data');
+        return;
+      }
+
+      // For initial load, check if we have cached data first
       const checkResponse = await fetch('/api/ai-dashboard', {
         method: 'POST',
         headers: {
@@ -371,8 +453,8 @@ export default function AIDashboard() {
         return;
       }
       
-      // If no cached data exists or this is a force refresh, generate fresh data
-      if (checkData.type === 'no_cache' || isRefresh) {
+      // If no cached data exists, generate fresh data
+      if (checkData.type === 'no_cache') {
         console.log('🔄 [Dashboard] No cached data found, generating fresh analysis...');
         
         const response = await fetch('/api/ai-dashboard', {
@@ -530,7 +612,7 @@ export default function AIDashboard() {
         </Card>
 
           {/* Quick Links Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {quickLinks.map((link, index) => (
               <Link key={index} href={link.href}>
                 <Card className="bg-white hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200 hover:border-gray-300">
@@ -550,129 +632,277 @@ export default function AIDashboard() {
             ))}
           </div>
 
-          {/* Business Health Cards */}
+          {/* Business Statistics and Health Overview Grid */}
           {dashboardData?.analysis && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Critical Fixes */}
-              <Card className="bg-white border border-gray-200">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    <CardTitle className="text-lg font-semibold text-gray-900">Critical Fixes</CardTitle>
-        </div>
-                  <CardDescription className="text-gray-500">
-                    Urgent issues requiring immediate attention.
-            </CardDescription>
-          </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {dashboardData.analysis.business_health.critical_fixes.length > 0 ? (
-                      dashboardData.analysis.business_health.critical_fixes.map((fix, index) => (
-                        <div key={index} className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg flex items-start justify-between">
-                          <span className="flex-1">{fix.issue}</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button className="ml-2 flex-shrink-0">
-                                <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
-                              <div className="text-sm p-3">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
-                                    <Lightbulb className="w-3 h-3 text-amber-600" />
-                                  </div>
-                                  <p className="font-semibold text-gray-900">Quick Fix</p>
-                                </div>
-                                <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(fix.quick_fix)}</p>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-                        No critical fixes identified
-          </div>
-                    )}
-                  </div>
-          </CardContent>
-        </Card>
-
-        {/* What's Lagging */}
-              <Card className="bg-white border border-gray-200">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <CardTitle className="text-lg font-semibold text-gray-900">What's Lagging</CardTitle>
-        </div>
-                  <CardDescription className="text-gray-500">
-                    Projects or tasks behind schedule.
-                  </CardDescription>
-          </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {dashboardData.analysis.business_health.lagging_areas.length > 0 ? (
-                      dashboardData.analysis.business_health.lagging_areas.map((area, index) => (
-                        <div key={index} className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg flex items-start justify-between">
-                          <span className="flex-1">{area.issue}</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button className="ml-2 flex-shrink-0">
-                                <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
-                              <div className="text-sm p-3">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <TrendingUp className="w-3 h-3 text-blue-600" />
-                  </div>
-                                  <p className="font-semibold text-gray-900">Improvement Tip</p>
-                </div>
-                                <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(area.quick_fix)}</p>
-      </div>
-                            </TooltipContent>
-                          </Tooltip>
-            </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-                        All tasks are on track
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              {/* Business Statistics with Donut Chart */}
+              <div className="xl:col-span-3">
+                <Card className="bg-white border border-gray-200 h-full">
+                  <CardHeader className="pb-6">
+                    <CardTitle className="text-2xl font-bold text-gray-900">Business Statistics</CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Key performance metrics and current status overview.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col items-center justify-between gap-8">
+                      {/* Donut Chart */}
+                      <div className="flex-shrink-0">
+                        <DonutChart 
+                          data={[
+                            { label: "Revenue This Month", value: 45000, color: "#10b981", percentage: 35 },
+                            { label: "Jobs Completed", value: 24, color: "#3b82f6", percentage: 25 },
+                            { label: "Pending Tasks", value: 12, color: "#f59e0b", percentage: 20 },
+                            { label: "New Clients", value: 8, color: "#8b5cf6", percentage: 15 },
+                            { label: "Other", value: 5, color: "#6b7280", percentage: 5 }
+                          ]}
+                          size={200}
+                        />
                       </div>
-                    )}
-          </div>
-          </CardContent>
-        </Card>
+                      
+                      {/* Statistics Legend */}
+                      <div className="flex-1 space-y-3 min-w-0 w-full">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between ">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-gray-900">Revenue This Month</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-green-600">$45,000</span>
+                              <span className="text-xs text-gray-500">35%</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-gray-900">Jobs Completed</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-blue-600">24</span>
+                              <span className="text-xs text-gray-500">25%</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-gray-900">Pending Tasks</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-yellow-600">12</span>
+                              <span className="text-xs text-gray-500">20%</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-gray-900">New Clients</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-purple-600">8</span>
+                              <span className="text-xs text-gray-500">15%</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-gray-900">Other Activities</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-gray-600">5</span>
+                              <span className="text-xs text-gray-500">5%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-        {/* What's Working */}
-              <Card className="bg-white border border-gray-200">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <CardTitle className="text-lg font-semibold text-gray-900">What's Working</CardTitle>
-                  </div>
-                  <CardDescription className="text-gray-500">
-                    Successful projects and tasks on track.
-                  </CardDescription>
-          </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {dashboardData.analysis.business_health.working_well.length > 0 ? (
-                      dashboardData.analysis.business_health.working_well.map((item, index) => (
-                        <div key={index} className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
-                          {item}
-                  </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-                        No successful items identified yet
-                </div>
-            )}
-                  </div>
-          </CardContent>
-        </Card>
-      </div>
+              {/* Business Health Overview */}
+              <div className="xl:col-span-9">
+                <Card className="bg-white border border-gray-200 h-full">
+                  <CardHeader className="pb-6">
+                    <CardTitle className="text-2xl font-bold text-gray-900">Business Health Overview</CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Track what's working, what needs attention, and critical fixes required.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs defaultValue="working" className="w-full">
+                      {/* Tab Navigation with Modern Design */}
+                      <TabsList className="grid w-full grid-cols-3 mb-6 h-auto p-1 bg-gray-100 rounded-xl">
+                        <TabsTrigger 
+                          value="working" 
+                          className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-green-600"
+                        >
+                          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center data-[state=active]:bg-green-500 data-[state=active]:text-white transition-colors">
+                            <CheckCircle2 className="w-6 h-6 text-green-600 data-[state=active]:text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="text-2xl font-bold text-green-600">
+                              {dashboardData.analysis.business_health.working_well.length}
+                            </div>
+                            <div className="text-xs font-medium text-gray-700">What's Working</div>
+                          </div>
+                        </TabsTrigger>
+                        
+                        <TabsTrigger 
+                          value="lagging" 
+                          className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-yellow-600"
+                        >
+                          <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center data-[state=active]:bg-yellow-500 data-[state=active]:text-white transition-colors">
+                            <TrendingDown className="w-6 h-6 text-yellow-600 data-[state=active]:text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="text-2xl font-bold text-yellow-600">
+                              {dashboardData.analysis.business_health.lagging_areas.length}
+                            </div>
+                            <div className="text-xs font-medium text-gray-700">What's Lagging</div>
+                          </div>
+                        </TabsTrigger>
+                        
+                        <TabsTrigger 
+                          value="critical" 
+                          className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-red-600"
+                        >
+                          <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center data-[state=active]:bg-red-500 data-[state=active]:text-white transition-colors">
+                            <AlertTriangle className="w-6 h-6 text-red-600 data-[state=active]:text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="text-2xl font-bold text-red-600">
+                              {dashboardData.analysis.business_health.critical_fixes.length}
+                            </div>
+                            <div className="text-xs font-medium text-gray-700">Critical Fixes</div>
+                          </div>
+                        </TabsTrigger>
+                      </TabsList>
+
+                      {/* Tab Content */}
+                      <TabsContent value="working" className="mt-0 space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          <h3 className="text-lg font-semibold text-gray-900">What's Working Well</h3>
+                          <Badge variant="secondary" className="bg-green-100 text-green-700">
+                            {dashboardData.analysis.business_health.working_well.length} items
+                          </Badge>
+                        </div>
+                        <div className="space-y-3">
+                          {dashboardData.analysis.business_health.working_well.length > 0 ? (
+                            dashboardData.analysis.business_health.working_well.map((item, index) => (
+                              <div key={index} className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8">
+                              <CheckCircle2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-500">No successful items identified yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="lagging" className="mt-0 space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <TrendingDown className="w-5 h-5 text-yellow-600" />
+                          <h3 className="text-lg font-semibold text-gray-900">What's Lagging Behind</h3>
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                            {dashboardData.analysis.business_health.lagging_areas.length} items
+                          </Badge>
+                        </div>
+                        <div className="space-y-3">
+                          {dashboardData.analysis.business_health.lagging_areas.length > 0 ? (
+                            dashboardData.analysis.business_health.lagging_areas.map((area, index) => (
+                              <div key={index} className="flex items-start justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <div className="flex items-start gap-3 flex-1">
+                                  <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                                  <p className="text-sm text-gray-700 leading-relaxed">{area.issue}</p>
+                                </div>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button className="ml-3 flex-shrink-0">
+                                      <Lightbulb className="w-5 h-5 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                    <div className="text-sm p-3">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                          <TrendingUp className="w-3 h-3 text-blue-600" />
+                                        </div>
+                                        <p className="font-semibold text-gray-900">Improvement Tip</p>
+                                      </div>
+                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(area.quick_fix)}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8">
+                              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-500">All tasks are on track</p>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="critical" className="mt-0 space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <AlertTriangle className="w-5 h-5 text-red-600" />
+                          <h3 className="text-lg font-semibold text-gray-900">Critical Fixes Required</h3>
+                          <Badge variant="secondary" className="bg-red-100 text-red-700">
+                            {dashboardData.analysis.business_health.critical_fixes.length} items
+                          </Badge>
+                        </div>
+                        <div className="space-y-3">
+                          {dashboardData.analysis.business_health.critical_fixes.length > 0 ? (
+                            dashboardData.analysis.business_health.critical_fixes.map((fix, index) => (
+                              <div key={index} className="flex items-start justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <div className="flex items-start gap-3 flex-1">
+                                  <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                                  <p className="text-sm text-gray-700 leading-relaxed">{fix.issue}</p>
+                                </div>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button className="ml-3 flex-shrink-0">
+                                      <Lightbulb className="w-5 h-5 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                    <div className="text-sm p-3">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                                          <Lightbulb className="w-3 h-3 text-amber-600" />
+                                        </div>
+                                        <p className="font-semibold text-gray-900">Quick Fix</p>
+                                      </div>
+                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(fix.quick_fix)}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8">
+                              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-500">No critical fixes identified</p>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           )}
 
           {/* Priority Tasks and Key Insights Row */}
@@ -780,13 +1010,13 @@ export default function AIDashboard() {
         </Card>
 
               {/* Key Insights */}
-              <Card className="bg-white border border-gray-200">
+              <Card className="bg-white border border-gray-200 flex flex-col md:flex-row">
                  
-                 <img src="/background.jpg" alt="Key Insights" 
-                 className="w-full h-full object-cover rounded-lg mb-4 max-h-48
+                 <img src="/insight.svg" alt="Key Insights" 
+                 className="w-full h-full object-contain rounded-lg mb-4 max-h-48 md:max-h-full md:w-1/3
                  " />
  
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 md:w-2/3 flex flex-col justify-center">
                     {/* Full width image instead of graph */}
                   
  
@@ -839,15 +1069,12 @@ export default function AIDashboard() {
 
           {/* Progress Overview */}
           {dashboardData?.analysis && (
-            <Card className="bg-white border border-gray-200">
-          <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">Progress Overview</CardTitle>
-          </CardHeader>
+            <Card className="bg-white border border-gray-200 pt-4">
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Overall Progress</span>
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-lg text-gray-700">Overall Progress</span>
+                    <span className="text-lg font-semibold text-gray-900">
                       {dashboardData.analysis.progress_metrics.overall_progress}%
                 </span>
               </div>
