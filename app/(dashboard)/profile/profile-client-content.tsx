@@ -31,6 +31,7 @@ interface BusinessInfo {
   meeting_scheduled: boolean;
   command_hq_link: string | null;
   profile_picture_url: string | null;
+  google_review_link: string | null;
 }
 
 interface ProfileClientContentProps {
@@ -318,6 +319,22 @@ export function ProfileClientContent({ user, initialBusinessInfo }: ProfileClien
                         className="h-10"
                         placeholder="Enter phone number"
                       />
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label htmlFor="google_review_link" className="text-sm font-medium text-gray-700">Google Review Link</Label>
+                      <Input
+                        id="google_review_link"
+                        name="google_review_link"
+                        type="url"
+                        value={formData.google_review_link || ''}
+                        onChange={handleInputChange}
+                        disabled={!editing || saving}
+                        className="h-10"
+                        placeholder="Enter your Google Business review link (e.g., https://maps.google.com/...)"
+                      />
+                      <p className="text-xs text-gray-500">
+                        This link will be used to fetch and analyze your Google Business reviews for the dashboard.
+                      </p>
                     </div>
                   </div>
                   {/* Read-only fields */} 

@@ -24,6 +24,7 @@ interface BusinessInfo {
   meeting_scheduled: boolean;
   command_hq_link: string | null;
   profile_picture_url: string | null;
+  google_review_link: string | null;
 }
 
 // Make the page component async
