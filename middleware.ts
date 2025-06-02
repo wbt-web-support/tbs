@@ -65,12 +65,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If session exists, force onboarding before any dashboard/protected page
+  // If session exists, force onboarding before any dashboard/protected page (but not for public pages like /info)
   if (session &&
     !request.nextUrl.pathname.startsWith('/onboarding') &&
     !request.nextUrl.pathname.startsWith('/sign-out') &&
     !request.nextUrl.pathname.startsWith('/api') &&
-    !request.nextUrl.pathname.startsWith('/admin')
+    !request.nextUrl.pathname.startsWith('/admin') &&
+    !request.nextUrl.pathname.startsWith('/info')
   ) {
     const { data: onboardingData } = await supabase
       .from('company_onboarding')
