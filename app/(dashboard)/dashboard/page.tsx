@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createClient } from "@/utils/supabase/client";
+import CustomerReviewsSummary from "./components/customer-reviews-summary";
 import Link from "next/link";
 import {
   Brain,
@@ -54,6 +55,21 @@ import {
   Info,
   UserCircle
 } from "lucide-react";
+
+// Import skeleton components
+import {
+  GreetingSkeleton,
+  QuickLinksSkeleton,
+  BusinessStatsSkeleton,
+  CustomerReviewsSkeleton,
+  BusinessHealthSkeleton,
+  PriorityTasksSkeleton,
+  KeyInsightsSkeleton,
+  ProgressOverviewSkeleton,
+  UpcomingMeetingsSkeleton,
+  TeamMembersSkeleton,
+  ProjectTimelineSkeleton
+} from "./components/skeleton-loaders";
 
 // Types for the dashboard data
 interface BusinessHealthItem {
@@ -109,6 +125,7 @@ interface BusinessInfo {
   email: string;
   phone_number: string;
   profile_picture_url: string | null;
+  google_review_link: string | null;
 }
 
 interface TeamMember {
@@ -268,12 +285,32 @@ export default function AIDashboard() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [meetings, setMeetings] = useState<MeetingData[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Individual loading states for progressive loading
+  const [loadingStates, setLoadingStates] = useState({
+    greeting: true,
+    quickLinks: true,
+    businessStats: true,
+    customerReviews: true,
+    businessHealth: true,
+    priorityTasks: true,
+    keyInsights: true,
+    progressOverview: true,
+    upcomingMeetings: true,
+    teamMembers: true,
+    projectTimeline: true,
+  });
+  
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [currentWeek, setCurrentWeek] = useState(1);
 
   const supabase = createClient();
+
+  // Helper function to update individual loading states
+  const updateLoadingState = (section: keyof typeof loadingStates, isLoading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [section]: isLoading }));
+  };
 
   // Function to fetch business info and related data
   const fetchBusinessData = async () => {
@@ -281,7 +318,7 @@ export default function AIDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch business info
+      // Fetch business info with google_review_link
       const { data: businessData } = await supabase
         .from("business_info")
         .select("*")
@@ -290,6 +327,8 @@ export default function AIDashboard() {
 
       if (businessData) {
         setBusinessInfo(businessData);
+        updateLoadingState('greeting', false);
+        updateLoadingState('quickLinks', false);
       }
 
       // Fetch team members (following dashboard pattern)
@@ -302,6 +341,7 @@ export default function AIDashboard() {
 
       if (teamData) {
         setTeamMembers(teamData);
+        updateLoadingState('teamMembers', false);
       }
 
       // Fetch upcoming meetings (following dashboard pattern)
@@ -315,6 +355,7 @@ export default function AIDashboard() {
 
       if (meetingData) {
         setMeetings(meetingData);
+        updateLoadingState('upcomingMeetings', false);
       }
 
       // Fetch timeline events with proper completion status
@@ -358,10 +399,16 @@ export default function AIDashboard() {
 
         setTimelineEvents(eventsWithClaims);
         setCurrentWeek(currentWeek);
+        updateLoadingState('projectTimeline', false);
       }
 
     } catch (error) {
       console.error("Error fetching business data:", error);
+      // Mark all sections as loaded even on error to avoid infinite loading
+      setLoadingStates(prev => Object.keys(prev).reduce((acc, key) => ({ 
+        ...acc, 
+        [key]: false 
+      }), {} as typeof loadingStates));
     }
   };
 
@@ -393,7 +440,19 @@ export default function AIDashboard() {
       if (isRefresh) {
         setIsRefreshing(true);
       } else {
-        setIsLoading(true);
+        setLoadingStates({
+          greeting: true,
+          quickLinks: true,
+          businessStats: true,
+          customerReviews: true,
+          businessHealth: true,
+          priorityTasks: true,
+          keyInsights: true,
+          progressOverview: true,
+          upcomingMeetings: true,
+          teamMembers: true,
+          projectTimeline: true,
+        });
       }
 
       // If this is a refresh, immediately force fresh data
@@ -423,6 +482,13 @@ export default function AIDashboard() {
         
         setDashboardData(data);
         setLastUpdated(new Date());
+        // Update AI-dependent sections
+        updateLoadingState('businessStats', false);
+        updateLoadingState('businessHealth', false);
+        updateLoadingState('priorityTasks', false);
+        updateLoadingState('keyInsights', false);
+        updateLoadingState('progressOverview', false);
+        updateLoadingState('customerReviews', false);
         console.log('✅ [Dashboard] Generated and cached fresh data');
         return;
       }
@@ -447,56 +513,80 @@ export default function AIDashboard() {
       
       // If we have cached data, use it
       if (checkData.type === 'dashboard_analysis' && checkData.analysis) {
+        console.log('✅ [Dashboard] Using cached data:', checkData.timestamp);
         setDashboardData(checkData);
-        setLastUpdated(new Date());
-        console.log('✅ [Dashboard] Using cached data');
+        setLastUpdated(new Date(checkData.timestamp));
+        // Update AI-dependent sections
+        updateLoadingState('businessStats', false);
+        updateLoadingState('businessHealth', false);
+        updateLoadingState('priorityTasks', false);
+        updateLoadingState('keyInsights', false);
+        updateLoadingState('progressOverview', false);
+        updateLoadingState('customerReviews', false);
         return;
       }
+
+      // No cached data, generate fresh analysis
+      console.log('🔄 [Dashboard] No cached data found, generating fresh analysis...');
+      const generateResponse = await fetch('/api/ai-dashboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'dashboard_analysis',
+          force_refresh: true
+        })
+      });
+
+      if (!generateResponse.ok) {
+        throw new Error(`HTTP ${generateResponse.status}: Failed to generate dashboard analysis`);
+      }
+
+      const generateData = await generateResponse.json();
       
-      // If no cached data exists, generate fresh data
-      if (checkData.type === 'no_cache') {
-        console.log('🔄 [Dashboard] No cached data found, generating fresh analysis...');
-        
-        const response = await fetch('/api/ai-dashboard', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            type: 'dashboard_analysis',
-            force_refresh: true
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: Failed to generate dashboard analysis`);
-        }
-
-        const data = await response.json();
-        
-        if (data.type === 'error') {
-          throw new Error(data.error || 'Unknown error occurred');
-        }
-        
-        setDashboardData(data);
-        setLastUpdated(new Date());
-        console.log('✅ [Dashboard] Generated and cached fresh data');
-        return;
+      if (generateData.type === 'error') {
+        throw new Error(generateData.error || 'Unknown error occurred');
       }
       
-      // Handle error case
-      if (checkData.type === 'error') {
-        throw new Error(checkData.error || 'Unknown error occurred');
-      }
-      
+      setDashboardData(generateData);
+      setLastUpdated(new Date());
+      // Update AI-dependent sections
+      updateLoadingState('businessStats', false);
+      updateLoadingState('businessHealth', false);
+      updateLoadingState('priorityTasks', false);
+      updateLoadingState('keyInsights', false);
+      updateLoadingState('progressOverview', false);
+      updateLoadingState('customerReviews', false);
+      console.log('✅ [Dashboard] Generated and cached fresh data');
+
     } catch (error) {
-      console.error("Error fetching dashboard analysis:", error);
+      console.error('❌ [Dashboard] Error:', error);
       setDashboardData({
         type: 'error',
-        error: 'Failed to load dashboard analysis. Please try refreshing.'
+        error: error instanceof Error ? error.message : 'An unexpected error occurred while loading your dashboard. Please try refreshing the page.'
       });
+      // Mark AI sections as loaded even on error
+      updateLoadingState('businessStats', false);
+      updateLoadingState('businessHealth', false);
+      updateLoadingState('priorityTasks', false);
+      updateLoadingState('keyInsights', false);
+      updateLoadingState('progressOverview', false);
+      updateLoadingState('customerReviews', false);
     } finally {
-      setIsLoading(false);
+      setLoadingStates({
+        greeting: false,
+        quickLinks: false,
+        businessStats: false,
+        customerReviews: false,
+        businessHealth: false,
+        priorityTasks: false,
+        keyInsights: false,
+        progressOverview: false,
+        upcomingMeetings: false,
+        teamMembers: false,
+        projectTimeline: false,
+      });
       setIsRefreshing(false);
     }
   };
@@ -560,83 +650,68 @@ export default function AIDashboard() {
     }
   ];
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] space-y-4">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Brain className="w-6 h-6 text-blue-600 animate-pulse" />
-          </div>
-        </div>
-        <div className="text-center space-y-2">
-          <h3 className="text-lg font-semibold text-gray-900">Loading Your Personalized AI Dashboard</h3>
-          <p className="text-sm text-gray-600 max-w-md">
-            Our AI is analyzing your business data to generate customized insights and recommendations just for you...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-    return (
+  return (
     <TooltipProvider>
       <div className="min-h-screen">
         <div className="space-y-6">
           {/* Greeting Section */}
-          <Card className="bg-transparent border-none ">
-            <CardContent className="p-0">
-              <div className="flex justify-between items-start flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                    Hi, {businessInfo?.full_name?.split(' ')[0] || 'there'} 👋
-                  </h1>
-                  <p className="text-gray-600 mb-4">
-                    Here's what we think you should focus on to improve your business performance today. 
-                    Our AI has analyzed your data and identified key areas for growth and optimization.
-                  </p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>Business Overview</span>
-                    <span>•</span>
-                    <span>Performance Insights</span>
-                    <span>•</span>
-                    <span>Action Items</span>
+          {loadingStates.greeting ? <GreetingSkeleton /> : (
+            <Card className="bg-transparent border-none">
+              <CardContent className="p-0">
+                <div className="flex justify-between items-start flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                      Hi, {businessInfo?.full_name?.split(' ')[0] || 'there'} 👋
+                    </h1>
+                    <p className="text-gray-600 mb-4">
+                      Here's what we think you should focus on to improve your business performance today. 
+                      Our AI has analyzed your data and identified key areas for growth and optimization.
+                    </p>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span>Business Overview</span>
+                      <span>•</span>
+                      <span>Performance Insights</span>
+                      <span>•</span>
+                      <span>Action Items</span>
+                    </div>
                   </div>
+                  <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline" size="sm">
+                    <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                  </Button>
                 </div>
-                <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline" size="sm">
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-              </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quick Links Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {quickLinks.map((link, index) => (
-              <Link key={index} href={link.href}>
-                <Card className="bg-white hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200 hover:border-gray-300">
-                  <CardContent className="p-4 md:p-6">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 md:w-14 md:h-14 ${link.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                        <link.icon className={`w-7 h-7 md:w-8 md:h-8 ${link.iconColor}`} />
+          {loadingStates.quickLinks ? <QuickLinksSkeleton /> : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {quickLinks.map((link, index) => (
+                <Link key={index} href={link.href}>
+                  <Card className="bg-white hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200 hover:border-gray-300">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 md:w-14 md:h-14 ${link.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                          <link.icon className={`w-7 h-7 md:w-8 md:h-8 ${link.iconColor}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 mb-1 text-sm">{link.title}</h3>
+                          <p className="text-xs text-gray-500 truncate">{link.description}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 mb-1 text-sm">{link.title}</h3>
-                        <p className="text-xs text-gray-500 truncate">{link.description}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* Business Statistics and Health Overview Grid */}
-          {dashboardData?.analysis && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              {/* Business Statistics with Donut Chart */}
-              <div className="xl:col-span-3">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            {/* Business Statistics with Donut Chart */}
+            <div className="xl:col-span-3">
+              {loadingStates.businessStats ? <BusinessStatsSkeleton /> : (
                 <Card className="bg-white border border-gray-200 h-full">
                   <CardHeader className="pb-6">
                     <CardTitle className="text-2xl font-bold text-gray-900">Business Statistics</CardTitle>
@@ -722,178 +797,299 @@ export default function AIDashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              )}
+            </div>
 
-              {/* Business Health Overview */}
-              <div className="xl:col-span-9">
-                <Card className="bg-white border border-gray-200 h-full">
-                  <CardHeader className="pb-6">
-                    <CardTitle className="text-2xl font-bold text-gray-900">Business Health Overview</CardTitle>
-                    <CardDescription className="text-gray-600">
-                      Track what's working, what needs attention, and critical fixes required.
-                    </CardDescription>
+            {/* Customer Reviews Summary */}
+            <div className="xl:col-span-3">
+              {loadingStates.customerReviews ? <CustomerReviewsSkeleton /> : (
+                businessInfo && (
+                  <CustomerReviewsSummary businessName={businessInfo.business_name} googleReviewLink={businessInfo.google_review_link} />
+                )
+              )}
+            </div>
+
+            {/* Business Health Overview */}
+            <div className="xl:col-span-6">
+              {loadingStates.businessHealth ? <BusinessHealthSkeleton /> : (
+                dashboardData?.analysis && (
+                  <Card className="bg-white border border-gray-200 h-full">
+                    <CardHeader className="pb-6">
+                      <CardTitle className="text-2xl font-bold text-gray-900">Business Health Overview</CardTitle>
+                      <CardDescription className="text-gray-600">
+                        Track what's working, what needs attention, and critical fixes required.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Tabs defaultValue="working" className="w-full">
+                        {/* Tab Navigation with Modern Design */}
+                        <TabsList className="grid w-full grid-cols-3 mb-6 h-auto p-1 bg-gray-100 rounded-xl">
+                          <TabsTrigger 
+                            value="working" 
+                            className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-green-600"
+                          >
+                            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center data-[state=active]:bg-green-500 data-[state=active]:text-white transition-colors">
+                              <CheckCircle2 className="w-6 h-6 text-green-600 data-[state=active]:text-white" />
+                            </div>
+                            <div className="text-left">
+                              <div className="text-2xl font-bold text-green-600">
+                                {dashboardData.analysis.business_health.working_well.length}
+                              </div>
+                              <div className="text-xs font-medium text-gray-700">What's Working</div>
+                            </div>
+                          </TabsTrigger>
+                          
+                          <TabsTrigger 
+                            value="lagging" 
+                            className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-yellow-600"
+                          >
+                            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center data-[state=active]:bg-yellow-500 data-[state=active]:text-white transition-colors">
+                              <TrendingDown className="w-6 h-6 text-yellow-600 data-[state=active]:text-white" />
+                            </div>
+                            <div className="text-left">
+                              <div className="text-2xl font-bold text-yellow-600">
+                                {dashboardData.analysis.business_health.lagging_areas.length}
+                              </div>
+                              <div className="text-xs font-medium text-gray-700">What's Lagging</div>
+                            </div>
+                          </TabsTrigger>
+                          
+                          <TabsTrigger 
+                            value="critical" 
+                            className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-red-600"
+                          >
+                            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center data-[state=active]:bg-red-500 data-[state=active]:text-white transition-colors">
+                              <AlertTriangle className="w-6 h-6 text-red-600 data-[state=active]:text-white" />
+                            </div>
+                            <div className="text-left">
+                              <div className="text-2xl font-bold text-red-600">
+                                {dashboardData.analysis.business_health.critical_fixes.length}
+                              </div>
+                              <div className="text-xs font-medium text-gray-700">Critical Fixes</div>
+                            </div>
+                          </TabsTrigger>
+                        </TabsList>
+
+                        {/* Tab Content */}
+                        <TabsContent value="working" className="mt-0 space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">What's Working Well</h3>
+                            <Badge variant="secondary" className="bg-green-100 text-green-700">
+                              {dashboardData.analysis.business_health.working_well.length} items
+                            </Badge>
+                          </div>
+                          <div className="space-y-3">
+                            {dashboardData.analysis.business_health.working_well.length > 0 ? (
+                              dashboardData.analysis.business_health.working_well.map((item, index) => (
+                                <div key={index} className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                                  <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-8">
+                                <CheckCircle2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                <p className="text-gray-500">No successful items identified yet</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="lagging" className="mt-0 space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <TrendingDown className="w-5 h-5 text-yellow-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">What's Lagging Behind</h3>
+                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                              {dashboardData.analysis.business_health.lagging_areas.length} items
+                            </Badge>
+                          </div>
+                          <div className="space-y-3">
+                            {dashboardData.analysis.business_health.lagging_areas.length > 0 ? (
+                              dashboardData.analysis.business_health.lagging_areas.map((area, index) => (
+                                <div key={index} className="flex items-start justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                                    <p className="text-sm text-gray-700 leading-relaxed">{area.issue}</p>
+                                  </div>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button className="ml-3 flex-shrink-0">
+                                        <Lightbulb className="w-5 h-5 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                      <div className="text-sm p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <TrendingUp className="w-3 h-3 text-blue-600" />
+                                          </div>
+                                          <p className="font-semibold text-gray-900">Improvement Tip</p>
+                                        </div>
+                                        <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(area.quick_fix)}</p>
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-8">
+                                <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                <p className="text-gray-500">All tasks are on track</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="critical" className="mt-0 space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <AlertTriangle className="w-5 h-5 text-red-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">Critical Fixes Required</h3>
+                            <Badge variant="secondary" className="bg-red-100 text-red-700">
+                              {dashboardData.analysis.business_health.critical_fixes.length} items
+                            </Badge>
+                          </div>
+                          <div className="space-y-3">
+                            {dashboardData.analysis.business_health.critical_fixes.length > 0 ? (
+                              dashboardData.analysis.business_health.critical_fixes.map((fix, index) => (
+                                <div key={index} className="flex items-start justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                                    <p className="text-sm text-gray-700 leading-relaxed">{fix.issue}</p>
+                                  </div>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button className="ml-3 flex-shrink-0">
+                                        <Lightbulb className="w-5 h-5 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                      <div className="text-sm p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                                            <Lightbulb className="w-3 h-3 text-amber-600" />
+                                          </div>
+                                          <p className="font-semibold text-gray-900">Quick Fix</p>
+                                        </div>
+                                        <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(fix.quick_fix)}</p>
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-8">
+                                <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                <p className="text-gray-500">No critical fixes identified</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Priority Tasks and Key Insights Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Priority Tasks */}
+            {loadingStates.priorityTasks ? <PriorityTasksSkeleton /> : (
+              dashboardData?.analysis && (
+                <Card className="bg-white border border-gray-200">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-gray-900">Priority Tasks</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Tabs defaultValue="working" className="w-full">
-                      {/* Tab Navigation with Modern Design */}
-                      <TabsList className="grid w-full grid-cols-3 mb-6 h-auto p-1 bg-gray-100 rounded-xl">
-                        <TabsTrigger 
-                          value="working" 
-                          className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-green-600"
-                        >
-                          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center data-[state=active]:bg-green-500 data-[state=active]:text-white transition-colors">
-                            <CheckCircle2 className="w-6 h-6 text-green-600 data-[state=active]:text-white" />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-2xl font-bold text-green-600">
-                              {dashboardData.analysis.business_health.working_well.length}
-                            </div>
-                            <div className="text-xs font-medium text-gray-700">What's Working</div>
-                          </div>
+                    <Tabs defaultValue="high" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 mb-4">
+                        <TabsTrigger value="high" className="text-sm data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                          <Flag className="w-4 h-4 mr-2 text-red-500" />
+                          High Priority
                         </TabsTrigger>
-                        
-                        <TabsTrigger 
-                          value="lagging" 
-                          className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-yellow-600"
-                        >
-                          <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center data-[state=active]:bg-yellow-500 data-[state=active]:text-white transition-colors">
-                            <TrendingDown className="w-6 h-6 text-yellow-600 data-[state=active]:text-white" />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-2xl font-bold text-yellow-600">
-                              {dashboardData.analysis.business_health.lagging_areas.length}
-                            </div>
-                            <div className="text-xs font-medium text-gray-700">What's Lagging</div>
-                          </div>
-                        </TabsTrigger>
-                        
-                        <TabsTrigger 
-                          value="critical" 
-                          className="flex items-center justify-center gap-5 py-4 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 data-[state=active]:text-red-600"
-                        >
-                          <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center data-[state=active]:bg-red-500 data-[state=active]:text-white transition-colors">
-                            <AlertTriangle className="w-6 h-6 text-red-600 data-[state=active]:text-white" />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-2xl font-bold text-red-600">
-                              {dashboardData.analysis.business_health.critical_fixes.length}
-                            </div>
-                            <div className="text-xs font-medium text-gray-700">Critical Fixes</div>
-                          </div>
+                        <TabsTrigger value="medium" className="text-sm data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700">
+                          <Clock className="w-4 h-4 mr-2 text-amber-500" />
+                          Medium Priority
                         </TabsTrigger>
                       </TabsList>
-
-                      {/* Tab Content */}
-                      <TabsContent value="working" className="mt-0 space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">What's Working Well</h3>
-                          <Badge variant="secondary" className="bg-green-100 text-green-700">
-                            {dashboardData.analysis.business_health.working_well.length} items
-                          </Badge>
-                        </div>
+                      
+                      <TabsContent value="high" className="mt-0">
                         <div className="space-y-3">
-                          {dashboardData.analysis.business_health.working_well.length > 0 ? (
-                            dashboardData.analysis.business_health.working_well.map((item, index) => (
-                              <div key={index} className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                                <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
+                          {dashboardData.analysis.tasks_and_priorities.high_priority.length > 0 ? (
+                            dashboardData.analysis.tasks_and_priorities.high_priority.map((task, index) => (
+                              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 text-sm">{task.task}</h4>
+                                  <p className="text-xs text-gray-500 mt-1">Due: {task.deadline}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button>
+                                        <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                      <div className="text-sm p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                            <Navigation className="w-3 h-3 text-green-600" />
+                                          </div>
+                                          <p className="font-semibold text-gray-900">Where to go</p>
+                                        </div>
+                                        <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(task.guidance)}</p>
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                                </div>
                               </div>
                             ))
                           ) : (
-                            <div className="text-center py-8">
-                              <CheckCircle2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                              <p className="text-gray-500">No successful items identified yet</p>
+                            <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+                              No high priority tasks
                             </div>
                           )}
                         </div>
                       </TabsContent>
-
-                      <TabsContent value="lagging" className="mt-0 space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <TrendingDown className="w-5 h-5 text-yellow-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">What's Lagging Behind</h3>
-                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
-                            {dashboardData.analysis.business_health.lagging_areas.length} items
-                          </Badge>
-                        </div>
+                      
+                      <TabsContent value="medium" className="mt-0">
                         <div className="space-y-3">
-                          {dashboardData.analysis.business_health.lagging_areas.length > 0 ? (
-                            dashboardData.analysis.business_health.lagging_areas.map((area, index) => (
-                              <div key={index} className="flex items-start justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                <div className="flex items-start gap-3 flex-1">
-                                  <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
-                                  <p className="text-sm text-gray-700 leading-relaxed">{area.issue}</p>
+                          {dashboardData.analysis.tasks_and_priorities.medium_priority.length > 0 ? (
+                            dashboardData.analysis.tasks_and_priorities.medium_priority.map((task, index) => (
+                              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 text-sm">{task.task}</h4>
+                                  <p className="text-xs text-gray-500 mt-1">Due: {task.deadline}</p>
                                 </div>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button className="ml-3 flex-shrink-0">
-                                      <Lightbulb className="w-5 h-5 text-amber-500 hover:text-amber-600 cursor-pointer" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
-                                    <div className="text-sm p-3">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                                          <TrendingUp className="w-3 h-3 text-blue-600" />
+                                <div className="flex items-center gap-2">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button>
+                                        <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
+                                      <div className="text-sm p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                            <Navigation className="w-3 h-3 text-green-600" />
+                                          </div>
+                                          <p className="font-semibold text-gray-900">Where to go</p>
                                         </div>
-                                        <p className="font-semibold text-gray-900">Improvement Tip</p>
+                                        <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(task.guidance)}</p>
                                       </div>
-                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(area.quick_fix)}</p>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                                </div>
                               </div>
                             ))
                           ) : (
-                            <div className="text-center py-8">
-                              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                              <p className="text-gray-500">All tasks are on track</p>
-                            </div>
-                          )}
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent value="critical" className="mt-0 space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <AlertTriangle className="w-5 h-5 text-red-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">Critical Fixes Required</h3>
-                          <Badge variant="secondary" className="bg-red-100 text-red-700">
-                            {dashboardData.analysis.business_health.critical_fixes.length} items
-                          </Badge>
-                        </div>
-                        <div className="space-y-3">
-                          {dashboardData.analysis.business_health.critical_fixes.length > 0 ? (
-                            dashboardData.analysis.business_health.critical_fixes.map((fix, index) => (
-                              <div key={index} className="flex items-start justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
-                                <div className="flex items-start gap-3 flex-1">
-                                  <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                                  <p className="text-sm text-gray-700 leading-relaxed">{fix.issue}</p>
-                                </div>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button className="ml-3 flex-shrink-0">
-                                      <Lightbulb className="w-5 h-5 text-amber-500 hover:text-amber-600 cursor-pointer" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
-                                    <div className="text-sm p-3">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
-                                          <Lightbulb className="w-3 h-3 text-amber-600" />
-                                        </div>
-                                        <p className="font-semibold text-gray-900">Quick Fix</p>
-                                      </div>
-                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(fix.quick_fix)}</p>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center py-8">
-                              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                              <p className="text-gray-500">No critical fixes identified</p>
+                            <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+                              No medium priority tasks
                             </div>
                           )}
                         </div>
@@ -901,128 +1097,17 @@ export default function AIDashboard() {
                     </Tabs>
                   </CardContent>
                 </Card>
-              </div>
-            </div>
-          )}
-
-          {/* Priority Tasks and Key Insights Row */}
-          {dashboardData?.analysis && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Priority Tasks */}
-              <Card className="bg-white border border-gray-200">
-          <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-gray-900">Priority Tasks</CardTitle>
-          </CardHeader>
-                <CardContent>
-                  <Tabs defaultValue="high" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-4">
-                      <TabsTrigger value="high" className="text-sm data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
-                        <Flag className="w-4 h-4 mr-2 text-red-500" />
-                        High Priority
-                      </TabsTrigger>
-                      <TabsTrigger value="medium" className="text-sm data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700">
-                        <Clock className="w-4 h-4 mr-2 text-amber-500" />
-                        Medium Priority
-                      </TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="high" className="mt-0">
-                      <div className="space-y-3">
-                        {dashboardData.analysis.tasks_and_priorities.high_priority.length > 0 ? (
-                          dashboardData.analysis.tasks_and_priorities.high_priority.map((task, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 text-sm">{task.task}</h4>
-                                <p className="text-xs text-gray-500 mt-1">Due: {task.deadline}</p>
-                          </div>
-                              <div className="flex items-center gap-2">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button>
-                                      <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
-                                    <div className="text-sm p-3">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                                          <Navigation className="w-3 h-3 text-green-600" />
-                                        </div>
-                                        <p className="font-semibold text-gray-900">Where to go</p>
-                                      </div>
-                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(task.guidance)}</p>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
-                            No high priority tasks
-              </div>
+              )
             )}
-                </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="medium" className="mt-0">
-                      <div className="space-y-3">
-                        {dashboardData.analysis.tasks_and_priorities.medium_priority.length > 0 ? (
-                          dashboardData.analysis.tasks_and_priorities.medium_priority.map((task, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 text-sm">{task.task}</h4>
-                                <p className="text-xs text-gray-500 mt-1">Due: {task.deadline}</p>
-                          </div>
-                              <div className="flex items-center gap-2">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button>
-                                      <Lightbulb className="w-4 h-4 text-amber-500 hover:text-amber-600 cursor-pointer" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs bg-white border border-gray-200 shadow-xl">
-                                    <div className="text-sm p-3">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                                          <Navigation className="w-3 h-3 text-green-600" />
-                                        </div>
-                                        <p className="font-semibold text-gray-900">Where to go</p>
-                                      </div>
-                                      <p className="text-gray-700 leading-relaxed">{renderMarkdownLinks(task.guidance)}</p>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
-                            No medium priority tasks
-              </div>
-            )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-          </CardContent>
-        </Card>
 
-              {/* Key Insights */}
-              <Card className="bg-white border border-gray-200 flex flex-col md:flex-row">
-                 
-                 <img src="/insight.svg" alt="Key Insights" 
-                 className="w-full h-full object-contain rounded-lg mb-4 max-h-48 md:max-h-full md:w-1/3
-                 " />
- 
+            {/* Key Insights */}
+            {loadingStates.keyInsights ? <KeyInsightsSkeleton /> : (
+              dashboardData?.analysis && (
+                <Card className="bg-white border border-gray-200 flex flex-col md:flex-row">
+                  <img src="/insight.svg" alt="Key Insights" 
+                    className="w-full h-full object-contain rounded-lg mb-4 max-h-48 md:max-h-full md:w-1/3" />
                   <CardContent className="space-y-4 md:w-2/3 flex flex-col justify-center">
-                    {/* Full width image instead of graph */}
-                  
- 
-                   
-                   <CardTitle className="text-lg font-semibold text-gray-900">Key Insights</CardTitle>
-  
+                    <CardTitle className="text-lg font-semibold text-gray-900">Key Insights</CardTitle>
                     <div className="space-y-2">
                       {dashboardData.analysis.progress_metrics.insights.length > 0 ? (
                         dashboardData.analysis.progress_metrics.insights.map((insight, index) => {
@@ -1064,211 +1149,218 @@ export default function AIDashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              )
             )}
+          </div>
 
           {/* Progress Overview */}
-          {dashboardData?.analysis && (
-            <Card className="bg-white border border-gray-200 pt-4">
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg text-gray-700">Overall Progress</span>
-                    <span className="text-lg font-semibold text-gray-900">
-                      {dashboardData.analysis.progress_metrics.overall_progress}%
-                </span>
-              </div>
-                  <Progress 
-                    value={dashboardData.analysis.progress_metrics.overall_progress} 
-                    className="h-2"
-                  />
-            </div>
-              </CardContent>
-            </Card>
+          {loadingStates.progressOverview ? <ProgressOverviewSkeleton /> : (
+            dashboardData?.analysis && (
+              <Card className="bg-white border border-gray-200 pt-4">
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg text-gray-700">Overall Progress</span>
+                      <span className="text-lg font-semibold text-gray-900">
+                        {dashboardData.analysis.progress_metrics.overall_progress}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={dashboardData.analysis.progress_metrics.overall_progress} 
+                      className="h-2"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )
           )}
 
           {/* Bottom Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upcoming Meetings */}
-            <Card className="bg-white border border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Upcoming Meetings
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {meetings.length > 0 ? (
-                    meetings.map((meeting, index) => (
-                      <div key={meeting.id} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                          <Calendar className="w-4 h-4 text-white" />
-                </div>
+            {loadingStates.upcomingMeetings ? <UpcomingMeetingsSkeleton /> : (
+              <Card className="bg-white border border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Upcoming Meetings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {meetings.length > 0 ? (
+                      meetings.map((meeting, index) => (
+                        <div key={meeting.id} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                            <Calendar className="w-4 h-4 text-white" />
+                          </div>
                           <div className="flex-1">
-                          <h4 className="font-medium text-sm text-gray-900">{meeting.meeting_title}</h4>
-                          <p className="text-xs text-gray-500">
-                            {new Date(meeting.meeting_date).toLocaleDateString('en-US', {
-                              weekday: 'short',
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </p>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {meeting.meeting_type}
-                          </Badge>
-                </div>
-              </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4">
-                      <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No upcoming meetings scheduled</p>
-                      <Link href="/meeting-rhythm-planner">
-                        <Button variant="outline" size="sm" className="mt-2">
-                          Schedule Meeting
-                        </Button>
-                      </Link>
-                </div>
+                            <h4 className="font-medium text-sm text-gray-900">{meeting.meeting_title}</h4>
+                            <p className="text-xs text-gray-500">
+                              {new Date(meeting.meeting_date).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                            <Badge variant="outline" className="text-xs mt-1">
+                              {meeting.meeting_type}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4">
+                        <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No upcoming meetings scheduled</p>
+                        <Link href="/meeting-rhythm-planner">
+                          <Button variant="outline" size="sm" className="mt-2">
+                            Schedule Meeting
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             )}
-                </div>
-          </CardContent>
-        </Card>
 
             {/* Team Members */}
-            <Card className="bg-white border border-gray-200">
-          <CardHeader>
-              <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Team Members
-            </CardTitle>
-                  <Link href="/chain-of-command">
-                    <Button variant="ghost" size="sm">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </Link>
-                </div>
-          </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 mb-4">
-                  {teamMembers.length > 0 ? (
-                    teamMembers.slice(0, 5).map((member, index) => (
-                      <Tooltip key={member.id}>
-                        <TooltipTrigger asChild>
-                          <Avatar className="h-10 w-10 border-2 border-white shadow-sm hover:border-blue-200 transition-colors cursor-pointer">
-                            <AvatarFallback className="text-xs bg-gray-100 text-gray-600 hover:bg-blue-50">
-                              {getUserInitials(member.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-white border border-gray-200 shadow-lg">
-                          <div className="text-sm p-2">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <span className="text-blue-600 font-medium text-xs">{getUserInitials(member.name)}</span>
-                </div>
-                              <div>
-                                <p className="font-semibold text-gray-900">{member.name}</p>
-                                <p className="text-xs text-gray-500">{member.jobtitle}</p>
-              </div>
-                            </div>
-                            <div className="space-y-1 border-t border-gray-100 pt-2">
-                <div className="flex items-center gap-2">
-                                <Building className="w-3 h-3 text-gray-400" />
-                                <span className="text-xs text-gray-600">{member.department}</span>
-                </div>
-                              {member.manager && (
-                <div className="flex items-center gap-2">
-                                  <UserCircle className="w-3 h-3 text-gray-400" />
-                                  <span className="text-xs text-gray-600">Reports to: {member.manager}</span>
-                </div>
-                              )}
-              </div>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 w-full">
-                      <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No team members added yet</p>
-                      <Link href="/chain-of-command">
-                        <Button variant="outline" size="sm" className="mt-2">
-                          Add Team Members
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                  {teamMembers.length > 0 && (
+            {loadingStates.teamMembers ? <TeamMembersSkeleton /> : (
+              <Card className="bg-white border border-gray-200">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Team Members
+                    </CardTitle>
                     <Link href="/chain-of-command">
-                      <Button variant="ghost" size="sm" className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300">
-                        <Plus className="w-4 h-4 text-gray-400" />
+                      <Button variant="ghost" size="sm">
+                        <Plus className="w-4 h-4" />
                       </Button>
                     </Link>
-                  )}
-            </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2 mb-4">
+                    {teamMembers.length > 0 ? (
+                      teamMembers.slice(0, 5).map((member, index) => (
+                        <Tooltip key={member.id}>
+                          <TooltipTrigger asChild>
+                            <Avatar className="h-10 w-10 border-2 border-white shadow-sm hover:border-blue-200 transition-colors cursor-pointer">
+                              <AvatarFallback className="text-xs bg-gray-100 text-gray-600 hover:bg-blue-50">
+                                {getUserInitials(member.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-white border border-gray-200 shadow-lg">
+                            <div className="text-sm p-2">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <span className="text-blue-600 font-medium text-xs">{getUserInitials(member.name)}</span>
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-gray-900">{member.name}</p>
+                                  <p className="text-xs text-gray-500">{member.jobtitle}</p>
+                                </div>
+                              </div>
+                              <div className="space-y-1 border-t border-gray-100 pt-2">
+                                <div className="flex items-center gap-2">
+                                  <Building className="w-3 h-3 text-gray-400" />
+                                  <span className="text-xs text-gray-600">{member.department}</span>
+                                </div>
+                                {member.manager && (
+                                  <div className="flex items-center gap-2">
+                                    <UserCircle className="w-3 h-3 text-gray-400" />
+                                    <span className="text-xs text-gray-600">Reports to: {member.manager}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 w-full">
+                        <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No team members added yet</p>
+                        <Link href="/chain-of-command">
+                          <Button variant="outline" size="sm" className="mt-2">
+                            Add Team Members
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                    {teamMembers.length > 0 && (
+                      <Link href="/chain-of-command">
+                        <Button variant="ghost" size="sm" className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300">
+                          <Plus className="w-4 h-4 text-gray-400" />
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
 
-            <div>
-                  <h4 className="font-medium text-sm text-gray-900">Project Timeline</h4>
-                  {timelineEvents.length > 0 ? (
-                    <>
-                      <p className="text-xs text-gray-500 mb-2">
-                        {Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)}% Complete
-                      </p>
-                      <Progress 
-                        value={Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)} 
-                        className="h-2" 
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs text-gray-500 mb-2">No timeline data available</p>
-                      <Progress value={0} className="h-2" />
-                    </>
-                  )}
-            </div>
-          </CardContent>
-        </Card>
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-900">Project Timeline</h4>
+                    {timelineEvents.length > 0 ? (
+                      <>
+                        <p className="text-xs text-gray-500 mb-2">
+                          {Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)}% Complete
+                        </p>
+                        <Progress 
+                          value={Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)} 
+                          className="h-2" 
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs text-gray-500 mb-2">No timeline data available</p>
+                        <Progress value={0} className="h-2" />
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Project Timeline with Circular Progress */}
-            <Card className="bg-white border border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">Project Timeline</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {timelineEvents.length > 0 ? (
-                  <div className="flex flex-col items-center space-y-4">
-                    {/* Circular Progress Bar */}
-                    <CircularProgress 
-                      percentage={Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)} 
-                    />
-                    
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-900">Currently in Week {currentWeek}</p>
-                      <p className="text-xs text-gray-500">
-                        {timelineEvents.filter(event => event.is_completed).length} of {timelineEvents.length} events completed
+            {loadingStates.projectTimeline ? <ProjectTimelineSkeleton /> : (
+              <Card className="bg-white border border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900">Project Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {timelineEvents.length > 0 ? (
+                    <div className="flex flex-col items-center space-y-4">
+                      {/* Circular Progress Bar */}
+                      <CircularProgress 
+                        percentage={Math.round((timelineEvents.filter(event => event.is_completed).length / timelineEvents.length) * 100)} 
+                      />
+                      
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-gray-900">Currently in Week {currentWeek}</p>
+                        <p className="text-xs text-gray-500">
+                          {timelineEvents.filter(event => event.is_completed).length} of {timelineEvents.length} events completed
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-sm font-medium text-gray-900 mb-2">No Timeline Data</h3>
+                      <p className="text-xs text-gray-500 mb-4">
+                        Your project timeline will appear here once events are scheduled
                       </p>
-              </div>
-
-                    
-            </div>
-          ) : (
-                  <div className="text-center py-8">
-                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">No Timeline Data</h3>
-                    <p className="text-xs text-gray-500 mb-4">
-                      Your project timeline will appear here once events are scheduled
-                    </p>
-                    <Button variant="outline" size="sm">
-                      View Timeline
-                    </Button>
-            </div>
-          )}
-              </CardContent>
-            </Card>
-    </div>
+                      <Button variant="outline" size="sm">
+                        View Timeline
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {/* Error State */}
           {dashboardData?.type === 'error' && (
@@ -1279,10 +1371,10 @@ export default function AIDashboard() {
                 <Button onClick={handleRefresh} className="mt-4" variant="outline">
                   Try Again
                 </Button>
-                  </CardContent>
-                </Card>
+              </CardContent>
+            </Card>
           )}
-    </div>
+        </div>
       </div>
     </TooltipProvider>
   );
