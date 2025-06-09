@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@/utils/supabase/server';
+import { getTeamId } from '@/utils/supabase/teams';
 
 const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const teamId = await getTeamId(supabase, user.id);
     const { sopId, editPrompt, currentContent } = await req.json();
 
     if (!sopId || !editPrompt || !currentContent) {
@@ -28,12 +30,12 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Verify SOP ownership
+    // Verify SOP ownership for the team
     const { data: existingSop, error: sopError } = await supabase
       .from('sop_data')
       .select('*')
       .eq('id', sopId)
-      .eq('user_id', user.id)
+      .eq('user_id', teamId)
       .single();
 
     if (sopError || !existingSop) {
@@ -67,19 +69,19 @@ Return the complete revised SOP document.`;
     const result = await model.generateContent(prompt);
     const updatedContent = result.response.text();
 
-    // Mark current SOP as not current
+    // Mark current SOP as not current for the team
     await supabase
       .from('sop_data')
       .update({ is_current: false })
-      .eq('user_id', user.id)
+      .eq('user_id', teamId)
       .eq('is_current', true);
 
-    // Create new version
+    // Create new version for the team
     const newVersion = existingSop.version + 1;
     const { data: newSop, error: insertError } = await supabase
       .from('sop_data')
       .insert({
-        user_id: user.id,
+        user_id: teamId,
         title: existingSop.title,
         content: updatedContent,
         version: newVersion,

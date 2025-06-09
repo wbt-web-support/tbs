@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { Document, Page, Text, View, StyleSheet, renderToStream } from '@react-pdf/renderer';
 import React from 'react';
+import { getTeamId } from '@/utils/supabase/teams';
 
 // Create styles for the PDF
 const styles = StyleSheet.create({
@@ -459,63 +460,46 @@ export async function POST(req: NextRequest) {
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const teamId = await getTeamId(supabase, user.id);
     const { sopId } = await req.json();
 
     if (!sopId) {
-      return NextResponse.json({ error: "SOP ID is required" }, { status: 400 });
+      return new NextResponse("SOP ID is required", { status: 400 });
     }
 
-    // Get the SOP
+    // Fetch the specific SOP for the team
     const { data: sop, error: sopError } = await supabase
       .from('sop_data')
-      .select('title, content, version, created_at, updated_at, metadata')
+      .select('title, content, version, metadata')
       .eq('id', sopId)
-      .eq('user_id', user.id)
+      .eq('user_id', teamId)
       .single();
 
     if (sopError || !sop) {
-      return NextResponse.json({ error: "SOP not found" }, { status: 404 });
+      return new NextResponse("SOP not found or access denied", { status: 404 });
     }
 
-    console.log("Starting PDF generation for SOP:", sopId);
+    // Create a new PDF document
+    const pdfDoc = createSOPDocument(sop);
+    const stream = await renderToStream(pdfDoc);
 
-    // Generate PDF using @react-pdf/renderer
-    const document = createSOPDocument(sop);
-    const stream = await renderToStream(document);
-    
-    // Convert stream to buffer
-    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
-      const buffers: Buffer[] = [];
-      stream.on('data', (data: Buffer) => {
-        buffers.push(data);
-      });
-      stream.on('end', () => {
-        resolve(Buffer.concat(buffers));
-      });
-      stream.on('error', reject);
-    });
+    const companyName = sop.metadata?.company_name || 'SOP';
+    const sanitizedCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `${sanitizedCompanyName}_V${sop.version}.pdf`;
 
-    console.log("PDF generated successfully");
-    
-    const filename = `${sop.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_v${sop.version}.pdf`;
-
-    console.log("Returning PDF response");
-
-    return new Response(pdfBuffer, {
+    return new NextResponse(stream as any, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
+      status: 200,
     });
 
   } catch (error: any) {
-    console.error("PDF Generation API Error:", error);
-    
-    return NextResponse.json({ 
-      error: error.message || "Failed to generate PDF" 
-    }, { status: 500 });
+    console.error("PDF Generation Error:", error);
+    return new NextResponse("Failed to generate PDF", { status: 500 });
   }
 } 

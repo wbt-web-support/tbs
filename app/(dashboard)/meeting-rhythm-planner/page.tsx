@@ -28,6 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { getTeamMemberIds } from "@/utils/supabase/teams";
 
 type Meeting = {
   id: string;
@@ -301,10 +302,12 @@ export default function MeetingRhythmPlannerPage() {
       
       if (!user) throw new Error("No authenticated user");
       
+      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+
       const { data, error } = await supabase
         .from('meeting_rhythm_planner')
         .select('*')
-        .eq('user_id', user.id)
+        .in('user_id', teamMemberIds)
         .gte('meeting_date', `${selectedYear}-01-01`)
         .lte('meeting_date', `${selectedYear}-12-31`)
         .order('meeting_date', { ascending: true });

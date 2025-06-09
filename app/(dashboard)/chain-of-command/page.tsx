@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, Plus, Pencil, Trash2, Eye, Search, Filter, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
 import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -62,11 +63,13 @@ export default function ChainOfCommandPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) throw new Error("No authenticated user");
+
+      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
       
       const { data, error } = await supabase
         .from("chain_of_command")
         .select("*")
-        .eq("user_id", user.id)
+        .in("user_id", teamMemberIds)
         .order("name", { ascending: true });
 
       if (error) throw error;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@/utils/supabase/server';
+import { getTeamId } from '@/utils/supabase/teams';
 
 const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
@@ -20,32 +21,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const teamId = await getTeamId(supabase, user.id);
     const { onboardingData, customPrompt = "" } = await req.json();
 
-    // If no onboarding data provided, fetch from database
+    // If no onboarding data provided, fetch from database for the team
     let dataToUse = onboardingData;
     if (!dataToUse) {
       const { data: onboardingRecord, error: fetchError } = await supabase
         .from('company_onboarding')
         .select('onboarding_data')
-        .eq('user_id', user.id)
+        .eq('user_id', teamId)
         .eq('completed', true)
         .single();
 
       if (fetchError || !onboardingRecord) {
         return NextResponse.json({ 
-          error: "No completed onboarding data found. Please complete the onboarding process first." 
+          error: "No completed onboarding data found for the team. Please ensure the admin has completed the onboarding process." 
         }, { status: 400 });
       }
 
       dataToUse = onboardingRecord.onboarding_data;
     }
 
-    // Check if user already has an SOP and get the highest version number
+    // Check if team already has an SOP and get the highest version number
     const { data: existingSops, error: sopCheckError } = await supabase
       .from('sop_data')
       .select('id, version, is_current')
-      .eq('user_id', user.id)
+      .eq('user_id', teamId)
       .order('version', { ascending: false });
 
     if (sopCheckError) {
@@ -58,17 +60,17 @@ export async function POST(req: NextRequest) {
     if (existingSops && existingSops.length > 0) {
       const highestVersion = existingSops[0].version;
       nextVersion = highestVersion + 1;
-      console.log(`📋 Found ${existingSops.length} existing SOPs. Creating version ${nextVersion}`);
+      console.log(`📋 Found ${existingSops.length} existing SOPs for the team. Creating version ${nextVersion}`);
 
-      // Mark all current SOPs as not current
+      // Mark all current SOPs as not current for the team
       await supabase
         .from('sop_data')
         .update({ is_current: false })
-        .eq('user_id', user.id)
+        .eq('user_id', teamId)
         .eq('is_current', true);
-      console.log('✅ Marked existing SOPs as not current');
+      console.log('✅ Marked existing SOPs as not current for the team');
     } else {
-      console.log('🆕 Creating first SOP for user (version 1)');
+      console.log('🆕 Creating first SOP for the team (version 1)');
     }
 
     // Build comprehensive prompt for SOP generation
@@ -120,11 +122,11 @@ The SOP should be professional, comprehensive, and tailored specifically to this
     const companyName = dataToUse.company_name_official_registered || 'Company';
     const title = `${companyName} - Standard Operating Procedures`;
 
-    // Save SOP to database
+    // Save SOP to database for the team
     const { data: sopRecord, error: sopError } = await supabase
       .from('sop_data')
       .insert({
-        user_id: user.id,
+        user_id: teamId,
         title,
         content: sopContent,
         version: nextVersion,

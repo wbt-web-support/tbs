@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Loader2, ExternalLink, Edit, Save, PlusCircle, X, Code, Info, MousePointer2, Hand, ZoomIn, Camera, Upload, Image, FileCode2, Check, SwitchCamera } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamId } from "@/utils/supabase/teams";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -66,11 +67,13 @@ export default function GrowthMachinePage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) throw new Error("No authenticated user");
+
+      const teamId = await getTeamId(supabase, user.id);
       
       const { data, error } = await supabase
         .from("machines")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", teamId)
         .eq("enginetype", "GROWTH")
         .single();
 

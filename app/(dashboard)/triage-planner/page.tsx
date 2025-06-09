@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamId } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
 import CompanyInfo from "./components/company-info";
 import InternalTasks from "./components/internal-tasks";
@@ -45,11 +46,13 @@ export default function TriagePlannerPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) throw new Error("No authenticated user");
+
+      const teamId = await getTeamId(supabase, user.id);
       
       const { data, error } = await supabase
         .from("triage_planner")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", teamId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -61,7 +64,7 @@ export default function TriagePlannerPage() {
       } else {
         // Create a new entry if none exists
         const newPlanner = {
-          user_id: user.id,
+          user_id: teamId,
           company_info: {
             annualRevenue: { current: "", target: "" },
             profitMargin: { current: "", target: "" },

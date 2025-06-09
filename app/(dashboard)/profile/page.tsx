@@ -3,6 +3,7 @@
 // Import server-side Supabase client and redirect
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from 'next/navigation';
+import { getTeamId } from "@/utils/supabase/teams";
 
 // Import the new client component
 import { ProfileClientContent } from './profile-client-content';
@@ -39,13 +40,14 @@ export default async function ProfilePage() {
     return redirect('/sign-in');
   }
 
-  // Fetch business info for the logged-in user
-  // Use select('*') if you need all columns, or specify required ones
+  const teamId = await getTeamId(supabase, user.id);
+
+  // Fetch business info for the admin of the team
   const { data: businessInfo, error } = await supabase
-        .from('business_info')
-    .select('*') // Or specific columns: 'id, full_name, business_name, ...'
-    .eq('user_id', user.id)
-    .maybeSingle(); // Use maybeSingle() to handle cases where info might not exist yet
+    .from('business_info')
+    .select('*')
+    .eq('user_id', teamId) // Use teamId to fetch the admin's profile
+    .maybeSingle(); 
 
   // Handle potential errors during data fetching
   if (error) {

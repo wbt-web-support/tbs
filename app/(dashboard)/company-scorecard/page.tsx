@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, Plus, Pencil, Trash2, Search, Filter, BarChart, Eye, Calendar, Target, User, FileText, Info } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
 import { Input, ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -117,10 +118,12 @@ export default function CompanyScorecardPage() {
       
       if (!user) throw new Error("No authenticated user");
       
+      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      
       const { data, error } = await supabase
         .from("company_scorecards")
         .select("*")
-        .eq("user_id", user.id)
+        .in("user_id", teamMemberIds)
         .order("department", { ascending: true })
         .order("name", { ascending: true });
 

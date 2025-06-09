@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamId, getTeamMemberIds } from "@/utils/supabase/teams";
 import CustomerReviewsSummary from "./components/customer-reviews-summary";
 import Link from "next/link";
 import {
@@ -134,6 +135,8 @@ interface TeamMember {
   jobtitle: string;
   department: string;
   manager: string;
+  scheduled_date: string;
+  is_completed?: boolean;
 }
 
 interface MeetingData {
@@ -141,6 +144,7 @@ interface MeetingData {
   meeting_title: string;
   meeting_date: string;
   meeting_type: string;
+  is_completed?: boolean;
 }
 
 interface TimelineEvent {
@@ -282,11 +286,21 @@ const DonutChart = ({ data, size = 200 }: { data: { label: string; value: number
 export default function AIDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
+  const [adminProfile, setAdminProfile] = useState<BusinessInfo | null>(null); // To store admin info separately
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [meetings, setMeetings] = useState<MeetingData[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
-  
-  // Individual loading states for progressive loading
+  const [currentWeek, setCurrentWeek] = useState(0);
+  const [user, setUser] = useState<any | null>(null);
+
+  // State for the new personalized greeting
+  const [greetingName, setGreetingName] = useState<string>('');
+  const [companyName, setCompanyName] = useState<string>('');
+  const [isGreetingLoading, setIsGreetingLoading] = useState(true);
+  const [currentUserRole, setCurrentUserRole] = useState<string>('');
+
+  const supabase = createClient();
+
   const [loadingStates, setLoadingStates] = useState({
     greeting: true,
     quickLinks: true,
@@ -299,56 +313,78 @@ export default function AIDashboard() {
     upcomingMeetings: true,
     teamMembers: true,
     projectTimeline: true,
+    profile: true,
   });
-  
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [currentWeek, setCurrentWeek] = useState(1);
 
-  const supabase = createClient();
-
-  // Helper function to update individual loading states
   const updateLoadingState = (section: keyof typeof loadingStates, isLoading: boolean) => {
     setLoadingStates(prev => ({ ...prev, [section]: isLoading }));
   };
 
-  // Function to fetch business info and related data
   const fetchBusinessData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+      setUser(user);
 
-      // Fetch business info with google_review_link
-      const { data: businessData } = await supabase
+      const [teamId, teamMemberIds] = await Promise.all([
+        getTeamId(supabase, user.id),
+        getTeamMemberIds(supabase, user.id)
+      ]);
+
+      // Always fetch admin's info for company name
+      const { data: adminData, error: adminError } = await supabase
         .from("business_info")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", teamId)
         .single();
-
-      if (businessData) {
-        setBusinessInfo(businessData);
-        updateLoadingState('greeting', false);
-        updateLoadingState('quickLinks', false);
+      
+      if (adminData) {
+        setAdminProfile(adminData);
       }
+      
+      // Fetch the correct profile for the greeting
+      if (user.role === 'admin') {
+        setBusinessInfo(adminData);
+      } else {
+        const { data: userData, error: userError } = await supabase
+          .from('business_info')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (userError) {
+          console.warn("Could not fetch user's profile, falling back to admin's.", userError);
+          setBusinessInfo(adminData); // Fallback to admin's info
+        } else {
+          setBusinessInfo(userData);
+        }
+      }
+      updateLoadingState('greeting', false);
+      updateLoadingState('quickLinks', false);
 
-      // Fetch team members (following dashboard pattern)
+      // Fetch team members for the whole team
       const { data: teamData } = await supabase
         .from("chain_of_command")
         .select("id, name, jobtitle, department, manager")
-        .eq("user_id", user.id)
+        .in("user_id", teamMemberIds) // Use teamMemberIds for team-scoped data
         .order("name", { ascending: true })
         .limit(5);
 
       if (teamData) {
-        setTeamMembers(teamData);
+        setTeamMembers(teamData as TeamMember[]);
         updateLoadingState('teamMembers', false);
       }
 
-      // Fetch upcoming meetings (following dashboard pattern)
+      // Fetch upcoming meetings for the whole team
       const { data: meetingData } = await supabase
         .from("meeting_rhythm_planner")
         .select("id, meeting_title, meeting_date, meeting_type")
-        .eq("user_id", user.id)
+        .in("user_id", teamMemberIds) // Use teamMemberIds for team-scoped data
         .gte("meeting_date", new Date().toISOString().split('T')[0])
         .order("meeting_date", { ascending: true })
         .limit(3);
@@ -412,7 +448,6 @@ export default function AIDashboard() {
     }
   };
 
-  // Calculate current week function (same as dashboard)
   const calculateCurrentWeek = (events: any[]): number => {
     // Sort events by week number
     const sortedEvents = [...events].sort((a, b) => a.week_number - b.week_number);
@@ -434,12 +469,9 @@ export default function AIDashboard() {
       sortedEvents[sortedEvents.length - 1].week_number : 1;
   };
 
-  // Function to fetch dashboard analysis
   const fetchDashboardAnalysis = async (isRefresh = false) => {
     try {
       if (isRefresh) {
-        setIsRefreshing(true);
-      } else {
         setLoadingStates({
           greeting: true,
           quickLinks: true,
@@ -452,6 +484,7 @@ export default function AIDashboard() {
           upcomingMeetings: true,
           teamMembers: true,
           projectTimeline: true,
+          profile: true,
         });
       }
 
@@ -481,14 +514,6 @@ export default function AIDashboard() {
         }
         
         setDashboardData(data);
-        setLastUpdated(new Date());
-        // Update AI-dependent sections
-        updateLoadingState('businessStats', false);
-        updateLoadingState('businessHealth', false);
-        updateLoadingState('priorityTasks', false);
-        updateLoadingState('keyInsights', false);
-        updateLoadingState('progressOverview', false);
-        updateLoadingState('customerReviews', false);
         console.log('✅ [Dashboard] Generated and cached fresh data');
         return;
       }
@@ -515,14 +540,7 @@ export default function AIDashboard() {
       if (checkData.type === 'dashboard_analysis' && checkData.analysis) {
         console.log('✅ [Dashboard] Using cached data:', checkData.timestamp);
         setDashboardData(checkData);
-        setLastUpdated(new Date(checkData.timestamp));
-        // Update AI-dependent sections
-        updateLoadingState('businessStats', false);
-        updateLoadingState('businessHealth', false);
-        updateLoadingState('priorityTasks', false);
-        updateLoadingState('keyInsights', false);
-        updateLoadingState('progressOverview', false);
-        updateLoadingState('customerReviews', false);
+        console.log('✅ [Dashboard] Using cached data');
         return;
       }
 
@@ -550,14 +568,6 @@ export default function AIDashboard() {
       }
       
       setDashboardData(generateData);
-      setLastUpdated(new Date());
-      // Update AI-dependent sections
-      updateLoadingState('businessStats', false);
-      updateLoadingState('businessHealth', false);
-      updateLoadingState('priorityTasks', false);
-      updateLoadingState('keyInsights', false);
-      updateLoadingState('progressOverview', false);
-      updateLoadingState('customerReviews', false);
       console.log('✅ [Dashboard] Generated and cached fresh data');
 
     } catch (error) {
@@ -586,10 +596,54 @@ export default function AIDashboard() {
         upcomingMeetings: false,
         teamMembers: false,
         projectTimeline: false,
+        profile: false,
       });
-      setIsRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    const setupGreeting = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        setCurrentUserRole(user.role || 'user');
+
+        const teamId = await getTeamId(supabase, user.id);
+        
+        // Fetch admin info for company name
+        const { data: adminData } = await supabase
+          .from("business_info")
+          .select("business_name, full_name")
+          .eq("user_id", teamId)
+          .single();
+        
+        if (adminData) {
+          setCompanyName(adminData.business_name || '');
+        }
+
+        // Set the correct name for the greeting
+        if (user.role === 'admin') {
+          setGreetingName(adminData?.full_name || '');
+        } else {
+          const { data: userData } = await supabase
+            .from('business_info')
+            .select('full_name')
+            .eq('user_id', user.id)
+            .single();
+          setGreetingName(userData?.full_name || adminData?.full_name || '');
+        }
+      } catch (error) {
+        console.error("Error setting up greeting:", error);
+        // Fallback greeting
+        setGreetingName('there');
+      } finally {
+        setIsGreetingLoading(false);
+      }
+    };
+    
+    setupGreeting();
+  }, [supabase]);
 
   useEffect(() => {
     fetchBusinessData();
@@ -655,30 +709,26 @@ export default function AIDashboard() {
       <div className="min-h-screen">
         <div className="space-y-6">
           {/* Greeting Section */}
-          {loadingStates.greeting ? <GreetingSkeleton /> : (
+          {isGreetingLoading ? <GreetingSkeleton /> : (
             <Card className="bg-transparent border-none">
               <CardContent className="p-0">
                 <div className="flex justify-between items-start flex-col md:flex-row gap-4">
                   <div className="flex-1">
                     <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                      Hi, {businessInfo?.full_name?.split(' ')[0] || 'there'} 👋
+                      {getGreetingMessage()}, {greetingName.split(' ')[0]} 👋
                     </h1>
-                    <p className="text-gray-600 mb-4">
-                      Here's what we think you should focus on to improve your business performance today. 
-                      Our AI has analyzed your data and identified key areas for growth and optimization.
-                    </p>
+                    <p className="text-gray-600 ">
+                      {currentUserRole === 'admin'
+                        ? "Here's what we think you should focus on to improve your business performance today. Our AI has analyzed your data and identified key areas for growth and optimization."
+                        : `Welcome to ${companyName || "the dashboard"}. Let's get to work!`
+                      }
+                    </p >
+                    <p className="mb-4 text-gray-600" >Here's what we think you should focus on to improve your business performance today. Our AI has analyzed your data and identified key areas for growth and optimization.
+</p>
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span>Business Overview</span>
-                      <span>•</span>
-                      <span>Performance Insights</span>
-                      <span>•</span>
-                      <span>Action Items</span>
                     </div>
                   </div>
-                  <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline" size="sm">
-                    <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -803,8 +853,8 @@ export default function AIDashboard() {
             {/* Customer Reviews Summary */}
             <div className="xl:col-span-3">
               {loadingStates.customerReviews ? <CustomerReviewsSkeleton /> : (
-                businessInfo && (
-                  <CustomerReviewsSummary businessName={businessInfo.business_name} googleReviewLink={businessInfo.google_review_link} />
+                adminProfile && (
+                  <CustomerReviewsSummary businessName={adminProfile.business_name} googleReviewLink={adminProfile.google_review_link} />
                 )
               )}
             </div>

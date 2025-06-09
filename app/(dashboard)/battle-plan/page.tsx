@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, Link as LinkIcon, ExternalLink } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamId } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
 import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -48,11 +49,13 @@ export default function BattlePlanPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) throw new Error("No authenticated user");
+
+      const teamId = await getTeamId(supabase, user.id);
       
       const { data, error } = await supabase
         .from("battle_plan")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", teamId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -62,9 +65,9 @@ export default function BattlePlanPage() {
       if (data) {
         setBattlePlanData(data);
       } else {
-        // Create a new entry if none exists
+        // Create a new entry if none exists for the admin
         const newBattlePlan = {
-          user_id: user.id,
+          user_id: teamId,
           businessplanlink: "",
           missionstatement: "",
           visionstatement: "",

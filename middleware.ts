@@ -1,6 +1,30 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const dashboardPages = [
+  '/dashboard',
+  '/battle-plan',
+  '/chain-of-command',
+  '/chat',
+  '/chat-v2',
+  '/chq-timeline',
+  '/company-scorecard',
+  '/export',
+  '/fulfillment-machine',
+  '/fulfillment-machine-planner',
+  '/growth-machine',
+  '/growth-machine-planner',
+  'hwgt-plan',
+  '/innovation-machine',
+  '/invite',
+  '/meeting-rhythm-planner',
+  '/playbook-planner',
+  '/profile',
+  '/quarterly-sprint-canvas',
+  '/sop',
+  '/triage-planner',
+]
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -14,12 +38,9 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          const cookie = request.cookies.get(name)
-          // console.log(`Middleware: Getting cookie ${name}`, cookie?.value)
-          return cookie?.value
+          return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // console.log(`Middleware: Setting cookie ${name}`)
           response.cookies.set({
             name,
             value,
@@ -27,7 +48,6 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          // console.log(`Middleware: Removing cookie ${name}`)
           response.cookies.set({
             name,
             value: '',
@@ -38,94 +58,76 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
-  // console.log('Middleware: Session check result:', session ? 'Session found' : 'No session')
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  // If there's no session and the user is trying to access a protected route
-  if (!session && (
-    request.nextUrl.pathname.startsWith('/dashboard') ||
-    request.nextUrl.pathname.startsWith('/admin') ||
-    request.nextUrl.pathname.startsWith('/battle-plan') ||
-    request.nextUrl.pathname.startsWith('/chain-of-command') ||
-    request.nextUrl.pathname.startsWith('/chat') ||
-    request.nextUrl.pathname.startsWith('/chq-timeline') ||
-    request.nextUrl.pathname.startsWith('/company-scorecard') ||
-    request.nextUrl.pathname.startsWith('/fulfillment-machine') ||
-    request.nextUrl.pathname.startsWith('/growth-machine') ||
-    request.nextUrl.pathname.startsWith('/hwgt-plan') ||
-    request.nextUrl.pathname.startsWith('/meeting-rhythm-planner') ||
-    request.nextUrl.pathname.startsWith('/playbook-planner') ||
-    request.nextUrl.pathname.startsWith('/profile') ||
-    request.nextUrl.pathname.startsWith('/quarterly-sprint-canvas') ||
-    request.nextUrl.pathname.startsWith('/triage-planner')
-  )) {
-    // console.log('Middleware: Redirecting to sign-in due to missing session')
+  const isDashboardPage =
+    dashboardPages.some((p) => request.nextUrl.pathname.startsWith(p)) ||
+    request.nextUrl.pathname.startsWith('/admin')
+
+  if (!session && isDashboardPage) {
     const redirectUrl = new URL('/sign-in', request.url)
     redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If session exists, force onboarding before any dashboard/protected page (but not for public pages like /info)
-  if (session &&
-    !request.nextUrl.pathname.startsWith('/onboarding') &&
-    !request.nextUrl.pathname.startsWith('/sign-out') &&
-    !request.nextUrl.pathname.startsWith('/api') &&
-    !request.nextUrl.pathname.startsWith('/admin') &&
-    !request.nextUrl.pathname.startsWith('/info')
-  ) {
-    const { data: onboardingData } = await supabase
-      .from('company_onboarding')
-      .select('completed')
-      .eq('user_id', session.user.id)
-      .single();
-    if (!onboardingData?.completed) {
-      return NextResponse.redirect(new URL('/onboarding', request.url));
-    }
-  }
-
-  // If there's a session and the user is trying to access auth pages
-  if (session && (
-    request.nextUrl.pathname.startsWith('/sign-in') ||
-    request.nextUrl.pathname.startsWith('/sign-up')
-  )) {
-    // Check user role and onboarding status
+  if (session) {
     const { data: userData } = await supabase
       .from('business_info')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .single();
-
-    const { data: onboardingData } = await supabase
-      .from('company_onboarding')
-      .select('completed')
-      .eq('user_id', session.user.id)
-      .single();
-
-    // First check if user is super_admin
-    if (userData?.role === 'super_admin') {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
-    
-    // Then check if onboarding is needed
-    if (!onboardingData?.completed && !request.nextUrl.pathname.startsWith('/onboarding')) {
-      return NextResponse.redirect(new URL('/onboarding', request.url));
-    }
-    
-    // If all checks pass, redirect to dashboard
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // If the user is trying to access admin pages, check if they're a super_admin
-  if (session && request.nextUrl.pathname.startsWith('/admin')) {
-    const { data: userData } = await supabase
-      .from('business_info')
-      .select('role')
+      .select('role, permissions')
       .eq('user_id', session.user.id)
       .single()
-    
-    if (userData?.role !== 'super_admin') {
-      // console.log('Middleware: Redirecting non-super_admin user from admin page')
+
+    const { data: onboardingData } = await supabase
+      .from('company_onboarding')
+      .select('completed')
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (
+      !onboardingData?.completed &&
+      !request.nextUrl.pathname.startsWith('/onboarding') &&
+      !request.nextUrl.pathname.startsWith('/sign-out') &&
+      !request.nextUrl.pathname.startsWith('/api') &&
+      !request.nextUrl.pathname.startsWith('/admin') &&
+      !request.nextUrl.pathname.startsWith('/info')
+    ) {
+      return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+
+    if (
+      request.nextUrl.pathname.startsWith('/sign-in') ||
+      request.nextUrl.pathname.startsWith('/sign-up')
+    ) {
+      if (userData?.role === 'super_admin') {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+      if (!onboardingData?.completed) {
+        return NextResponse.redirect(new URL('/onboarding', request.url))
+      }
       return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+      if (userData?.role !== 'super_admin') {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    }
+
+    if (isDashboardPage && userData?.role === 'user') {
+      const pageSlug = request.nextUrl.pathname.substring(1).split('/')[0]
+      const permissions = userData.permissions as { pages?: string[] } | null
+      const allowedPages = permissions?.pages ?? []
+
+      if (pageSlug === 'invite') {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+
+      const defaultAllowed = ['dashboard', 'profile']
+      if (!allowedPages.includes(pageSlug) && !defaultAllowed.includes(pageSlug)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
     }
   }
 

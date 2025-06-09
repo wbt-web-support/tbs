@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamId } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
 import TopSection from "./components/top-section";
 import MiddleSection from "./components/middle-section";
@@ -50,11 +51,13 @@ export default function QuarterlySprintCanvasPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) throw new Error("No authenticated user");
+
+      const teamId = await getTeamId(supabase, user.id);
       
       const { data, error } = await supabase
         .from("quarterly_sprint_canvas")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", teamId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -66,7 +69,7 @@ export default function QuarterlySprintCanvasPage() {
       } else {
         // Create a new entry if none exists
         const newCanvas = {
-          user_id: user.id,
+          user_id: teamId,
           revenuegoals: {
             good: "",
             better: "",

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -89,10 +90,12 @@ export default function GrowthEngineLibraryPage() {
       
       if (!user) throw new Error("No authenticated user");
       
+      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      
       const { data, error } = await supabase
         .from("playbooks")
         .select("*")
-        .eq("user_id", user.id)
+        .in("user_id", teamMemberIds)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

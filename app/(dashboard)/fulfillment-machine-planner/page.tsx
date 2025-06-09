@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, Save, ArrowRight, Pencil, X, Plus, CircleDot, ExternalLink } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -69,11 +70,13 @@ export default function FulfillmentMachinePlannerPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) throw new Error("No authenticated user");
+
+      const teamId = await getTeamId(supabase, user.id);
       
       const { data, error } = await supabase
         .from("machines")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", teamId)
         .eq("enginetype", "FULFILLMENT")
         .single();
 
@@ -86,7 +89,7 @@ export default function FulfillmentMachinePlannerPage() {
       } else {
         // Create a new entry if none exists
         const newMachine = {
-          user_id: user.id,
+          user_id: teamId,
           enginename: "Fulfillment Machine",
           enginetype: "FULFILLMENT",
           description: "",
