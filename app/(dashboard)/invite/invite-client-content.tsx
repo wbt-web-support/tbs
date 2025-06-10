@@ -100,7 +100,7 @@ export function InviteClientContent({ isAdmin }: InviteClientContentProps) {
   return (
     <div className="space-y-6 p-4 md:p-10">
       <div>
-        <h3 className="text-lg font-medium">Invite New User</h3>
+        <h3 className="text-lg font-medium">Invite New User in your company</h3>
         <p className="text-sm text-muted-foreground">
           Invite a new user to your team and set their permissions.
         </p>
