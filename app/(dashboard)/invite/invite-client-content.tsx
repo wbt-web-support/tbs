@@ -37,6 +37,8 @@ type FormValues = z.infer<typeof formSchema>
 
 const permissionOptions = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'chat', label: 'Chat' },
+  { id: 'sop', label: 'SOP' },
   { id: 'chq-timeline', label: 'CHQ Timeline' },
   { id: 'chain-of-command', label: 'Chain of Command' },
   { id: 'triage-planner', label: 'Triage Planner' },
@@ -51,7 +53,6 @@ const permissionOptions = [
   { id: 'meeting-rhythm-planner', label: 'Meeting Rhythm Planner' },
   { id: 'quarterly-sprint-canvas', label: 'Quarterly Sprint Canvas' },
   { id: 'hwgt-plan', label: 'HWGT Plan' },
-  { id: 'users', label: 'User Management' },
 ]
 
 export default function InviteClientContent() {
