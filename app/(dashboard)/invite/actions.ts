@@ -3,15 +3,31 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import * as z from 'zod'
+import { z } from 'zod'
+import { sendEmail } from '@/lib/send-email'
+import { getInvitationEmailHtml } from '@/lib/email-templates/invitation'
 
 const inviteFormSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  permissions: z.array(z.string()),
+  email: z.string().email({
+    message: 'Please enter a valid email address.',
+  }),
+  password: z.string().min(8, {
+    message: 'Password must be at least 8 characters long.',
+  }).optional(),
+  full_name: z.string().min(1, {
+    message: 'Full name is required.',
+  }),
+  phone_number: z.string().min(1, {
+    message: 'Phone number is required.',
+  }),
+  permissions: z.array(z.string()).refine((value) => value.some((item) => item), {
+    message: 'You have to select at least one permission.',
+  }),
 })
 
-export async function inviteUser(values: z.infer<typeof inviteFormSchema>) {
+type InviteFormValues = z.infer<typeof inviteFormSchema>
+
+export async function inviteUser(values: InviteFormValues, editUserId?: string) {
   const cookieStore = await cookies()
   
   const supabase = createServerClient(
@@ -19,18 +35,21 @@ export async function inviteUser(values: z.infer<typeof inviteFormSchema>) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
+        get(name: string) {
+          return cookieStore.get(name)?.value
         },
-        setAll(cookiesToSet) {
+        set(name: string, value: string, options: any) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            cookieStore.set({ name, value, ...options })
+          } catch (error) {
+            // Handle cookie errors
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            cookieStore.set({ name, value: '', ...options })
+          } catch (error) {
+            // Handle cookie errors
           }
         },
       },
@@ -45,10 +64,9 @@ export async function inviteUser(values: z.infer<typeof inviteFormSchema>) {
     return { success: false, error: 'Not authenticated' }
   }
 
-  // Check if the current user is an admin
   const { data: adminBusinessInfo, error: adminError } = await supabase
     .from('business_info')
-    .select('role, team_id, business_name')
+    .select('role, team_id, business_name, full_name')
     .eq('user_id', session.user.id)
     .single()
 
@@ -64,55 +82,135 @@ export async function inviteUser(values: z.infer<typeof inviteFormSchema>) {
   if (!validatedData.success) {
     return { success: false, error: 'Invalid input.' }
   }
+  
+  const { email, password, full_name, phone_number, permissions } = validatedData.data
 
-  const { email, password, permissions } = validatedData.data
+  if (editUserId) {
+    const { error: updateError } = await supabase
+      .from('business_info')
+      .update({
+        full_name,
+        phone_number,
+        permissions: { pages: permissions },
+      })
+      .eq('id', editUserId)
 
-  // Create a new Supabase client with the service role key to perform admin actions
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+    if (updateError) {
+      return { success: false, error: `Error updating user: ${updateError.message}` }
     }
-  )
 
-  // Create the user using the admin client
-  const { data: createUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  })
+    if (password) {
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      )
 
-  if (createUserError) {
-    return { success: false, error: `Error creating user: ${createUserError.message}` }
-  }
+      const { data: userInfo, error: userError } = await supabase
+        .from('business_info')
+        .select('user_id')
+        .eq('id', editUserId)
+        .single()
 
-  if (createUserData && createUserData.user) {
-    // Create business_info for the new user
-    const teamId = adminBusinessInfo.team_id || session.user.id
-    
-    const { error: createError } = await supabase.from('business_info').insert({
-      user_id: createUserData.user.id,
-      email: email,
-      role: 'user',
-      team_id: teamId,
-      permissions: { pages: permissions },
-      business_name: adminBusinessInfo.business_name,
-      full_name: email, // Default full_name to email
-      phone_number: '0000000000', // Placeholder
-      payment_option: 'none', // Placeholder
-    })
+      if (userError || !userInfo) {
+        return { success: false, error: 'Could not find user to update password.' }
+      }
 
-    if (createError) {
-      // If creating the profile fails, we should delete the invited user
-      await supabaseAdmin.auth.admin.deleteUser(createUserData.user.id)
-      return { success: false, error: `Error creating user profile: ${createError.message}` }
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+        userInfo.user_id,
+        { password }
+      )
+
+      if (passwordError) {
+        return { success: false, error: `Error updating password: ${passwordError.message}` }
+      }
     }
 
     return { success: true }
+  } else {
+    if (!password) {
+      return { success: false, error: 'Password is required for new users' }
+    }
+
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+
+    const { data: createUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    })
+
+    if (createUserError) {
+      return { success: false, error: `Error creating user: ${createUserError.message}` }
+    }
+
+    if (createUserData && createUserData.user) {
+      const newUser = createUserData.user;
+      const teamId = adminBusinessInfo.team_id || session.user.id;
+
+      const { error: createError } = await supabase.from('business_info').insert({
+        user_id: newUser.id,
+        email: email,
+        full_name: full_name,
+        business_name: adminBusinessInfo.business_name,
+        phone_number: phone_number,
+        role: 'user',
+        team_id: teamId,
+        permissions: { pages: permissions },
+        payment_option: 'none',
+      });
+
+      if (createError) {
+        await supabaseAdmin.auth.admin.deleteUser(newUser.id);
+        return { success: false, error: `Error creating user profile: ${createError.message}` };
+      }
+      
+      const { error: onboardingError } = await supabase.from('company_onboarding').insert({
+        user_id: newUser.id,
+        onboarding_data: {},
+        completed: true,
+      });
+
+      if (onboardingError) {
+        console.error('Failed to create completed onboarding record for user:', onboardingError.message);
+      }
+
+      // Send invitation email
+      const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`;
+      const emailHtml = getInvitationEmailHtml({
+        invitedBy: adminBusinessInfo.full_name,
+        companyName: adminBusinessInfo.business_name,
+        userEmail: email,
+        userPassword: password,
+        loginUrl,
+      });
+
+      const emailResult = await sendEmail({
+        to: email,
+        subject: `You're invited to join ${adminBusinessInfo.business_name}`,
+        html: emailHtml,
+      });
+
+      if (!emailResult.success) {
+        console.error('Failed to send invitation email:', emailResult.error);
+      }
+
+      return { success: true }
+    }
   }
 
   return { success: false, error: 'An unknown error occurred.' }

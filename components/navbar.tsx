@@ -26,6 +26,8 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const [user, setUser] = useState<any>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [showSopNotification, setShowSopNotification] = useState(false);
   const sopButtonRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -41,34 +43,38 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       if (user) {
         const { data: businessInfo } = await supabase
           .from('business_info')
-          .select('profile_picture_url, full_name')
+          .select('profile_picture_url, full_name, role, permissions')
           .eq('user_id', user.id)
           .single();
 
         if (businessInfo) {
           setProfilePicture(businessInfo.profile_picture_url);
           setFullName(businessInfo.full_name);
+          setUserRole(businessInfo.role);
+          if (businessInfo.role !== 'admin' && businessInfo.role !== 'super_admin') {
+            setUserPermissions(businessInfo.permissions?.pages || []);
+          }
         }
       }
     }
 
     loadUserData();
     
-    // Check if user came from onboarding
     if (searchParams.get('onboarding') === 'completed') {
       setShowSopNotification(true);
-      // Clean up the URL parameter
       const url = new URL(window.location.href);
       url.searchParams.delete('onboarding');
       router.replace(url.pathname + url.search, { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, supabase]);
 
   useEffect(() => {
     if (pathname === '/sop') {
       setShowSopNotification(false);
     }
   }, [pathname]);
+
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
   return (
     <div className="border-b">
@@ -81,68 +87,71 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             <Menu className="h-5 w-5" />
           </button>
         
-          <Link href="/chat">
-            <Button variant="ghost" size="sm" className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 hover:text-white rounded">
-              <MessageSquare className="h-4 w-4" />
-              <span>Chat</span>
-            </Button>
-          </Link>
-          <div ref={sopButtonRef} className="relative">
-            <Link href="/sop">
-              <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
-                <FileText className="h-4 w-4" />
-                <span>SOP</span>
+          {(isAdmin || userPermissions.includes('chat')) && (
+            <Link href="/chat">
+              <Button variant="ghost" size="sm" className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 hover:text-white rounded">
+                <MessageSquare className="h-4 w-4" />
+                <span>Chat</span>
               </Button>
             </Link>
-            
-            {/* SOP Ready Notification Popup */}
-            {showSopNotification && (
-              <div className="absolute top-full left-0 mt-2 z-50 w-80">
-                <Card className="border border-green-200 bg-green-50 shadow-lg">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-green-900 text-sm mb-1">
-                          Your SOP is Ready! 🎉
-                        </h3>
-                        <p className="text-xs text-green-700 mb-3">
-                          We've created a personalized Standard Operating Procedure based on your onboarding information.
-                        </p>
-                        <div className="flex gap-2">
-                          <Link href="/sop">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs">
-                              View SOP
-                            </Button>
-                          </Link>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="text-green-600 hover:text-green-700 text-xs"
-                            onClick={() => setShowSopNotification(false)}
-                          >
-                            Later
-                          </Button>
+          )}
+
+          {(isAdmin || userPermissions.includes('sop')) && (
+            <div ref={sopButtonRef} className="relative">
+              <Link href="/sop">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
+                  <FileText className="h-4 w-4" />
+                  <span>SOP</span>
+                </Button>
+              </Link>
+              
+              {showSopNotification && (
+                <div className="absolute top-full left-0 mt-2 z-50 w-80">
+                  <Card className="border border-green-200 bg-green-50 shadow-lg">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-green-900 text-sm mb-1">
+                            Your SOP is Ready! 🎉
+                          </h3>
+                          <p className="text-xs text-green-700 mb-3">
+                            We've created a personalized Standard Operating Procedure based on your onboarding information.
+                          </p>
+                          <div className="flex gap-2">
+                            <Link href="/sop">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs">
+                                View SOP
+                              </Button>
+                            </Link>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-green-600 hover:text-green-700 text-xs"
+                              onClick={() => setShowSopNotification(false)}
+                            >
+                              Later
+                            </Button>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="p-1 h-auto text-green-600 hover:text-green-700"
+                          onClick={() => setShowSopNotification(false)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="p-1 h-auto text-green-600 hover:text-green-700"
-                        onClick={() => setShowSopNotification(false)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-                {/* Arrow pointing up to the SOP button */}
-                <div className="absolute -top-2 left-6 w-4 h-4 bg-green-50 border-l border-t border-green-200 transform rotate-45"></div>
-              </div>
-            )}
-          </div>
+                    </CardContent>
+                  </Card>
+                  <div className="absolute -top-2 left-6 w-4 h-4 bg-green-50 border-l border-t border-green-200 transform rotate-45"></div>
+                </div>
+              )}
+            </div>
+          )}
           
         </div>
         <DropdownMenu>

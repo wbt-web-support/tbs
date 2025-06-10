@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 import { 
   LayoutDashboard,
   Calendar,
@@ -24,6 +26,7 @@ import {
   Sparkles,
   Lightbulb,
   LucideIcon,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -150,6 +153,11 @@ const navigationSections: NavigationSection[] = [
         href: "/hwgt-plan",
         icon: Compass,
       },
+      {
+        name: "User Management",
+        href: "/users",
+        icon: Users,
+      },
     ]
   },
 ];
@@ -161,6 +169,51 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: businessInfo } = await supabase
+          .from('business_info')
+          .select('role, permissions')
+          .eq('user_id', user.id)
+          .single();
+
+        if (businessInfo) {
+          setUserRole(businessInfo.role);
+          if (businessInfo.role !== 'admin' && businessInfo.role !== 'super_admin') {
+            setUserPermissions(businessInfo.permissions?.pages || []);
+          }
+        }
+      }
+      setIsLoading(false);
+    };
+
+    fetchUserPermissions();
+  }, [supabase]);
+  
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+
+  const visibleSections = useMemo(() => {
+    if (isLoading) return [];
+    if (isAdmin) return navigationSections;
+
+    return navigationSections
+      .map(section => ({
+        ...section,
+        items: section.items.filter(item => {
+          const pageKey = item.href.substring(1);
+          return userPermissions.includes(pageKey);
+        }),
+      }))
+      .filter(section => section.items.length > 0);
+  }, [isAdmin, userPermissions, isLoading]);
+
 
   return (
     <>
@@ -187,53 +240,59 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
         <nav className="flex-1 p-4 overflow-y-auto">
-          <div className="space-y-6">
-            {navigationSections.map((section, index) => (
-              <div key={section.title} className="space-y-2">
-                <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider">
-                  {section.title}
-                </h2>
-                <div className="space-y-1">
-                  {section.items.map((item) => {
-                    const isActive = pathname === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.disabled ? "#" : item.href}
-                        onClick={(e) => {
-                          if (item.disabled) {
-                            e.preventDefault();
-                            return;
-                          }
-                          // Close sidebar on mobile when clicking a link
-                          if (window.innerWidth < 1024) {
-                            onClose();
-                          }
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition-colors",
-                          "hover:bg-blue-50/80 hover:text-blue-700",
-                          isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600",
-                          item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-600"
-                        )}
-                        title={item.disabled ? "Coming Soon" : ""}
-                      >
-                        <item.icon 
+          {isLoading ? (
+             <div className="flex justify-center items-center h-full">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {visibleSections.map((section) => (
+                <div key={section.title} className="space-y-2">
+                  <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider">
+                    {section.title}
+                  </h2>
+                  <div className="space-y-1">
+                    {section.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.disabled ? "#" : item.href}
+                          onClick={(e) => {
+                            if (item.disabled) {
+                              e.preventDefault();
+                              return;
+                            }
+                            // Close sidebar on mobile when clicking a link
+                            if (window.innerWidth < 1024) {
+                              onClose();
+                            }
+                          }}
                           className={cn(
-                            "h-4 w-4 transition-transform group-hover:scale-110",
-                            isActive ? "text-blue-600" : "text-blue-500",
-                            item.disabled && "text-gray-400"
+                            "flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition-colors",
+                            "hover:bg-blue-50/80 hover:text-blue-700",
+                            isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600",
+                            item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-600"
                           )}
-                          strokeWidth={2}
-                        />
-                        {item.name}
-                      </Link>
-                    );
-                  })}
+                          title={item.disabled ? "Coming Soon" : ""}
+                        >
+                          <item.icon 
+                            className={cn(
+                              "h-4 w-4 transition-transform group-hover:scale-110",
+                              isActive ? "text-blue-600" : "text-blue-500",
+                              item.disabled && "text-gray-400"
+                            )}
+                            strokeWidth={2}
+                          />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </nav>
         
         {/* Skool Classroom Link - Fixed at bottom */}

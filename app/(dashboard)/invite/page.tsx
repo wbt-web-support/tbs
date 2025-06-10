@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { getUserRole } from '@/utils/utils'
-import { InviteClientContent } from './invite-client-content'
+import InviteClientContent from './invite-client-content'
 
 export default async function InvitePage() {
   const supabase = await createClient()
@@ -14,8 +14,5 @@ export default async function InvitePage() {
     return redirect('/sign-in')
   }
 
-  const role = await getUserRole(session.user.id)
-  const isAdmin = role === 'admin' || role === 'super_admin'
-
-  return <InviteClientContent isAdmin={isAdmin} />
+  return <InviteClientContent />
 } 
