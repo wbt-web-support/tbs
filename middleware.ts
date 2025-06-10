@@ -100,9 +100,9 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/sign-in') ||
       request.nextUrl.pathname.startsWith('/sign-up')
     ) {
-      if (userData?.role === 'super_admin') {
+    if (userData?.role === 'super_admin') {
         return NextResponse.redirect(new URL('/admin', request.url))
-      }
+    }
       if (!onboardingData?.completed) {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       }
@@ -126,7 +126,7 @@ export async function middleware(request: NextRequest) {
 
       const defaultAllowed = ['dashboard', 'profile']
       if (!allowedPages.includes(pageSlug) && !defaultAllowed.includes(pageSlug)) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     }
   }

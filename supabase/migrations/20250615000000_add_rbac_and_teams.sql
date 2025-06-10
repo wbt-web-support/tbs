@@ -3,7 +3,7 @@ ALTER TABLE public.business_info ADD COLUMN team_id uuid;
 
 -- Add permissions column to business_info to store user-specific permissions.
 ALTER TABLE public.business_info ADD COLUMN permissions jsonb;
-
+ 
 -- Update existing admins to be on their own team.
 -- This makes their user_id the team_id for their team.
 UPDATE public.business_info
