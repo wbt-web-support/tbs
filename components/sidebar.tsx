@@ -247,7 +247,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           ) : (
             <div className="space-y-6">
               {visibleSections.map((section) => (
-                <div key={section.title} className="space-y-2">
+                <div key={section.title} className="space-y-1">
                   <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider">
                     {section.title}
                   </h2>

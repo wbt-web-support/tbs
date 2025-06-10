@@ -110,7 +110,7 @@ export default function InviteClientContent() {
   }
 
   return (
-    <div className="mx-auto py-12 px-6">
+    <div className="mx-auto">
       <div className="mb-10">
         <h1 className="text-3xl font-medium text-gray-900">
           {isEditing ? 'Edit User' : 'Invite User'}
