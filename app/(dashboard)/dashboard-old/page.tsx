@@ -781,7 +781,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="px-6 pb-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Link href="/battle-plan" className="block">
+              <Link href="/business-battle-plan" className="block">
                 <div className="p-3 rounded-md border border-gray-200 hover:border-blue-300 transition-all h-full flex flex-col">
                   <div className="flex items-center gap-2 mb-1">
                     <Swords className="h-4 w-4 text-blue-600" />

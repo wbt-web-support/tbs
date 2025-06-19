@@ -69,7 +69,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   }, [searchParams, router, supabase]);
 
   useEffect(() => {
-    if (pathname === '/sop') {
+    if (pathname === '/battle-plan') {
       setShowSopNotification(false);
     }
   }, [pathname]);
@@ -98,10 +98,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
           {(isAdmin || userPermissions.includes('sop')) && (
             <div ref={sopButtonRef} className="relative">
-              <Link href="/sop">
+              <Link href="/battle-plan">
                 <Button variant="ghost" size="sm" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/80">
                   <FileText className="h-4 w-4" />
-                  <span>SOP</span>
+                  <span>Battle Plan</span>
                 </Button>
               </Link>
               
@@ -115,13 +115,13 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-green-900 text-sm mb-1">
-                            Your SOP is Ready! 🎉
+                            Your Battle Plan is Ready! 🎉
                           </h3>
                           <p className="text-xs text-green-700 mb-3">
-                            We've created a personalized Standard Operating Procedure based on your onboarding information.
+                            We've created a personalized Battle Plan based on your onboarding information.
                           </p>
                           <div className="flex gap-2">
-                            <Link href="/sop">
+                            <Link href="/battle-plan">
                               <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs">
                                 View SOP
                               </Button>

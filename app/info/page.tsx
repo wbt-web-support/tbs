@@ -634,8 +634,8 @@ export default function InfoPage() {
                   <div className="flex items-center space-x-3">
                     <FileText className="h-8 w-8 text-amber-600" />
                     <div>
-                      <CardTitle className="text-xl">SOP Management</CardTitle>
-                      <CardDescription>Standard Operating Procedures and document management</CardDescription>
+                      <CardTitle className="text-xl">Battle Plan Management</CardTitle>
+                      <CardDescription>Battle Plan and document management</CardDescription>
                     </div>
                   </div>
                   <Badge variant="secondary">Documentation</Badge>

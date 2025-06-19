@@ -42,6 +42,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "SOP not found or access denied" }, { status: 404 });
     }
 
+    // Check if this is a manual inline edit (no AI processing needed)
+    const isManualEdit = editPrompt.includes('manual inline edit (no history)');
+
+    if (isManualEdit) {
+      // For manual edits: just update the current SOP content directly
+      const { data: updatedSop, error: updateError } = await supabase
+        .from('sop_data')
+        .update({ 
+          content: currentContent,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sopId)
+        .eq('user_id', teamId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Error updating SOP content:", updateError);
+        return NextResponse.json({ error: "Failed to update SOP" }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        sop: updatedSop
+      });
+    }
+
+    // For AI-assisted edits: use the existing flow with Gemini
     // Build prompt for SOP editing
     const prompt = `You are an expert business consultant helping to revise a Standard Operating Procedure (SOP) document.
 

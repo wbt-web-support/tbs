@@ -118,9 +118,9 @@ The SOP should be professional, comprehensive, and tailored specifically to this
     const result = await model.generateContent(prompt);
     const sopContent = result.response.text();
 
-    // Generate a title based on company name
+        // Generate a title based on company name
     const companyName = dataToUse.company_name_official_registered || 'Company';
-    const title = `${companyName} - Standard Operating Procedures`;
+    const title = `${companyName} - Battle Plan`;
 
     // Save SOP to database for the team
     const { data: sopRecord, error: sopError } = await supabase
@@ -152,9 +152,9 @@ The SOP should be professional, comprehensive, and tailored specifically to this
     });
 
   } catch (error: any) {
-    console.error("SOP Generation Error:", error);
+    console.error("Battle Plan Generation Error:", error);
     return NextResponse.json({ 
-      error: error.message || "Failed to generate SOP" 
+      error: error.message || "Failed to generate Battle Plan" 
     }, { status: 500 });
   }
 } 

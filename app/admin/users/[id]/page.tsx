@@ -974,7 +974,7 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
               <TabsTrigger value="benefits">Benefits</TabsTrigger>
-              <TabsTrigger value="battle-plan">Battle Plan</TabsTrigger>
+              <TabsTrigger value="business-battle-plan">Battle Plan</TabsTrigger>
               <TabsTrigger value="command">Chain of Command</TabsTrigger>
               <TabsTrigger value="hwgt">HWGT Plan</TabsTrigger>
               <TabsTrigger value="machines">Machines</TabsTrigger>
@@ -1151,7 +1151,7 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
               </Card>
             </TabsContent>
             
-            <TabsContent value="battle-plan" className="space-y-4">
+            <TabsContent value="business-battle-plan" className="space-y-4">
               <Card>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">

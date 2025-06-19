@@ -28,7 +28,7 @@ const pages = [
   },
   {
     name: "Business Battle Plan",
-    href: "/battle-plan",
+    href: "/business-battle-plan",
     progress: 30,
   },
   {

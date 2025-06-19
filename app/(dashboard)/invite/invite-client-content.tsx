@@ -42,7 +42,7 @@ const permissionOptions = [
   { id: 'chq-timeline', label: 'CHQ Timeline' },
   { id: 'chain-of-command', label: 'Chain of Command' },
   { id: 'triage-planner', label: 'Triage Planner' },
-  { id: 'battle-plan', label: 'Business Battle Plan' },
+  { id: 'business-battle-plan', label: 'Business Battle Plan' },
   { id: 'growth-machine-planner', label: 'Growth Machine Planner' },
   { id: 'growth-machine', label: 'Growth Machine' },
   { id: 'fulfillment-machine-planner', label: 'Fulfillment Machine Planner' },

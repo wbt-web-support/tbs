@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +20,8 @@ import {
   Settings2,
   ArrowLeft,
   Clock,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import {
   Dialog,
@@ -52,6 +53,86 @@ interface HistoryItem {
   metadata?: any;
 }
 
+// Helper function to convert HTML to Markdown
+function htmlToMarkdown(html: string): string {
+  let markdown = html;
+  
+  // Convert headings
+  markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n');
+  markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n');
+  markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n');
+  markdown = markdown.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n');
+  markdown = markdown.replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n');
+  markdown = markdown.replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n');
+  
+  // Convert bold and italic
+  markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+  markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+  markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+  markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+  
+  // Convert links
+  markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+  
+  // Convert lists - using split and join instead of dotAll flag
+  const ulMatches = markdown.match(/<ul[^>]*>[\s\S]*?<\/ul>/gi);
+  if (ulMatches) {
+    ulMatches.forEach((match) => {
+      const content = match.replace(/<\/?ul[^>]*>/gi, '');
+      const items = content.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+      markdown = markdown.replace(match, items + '\n');
+    });
+  }
+  
+  const olMatches = markdown.match(/<ol[^>]*>[\s\S]*?<\/ol>/gi);
+  if (olMatches) {
+    olMatches.forEach((match) => {
+      let counter = 1;
+      const content = match.replace(/<\/?ol[^>]*>/gi, '');
+      const items = content.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${counter++}. $1\n`);
+      markdown = markdown.replace(match, items + '\n');
+    });
+  }
+  
+  // Convert paragraphs
+  markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
+  
+  // Convert line breaks
+  markdown = markdown.replace(/<br[^>]*\/?>/gi, '\n');
+  
+  // Convert code
+  markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
+  
+  // Convert pre blocks - using split and join instead of dotAll flag
+  const preMatches = markdown.match(/<pre[^>]*>[\s\S]*?<\/pre>/gi);
+  if (preMatches) {
+    preMatches.forEach((match) => {
+      const content = match.replace(/<\/?pre[^>]*>/gi, '');
+      markdown = markdown.replace(match, '```\n' + content + '\n```\n\n');
+    });
+  }
+  
+  // Convert blockquotes - using split and join instead of dotAll flag
+  const blockquoteMatches = markdown.match(/<blockquote[^>]*>[\s\S]*?<\/blockquote>/gi);
+  if (blockquoteMatches) {
+    blockquoteMatches.forEach((match) => {
+      const content = match.replace(/<\/?blockquote[^>]*>/gi, '');
+      const lines = content.split('\n');
+      const quotedLines = lines.map((line: string) => line.trim() ? `> ${line}` : '>').join('\n') + '\n\n';
+      markdown = markdown.replace(match, quotedLines);
+    });
+  }
+  
+  // Remove remaining HTML tags
+  markdown = markdown.replace(/<[^>]*>/g, '');
+  
+  // Clean up extra whitespace
+  markdown = markdown.replace(/\n{3,}/g, '\n\n');
+  markdown = markdown.trim();
+  
+  return markdown;
+}
+
 export default function SopClient() {
   const [currentSop, setCurrentSop] = useState<SOP | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -62,6 +143,10 @@ export default function SopClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isEditingContent, setIsEditingContent] = useState(false);
+  const [isSavingManually, setIsSavingManually] = useState(false);
+  const [showEmptyWarning, setShowEmptyWarning] = useState(false);
+  const contentEditableRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
   const router = useRouter();
@@ -294,6 +379,198 @@ export default function SopClient() {
     }
   };
 
+  // Start editing the entire content
+  const handleContentClick = (e: React.MouseEvent) => {
+    if (!currentSop || isEditingContent) return;
+    
+    e.preventDefault();
+    setIsEditingContent(true);
+    
+    // Focus the contentEditable div and set cursor position
+    setTimeout(() => {
+      if (contentEditableRef.current) {
+        contentEditableRef.current.focus();
+        
+        // Set cursor position at click location
+        const selection = window.getSelection();
+        const range = document.createRange();
+        
+        // Find the clicked position
+        if (document.caretPositionFromPoint) {
+          const caretPos = document.caretPositionFromPoint(e.clientX, e.clientY);
+          if (caretPos) {
+            range.setStart(caretPos.offsetNode, caretPos.offset);
+            range.collapse(true);
+          }
+        } else if ((document as any).caretRangeFromPoint) {
+          const caretRange = (document as any).caretRangeFromPoint(e.clientX, e.clientY);
+          if (caretRange) {
+            range.setStart(caretRange.startContainer, caretRange.startOffset);
+            range.collapse(true);
+          }
+        }
+        
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+    }, 0);
+  };
+
+  // Check if content is empty or just whitespace
+  const isContentEmpty = (content: string): boolean => {
+    const cleanContent = content.replace(/<[^>]*>/g, '').trim();
+    return cleanContent.length === 0;
+  };
+
+  // Save the entire content on blur
+  const handleContentBlur = async () => {
+    if (!currentSop || !contentEditableRef.current) {
+      setIsEditingContent(false);
+      return;
+    }
+
+    const htmlContent = contentEditableRef.current.innerHTML;
+    const markdownContent = htmlToMarkdown(htmlContent);
+    
+    if (markdownContent === currentSop.content) {
+      setIsEditingContent(false);
+      return;
+    }
+
+    // Check if user deleted everything
+    if (isContentEmpty(htmlContent)) {
+      setShowEmptyWarning(true);
+      return;
+    }
+
+    await saveContent(markdownContent);
+  };
+
+  // Extract save logic to reuse
+  const saveContent = async (markdownContent: string) => {
+    if (!currentSop) return;
+
+    setIsSavingManually(true);
+    try {
+      const response = await fetch('/api/sop/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sopId: currentSop.id,
+          editPrompt: 'manual inline edit (no history)',
+          currentContent: markdownContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update SOP');
+      }
+
+      const data = await response.json();
+      setCurrentSop(data.sop);
+      toast({
+        title: 'SOP Updated',
+        description: 'Your SOP has been updated.',
+        variant: 'default',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Update Failed',
+        description: error.message || 'Could not update SOP.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingManually(false);
+      setIsEditingContent(false);
+    }
+  };
+
+  // Convert markdown to HTML for editing
+  const convertMarkdownToHTML = (markdown: string): string => {
+    // Simple markdown to HTML conversion for editing
+    let html = markdown;
+    
+    // Convert headings
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+    html = html.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
+    html = html.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
+    
+    // Convert bold and italic
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Convert code
+    html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+    
+    // Convert line breaks
+    html = html.replace(/\n/g, '<br>');
+    
+    return html;
+  };
+
+  // Handle empty content warning actions
+  const handleEmptyWarningRegenerate = async () => {
+    console.log('Starting regeneration...');
+    // Don't close the dialog immediately - keep it open to show loading
+    setIsEditingContent(false);
+    
+    // Force exit edit mode and clear content
+    if (contentEditableRef.current) {
+      contentEditableRef.current.innerHTML = '';
+    }
+    
+    try {
+      console.log('Calling generateInitialSop...');
+      await generateInitialSop();
+      console.log('Regeneration completed successfully');
+      // Close dialog only after successful generation
+      setShowEmptyWarning(false);
+    } catch (error) {
+      console.error('Regeneration failed:', error);
+      toast({
+        title: "Regeneration Failed",
+        description: "Could not regenerate your Battle Plan. Please try again.",
+        variant: "destructive",
+      });
+      // Keep dialog open on error so user can try again
+    }
+  };
+
+  const handleEmptyWarningCancel = () => {
+    setShowEmptyWarning(false);
+    // Restore original content
+    if (contentEditableRef.current && currentSop) {
+      contentEditableRef.current.innerHTML = '';
+      setIsEditingContent(false);
+      // Force re-render with original content
+      setTimeout(() => {
+        if (contentEditableRef.current) {
+          // The ReactMarkdown will re-render with the original content
+        }
+      }, 0);
+    }
+  };
+
+  // Cancel content editing
+  const handleContentCancel = () => {
+    setIsEditingContent(false);
+  };
+
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      handleContentCancel();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="">
@@ -303,7 +580,7 @@ export default function SopClient() {
               <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
             </div>
           </div>
-          <h2 className="text-xl font-medium text-slate-700 mb-2">Loading your SOP</h2>
+          <h2 className="text-xl font-medium text-slate-700 mb-2">Loading your Battle Plan</h2>
           <p className="text-slate-500">Please wait while we fetch your document...</p>
         </div>
       </div>
@@ -317,9 +594,9 @@ export default function SopClient() {
           <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded flex items-center justify-center mb-8">
             <BookOpen className="h-10 w-10 text-blue-600" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-4">No SOP Found</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-4">No Battle Plan Found</h1>
           <p className="text-slate-600 mb-8 leading-relaxed">
-            Create your first Standard Operating Procedure based on your company's onboarding information to get started.
+            Create your first Battle Plan based on your company's onboarding information to get started.
           </p>
           <div className="space-y-4 w-full">
             <Button 
@@ -331,12 +608,12 @@ export default function SopClient() {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                  Generating SOP...
+                  Generating Battle Plan...
                 </>
               ) : (
                 <>
                   <Settings2 className="mr-3 h-5 w-5" />
-                  Generate My SOP
+                  Generate My Battle Plan
                 </>
               )}
             </Button>
@@ -401,7 +678,7 @@ export default function SopClient() {
                     <DialogHeader className="pb-4">
                       <DialogTitle className="text-2xl font-bold text-slate-800">Version History</DialogTitle>
                       <DialogDescription className="text-slate-600">
-                        Browse and restore previous versions of your SOP
+                        Browse and restore previous versions of your Battle Plan
                       </DialogDescription>
                     </DialogHeader>
                     <div className="flex-grow overflow-y-auto space-y-3 pr-2">
@@ -512,9 +789,9 @@ export default function SopClient() {
           <div className="mb-8">
             <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 rounded sm">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-semibold text-slate-800">Edit Your SOP</CardTitle>
+                <CardTitle className="text-xl font-semibold text-slate-800">Edit Your Battle Plan</CardTitle>
                 <CardDescription className="text-slate-600">
-                  Describe the changes you'd like to make and AI will update your SOP accordingly.
+                  Describe the changes you'd like to make and AI will update your Battle Plan accordingly.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -523,7 +800,7 @@ export default function SopClient() {
                   value={editPrompt}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditPrompt(e.target.value)}
                   rows={4}
-                  className="resize-none border-slate-200 focus:border-blue-300 focus:ring-blue-100 rounded"
+                  className=""
                 />
               </CardContent>
               <CardFooter className="flex justify-end gap-3 pt-4">
@@ -550,7 +827,7 @@ export default function SopClient() {
                   ) : (
                     <>
                       <Save className="mr-2 h-4 w-4" />
-                      Update SOP
+                      Update Battle Plan
                     </>
                   )}
                 </Button>
@@ -561,21 +838,24 @@ export default function SopClient() {
 
         {/* Main Content */}
         <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 rounded sm">
-          <CardHeader className="pb-6">
+          <CardHeader className="p-10 pb-0">
             <CardTitle className="text-lg font-semibold text-slate-700 flex items-center">
               <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
                 <FileText className="h-4 w-4 text-blue-600" />
               </div>
-              Standard Operating Procedure
+              Battle Plan
             </CardTitle>
+            <p className="text-sm text-slate-500 mt-2">
+              Click anywhere in the content below to edit directly. Changes save automatically when you click outside.
+            </p>
           </CardHeader>
           <CardContent className="px-8 pb-8">
             {isUpdating ? (
-              // Animated placeholder while updating
+              // AI-based editing loading state
               <div className="space-y-4">
                 <div className="text-center mb-8">
                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
-                  <p className="text-slate-600 font-medium">Updating your SOP...</p>
+                  <p className="text-slate-600 font-medium">Updating your Battle Plan...</p>
                   <p className="text-slate-500 text-sm mt-1">This may take a few moments</p>
                 </div>
                 <div className="space-y-3">
@@ -619,146 +899,265 @@ export default function SopClient() {
                 </div>
               </div>
             ) : (
-              // Actual SOP content
-              <article className="prose prose-slate max-w-none">
-                <ReactMarkdown
-                  components={{
-                    h1: ({children}) => (
-                      <h1 className="text-3xl font-bold text-slate-800 mb-6 mt-0 pb-3 border-b border-slate-200">
-                        {children}
-                      </h1>
-                    ),
-                    h2: ({children}) => (
-                      <h2 className="text-2xl font-semibold text-slate-800 mb-4 mt-8">
-                        {children}
-                      </h2>
-                    ),
-                    h3: ({children}) => (
-                      <h3 className="text-xl font-semibold text-slate-800 mb-3 mt-6">
-                        {children}
-                      </h3>
-                    ),
-                    h4: ({children}) => (
-                      <h4 className="text-lg font-semibold text-slate-700 mb-2 mt-4">
-                        {children}
-                      </h4>
-                    ),
-                    h5: ({children}) => (
-                      <h5 className="text-base font-semibold text-slate-700 mb-2 mt-3">
-                        {children}
-                      </h5>
-                    ),
-                    h6: ({children}) => (
-                      <h6 className="text-sm font-semibold text-slate-700 mb-2 mt-3">
-                        {children}
-                      </h6>
-                    ),
-                    p: ({ children }) => (
-                      <p className="text-slate-700 leading-relaxed mb-4 last:mb-0">
-                        {children}
-                      </p>
-                    ),
-                    ul: ({children}) => (
-                      <ul className="list-disc pl-6 mb-4 space-y-2 text-slate-700">
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({children}) => (
-                      <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-700">
-                        {children}
-                      </ol>
-                    ),
-                    li: ({children}) => (
-                      <li className="text-slate-700 leading-relaxed">
-                        {children}
-                      </li>
-                    ),
-                    a: ({ href, children }) => (
-                      <a 
-                        href={href} 
-                        className="text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
+              // WYSIWYG editable content
+              <div
+                className={`cursor-pointer transition-all duration-200 min-h-[400px] ${
+                  isEditingContent 
+                    ? 'px-2 py-4' 
+                    : 'px-2 py-4'
+                }`}
+                onClick={handleContentClick}
+                title={isEditingContent ? "Editing mode - click outside to save" : "Click anywhere to edit this content"}
+              >
+                {!isEditingContent && (
+                  <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition-opacity">
+                    <span className="text-xs text-blue-500 bg-white/80 px-2 py-1 rounded">Click to edit</span>
+                  </div>
+                )}
+                
+                {/* Manual saving indicator */}
+                {isSavingManually && (
+                  <div className="fixed top-4 right-4 z-50 bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                    <span className="text-sm text-slate-600">Saving...</span>
+                  </div>
+                )}
+                
+                {isEditingContent && !isSavingManually && (
+                  <div className="absolute top-2 right-2 flex gap-2 z-10">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={handleContentCancel}
+                      className="bg-white/80 hover:bg-white"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+
+                {isEditingContent ? (
+                  // Edit mode: contentEditable div with HTML
+                  <div
+                    ref={contentEditableRef}
+                    contentEditable={true}
+                    onBlur={handleContentBlur}
+                    onKeyDown={handleKeyDown}
+                    suppressContentEditableWarning={true}
+                    className="prose prose-slate max-w-none outline-none focus:outline-none cursor-text"
+                    style={{
+                      minHeight: '400px',
+                      caretColor: '#3b82f6',
+                    }}
+                    dangerouslySetInnerHTML={
+                      currentSop ? { __html: convertMarkdownToHTML(currentSop.content) } : undefined
+                    }
+                  />
+                ) : (
+                  // View mode: ReactMarkdown div
+                  <div
+                    className="prose prose-slate max-w-none outline-none cursor-pointer"
+                    onClick={handleContentClick}
+                    title="Click anywhere to edit this content"
+                    style={{
+                      minHeight: '400px',
+                    }}
+                  >
+                    {currentSop && (
+                      <ReactMarkdown
+                        components={{
+                          h1: ({children}) => (
+                            <h1 className="text-3xl font-bold text-slate-800 mb-6 mt-0 pb-3 border-b border-slate-200">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({children}) => (
+                            <h2 className="text-2xl font-semibold text-slate-800 mb-4 mt-8">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({children}) => (
+                            <h3 className="text-xl font-semibold text-slate-800 mb-3 mt-6">
+                              {children}
+                            </h3>
+                          ),
+                          h4: ({children}) => (
+                            <h4 className="text-lg font-semibold text-slate-700 mb-2 mt-4">
+                              {children}
+                            </h4>
+                          ),
+                          h5: ({children}) => (
+                            <h5 className="text-base font-semibold text-slate-700 mb-2 mt-3">
+                              {children}
+                            </h5>
+                          ),
+                          h6: ({children}) => (
+                            <h6 className="text-sm font-semibold text-slate-700 mb-2 mt-3">
+                              {children}
+                            </h6>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-slate-700 leading-relaxed mb-4 last:mb-0">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({children}) => (
+                            <ul className="list-disc pl-6 mb-4 space-y-2 text-slate-700">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({children}) => (
+                            <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-700">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({children}) => (
+                            <li className="text-slate-700 leading-relaxed">
+                              {children}
+                            </li>
+                          ),
+                          a: ({ href, children }) => (
+                            <a 
+                              href={href} 
+                              className="text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-slate-800">
+                              {children}
+                            </strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="italic text-slate-700">
+                              {children}
+                            </em>
+                          ),
+                          code: ({ children }) => (
+                            <code className="bg-slate-100 text-slate-800 px-2 py-1 rounded text-sm font-mono">
+                              {children}
+                            </code>
+                          ),
+                          pre: ({ children }) => (
+                            <pre className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-sm overflow-x-auto my-4 font-mono">
+                              {children}
+                            </pre>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-blue-200 bg-blue-50/50 rounded-r-lg px-4 py-3 my-4 text-slate-600 italic">
+                              {children}
+                            </blockquote>
+                          ),
+                          hr: () => (
+                            <hr className="my-8 border-t border-slate-200" />
+                          ),
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-4">
+                              <table className="min-w-full border border-slate-200 rounded-lg">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          thead: ({ children }) => (
+                            <thead className="bg-slate-50">
+                              {children}
+                            </thead>
+                          ),
+                          tbody: ({ children }) => (
+                            <tbody className="divide-y divide-slate-200">
+                              {children}
+                            </tbody>
+                          ),
+                          tr: ({ children }) => (
+                            <tr className="hover:bg-slate-50/50 transition-colors">
+                              {children}
+                            </tr>
+                          ),
+                          th: ({ children }) => (
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="px-4 py-3 text-sm text-slate-700">
+                              {children}
+                            </td>
+                          ),
+                          img: ({ src, alt }) => (
+                            <img 
+                              src={src} 
+                              alt={alt} 
+                              className="max-w-full h-auto rounded-lg border border-slate-200 my-4 shadow-sm"
+                            />
+                          ),
+                        }}
                       >
-                        {children}
-                      </a>
-                    ),
-                    strong: ({ children }) => (
-                      <strong className="font-semibold text-slate-800">
-                        {children}
-                      </strong>
-                    ),
-                    em: ({ children }) => (
-                      <em className="italic text-slate-700">
-                        {children}
-                      </em>
-                    ),
-                    code: ({ children }) => (
-                      <code className="bg-slate-100 text-slate-800 px-2 py-1 rounded text-sm font-mono">
-                        {children}
-                      </code>
-                    ),
-                    pre: ({ children }) => (
-                      <pre className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-sm overflow-x-auto my-4 font-mono">
-                        {children}
-                      </pre>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-blue-200 bg-blue-50/50 rounded-r-lg px-4 py-3 my-4 text-slate-600 italic">
-                        {children}
-                      </blockquote>
-                    ),
-                    hr: () => (
-                      <hr className="my-8 border-t border-slate-200" />
-                    ),
-                    table: ({ children }) => (
-                      <div className="overflow-x-auto my-4">
-                        <table className="min-w-full border border-slate-200 rounded-lg">
-                          {children}
-                        </table>
-                      </div>
-                    ),
-                    thead: ({ children }) => (
-                      <thead className="bg-slate-50">
-                        {children}
-                      </thead>
-                    ),
-                    tbody: ({ children }) => (
-                      <tbody className="divide-y divide-slate-200">
-                        {children}
-                      </tbody>
-                    ),
-                    tr: ({ children }) => (
-                      <tr className="hover:bg-slate-50/50 transition-colors">
-                        {children}
-                      </tr>
-                    ),
-                    th: ({ children }) => (
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">
-                        {children}
-                      </th>
-                    ),
-                    td: ({ children }) => (
-                      <td className="px-4 py-3 text-sm text-slate-700">
-                        {children}
-                      </td>
-                    ),
-                    img: ({ src, alt }) => (
-                      <img 
-                        src={src} 
-                        alt={alt} 
-                        className="max-w-full h-auto rounded-lg border border-slate-200 my-4 shadow-sm"
-                      />
-                    ),
-                  }}
-                >
-                  {currentSop.content}
-                </ReactMarkdown>
-              </article>
+                        {currentSop.content}
+                      </ReactMarkdown>
+                    )}
+                  </div>
+                )}
+
+                {isEditingContent && !isSavingManually && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    Click outside or press Escape to save your changes automatically
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
         
+        {/* Empty Content Warning Dialog */}
+        <Dialog open={showEmptyWarning} onOpenChange={setShowEmptyWarning}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-slate-800 flex items-center">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+                Content Deleted
+              </DialogTitle>
+              <DialogDescription className="text-slate-600">
+                {isGenerating 
+                  ? "Generating your new Battle Plan..."
+                  : "You've removed all content from your Battle Plan. What would you like to do?"
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 mt-4">
+              <Button 
+                onClick={handleEmptyWarningRegenerate}
+                disabled={isGenerating}
+                className="bg-blue-600 hover:bg-blue-700 text-white w-full disabled:opacity-50"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Regenerating Battle Plan...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Regenerate Battle Plan
+                  </>
+                )}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleEmptyWarningCancel}
+                disabled={isGenerating}
+                className="w-full disabled:opacity-50"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Cancel & Restore Content
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Footer */}
         <footer className="text-center mt-12 py-8">
           <div className="bg-white/50 backdrop-blur-sm rounded border border-slate-200/50 py-4 px-6">

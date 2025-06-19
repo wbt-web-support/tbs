@@ -364,9 +364,9 @@ CONTENT REQUIREMENTS:
 - For quick_fix and guidance fields, provide SPECIFIC actionable directions with clickable links using this format: "Go to [Page Name](/page-url) to complete this action. This will help you achieve XYZ."
 
 AVAILABLE TBS PLATFORM LINKS FOR QUICK FIXES AND GUIDANCE:
-- Battle Plan: /battle-plan
+- Battle Plan: /business-battle-plan
 - Chain of Command: /chain-of-command  
-- Playbooks/SOP: /sop
+- Playbooks/battle-plan: /battle-plan
 - Meeting Rhythm Planner: /meeting-rhythm-planner
 - Triage Planner: /triage-planner
 - HWGT Plans: /hwgt-plan
@@ -378,7 +378,7 @@ AVAILABLE TBS PLATFORM LINKS FOR QUICK FIXES AND GUIDANCE:
 - AI Dashboard: /ai-dashboard
 
 LINK FORMAT EXAMPLES:
-- "Navigate to [Battle Plan](/battle-plan) to create your strategic roadmap. This will help align your team on key objectives."
+- "Navigate to [Business Battle Plan](/business-battle-plan) to create your strategic roadmap. This will help align your team on key objectives."
 - "Go to [Chain of Command](/chain-of-command) to define team roles and responsibilities. This will improve accountability and communication."
 - "Visit [Meeting Rhythm Planner](/meeting-rhythm-planner) to schedule regular team check-ins. This will ensure consistent communication."
 - "Access [Triage Planner](/triage-planner) to prioritize urgent tasks effectively. This will help you focus on what matters most."

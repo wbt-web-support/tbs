@@ -447,7 +447,7 @@ export default function OnboardingClient() {
     done: boolean;
   }[]>([
     { title: "Saving your information", done: false },
-    { title: "Creating your SOP", done: false },
+    { title: "Creating your Battle Plan", done: false },
     { title: "Preparing your workspace", done: false },
     { title: "Redirecting to dashboard", done: false },
   ]);
@@ -728,12 +728,12 @@ export default function OnboardingClient() {
         });
 
         if (sopResponse.ok) {
-          console.log('✅ SOP generated successfully');
+          console.log('✅ Battle Plan generated successfully');
         } else {
-          console.warn('⚠️ SOP generation failed, but onboarding completed');
+          console.warn('⚠️ Battle Plan generation failed, but onboarding completed');
         }
       } catch (sopError) {
-        console.warn('⚠️ SOP generation error:', sopError);
+        console.warn('⚠️ Battle Plan generation error:', sopError);
         // Don't fail the onboarding if SOP generation fails
       }
 
@@ -753,7 +753,7 @@ export default function OnboardingClient() {
       // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      toast({ title: "Success", description: "Your company information has been saved and SOP generated!" });
+      toast({ title: "Success", description: "Your company information has been saved and Battle Plan generated!" });
       
       // Add URL parameter to indicate fresh onboarding completion
       router.push('/dashboard?onboarding=completed');

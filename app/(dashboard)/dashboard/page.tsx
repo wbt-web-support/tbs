@@ -687,10 +687,10 @@ export default function AIDashboard() {
       iconColor: "text-green-600"
     },
     {
-      title: "SOP",
+      title: "Battle Plan",
       icon: BookOpen,
-      description: "Standard Operating Procedures",
-      href: "/sop",
+      description: "Battle Plan",
+      href: "/battle-plan",
       color: "bg-purple-500/10",
       iconColor: "text-purple-600"
     },

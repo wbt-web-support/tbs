@@ -73,7 +73,7 @@ const navigationSections: NavigationSection[] = [
       },
       {
         name: "Business Battle Plan",
-        href: "/battle-plan",
+        href: "/business-battle-plan",
         icon: Swords,
       },
      
@@ -253,7 +253,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   </h2>
                   <div className="space-y-1">
                     {section.items.map((item) => {
-                      const isActive = pathname === item.href;
+                      const isActive = pathname === item.href; 
                       return (
                         <Link
                           key={item.href}
