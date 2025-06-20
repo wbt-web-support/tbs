@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 import { initializeSupabaseStorage } from "@/utils/supabase/storage-init";
 import { Toaster as SonnerToaster } from "sonner";
+import GoogleAnalyticsScript from "@/components/google-analytics-script";
 // import { FloatingChat } from "@/components/floating-chat";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -45,6 +46,9 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={geistSans.className} suppressHydrationWarning>
+      <head>
+        <GoogleAnalyticsScript />
+      </head>
       <body className="bg-background text-foreground">
     
           <main className="min-h-screen flex flex-col items-center">

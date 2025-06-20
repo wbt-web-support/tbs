@@ -958,7 +958,7 @@ export default function OnboardingClient() {
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
-              className="md:hidden fixed top-20 left-4 z-20 bg-white border p-2 shadow-md hover:bg-gray-100 transition-colors"
+              className="md:hidden fixed top-20 left-4 z-20 bg-white border p-2 hover:bg-gray-100 transition-colors"
               onClick={() => setIsSidebarOpen(true)}
             >
               <Menu className="h-6 w-6" />
