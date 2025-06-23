@@ -45,9 +45,13 @@ import {
   Gauge,
 } from 'lucide-react';
 import Link from 'next/link';
+import CustomerReviewsSummary from '@/app/(dashboard)/new-dashboard/components/customer-reviews-summary';
+import { CustomerReviewsSkeleton } from '@/app/(dashboard)/new-dashboard/components/analytics-skeleton';
 
 interface AnalyticsChartsProps {
   data: any;
+  adminProfile?: any;
+  customerReviewsLoading?: boolean;
 }
 
 interface MetricConfig {
@@ -61,7 +65,7 @@ interface MetricConfig {
   description: string;
 }
 
-export default function AnalyticsCharts({ data }: AnalyticsChartsProps) {
+export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoading = false }: AnalyticsChartsProps) {
   const [activeTab, setActiveTab] = useState('activeUsers');
 
   const metricConfigs: MetricConfig[] = [
@@ -579,7 +583,8 @@ export default function AnalyticsCharts({ data }: AnalyticsChartsProps) {
     </div>
 
 
-    <div className='col-span-1'>
+    <div className='col-span-1 space-y-6'>
+      {/* Quick Links */}
       <div className='bg-white p-6 rounded-lg border'>
         <h1 className='text-xl font-bold mb-6 text-gray-900'>Quick Links</h1>
         
@@ -638,8 +643,6 @@ export default function AnalyticsCharts({ data }: AnalyticsChartsProps) {
             </div>
           </Link>
 
-
-
           {/* Chain of Command */}
           <Link href="/chain-of-command" className='block'>
             <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-purple-300 transition-all cursor-pointer group'>
@@ -660,6 +663,18 @@ export default function AnalyticsCharts({ data }: AnalyticsChartsProps) {
 
         </div>
       </div>
+
+      {/* Customer Reviews */}
+      {customerReviewsLoading ? (
+        <CustomerReviewsSkeleton />
+      ) : (
+        adminProfile && (
+          <CustomerReviewsSummary 
+            businessName={adminProfile.business_name} 
+            googleReviewLink={adminProfile.google_review_link} 
+          />
+        )
+      )}
     </div>
 
 

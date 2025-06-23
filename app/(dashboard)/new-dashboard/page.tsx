@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import GoogleAnalyticsConnection from '@/components/google-analytics-connection';
 import EnvironmentChecker from '@/components/env-checker';
 import AccountPropertyModal from '@/components/account-property-modal';
-import ConnectedAccountIndicator from '@/components/connected-account-indicator';
 import RealAnalyticsViewer from '@/components/real-analytics-viewer';
 import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { AnalyticsDashboardSkeleton, CustomerReviewsSkeleton } from '@/app/(dashboard)/new-dashboard/components/analytics-skeleton';
+import CustomerReviewsSummary from '@/app/(dashboard)/new-dashboard/components/customer-reviews-summary';
 import {
   BarChart3,
   LinkIcon,
@@ -50,6 +50,10 @@ export default function NewDashboard() {
   const [isGreetingLoading, setIsGreetingLoading] = useState(true);
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
 
+  // Business profile for reviews
+  const [adminProfile, setAdminProfile] = useState<BusinessInfo | null>(null);
+  const [customerReviewsLoading, setCustomerReviewsLoading] = useState(true);
+
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -69,15 +73,16 @@ export default function NewDashboard() {
 
       const teamId = await getTeamId(supabase, user.id);
       
-      // Fetch admin info for company name
+      // Fetch admin info for company name and profile
       const { data: adminData } = await supabase
         .from("business_info")
-        .select("business_name, full_name")
+        .select("*")
         .eq("user_id", teamId)
         .single();
       
       if (adminData) {
         setCompanyName(adminData.business_name || '');
+        setAdminProfile(adminData);
       }
 
       // Set the correct name for the greeting
@@ -97,6 +102,7 @@ export default function NewDashboard() {
       setGreetingName('there');
     } finally {
       setIsGreetingLoading(false);
+      setCustomerReviewsLoading(false);
     }
   };
 
@@ -233,20 +239,7 @@ export default function NewDashboard() {
     setupGreeting();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card>
-          <CardContent className="p-8">
-            <div className="flex items-center justify-center">
-              <LoadingSpinner />
-              <span className="ml-3 text-gray-600">Loading dashboard...</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+
 
   return (
     <div className="p-0">
@@ -262,8 +255,28 @@ export default function NewDashboard() {
         {/* Environment Variables Checker */}
         <EnvironmentChecker />
 
+        {/* Initial Loading State - Show Skeleton */}
+        {loading && (
+          <div className="space-y-6">
+            {/* Greeting Skeleton */}
+            <Card className="bg-transparent border-none">
+              <CardContent className="p-0">
+                <div className="flex justify-between items-start flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-3">
+                    <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-80"></div>
+                    <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-96"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Analytics Dashboard Skeleton */}
+            <AnalyticsDashboardSkeleton />
+          </div>
+        )}
+
         {/* Not Connected State - Show Connect Button */}
-        {!isConnected && (
+        {!loading && !isConnected && (
           <div className="max-w-2xl mx-auto">
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader>
@@ -326,7 +339,7 @@ export default function NewDashboard() {
         )}
 
         {/* Connected but No Property Selected */}
-        {isConnected && !hasPropertySelected && (
+        {!loading && isConnected && !hasPropertySelected && (
           <div className="max-w-2xl mx-auto">
             <Card className="border-orange-200 bg-orange-50">
               <CardContent className="p-6 text-center">
@@ -358,10 +371,10 @@ export default function NewDashboard() {
               <Card className="bg-transparent border-none">
                 <CardContent className="p-0">
                   <div className="flex justify-between items-start flex-col md:flex-row gap-4">
-                    <div className="flex-1">
-                      <div className="h-8 bg-gray-200 rounded w-80 mb-2 animate-pulse"></div>
-                      <div className="h-4 bg-gray-200 rounded w-96 mb-2 animate-pulse"></div>
-                      <div className="h-3 bg-gray-200 rounded w-32 animate-pulse"></div>
+                    <div className="flex-1 space-y-3">
+                      <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-80"></div>
+                      <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-96"></div>
+                      <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-32"></div>
                     </div>
                   </div>
                 </CardContent>
@@ -397,6 +410,8 @@ export default function NewDashboard() {
               onChangeProperty={handleChangeProperty}
               onRefresh={handleRefreshAnalytics}
               refreshing={refreshing}
+              adminProfile={adminProfile}
+              customerReviewsLoading={customerReviewsLoading}
             />
           </div>
         )}

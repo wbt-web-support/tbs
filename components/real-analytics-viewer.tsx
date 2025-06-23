@@ -8,6 +8,7 @@ import { LoadingSpinner } from '@/components/loading-spinner';
 import DateFilterPopup from '@/components/date-filter-popup';
 import ConnectionPopup from '@/components/connection-popup';
 import AnalyticsCharts from '@/components/analytics-charts';
+import { AnalyticsDashboardSkeleton, DateFilterSkeleton, RawDataSkeleton } from '@/app/(dashboard)/new-dashboard/components/analytics-skeleton';
 import {
   BarChart3,
 } from 'lucide-react';
@@ -26,6 +27,8 @@ interface RealAnalyticsViewerProps {
   onChangeProperty: () => void;
   onRefresh: () => void;
   refreshing?: boolean;
+  adminProfile?: any;
+  customerReviewsLoading?: boolean;
 }
 
 export default function RealAnalyticsViewer({
@@ -35,7 +38,9 @@ export default function RealAnalyticsViewer({
   onDisconnect,
   onChangeProperty,
   onRefresh,
-  refreshing = false
+  refreshing = false,
+  adminProfile,
+  customerReviewsLoading = false
 }: RealAnalyticsViewerProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -98,14 +103,20 @@ export default function RealAnalyticsViewer({
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <LoadingSpinner />
-            <span className="ml-2 text-gray-600">Fetching real analytics data...</span>
+      <div className="space-y-6">
+        {/* Header with Skeleton Buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DateFilterSkeleton />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Analytics Dashboard Skeleton */}
+        <AnalyticsDashboardSkeleton />
+
+        {/* Raw Data Skeleton */}
+        <RawDataSkeleton />
+      </div>
     );
   }
 
@@ -191,7 +202,11 @@ export default function RealAnalyticsViewer({
       </div>
 
       {/* Analytics Charts */}
-      <AnalyticsCharts data={data} />
+      <AnalyticsCharts 
+        data={data} 
+        adminProfile={adminProfile}
+        customerReviewsLoading={customerReviewsLoading}
+      />
 
       {/* Raw Data (for debugging) */}
       <Card>
