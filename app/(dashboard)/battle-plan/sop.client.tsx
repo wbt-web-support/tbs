@@ -917,7 +917,7 @@ export default function SopClient() {
                 
                 {/* Manual saving indicator */}
                 {isSavingManually && (
-                  <div className="fixed top-4 right-4 z-50 bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <div className="sticky top-0 left-0 right-0 z-50 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2 mx-auto w-fit mb-4">
                     <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
                     <span className="text-sm text-slate-600">Saving...</span>
                   </div>
