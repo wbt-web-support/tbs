@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+async function refreshAccessToken(refreshToken: string) {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -32,13 +53,56 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { access_token, property_id } = tokenData;
+    let { access_token, refresh_token, expires_at, property_id } = tokenData;
     
     if (!property_id) {
       return NextResponse.json(
         { error: 'No property ID configured' },
         { status: 400 }
       );
+    }
+
+    // Check if access token is expired and refresh if needed
+    const now = new Date();
+    const expiresAt = expires_at ? new Date(expires_at) : null;
+    
+    if (expiresAt && now >= expiresAt && refresh_token) {
+      try {
+        console.log('Access token expired, refreshing...');
+        const refreshedTokens = await refreshAccessToken(refresh_token);
+        
+        // Update the access token
+        access_token = refreshedTokens.access_token;
+        
+        // Calculate new expiration time
+        const newExpiresAt = refreshedTokens.expires_in 
+          ? new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString()
+          : null;
+        
+        // Update tokens in database
+        const { error: updateError } = await supabase
+          .from('google_analytics_tokens')
+          .update({
+            access_token: access_token,
+            expires_at: newExpiresAt,
+            // Update refresh token if a new one was provided
+            ...(refreshedTokens.refresh_token && { refresh_token: refreshedTokens.refresh_token })
+          })
+          .eq('user_id', user.id);
+        
+        if (updateError) {
+          console.error('Failed to update refreshed tokens:', updateError);
+        } else {
+          console.log('Tokens refreshed successfully');
+        }
+        
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        return NextResponse.json(
+          { error: 'Authentication expired. Please reconnect your Google Analytics account.' },
+          { status: 401 }
+        );
+      }
     }
 
     // Extract property ID number from the full property ID (e.g., "properties/123456789" -> "123456789")

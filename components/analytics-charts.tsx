@@ -37,7 +37,14 @@ import {
   Target,
   UsersRound,
   ExternalLink,
+  Swords,
+  Rocket,
+  LineChart as TrendingIcon,
+  AlertTriangle,
+  Calendar,
+  Gauge,
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface AnalyticsChartsProps {
   data: any;
@@ -578,68 +585,79 @@ export default function AnalyticsCharts({ data }: AnalyticsChartsProps) {
         
         <div className='space-y-4'>
           {/* Chat */}
-          <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all cursor-pointer group'>
-            <div className='flex items-start gap-3'>
-              <div className='p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors'>
-                <MessageCircle className='h-5 w-5 text-blue-600' />
-              </div>
-              <div className='flex-1'>
-                <div className='flex items-center justify-between'>
-                  <h3 className='font-semibold text-gray-900'>Chat</h3>
-                  <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors' />
+          <Link href="/chat" className='block'>
+            <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all cursor-pointer group'>
+              <div className='flex items-start gap-3'>
+                <div className='p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors'>
+                  <MessageCircle className='h-5 w-5 text-blue-600' />
                 </div>
-                <p className='text-sm text-gray-600 mt-1'>Connect with your team</p>
+                <div className='flex-1'>
+                  <div className='flex items-center justify-between'>
+                    <h3 className='font-semibold text-gray-900'>Chat</h3>
+                    <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors' />
+                  </div>
+                  <p className='text-sm text-gray-600 mt-1'>Connect with your team</p>
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
 
           {/* Innovation */}
-          <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-yellow-300 transition-all cursor-pointer group'>
-            <div className='flex items-start gap-3'>
-              <div className='p-2 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors'>
-                <Lightbulb className='h-5 w-5 text-yellow-600' />
-              </div>
-              <div className='flex-1'>
-                <div className='flex items-center justify-between'>
-                  <h3 className='font-semibold text-gray-900'>Innovation</h3>
-                  <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-yellow-600 transition-colors' />
+          <Link href="/innovation-machine" className='block'>
+            <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-yellow-300 transition-all cursor-pointer group'>
+              <div className='flex items-start gap-3'>
+                <div className='p-2 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors'>
+                  <Lightbulb className='h-5 w-5 text-yellow-600' />
                 </div>
-                <p className='text-sm text-gray-600 mt-1'>Explore new ideas</p>
+                <div className='flex-1'>
+                  <div className='flex items-center justify-between'>
+                    <h3 className='font-semibold text-gray-900'>Create Innovations</h3>
+                    <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-yellow-600 transition-colors' />
+                  </div>
+                  <p className='text-sm text-gray-600 mt-1'>Explore new ideas and innovations</p>
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
 
-          {/* Battle Plan */}
-          <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-red-300 transition-all cursor-pointer group'>
-            <div className='flex items-start gap-3'>
-              <div className='p-2 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors'>
-                <Target className='h-5 w-5 text-red-600' />
-              </div>
-              <div className='flex-1'>
-                <div className='flex items-center justify-between'>
-                  <h3 className='font-semibold text-gray-900'>Battle Plan</h3>
-                  <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-red-600 transition-colors' />
+          {/* Business Battle Plan */}
+          <Link href="/business-battle-plan" className='block'>
+            <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-red-300 transition-all cursor-pointer group'>
+              <div className='flex items-start gap-3'>
+                <div className='p-2 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors'>
+                  <Swords className='h-5 w-5 text-red-600' />
                 </div>
-                <p className='text-sm text-gray-600 mt-1'>Strategic planning</p>
+                <div className='flex-1'>
+                  <div className='flex items-center justify-between'>
+                    <h3 className='font-semibold text-gray-900'>Business Battle Plan</h3>
+                    <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-red-600 transition-colors' />
+                  </div>
+                  <p className='text-sm text-gray-600 mt-1'>Strategic business planning</p>
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
 
-          {/* Team Members */}
-          <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-green-300 transition-all cursor-pointer group'>
-            <div className='flex items-start gap-3'>
-              <div className='p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors'>
-                <UsersRound className='h-5 w-5 text-green-600' />
-              </div>
-              <div className='flex-1'>
-                <div className='flex items-center justify-between'>
-                  <h3 className='font-semibold text-gray-900'>Team Members</h3>
-                  <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-green-600 transition-colors' />
+
+
+          {/* Chain of Command */}
+          <Link href="/chain-of-command" className='block'>
+            <div className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-purple-300 transition-all cursor-pointer group'>
+              <div className='flex items-start gap-3'>
+                <div className='p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors'>
+                  <UsersRound className='h-5 w-5 text-purple-600' />
                 </div>
-                <p className='text-sm text-gray-600 mt-1'>Manage team</p>
+                <div className='flex-1'>
+                  <div className='flex items-center justify-between'>
+                    <h3 className='font-semibold text-gray-900'>Chain of Command</h3>
+                    <ExternalLink className='h-4 w-4 text-gray-400 group-hover:text-purple-600 transition-colors' />
+                  </div>
+                  <p className='text-sm text-gray-600 mt-1'>Manage team structure</p>
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
+
         </div>
       </div>
     </div>
