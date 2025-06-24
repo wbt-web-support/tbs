@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/loading-spinner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
   Trophy, 
   Medal, 
@@ -15,7 +17,12 @@ import {
   TrendingUp, 
   Flame,
   Star,
-  Award
+  Award,
+  Info,
+  Calendar,
+  CheckCircle,
+  Zap,
+  Gift
 } from "lucide-react";
 
 interface LeaderboardUser {
@@ -139,9 +146,32 @@ export default function Leaderboard() {
     return (
       <Card className="h-96">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-500" />
-            Leaderboard
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              Leaderboard
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Info className="h-4 w-4 text-gray-500" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-xl">
+                    <Zap className="h-6 w-6 text-blue-500" />
+                    How the Gamification System Works
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                  {/* Loading content placeholder */}
+                  <div className="text-center text-gray-500">
+                    <LoadingSpinner />
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-64">
@@ -151,12 +181,160 @@ export default function Leaderboard() {
     );
   }
 
+  // Info Dialog Content Component
+  const InfoDialogContent = () => (
+    <div className="space-y-6 py-4">
+      {/* Points System */}
+      <div>
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+          <Star className="h-5 w-5 text-yellow-500" />
+          Point System
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+            <Calendar className="h-8 w-8 text-blue-500 bg-blue-100 p-1.5 rounded" />
+            <div>
+              <div className="font-medium text-blue-900">Daily Login</div>
+              <div className="text-sm text-blue-700">+10 points (once per day)</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+            <CheckCircle className="h-8 w-8 text-green-500 bg-green-100 p-1.5 rounded" />
+            <div>
+              <div className="font-medium text-green-900">Timeline Event</div>
+              <div className="text-sm text-green-700">+50 points per completion</div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="flex items-start gap-2">
+            <Info className="h-4 w-4 text-amber-600 mt-0.5" />
+            <div className="text-sm text-amber-800">
+              <strong>Note:</strong> Points are removed if you uncomplete activities (e.g., uncheck a timeline event).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Level System */}
+      <div>
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+          <Award className="h-5 w-5 text-purple-500" />
+          Level System
+        </h3>
+        <div className="space-y-3">
+          <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
+            <div className="text-lg font-semibold text-gray-900 mb-2">
+              Level = (Total Points ÷ 1,000) + 1
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="text-center">
+                <Badge className="bg-gray-100 text-gray-800 mb-1">Level 1</Badge>
+                <div className="text-gray-600">0-999 pts</div>
+              </div>
+              <div className="text-center">
+                <Badge className="bg-blue-100 text-blue-800 mb-1">Level 2</Badge>
+                <div className="text-gray-600">1K-1.9K pts</div>
+              </div>
+              <div className="text-center">
+                <Badge className="bg-green-100 text-green-800 mb-1">Level 3</Badge>
+                <div className="text-gray-600">2K-2.9K pts</div>
+              </div>
+              <div className="text-center">
+                <Badge className="bg-purple-100 text-purple-800 mb-1">Level 4+</Badge>
+                <div className="text-gray-600">3K+ pts</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Leaderboard Types */}
+      <div>
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+          <Trophy className="h-5 w-5 text-yellow-500" />
+          Leaderboard Types
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="p-3 border border-gray-200 rounded-lg">
+            <div className="font-medium text-gray-900 mb-1">All-Time</div>
+            <div className="text-sm text-gray-600">Total points earned since joining</div>
+          </div>
+          <div className="p-3 border border-gray-200 rounded-lg">
+            <div className="font-medium text-gray-900 mb-1">This Month</div>
+            <div className="text-sm text-gray-600">Points earned in current month</div>
+          </div>
+          <div className="p-3 border border-gray-200 rounded-lg">
+            <div className="font-medium text-gray-900 mb-1">This Week</div>
+            <div className="text-sm text-gray-600">Points earned in current week</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Streaks & Bonuses */}
+      <div>
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+          <Flame className="h-5 w-5 text-orange-500" />
+          Streaks & Features
+        </h3>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+            <Flame className="h-6 w-6 text-orange-500" />
+            <div>
+              <div className="font-medium text-orange-900">Daily Streaks</div>
+              <div className="text-sm text-orange-700">Track consecutive days of activity</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+            <Crown className="h-6 w-6 text-yellow-600" />
+            <div>
+              <div className="font-medium text-green-900">Rank Icons</div>
+              <div className="text-sm text-green-700">Crown for #1, medals for top 3</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tips */}
+      <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+        <h4 className="flex items-center gap-2 font-semibold text-blue-900 mb-2">
+          <Gift className="h-5 w-5" />
+          Pro Tips
+        </h4>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• Visit the dashboard daily for consistent points</li>
+          <li>• Complete timeline events to boost your rank quickly</li>
+          <li>• Weekly and monthly leaderboards reset, giving everyone a fresh chance</li>
+          <li>• More activities will be added soon for more ways to earn points!</li>
+        </ul>
+      </div>
+    </div>
+  );
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-yellow-500" />
-          Leaderboard
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            Leaderboard
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-blue-50">
+                <Info className="h-4 w-4 text-gray-500 hover:text-blue-600" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <Zap className="h-6 w-6 text-blue-500" />
+                  How the Gamification System Works
+                </DialogTitle>
+              </DialogHeader>
+              <InfoDialogContent />
+            </DialogContent>
+          </Dialog>
         </CardTitle>
       </CardHeader>
       <CardContent>

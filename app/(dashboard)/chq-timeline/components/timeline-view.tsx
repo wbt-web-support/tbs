@@ -128,8 +128,9 @@ export default function TimelineView() {
         )
       );
 
-      // Award points for completing the event
+      // Award or remove points based on completion status
       if (isCompleted) {
+        // Award points for completing the event
         trackActivity.timelineCompletion(event.id).then(pointsAwarded => {
           if (pointsAwarded) {
             toast.success(`🎉 Event completed! +50 points earned!`);
@@ -140,7 +141,16 @@ export default function TimelineView() {
           toast.success('Event marked as complete');
         });
       } else {
-        toast.success('Event marked as incomplete');
+        // Remove points for uncompleting the event
+        trackActivity.removeTimelineCompletion(event.id).then(pointsRemoved => {
+          if (pointsRemoved) {
+            toast.success('Event marked as incomplete - 50 points removed');
+          } else {
+            toast.success('Event marked as incomplete');
+          }
+        }).catch(() => {
+          toast.success('Event marked as incomplete');
+        });
       }
     } catch (error) {
       console.error('Error updating event:', error);

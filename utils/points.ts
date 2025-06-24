@@ -1,34 +1,21 @@
 import { createClient } from "@/utils/supabase/client";
 
-// Point values for different activities
+// Point values for different activities - STARTING SIMPLE
 export const POINT_VALUES = {
-  TIMELINE_COMPLETION: 50,
-  SCORECARD_GREEN: 25,
-  SCORECARD_LIGHT_GREEN: 15,
-  BATTLE_PLAN_SECTION: 100,
-  MACHINE_SETUP: 200,
-  PLAYBOOK_COMPLETION: 150,
   DAILY_LOGIN: 10,
-  PROFILE_COMPLETION: 75,
-  TEAM_MEMBER_ADDED: 30,
-  MEETING_SCHEDULED: 40,
-  INNOVATION_IDEA: 60,
-  REVIEW_RESPONDED: 35,
+  TIMELINE_COMPLETION: 500,
+  // We'll add more activities one by one after testing
+  // SCORECARD_GREEN: 25,
+  // BATTLE_PLAN_SECTION: 100,
+  // MACHINE_SETUP: 200,
+  // etc...
 } as const;
 
 // Activity types that correspond to database activity_type field
 export const ACTIVITY_TYPES = {
-  TIMELINE_COMPLETION: 'timeline_completion',
-  SCORECARD_UPDATE: 'scorecard_update',
-  BATTLE_PLAN_SECTION: 'battle_plan_section',
-  MACHINE_SETUP: 'machine_setup',
-  PLAYBOOK_COMPLETION: 'playbook_completion',
   DAILY_LOGIN: 'daily_login',
-  PROFILE_COMPLETION: 'profile_completion',
-  TEAM_MEMBER_ADDED: 'team_member_added',
-  MEETING_SCHEDULED: 'meeting_scheduled',
-  INNOVATION_IDEA: 'innovation_idea',
-  REVIEW_RESPONDED: 'review_responded',
+  TIMELINE_COMPLETION: 'timeline_completion',
+  // We'll add more activities one by one after testing
 } as const;
 
 interface PointsService {
@@ -37,6 +24,10 @@ interface PointsService {
     activityId: string,
     points: number,
     description?: string
+  ) => Promise<boolean>;
+  removePoints: (
+    activityType: string,
+    activityId: string
   ) => Promise<boolean>;
   getUserPoints: () => Promise<any>;
   getLeaderboard: (limit?: number) => Promise<any[]>;
@@ -88,6 +79,34 @@ export class PointsManager implements PointsService {
       return data === true;
     } catch (error) {
       console.error('Error in awardPoints:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Remove points from the current user for a specific activity
+   */
+  async removePoints(
+    activityType: string,
+    activityId: string
+  ): Promise<boolean> {
+    try {
+      const userId = await this.ensureUser();
+      
+      const { data, error } = await this.supabase.rpc('remove_user_points', {
+        p_user_id: userId,
+        p_activity_type: activityType,
+        p_activity_id: activityId
+      });
+
+      if (error) {
+        console.error('Error removing points:', error);
+        return false;
+      }
+
+      return data === true;
+    } catch (error) {
+      console.error('Error in removePoints:', error);
       return false;
     }
   }
@@ -167,130 +186,27 @@ export class PointsManager implements PointsService {
   }
 
   /**
-   * Track scorecard metric update to green status
+   * Remove points for timeline event uncompletion
    */
-  async trackScorecardGreen(scorecardId: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.SCORECARD_UPDATE,
-      `scorecard_green_${scorecardId}`,
-      POINT_VALUES.SCORECARD_GREEN,
-      'Scorecard metric achieved green status'
+  async removeTimelineCompletion(timelineId: string): Promise<boolean> {
+    return this.removePoints(
+      ACTIVITY_TYPES.TIMELINE_COMPLETION,
+      `timeline_${timelineId}`
     );
   }
 
-  /**
-   * Track scorecard metric update to light green status
-   */
-  async trackScorecardLightGreen(scorecardId: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.SCORECARD_UPDATE,
-      `scorecard_light_green_${scorecardId}`,
-      POINT_VALUES.SCORECARD_LIGHT_GREEN,
-      'Scorecard metric achieved light green status'
-    );
-  }
 
-  /**
-   * Track battle plan section completion
-   */
-  async trackBattlePlanSection(sectionName: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.BATTLE_PLAN_SECTION,
-      `battle_plan_${sectionName}`,
-      POINT_VALUES.BATTLE_PLAN_SECTION,
-      `Battle plan section completed: ${sectionName}`
-    );
-  }
-
-  /**
-   * Track machine setup completion
-   */
-  async trackMachineSetup(machineId: string, machineType: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.MACHINE_SETUP,
-      `machine_${machineId}`,
-      POINT_VALUES.MACHINE_SETUP,
-      `${machineType} machine setup completed`
-    );
-  }
-
-  /**
-   * Track playbook completion
-   */
-  async trackPlaybookCompletion(playbookId: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.PLAYBOOK_COMPLETION,
-      `playbook_${playbookId}`,
-      POINT_VALUES.PLAYBOOK_COMPLETION,
-      'Playbook completed'
-    );
-  }
-
-  /**
-   * Track team member addition
-   */
-  async trackTeamMemberAdded(memberId: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.TEAM_MEMBER_ADDED,
-      `team_member_${memberId}`,
-      POINT_VALUES.TEAM_MEMBER_ADDED,
-      'Team member added to chain of command'
-    );
-  }
-
-  /**
-   * Track meeting scheduled
-   */
-  async trackMeetingScheduled(meetingId: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.MEETING_SCHEDULED,
-      `meeting_${meetingId}`,
-      POINT_VALUES.MEETING_SCHEDULED,
-      'Meeting scheduled'
-    );
-  }
-
-  /**
-   * Track innovation idea submission
-   */
-  async trackInnovationIdea(sessionId: string): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.INNOVATION_IDEA,
-      `innovation_${sessionId}`,
-      POINT_VALUES.INNOVATION_IDEA,
-      'Innovation idea submitted'
-    );
-  }
-
-  /**
-   * Track profile completion
-   */
-  async trackProfileCompletion(): Promise<boolean> {
-    return this.awardPoints(
-      ACTIVITY_TYPES.PROFILE_COMPLETION,
-      'profile_complete',
-      POINT_VALUES.PROFILE_COMPLETION,
-      'Profile completed'
-    );
-  }
 }
 
 // Export a singleton instance
 export const pointsManager = new PointsManager();
 
-// Helper functions for easy use throughout the app
+// Helper functions for easy use throughout the app - SIMPLIFIED
 export const trackActivity = {
   dailyLogin: () => pointsManager.trackDailyLogin(),
   timelineCompletion: (id: string) => pointsManager.trackTimelineCompletion(id),
-  scorecardGreen: (id: string) => pointsManager.trackScorecardGreen(id),
-  scorecardLightGreen: (id: string) => pointsManager.trackScorecardLightGreen(id),
-  battlePlanSection: (section: string) => pointsManager.trackBattlePlanSection(section),
-  machineSetup: (id: string, type: string) => pointsManager.trackMachineSetup(id, type),
-  playbookCompletion: (id: string) => pointsManager.trackPlaybookCompletion(id),
-  teamMemberAdded: (id: string) => pointsManager.trackTeamMemberAdded(id),
-  meetingScheduled: (id: string) => pointsManager.trackMeetingScheduled(id),
-  innovationIdea: (id: string) => pointsManager.trackInnovationIdea(id),
-  profileCompletion: () => pointsManager.trackProfileCompletion(),
+  removeTimelineCompletion: (id: string) => pointsManager.removeTimelineCompletion(id),
+  // We'll add more activities one by one after testing
 };
 
 // Utility to show point celebration/notification
