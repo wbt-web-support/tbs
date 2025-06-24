@@ -39,14 +39,55 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user's Google Analytics tokens
-    const { data: tokenData, error } = await supabase
+    // First priority: Check if user has their own Google Analytics connection
+    const { data: userTokens } = await supabase
       .from('google_analytics_tokens')
       .select('*')
       .eq('user_id', user.id)
       .single();
-    
-    if (error || !tokenData) {
+
+    let tokenData = null;
+    let dataSource = 'user';
+    let assignmentDetails = null;
+
+    if (userTokens) {
+      // User has their own connection - use it
+      tokenData = userTokens;
+      dataSource = 'user';
+    } else {
+      // No user connection - check for superadmin assignment
+      const { data: assignment } = await supabase
+        .from('superadmin_analytics_assignments')
+        .select('*')
+        .eq('assigned_user_id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (assignment) {
+        // Get superadmin's tokens
+        const { data: superadminTokens } = await supabase
+          .from('superadmin_google_analytics_tokens')
+          .select('*')
+          .eq('superadmin_user_id', assignment.superadmin_user_id)
+          .single();
+
+        if (superadminTokens) {
+          tokenData = {
+            ...superadminTokens,
+            property_id: assignment.property_id.includes('/') 
+              ? assignment.property_id.split('/').pop() 
+              : assignment.property_id
+          };
+          dataSource = 'superadmin';
+          assignmentDetails = {
+            property_name: assignment.property_name,
+            account_name: assignment.account_name
+          };
+        }
+      }
+    }
+
+    if (!tokenData) {
       return NextResponse.json(
         { error: 'No Google Analytics connection found' },
         { status: 404 }
@@ -79,21 +120,50 @@ export async function GET(request: NextRequest) {
           ? new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString()
           : null;
         
-        // Update tokens in database
-        const { error: updateError } = await supabase
-          .from('google_analytics_tokens')
-          .update({
-            access_token: access_token,
-            expires_at: newExpiresAt,
-            // Update refresh token if a new one was provided
-            ...(refreshedTokens.refresh_token && { refresh_token: refreshedTokens.refresh_token })
-          })
-          .eq('user_id', user.id);
-        
-        if (updateError) {
-          console.error('Failed to update refreshed tokens:', updateError);
+        // Update tokens in the appropriate database table
+        if (dataSource === 'user') {
+          // Update user's own tokens
+          const { error: updateError } = await supabase
+            .from('google_analytics_tokens')
+            .update({
+              access_token: access_token,
+              expires_at: newExpiresAt,
+              // Update refresh token if a new one was provided
+              ...(refreshedTokens.refresh_token && { refresh_token: refreshedTokens.refresh_token })
+            })
+            .eq('user_id', user.id);
+          
+          if (updateError) {
+            console.error('Failed to update user tokens:', updateError);
+          } else {
+            console.log('User tokens refreshed successfully');
+          }
         } else {
-          console.log('Tokens refreshed successfully');
+          // Update superadmin tokens (this will affect all assigned users)
+          const { data: assignment } = await supabase
+            .from('superadmin_analytics_assignments')
+            .select('superadmin_user_id')
+            .eq('assigned_user_id', user.id)
+            .eq('is_active', true)
+            .single();
+
+          if (assignment) {
+            const { error: updateError } = await supabase
+              .from('superadmin_google_analytics_tokens')
+              .update({
+                access_token: access_token,
+                expires_at: newExpiresAt,
+                // Update refresh token if a new one was provided
+                ...(refreshedTokens.refresh_token && { refresh_token: refreshedTokens.refresh_token })
+              })
+              .eq('superadmin_user_id', assignment.superadmin_user_id);
+            
+            if (updateError) {
+              console.error('Failed to update superadmin tokens:', updateError);
+            } else {
+              console.log('Superadmin tokens refreshed successfully');
+            }
+          }
         }
         
       } catch (refreshError) {
@@ -181,7 +251,11 @@ export async function GET(request: NextRequest) {
       metadata: {
         propertyId: propertyIdNumber,
         dateRange: { startDate, endDate },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        dataSource, // 'user' or 'superadmin'
+        ...(dataSource === 'superadmin' && assignmentDetails && {
+          assignmentDetails
+        })
       }
     });
 

@@ -117,34 +117,75 @@ export default function NewDashboard() {
         return;
       }
 
+      // First priority: Check if user has their own Google Analytics connection
       const { data: tokenData, error } = await supabase
         .from('google_analytics_tokens')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking connection:', error);
-        setLoading(false);
-        return;
+      if (error) {
+        console.error('Error checking user connection:', error);
       }
 
-      const connected = !!tokenData;
-      const propertySelected = !!(tokenData?.property_id);
+      let connected = !!tokenData;
+      let propertySelected = !!(tokenData?.property_id);
+      let connectionSource = 'user';
+      let assignmentDetails = null;
+
+      // If user doesn't have their own connection, check for superadmin assignment
+      if (!connected) {
+        const { data: assignment, error: assignmentError } = await supabase
+          .from('superadmin_analytics_assignments')
+          .select('*')
+          .eq('assigned_user_id', user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (assignmentError) {
+          console.error('Error checking assignment:', assignmentError);
+        }
+
+        if (assignment) {
+          // Check if the superadmin has valid tokens
+          const { data: superadminTokens, error: tokensError } = await supabase
+            .from('superadmin_google_analytics_tokens')
+            .select('*')
+            .eq('superadmin_user_id', assignment.superadmin_user_id)
+            .maybeSingle();
+
+          if (tokensError) {
+            console.error('Error checking superadmin tokens:', tokensError);
+          }
+
+          if (superadminTokens && assignment.property_id) {
+            connected = true;
+            propertySelected = true;
+            connectionSource = 'superadmin';
+            assignmentDetails = {
+              property_name: assignment.property_name,
+              account_name: assignment.account_name,
+              property_id: assignment.property_id
+            };
+          }
+        }
+      }
 
       setIsConnected(connected);
       setHasPropertySelected(propertySelected);
       
       // Set connected property info
-      if (tokenData?.property_id) {
+      if (connectionSource === 'user' && tokenData?.property_id) {
         setConnectedProperty(`Property ID: ${tokenData.property_id}`);
+      } else if (connectionSource === 'superadmin' && assignmentDetails) {
+        setConnectedProperty(`Company Analytics: ${assignmentDetails.property_name || assignmentDetails.property_id}`);
       } else {
         setConnectedProperty(undefined);
       }
 
       // Check if user just came back from OAuth (connected but no property)
       const fromOAuth = searchParams.get('connected') === 'true';
-      if (connected && !propertySelected && fromOAuth) {
+      if (connectionSource === 'user' && connected && !propertySelected && fromOAuth) {
         setShowAccountModal(true);
         // Clean up URL
         window.history.replaceState({}, '', window.location.pathname);

@@ -183,7 +183,31 @@ export default function RealAnalyticsViewer({
     <div className="space-y-6">
       {/* Header with Popup Buttons */}
       <div className="flex items-center justify-between">
-   
+        {/* Data Source Information */}
+        {data?.metadata?.dataSource && (
+          <div className="flex items-center gap-2">
+            {data.metadata.dataSource === 'superadmin' ? (
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-blue-700 font-medium">
+                  Using Company Analytics
+                </span>
+                {data.metadata.assignmentDetails && (
+                  <span className="text-xs text-blue-600">
+                    ({data.metadata.assignmentDetails.property_name})
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-lg">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-green-700 font-medium">
+                  Using Your Account
+                </span>
+              </div>
+            )}
+          </div>
+        )}
         
         <div className="flex items-center gap-2">
           <DateFilterPopup 
@@ -197,6 +221,7 @@ export default function RealAnalyticsViewer({
             onDisconnect={onDisconnect}
             onChangeProperty={onChangeProperty}
             onRefresh={onRefresh}
+            dataSource={data?.metadata?.dataSource}
           />
         </div>
       </div>
