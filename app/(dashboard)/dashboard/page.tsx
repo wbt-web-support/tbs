@@ -392,7 +392,7 @@ export default function NewDashboard() {
 
         {/* Initial Loading State - Show Skeleton */}
         {loading && (
-          <div className="space-y-6">
+          <div className="space-y-0">
             {/* Greeting Skeleton */}
             <Card className="bg-transparent border-none">
               <CardContent className="p-0">
@@ -420,7 +420,7 @@ export default function NewDashboard() {
                   Connect Google Analytics
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="">
                 {/* Benefits */}
                 <div className="space-y-3">
                   <h4 className="font-medium text-blue-900">What you'll get:</h4>
@@ -500,7 +500,7 @@ export default function NewDashboard() {
 
         {/* Connected and Property Selected - Show Analytics Dashboard */}
         {isConnected && hasPropertySelected && (
-          <div className="space-y-6">
+          <div className="">
             {/* Greeting Section */}
             {isGreetingLoading ? (
               <Card className="bg-transparent border-none">

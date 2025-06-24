@@ -217,7 +217,7 @@ export default function RealAnalyticsViewer({
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between animate-in fade-in duration-300">
+        <div className="flex items-center justify-between animate-in fade-in duration-300 flex-wrap gap-2">
           {/* Data Source Information */}
           {data?.metadata?.dataSource && (
             <div className="flex items-center gap-2">
