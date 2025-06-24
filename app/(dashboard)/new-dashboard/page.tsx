@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { AnalyticsDashboardSkeleton, CustomerReviewsSkeleton } from '@/app/(dashboard)/new-dashboard/components/analytics-skeleton';
 import CustomerReviewsSummary from '@/app/(dashboard)/new-dashboard/components/customer-reviews-summary';
+import { trackActivity } from '@/utils/points';
 import {
   BarChart3,
   LinkIcon,
@@ -335,6 +336,13 @@ export default function NewDashboard() {
   useEffect(() => {
     checkConnectionStatus();
     setupGreeting();
+    
+    // Track daily login for gamification
+    trackActivity.dailyLogin().then(pointsAwarded => {
+      if (pointsAwarded) {
+        console.log('🎉 Daily login points awarded!');
+      }
+    }).catch(console.error);
   }, []);
 
 
@@ -500,6 +508,8 @@ export default function NewDashboard() {
               </Card>
             )}
 
+         
+            {/* Analytics Dashboard */}
             <RealAnalyticsViewer 
               isConnected={isConnected}
               connectedProperty={connectedProperty}

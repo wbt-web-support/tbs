@@ -13,6 +13,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId, getTeamMemberIds } from "@/utils/supabase/teams";
 import CustomerReviewsSummary from "./components/customer-reviews-summary";
+import Leaderboard from "@/components/leaderboard";
+import { trackActivity } from "@/utils/points";
 import Link from "next/link";
 import {
   Brain,
@@ -648,6 +650,13 @@ export default function AIDashboard() {
   useEffect(() => {
     fetchBusinessData();
     fetchDashboardAnalysis();
+    
+    // Track daily login for gamification
+    trackActivity.dailyLogin().then(pointsAwarded => {
+      if (pointsAwarded) {
+        console.log('🎉 Daily login points awarded!');
+      }
+    }).catch(console.error);
   }, []);
 
   const handleRefresh = () => {
@@ -1226,7 +1235,7 @@ export default function AIDashboard() {
           )}
 
           {/* Bottom Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Upcoming Meetings */}
             {loadingStates.upcomingMeetings ? <UpcomingMeetingsSkeleton /> : (
               <Card className="bg-white border border-gray-200">
@@ -1410,6 +1419,11 @@ export default function AIDashboard() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Leaderboard */}
+            <div className="lg:col-span-1">
+              <Leaderboard />
+            </div>
           </div>
 
           {/* Error State */}

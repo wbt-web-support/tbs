@@ -149,16 +149,10 @@ export default function UserManagementPage() {
     try {
       setLoading(true);
       
-      // Fetch user profiles with team information
+      // First, fetch all user profiles
       const { data: profiles, error } = await supabase
         .from('business_info')
-        .select(`
-          *,
-          team_admin:team_id(
-            business_name,
-            full_name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -174,7 +168,33 @@ export default function UserManagementPage() {
         return;
       }
       
-      setUsers(profiles);
+      // Get unique team IDs
+      const teamIds = Array.from(new Set(profiles.map(p => p.team_id).filter(Boolean)));
+      
+      // Fetch team admin information
+      let teamAdmins: any[] = [];
+      if (teamIds.length > 0) {
+        const { data: admins, error: adminError } = await supabase
+          .from('business_info')
+          .select('user_id, business_name, full_name')
+          .in('user_id', teamIds);
+        
+        if (adminError) {
+          console.error("Error fetching team admins:", adminError);
+        } else {
+          teamAdmins = admins || [];
+        }
+      }
+      
+      // Merge profiles with team admin info
+      const profilesWithTeamAdmin = profiles.map(profile => ({
+        ...profile,
+        team_admin: profile.team_id 
+          ? teamAdmins.find(admin => admin.user_id === profile.team_id) || null
+          : null
+      }));
+      
+      setUsers(profilesWithTeamAdmin);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to load users");

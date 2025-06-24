@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { trackActivity } from "@/utils/points";
 
 type TimelineEvent = {
   id: string;
@@ -127,7 +128,20 @@ export default function TimelineView() {
         )
       );
 
-      toast.success(isCompleted ? 'Event marked as complete' : 'Event marked as incomplete');
+      // Award points for completing the event
+      if (isCompleted) {
+        trackActivity.timelineCompletion(event.id).then(pointsAwarded => {
+          if (pointsAwarded) {
+            toast.success(`🎉 Event completed! +50 points earned!`);
+          } else {
+            toast.success('Event marked as complete');
+          }
+        }).catch(() => {
+          toast.success('Event marked as complete');
+        });
+      } else {
+        toast.success('Event marked as incomplete');
+      }
     } catch (error) {
       console.error('Error updating event:', error);
       toast.error('Failed to update event status');

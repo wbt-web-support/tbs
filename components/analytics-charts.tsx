@@ -47,6 +47,7 @@ import {
 import Link from 'next/link';
 import CustomerReviewsSummary from '@/app/(dashboard)/new-dashboard/components/customer-reviews-summary';
 import { CustomerReviewsSkeleton } from '@/app/(dashboard)/new-dashboard/components/analytics-skeleton';
+import Leaderboard from '@/components/leaderboard';
 
 interface AnalyticsChartsProps {
   data: any;
@@ -663,6 +664,12 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
 
         </div>
       </div>
+
+         {/* Leaderboard Section */}
+         <div className="mb-6">
+              <Leaderboard />
+            </div>
+
 
       {/* Customer Reviews */}
       {customerReviewsLoading ? (
