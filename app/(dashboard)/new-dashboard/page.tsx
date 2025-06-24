@@ -10,8 +10,8 @@ import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
-import { AnalyticsDashboardSkeleton, CustomerReviewsSkeleton } from '@/app/(dashboard)/new-dashboard/components/analytics-skeleton';
-import CustomerReviewsSummary from '@/app/(dashboard)/new-dashboard/components/customer-reviews-summary';
+import { AnalyticsDashboardSkeleton, CustomerReviewsSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
+import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/customer-reviews-summary';
 import { trackActivity } from '@/utils/points';
 import {
   BarChart3,
@@ -54,6 +54,10 @@ export default function NewDashboard() {
   // Business profile for reviews
   const [adminProfile, setAdminProfile] = useState<BusinessInfo | null>(null);
   const [customerReviewsLoading, setCustomerReviewsLoading] = useState(true);
+
+  // Staggered loading states
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const supabase = createClient();
   const searchParams = useSearchParams();
@@ -103,7 +107,6 @@ export default function NewDashboard() {
       setGreetingName('there');
     } finally {
       setIsGreetingLoading(false);
-      setCustomerReviewsLoading(false);
     }
   };
 
@@ -255,6 +258,27 @@ export default function NewDashboard() {
     }
   };
 
+  // Staggered loading implementation
+  const startStaggeredLoading = async () => {
+    if (isConnected && hasPropertySelected) {
+      // Wait for greeting to load first
+      while (isGreetingLoading) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // Small delay after greeting loads
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Start analytics loading
+      setShowAnalytics(true);
+      
+      // Wait a bit before starting customer reviews
+      setTimeout(() => {
+        setCustomerReviewsLoading(false);
+      }, 1500);
+    }
+  };
+
   const handleConnect = async () => {
     try {
       setConnecting(true);
@@ -345,7 +369,12 @@ export default function NewDashboard() {
     }).catch(console.error);
   }, []);
 
-
+  // Start staggered loading when connection status is ready
+  useEffect(() => {
+    if (!loading) {
+      startStaggeredLoading();
+    }
+  }, [loading, isConnected, hasPropertySelected, isGreetingLoading]);
 
   return (
     <div className="p-0">
@@ -508,19 +537,22 @@ export default function NewDashboard() {
               </Card>
             )}
 
-         
-            {/* Analytics Dashboard */}
-            <RealAnalyticsViewer 
-              isConnected={isConnected}
-              connectedProperty={connectedProperty}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-              onChangeProperty={handleChangeProperty}
-              onRefresh={handleRefreshAnalytics}
-              refreshing={refreshing}
-              adminProfile={adminProfile}
-              customerReviewsLoading={customerReviewsLoading}
-            />
+            {/* Analytics Dashboard with Staggered Loading */}
+            {!showAnalytics ? (
+              <AnalyticsDashboardSkeleton />
+            ) : (
+              <RealAnalyticsViewer 
+                isConnected={isConnected}
+                connectedProperty={connectedProperty}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+                onChangeProperty={handleChangeProperty}
+                onRefresh={handleRefreshAnalytics}
+                refreshing={refreshing}
+                adminProfile={adminProfile}
+                customerReviewsLoading={customerReviewsLoading}
+              />
+            )}
           </div>
         )}
       </div>

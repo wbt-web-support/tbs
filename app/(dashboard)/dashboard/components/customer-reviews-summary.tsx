@@ -234,7 +234,7 @@ export default function CustomerReviewsSummary({ businessName, googleReviewLink 
   const aiSummaryPoints = formatAISummaryAsPoints(reviewsData.ai_summary);
 
   return (
-    <Card className="bg-white border border-gray-200 h-full">
+    <Card className="bg-white border border-gray-200">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>

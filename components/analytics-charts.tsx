@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -45,8 +45,8 @@ import {
   Gauge,
 } from 'lucide-react';
 import Link from 'next/link';
-import CustomerReviewsSummary from '@/app/(dashboard)/new-dashboard/components/customer-reviews-summary';
-import { CustomerReviewsSkeleton } from '@/app/(dashboard)/new-dashboard/components/analytics-skeleton';
+import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/customer-reviews-summary';
+import { CustomerReviewsSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
 import Leaderboard from '@/components/leaderboard';
 
 interface AnalyticsChartsProps {
@@ -68,6 +68,33 @@ interface MetricConfig {
 
 export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoading = false }: AnalyticsChartsProps) {
   const [activeTab, setActiveTab] = useState('activeUsers');
+  
+  // Staggered loading states
+  const [showMetricCards, setShowMetricCards] = useState(false);
+  const [showMainChart, setShowMainChart] = useState(false);
+  const [showSideCharts, setShowSideCharts] = useState(false);
+  const [showQuickLinks, setShowQuickLinks] = useState(false);
+
+  // Start staggered loading when component mounts
+  useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = [];
+    
+    // Show metric cards first
+    timeouts.push(setTimeout(() => setShowMetricCards(true), 100));
+    
+    // Show main chart
+    timeouts.push(setTimeout(() => setShowMainChart(true), 400));
+    
+    // Show side charts
+    timeouts.push(setTimeout(() => setShowSideCharts(true), 700));
+    
+    // Show quick links and reviews section
+    timeouts.push(setTimeout(() => setShowQuickLinks(true), 1000));
+    
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, [data]);
 
   const metricConfigs: MetricConfig[] = [
     {
@@ -256,45 +283,70 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
       <div className='col-span-2'>
       <div className='bg-white p-6 rounded-lg mb-6 border' >
       {/* Clickable Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        {metricConfigs.map((metric) => {
-          const metricSummary = calculateMetricSummary(metric.id);
-          const isActive = activeTab === metric.id;
-          
-          return (
-            <Card 
-              key={metric.id}
-              className={`cursor-pointer transition-all hover:shadow-md ${
-                isActive ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
-              }`}
-              onClick={() => setActiveTab(metric.id)}
-            >
+      {!showMetricCards ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-white border border-gray-200">
               <CardContent className="p-4 lg:p-6">
                 <div className="flex items-center justify-between">
-                  <div >
-                    <p className="text-sm font-medium text-gray-600">{metric.label}</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatValue(
-                        metric.format === 'percentage' 
-                          ? metricSummary.total / chartData.length 
-                          : metricSummary.total, 
-                        metric.format
-                      )}
-                    </p>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-20"></div>
+                    <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-16"></div>
                   </div>
-                  <div className={`h-12 w-12 ${metric.bgColor} rounded-lg flex items-center justify-center`}>
-                    {metric.icon}
-                  </div>
+                  <div className="h-12 w-12 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-lg"></div>
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 animate-in fade-in duration-300">
+          {metricConfigs.map((metric) => {
+            const metricSummary = calculateMetricSummary(metric.id);
+            const isActive = activeTab === metric.id;
+            
+            return (
+              <Card 
+                key={metric.id}
+                className={`cursor-pointer transition-all hover:shadow-md ${
+                  isActive ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                }`}
+                onClick={() => setActiveTab(metric.id)}
+              >
+                <CardContent className="p-4 lg:p-6">
+                  <div className="flex items-center justify-between">
+                    <div >
+                      <p className="text-sm font-medium text-gray-600">{metric.label}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {formatValue(
+                          metric.format === 'percentage' 
+                            ? metricSummary.total / chartData.length 
+                            : metricSummary.total, 
+                          metric.format
+                        )}
+                      </p>
+                    </div>
+                    <div className={`h-12 w-12 ${metric.bgColor} rounded-lg flex items-center justify-center`}>
+                      {metric.icon}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
      
-      {/* Chart Section */}
-      <Card className="w-full bg-transparent border-none shadow-none">
-        <CardContent className="p-0 pt-4">
+             {/* Chart Section */}
+       {!showMainChart ? (
+         <Card className="w-full bg-transparent border-none shadow-none">
+           <CardContent className="p-0 pt-4">
+             <div className="w-full h-64 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-lg"></div>
+           </CardContent>
+         </Card>
+       ) : (
+         <Card className="w-full bg-transparent border-none shadow-none animate-in fade-in duration-500">
+           <CardContent className="p-0 pt-4">
           {/* Compact Metric Summary */}
           <div className="flex items-center justify-between mb-4 p-2 bg-gray-50 rounded-lg hidden">
             <div className="flex items-center gap-2">
@@ -382,6 +434,7 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
           </div>
         </CardContent>
       </Card> 
+       )}
       </div>
 
       {/* Side by Side: Bounce Rate Chart and Device Breakdown */}
