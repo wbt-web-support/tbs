@@ -86,6 +86,8 @@ interface UserProfile {
   business_name: string;
   email: string;
   profile_picture_url?: string;
+  role: string;
+  team_id?: string;
 }
 
 export default function AnalyticsManagementPage() {
@@ -122,7 +124,7 @@ export default function AnalyticsManagementPage() {
     try {
       const { data: profiles, error } = await supabase
         .from('business_info')
-        .select('*')
+        .select('id, user_id, full_name, business_name, email, profile_picture_url, role, team_id, created_at')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -248,6 +250,8 @@ export default function AnalyticsManagementPage() {
 
   const handleRemoveAssignment = async (userId: string) => {
     try {
+      console.log('Attempting to remove assignment for user:', userId);
+      
       const response = await fetch('/api/superadmin/assign-analytics', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -256,14 +260,16 @@ export default function AnalyticsManagementPage() {
 
       if (response.ok) {
         toast.success('Assignment removed successfully');
-        fetchAssignments();
+        await fetchAssignments();
+        await fetchUsers(); // Refresh users list to update status
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Failed to remove assignment');
+        console.error('API Error:', error);
+        toast.error(error.message || error.error || 'Failed to remove assignment');
       }
     } catch (error) {
       console.error('Error removing assignment:', error);
-      toast.error('Failed to remove assignment');
+      toast.error('Network error: Failed to remove assignment');
     }
   };
 
@@ -312,7 +318,30 @@ export default function AnalyticsManagementPage() {
 
   const getUnassignedUsers = () => {
     const assignedUserIds = assignments.map(a => a.assigned_user_id);
-    return users.filter(user => !assignedUserIds.includes(user.user_id));
+    return users.filter(user => {
+      // Exclude superadmins from assignment logic
+      if (user.role === 'super_admin') {
+        return false;
+      }
+      
+      // Filter out already assigned users
+      if (assignedUserIds.includes(user.user_id)) {
+        return false;
+      }
+      
+      // Filter out team members if their admin is already assigned
+      if (user.role !== 'admin' && user.team_id) {
+        const teamAdmin = users.find(u => 
+          u.team_id === user.team_id && 
+          u.role === 'admin'
+        );
+        if (teamAdmin && assignedUserIds.includes(teamAdmin.user_id)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   };
 
   const isPropertyAssigned = (propertyId: string) => {
@@ -325,6 +354,20 @@ export default function AnalyticsManagementPage() {
 
   const isUserAssigned = (userId: string) => {
     return assignments.some(a => a.assigned_user_id === userId);
+  };
+
+  const isUserBlockedByTeam = (user: UserProfile) => {
+    if (user.role === 'admin' || !user.team_id) {
+      return false;
+    }
+    
+    const assignedUserIds = assignments.map(a => a.assigned_user_id);
+    const teamAdmin = users.find(u => 
+      u.team_id === user.team_id && 
+      u.role === 'admin'
+    );
+    
+    return teamAdmin && assignedUserIds.includes(teamAdmin.user_id);
   };
 
   const getInitials = (name?: string) => {
@@ -512,7 +555,7 @@ export default function AnalyticsManagementPage() {
                     <div>
                       <h3 className="font-medium text-sm text-gray-700 flex items-center gap-2 mb-2">
                         <Users className="h-4 w-4" />
-                        All Users ({users.length})
+                        All Users ({users.filter(u => u.role !== 'super_admin').length})
                       </h3>
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -525,15 +568,20 @@ export default function AnalyticsManagementPage() {
                       </div>
                     </div>
                     <div className="border rounded-lg max-h-96 overflow-y-auto">
-                      {users.length === 0 ? (
+                                            {users.filter(u => u.role !== 'super_admin').length === 0 ? (
                         <div className="p-8 text-center text-gray-500">
                           <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">No users found</p>
+                          <p className="text-sm">No users available for assignment</p>
                         </div>
-                                              ) : (
+                      ) : (
                           <div className="divide-y">
                             {users
                               .filter(user => {
+                                // Exclude superadmins from the assignment list
+                                if (user.role === 'super_admin') {
+                                  return false;
+                                }
+                                
                                 const searchLower = userSearchTerm.toLowerCase();
                                 return (
                                   user.full_name.toLowerCase().includes(searchLower) ||
@@ -543,7 +591,10 @@ export default function AnalyticsManagementPage() {
                               })
                               .map((user) => {
                                 const isAssigned = isUserAssigned(user.user_id);
+                                const isBlocked = isUserBlockedByTeam(user);
                                 const userAssignment = assignments.find(a => a.assigned_user_id === user.user_id);
+                                const canSelect = !isAssigned && !isBlocked;
+                                
                                 return (
                                   <div
                                     key={user.user_id}
@@ -553,9 +604,11 @@ export default function AnalyticsManagementPage() {
                                         ? "bg-blue-100 hover:bg-blue-100 border-l-4 border-blue-600" 
                                         : isAssigned 
                                           ? "bg-gray-50 hover:bg-gray-100 opacity-60"
-                                          : "hover:bg-gray-50"
+                                          : isBlocked
+                                            ? "bg-orange-50 hover:bg-orange-100 opacity-70"
+                                            : "hover:bg-gray-50"
                                     )}
-                                    onClick={() => !isAssigned && setSelectedUser(user.user_id)}
+                                    onClick={() => canSelect && setSelectedUser(user.user_id)}
                                   >
                                     <div className="flex items-center gap-3">
                                       <Avatar className="h-8 w-8">
@@ -564,12 +617,23 @@ export default function AnalyticsManagementPage() {
                                         </AvatarFallback>
                                       </Avatar>
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate">{user.full_name}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium text-sm truncate">{user.full_name}</p>
+                                          <Badge variant="outline" className="text-xs">
+                                            {user.role}
+                                          </Badge>
+                                        </div>
                                         <p className="text-xs text-gray-500 truncate">{user.business_name}</p>
                                         {isAssigned && userAssignment && (
                                           <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                                             <CheckCircle className="h-3 w-3" />
                                             Assigned to: {userAssignment.property_name}
+                                          </p>
+                                        )}
+                                        {isBlocked && (
+                                          <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3" />
+                                            Team admin already has analytics assigned
                                           </p>
                                         )}
                                       </div>
@@ -579,11 +643,19 @@ export default function AnalyticsManagementPage() {
                                       {isAssigned && (
                                         <Badge variant="outline" className="text-xs">Assigned</Badge>
                                       )}
+                                      {isBlocked && (
+                                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">In a team</Badge>
+                                      )}
                                     </div>
                                   </div>
                                 );
                               })}
                             {users.filter(user => {
+                              // Exclude superadmins
+                              if (user.role === 'super_admin') {
+                                return false;
+                              }
+                              
                               const searchLower = userSearchTerm.toLowerCase();
                               return (
                                 user.full_name.toLowerCase().includes(searchLower) ||

@@ -7,10 +7,7 @@ CREATE TABLE IF NOT EXISTS superadmin_analytics_assignments (
     property_name TEXT,
     account_name TEXT,
     assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_active BOOLEAN DEFAULT true,
-    
-    -- Ensure one active assignment per user
-    UNIQUE(assigned_user_id, is_active) DEFERRABLE INITIALLY DEFERRED
+    is_active BOOLEAN DEFAULT true
 );
 
 -- Add constraint to ensure only one active assignment per user

@@ -55,13 +55,64 @@ export async function GET(request: NextRequest) {
       tokenData = userTokens;
       dataSource = 'user';
     } else {
-      // No user connection - check for superadmin assignment
-      const { data: assignment } = await supabase
+      // No user connection - check for assignments
+      let assignment = null;
+      
+      // First check for direct assignment to this user
+      const { data: directAssignment } = await supabase
         .from('superadmin_analytics_assignments')
         .select('*')
         .eq('assigned_user_id', user.id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
+
+      if (directAssignment) {
+        assignment = directAssignment;
+      } else {
+        // If no direct assignment, check if user is part of a team with an assigned admin
+        const { data: userProfile } = await supabase
+          .from('business_info')
+          .select('team_id, role')
+          .eq('user_id', user.id)
+          .single();
+
+        if (userProfile?.team_id) {
+          // Find the admin of this team
+          const { data: teamAdmin } = await supabase
+            .from('business_info')
+            .select('user_id')
+            .eq('team_id', userProfile.team_id)
+            .eq('role', 'admin')
+            .maybeSingle();
+
+          if (teamAdmin) {
+            // Check if team admin has an assignment
+            const { data: teamAssignment } = await supabase
+              .from('superadmin_analytics_assignments')
+              .select('*')
+              .eq('assigned_user_id', teamAdmin.user_id)
+              .eq('is_active', true)
+              .maybeSingle();
+
+                         if (teamAssignment) {
+               assignment = teamAssignment;
+               dataSource = 'team_admin';
+               // Get the admin's business info for company name
+               const { data: adminBusinessInfo } = await supabase
+                 .from('business_info')
+                 .select('business_name')
+                 .eq('user_id', teamAdmin.user_id)
+                 .single();
+               
+               assignmentDetails = {
+                 property_name: teamAssignment.property_name,
+                 account_name: teamAssignment.account_name,
+                 company_name: adminBusinessInfo?.business_name || ''
+               };
+             }
+          }
+        }
+      }
 
       if (assignment) {
         // Get superadmin's tokens
@@ -78,7 +129,9 @@ export async function GET(request: NextRequest) {
               ? assignment.property_id.split('/').pop() 
               : assignment.property_id
           };
-          dataSource = 'superadmin';
+          if (dataSource !== 'team_admin') {
+            dataSource = 'superadmin';
+          }
           assignmentDetails = {
             property_name: assignment.property_name,
             account_name: assignment.account_name

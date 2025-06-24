@@ -38,7 +38,7 @@ type FormValues = z.infer<typeof formSchema>
 const permissionOptions = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'chat', label: 'Chat' },
-  { id: 'sop', label: 'SOP' },
+  { id: 'sop', label: 'Battle Plan' },
   { id: 'chq-timeline', label: 'CHQ Timeline' },
   { id: 'chain-of-command', label: 'Chain of Command' },
   { id: 'triage-planner', label: 'Triage Planner' },

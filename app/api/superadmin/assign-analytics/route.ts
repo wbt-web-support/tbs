@@ -106,16 +106,40 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing user ID' }, { status: 400 });
     }
 
-    // Deactivate assignment
-    const { error: updateError } = await supabase
+    // First, check if assignment exists
+    const { data: existingAssignment } = await supabase
+      .from('superadmin_analytics_assignments')
+      .select('*')
+      .eq('assigned_user_id', assigned_user_id)
+      .eq('is_active', true)
+      .single();
+
+    if (!existingAssignment) {
+      return NextResponse.json({ 
+        error: 'Assignment not found or already removed' 
+      }, { status: 404 });
+    }
+
+    // Deactivate assignment (RLS policy handles permissions)
+    const { data: updatedAssignment, error: updateError } = await supabase
       .from('superadmin_analytics_assignments')
       .update({ is_active: false })
       .eq('assigned_user_id', assigned_user_id)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .select();
 
     if (updateError) {
       console.error('Error removing assignment:', updateError);
-      return NextResponse.json({ error: 'Failed to remove assignment' }, { status: 500 });
+      return NextResponse.json({ 
+        error: `Failed to remove assignment: ${updateError.message}`,
+        details: updateError
+      }, { status: 500 });
+    }
+
+    if (!updatedAssignment || updatedAssignment.length === 0) {
+      return NextResponse.json({ 
+        error: 'No assignment was updated. Assignment may not exist or you may not have permission to remove it.' 
+      }, { status: 404 });
     }
 
     // Note: User's own google_analytics_tokens entry (if any) remains intact

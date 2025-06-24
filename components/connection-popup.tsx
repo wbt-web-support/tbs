@@ -191,13 +191,15 @@ export default function ConnectionPopup({
           </AlertDialogTitle>
           <AlertDialogDescription>
             You are currently using an admin-provided Google Analytics account. If you connect your own account, you will:
-            <ul className="list-disc list-inside mt-2 space-y-1">
+          </AlertDialogDescription>
+          <div className="mt-2">
+            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
               <li>Switch from admin-provided analytics to your own</li>
               <li>Need to select your own Google Analytics property</li>
               <li>Only see data from your own account</li>
               <li>Be able to disconnect anytime to return to admin-provided access</li>
             </ul>
-          </AlertDialogDescription>
+          </div>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -218,13 +220,15 @@ export default function ConnectionPopup({
           </AlertDialogTitle>
           <AlertDialogDescription>
             If you disconnect your Google Analytics account:
-            <ul className="list-disc list-inside mt-2 space-y-1">
+          </AlertDialogDescription>
+          <div className="mt-2">
+            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
               <li>You will lose access to your personal analytics data</li>
               <li>If you have admin-provided access, you'll automatically switch back to that</li>
               <li>If no admin access is available, you'll need to reconnect to view analytics</li>
               <li>You can reconnect your account anytime</li>
             </ul>
-          </AlertDialogDescription>
+          </div>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>

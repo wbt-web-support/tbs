@@ -198,6 +198,18 @@ export default function RealAnalyticsViewer({
                   </span>
                 )}
               </div>
+            ) : data.metadata.dataSource === 'team_admin' ? (
+              <div className="flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-sm text-purple-700 font-medium">
+                  {data.metadata.assignmentDetails?.company_name || 'Company'} Analytics
+                </span>
+                {data.metadata.assignmentDetails && (
+                  <span className="text-xs text-purple-600">
+                    ({data.metadata.assignmentDetails.property_name})
+                  </span>
+                )}
+              </div>
             ) : (
               <div className="flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-lg">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -214,15 +226,17 @@ export default function RealAnalyticsViewer({
             onDateChange={handleDateChange}
             currentRange={dateRange}
           />
-          <ConnectionPopup 
-            isConnected={isConnected}
-            connectedProperty={connectedProperty}
-            onConnect={onConnect}
-            onDisconnect={onDisconnect}
-            onChangeProperty={onChangeProperty}
-            onRefresh={onRefresh}
-            dataSource={data?.metadata?.dataSource}
-          />
+          {data?.metadata?.dataSource !== 'team_admin' && (
+            <ConnectionPopup 
+              isConnected={isConnected}
+              connectedProperty={connectedProperty}
+              onConnect={onConnect}
+              onDisconnect={onDisconnect}
+              onChangeProperty={onChangeProperty}
+              onRefresh={onRefresh}
+              dataSource={data?.metadata?.dataSource}
+            />
+          )}
         </div>
       </div>
 

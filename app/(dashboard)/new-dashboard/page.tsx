@@ -133,9 +133,13 @@ export default function NewDashboard() {
       let connectionSource = 'user';
       let assignmentDetails = null;
 
-      // If user doesn't have their own connection, check for superadmin assignment
+      // If user doesn't have their own connection, check for assignments
       if (!connected) {
-        const { data: assignment, error: assignmentError } = await supabase
+        let assignment = null;
+        let connectionSource = 'user';
+        
+        // First check for direct assignment to this user
+        const { data: directAssignment, error: assignmentError } = await supabase
           .from('superadmin_analytics_assignments')
           .select('*')
           .eq('assigned_user_id', user.id)
@@ -144,6 +148,52 @@ export default function NewDashboard() {
 
         if (assignmentError) {
           console.error('Error checking assignment:', assignmentError);
+        }
+
+        if (directAssignment) {
+          assignment = directAssignment;
+          connectionSource = 'superadmin';
+        } else {
+          // If no direct assignment, check if user is part of a team with an assigned admin
+          const { data: userProfile } = await supabase
+            .from('business_info')
+            .select('team_id, role')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (userProfile?.team_id) {
+            // Find the admin of this team
+            const { data: teamAdmin } = await supabase
+              .from('business_info')
+              .select('user_id, full_name')
+              .eq('team_id', userProfile.team_id)
+              .eq('role', 'admin')
+              .maybeSingle();
+
+            if (teamAdmin) {
+              // Check if team admin has an assignment
+              const { data: teamAssignment } = await supabase
+                .from('superadmin_analytics_assignments')
+                .select('*')
+                .eq('assigned_user_id', teamAdmin.user_id)
+                .eq('is_active', true)
+                .maybeSingle();
+
+              if (teamAssignment) {
+                assignment = teamAssignment;
+                connectionSource = 'team_admin';
+                
+                // Get team admin's company name
+                const { data: adminBusinessInfo } = await supabase
+                  .from('business_info')
+                  .select('business_name')
+                  .eq('user_id', teamAdmin.user_id)
+                  .single();
+                
+                (assignment as any).company_name = adminBusinessInfo?.business_name;
+              }
+            }
+          }
         }
 
         if (assignment) {
@@ -161,11 +211,12 @@ export default function NewDashboard() {
           if (superadminTokens && assignment.property_id) {
             connected = true;
             propertySelected = true;
-            connectionSource = 'superadmin';
             assignmentDetails = {
               property_name: assignment.property_name,
               account_name: assignment.account_name,
-              property_id: assignment.property_id
+              property_id: assignment.property_id,
+              connectionSource,
+              company_name: connectionSource === 'team_admin' ? (assignment as any).company_name : undefined
             };
           }
         }
@@ -177,8 +228,14 @@ export default function NewDashboard() {
       // Set connected property info
       if (connectionSource === 'user' && tokenData?.property_id) {
         setConnectedProperty(`Property ID: ${tokenData.property_id}`);
-      } else if (connectionSource === 'superadmin' && assignmentDetails) {
-        setConnectedProperty(`Company Analytics: ${assignmentDetails.property_name || assignmentDetails.property_id}`);
+      } else if (assignmentDetails) {
+        const sourceType = assignmentDetails.connectionSource || connectionSource;
+        if (sourceType === 'team_admin') {
+          const companyName = assignmentDetails.company_name || 'Company';
+          setConnectedProperty(`${companyName} Analytics: ${assignmentDetails.property_name || assignmentDetails.property_id}`);
+        } else {
+          setConnectedProperty(`Company Analytics: ${assignmentDetails.property_name || assignmentDetails.property_id}`);
+        }
       } else {
         setConnectedProperty(undefined);
       }

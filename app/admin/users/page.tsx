@@ -61,6 +61,11 @@ interface UserProfile {
   profile_picture_url?: string;
   role: string;
   created_at: string;
+  team_id?: string;
+  team_admin?: {
+    business_name: string;
+    full_name: string;
+  };
 }
 
 interface TimelineEvent {
@@ -118,6 +123,7 @@ export default function UserManagementPage() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [showTeamMembers, setShowTeamMembers] = useState(false);
   const [newUserForm, setNewUserForm] = useState<NewUserForm>({
     email: "",
     password: "",
@@ -143,10 +149,16 @@ export default function UserManagementPage() {
     try {
       setLoading(true);
       
-      // Fetch user profiles from business_info table
+      // Fetch user profiles with team information
       const { data: profiles, error } = await supabase
         .from('business_info')
-        .select('*')
+        .select(`
+          *,
+          team_admin:team_id(
+            business_name,
+            full_name
+          )
+        `)
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -368,7 +380,18 @@ export default function UserManagementPage() {
     }));
   };
 
-  const filteredUsers = users.filter(user => {
+  // Separate regular users from team members
+  const regularUsers = users.filter(user => 
+    user.role !== 'super_admin' && (!user.team_id || user.role === 'admin')
+  );
+  
+  const teamMembers = users.filter(user => 
+    user.team_id && user.role === 'user'
+  );
+
+  const displayUsers = showTeamMembers ? [...regularUsers, ...teamMembers] : regularUsers;
+
+  const filteredUsers = displayUsers.filter(user => {
     const searchTermLower = searchTerm.toLowerCase();
     return (
       user.full_name.toLowerCase().includes(searchTermLower) ||
@@ -433,6 +456,17 @@ export default function UserManagementPage() {
           <p className="text-muted-foreground mt-1">
             View, create, and manage user accounts
           </p>
+          <div className="flex gap-4 mt-3">
+            <div className="text-sm">
+              <span className="font-medium">{regularUsers.length}</span> regular users
+            </div>
+            <div className="text-sm text-orange-600">
+              <span className="font-medium">{teamMembers.length}</span> team members
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">{users.filter(u => u.role === 'super_admin').length}</span> super admins (hidden)
+            </div>
+          </div>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -653,7 +687,7 @@ export default function UserManagementPage() {
           </div>
 
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -663,7 +697,40 @@ export default function UserManagementPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-      </div>
+          
+          <div className="flex items-center gap-2">
+            <Switch
+              id="show-team-members"
+              checked={showTeamMembers}
+              onCheckedChange={setShowTeamMembers}
+            />
+            <Label htmlFor="show-team-members" className="text-sm whitespace-nowrap">
+              Show team members ({teamMembers.length})
+            </Label>
+          </div>
+        </div>
+
+        {!showTeamMembers && teamMembers.length > 0 && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>{teamMembers.length} team member{teamMembers.length !== 1 ? 's' : ''}</strong> hidden. 
+              Team members are managed by their team admins and cannot be directly administered.
+            </p>
+          </div>
+        )}
+
+        <div className="mb-4 text-sm text-muted-foreground">
+          Showing {filteredUsers.length} of {displayUsers.length} users
+          {showTeamMembers && teamMembers.length > 0 && (
+            <span className="text-blue-600 ml-2">
+              (includes {teamMembers.filter(member => 
+                member.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                member.business_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                member.email.toLowerCase().includes(searchTerm.toLowerCase())
+              ).length} team members)
+            </span>
+          )}
+        </div>
 
         <div className="rounded-md border">
         <Table>
@@ -688,35 +755,72 @@ export default function UserManagementPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profile_picture_url || ""} alt={user.full_name} />
-                      <AvatarFallback className={getRandomColor(user.id)}>
-                        {getInitials(user.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </TableCell>
-                  <TableCell className="font-medium">{user.full_name}</TableCell>
-                  <TableCell>{user.business_name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
+              filteredUsers.map((user) => {
+                const isTeamMember = user.team_id && user.role === 'user';
+                return (
+                  <TableRow 
+                    key={user.id}
+                    className={isTeamMember ? 'bg-orange-50 hover:bg-orange-100' : ''}
+                  >
                     <TableCell>
-                      <Badge className={getRoleBadgeColor(user.role)}>
-                        {user.role}
-                      </Badge>
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.profile_picture_url || ""} alt={user.full_name} />
+                        <AvatarFallback className={getRandomColor(user.id)}>
+                          {getInitials(user.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
                     </TableCell>
-                  <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right">
-                      <Link href={`/admin/users/${user.id}`}>
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                    </Button>
-                      </Link>
-                  </TableCell>
-                </TableRow>
-              ))
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {user.full_name}
+                        {isTeamMember && (
+                          <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-300">
+                            Team Member
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        {user.business_name}
+                        {isTeamMember && user.team_admin && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Team: {user.team_admin.business_name}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <Badge className={getRoleBadgeColor(user.role)}>
+                          {user.role}
+                        </Badge>
+                        {isTeamMember && (
+                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">
+                            In Team
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">
+                      {isTeamMember ? (
+                        <div className="text-xs text-muted-foreground">
+                          Managed by team admin
+                        </div>
+                      ) : (
+                        <Link href={`/admin/users/${user.id}`}>
+                          <Button variant="outline" size="sm" className="gap-1">
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </Button>
+                        </Link>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
