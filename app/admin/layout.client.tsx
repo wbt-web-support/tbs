@@ -16,6 +16,7 @@ import {
   LogOut,
   User,
   MessageSquare,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -62,6 +63,11 @@ const navigationSections = [
         name: "User Management",
         href: "/admin/users",
         icon: Users,
+      },
+      {
+        name: "Google Analytics",
+        href: "/admin/analytics",
+        icon: BarChart3,
       },
       {
         name: "Chatbot Instructions",

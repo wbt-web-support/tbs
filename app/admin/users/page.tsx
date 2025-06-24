@@ -43,7 +43,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
-import AnalyticsManagement from "./components/analytics-management";
 
 // Define types
 interface UserProfile {
@@ -652,9 +651,6 @@ export default function UserManagementPage() {
           </DialogContent>
         </Dialog>
           </div>
-
-      {/* Google Analytics Management */}
-      <AnalyticsManagement users={users} onRefresh={fetchUsers} />
 
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-6">
