@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogPortal } from "@/components/ui/dialog";
 import { 
   Trophy, 
   Medal, 
@@ -325,15 +325,17 @@ export default function Leaderboard() {
                 <Info className="h-4 w-4 text-gray-500 hover:text-blue-600" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-xl">
-                  <Zap className="h-6 w-6 text-blue-500" />
-                  How the Gamification System Works
-                </DialogTitle>
-              </DialogHeader>
-              <InfoDialogContent />
-            </DialogContent>
+            <DialogPortal>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto !fixed !left-1/2 !top-1/2 !-translate-x-1/2 !-translate-y-1/2 !z-[9999]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-xl">
+                    <Zap className="h-6 w-6 text-blue-500" />
+                    How the Gamification System Works
+                  </DialogTitle>
+                </DialogHeader>
+                <InfoDialogContent />
+              </DialogContent>
+            </DialogPortal>
           </Dialog>
         </CardTitle>
       </CardHeader>
