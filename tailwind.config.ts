@@ -88,6 +88,28 @@ const config = {
         "fadeOut": "fadeOut 2s forwards ease-out",
         "shimmer": "shimmer 2s infinite linear"
       },
+      transitionDuration: {
+        '0': '0ms',
+        '75': '75ms',
+        '100': '100ms',
+        '150': '150ms',
+        '200': '200ms',
+        '250': '250ms',
+        '300': '300ms',
+        '400': '400ms',
+        '500': '500ms',
+      },
+      animationDuration: {
+        '0': '0ms',
+        '75': '75ms',
+        '100': '100ms',
+        '150': '150ms',
+        '200': '200ms',
+        '250': '250ms',
+        '300': '300ms',
+        '400': '400ms',
+        '500': '500ms',
+      }
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/line-clamp")],

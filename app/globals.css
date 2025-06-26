@@ -76,15 +76,9 @@
     -webkit-line-clamp: 3;
   }
 
-  /* Staggered loading animations */
-  .animate-in {
-    animation: animateIn 0.6s ease-out forwards;
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  .fade-in {
-    animation: fadeIn 0.6s ease-out forwards;
+  /* Custom animations that don't conflict with tailwindcss-animate */
+  .custom-fade-in {
+    animation: customFadeIn 0.3s ease-out forwards;
   }
 
   .animate-shimmer {
@@ -92,14 +86,7 @@
   }
 }
 
-@keyframes animateIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
+@keyframes customFadeIn {
   from {
     opacity: 0;
   }
