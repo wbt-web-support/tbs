@@ -7,7 +7,7 @@ const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 if (!apiKey) {
   throw new Error("NEXT_PUBLIC_GEMINI_API_KEY is not set in the environment variables.");
 }
-
+ 
 const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function POST(req: NextRequest) {
@@ -16,7 +16,9 @@ export async function POST(req: NextRequest) {
 
     // Build the prompt for the AI
     let prompt = `You are an AI assistant helping a business owner fill out an onboarding form for a trades business school program.
-    The current question is "${questionLabel}" in the "${categoryTitle}" section. Keep the answer concise, relevant, and in plain text without any markdown. but you can add line breaks for readability. and one more important thing only respond in UK English.`;
+    The current question is "${questionLabel}" in the "${categoryTitle}" section. 
+    
+    IMPORTANT: Provide ONLY plain text without ANY markdown formatting. Do not use asterisks, hashtags, backticks, or any other markdown symbols. Use simple line breaks for readability. Write in UK English. Keep the answer concise and relevant.`;
 
     if (customPrompt) {
       prompt += `\nThe user has provided the following custom instructions: "${customPrompt}".`;
@@ -36,10 +38,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'generate') {
-      prompt += `\nPlease generate a concise and relevant answer for the question "${questionLabel}" based on the provided context and custom instructions. dont inlude any ** for markdown or anything just a simple linebreak, : , list , numbering and other noraml stuff is good.`;
+      prompt += `\nPlease generate a concise and relevant answer for the question "${questionLabel}" based on the provided context and custom instructions. Remember: NO markdown formatting - just plain text with simple line breaks.`;
     } else if (action === 'improve') {
       prompt += `\nThe current answer for this question is: "${existingContent}".`;
-      prompt += `\nPlease improve this answer based on the provided context and custom instructions. Output only the improved plain text answer.`;
+      prompt += `\nPlease improve this answer based on the provided context and custom instructions. Output only the improved plain text answer without any markdown formatting.`;
     } else {
        return NextResponse.json({ error: "Invalid action specified." }, { status: 400 });
     }
