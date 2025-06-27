@@ -15,7 +15,7 @@ import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, DollarSign, TrendingUp, Calendar, MapPin, Mail, Phone, FileText, Lightbulb } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, DollarSign, TrendingUp, Calendar, MapPin, Mail, Phone, FileText, Lightbulb } from "lucide-react";
 import { SubmissionLoader } from "./components/submission-loader";
 
 // Question interface for type safety
@@ -689,7 +689,7 @@ function FloatingAIAssistant({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-blue-600" />
-                <span className="font-medium text-gray-900">AI Assistant</span>
+                <span className="font-medium text-gray-900">Need Writing Help?</span>
               </div>
               {onToggle && (
                 <Button
@@ -1658,25 +1658,53 @@ export default function OnboardingClient() {
                             </p>
                           )}
 
-                          {/* Mobile AI Button - only show on mobile for AI-enabled questions */}
+                          {/* Mobile AI Dropdown - FAQ-style collapsible for AI-enabled questions */}
                           {q.aiAssist && (
                             <div className="lg:hidden mt-3">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setCurrentFocusedQuestion(q.name);
-                                  setMobileAiOpen(prev => ({
-                                    ...prev,
-                                    [q.name]: !prev[q.name]
-                                  }));
-                                }}
-                                className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
-                              >
-                                <Sparkles className="h-4 w-4" />
-                                {mobileAiOpen[q.name] ? 'Hide AI Assistant' : 'Use AI Assistant'}
-                              </Button>
+                              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentFocusedQuestion(q.name);
+                                    setMobileAiOpen(prev => ({
+                                      ...prev,
+                                      [q.name]: !prev[q.name]
+                                    }));
+                                  }}
+                                  className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-blue-600" />
+                                    <span className="text-sm font-medium text-blue-700">
+                                      Need Writing Help?
+                                    </span>
+                                  </div>
+                                  {mobileAiOpen[q.name] ? (
+                                    <ChevronUp className="h-4 w-4 text-blue-600" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-blue-600" />
+                                  )}
+                                </button>
+                                
+                                {mobileAiOpen[q.name] && (
+                                  <div className="border-t border-gray-200 bg-white">
+                                    <div className="p-3">
+                                      <p className="text-xs text-gray-600 mb-3">
+                                        Get AI help with writing and improving your response
+                                      </p>
+                                      <MobileAIAssistant
+                                        focusedQuestion={q.name}
+                                        form={form}
+                                        categories={categories}
+                                        onClose={() => setMobileAiOpen(prev => ({
+                                          ...prev,
+                                          [q.name]: false
+                                        }))}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                                 </div>
@@ -1699,18 +1727,7 @@ export default function OnboardingClient() {
                               )}
                           </div>
 
-                        {/* Mobile Inline AI Assistant - Compact Version */}
-                        {q.aiAssist && mobileAiOpen[q.name] && (
-                          <MobileAIAssistant
-                            focusedQuestion={q.name}
-                            form={form}
-                            categories={categories}
-                            onClose={() => setMobileAiOpen(prev => ({
-                              ...prev,
-                              [q.name]: false
-                            }))}
-                          />
-                        )}
+
                       </div>
                     );
                   })}
