@@ -975,8 +975,8 @@ function MobileAIAssistant({
       // Write directly to the form field
       form.setValue(focusedQuestion as keyof z.infer<typeof formSchema>, cleanedContent, { shouldValidate: true });
       
-      // Close the AI assistant after generating content
-      onClose();
+      // Keep the AI assistant open after generating content (to match desktop behavior)
+      // onClose();  // Removed to allow continued editing
       
     } catch (error: any) {
       console.error("AI Generation Error:", error);
@@ -1514,7 +1514,7 @@ export default function OnboardingClient() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
                           <label
-                                  className="block text-lg font-medium text-gray-900 mb-1 leading-tight"
+                                  className="block text-sm md:text-lg font-medium text-gray-900 mb-1 leading-tight"
                             htmlFor={q.name}
                           >
                             {q.label}
