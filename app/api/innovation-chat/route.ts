@@ -174,6 +174,32 @@ async function getInnovationInstances(userId: string) {
   }
 }
 
+// Get innovation document content
+async function getInnovationDocument(userId: string, documentId: string) {
+  if (!userId || !documentId) return null;
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('innovation_documents')
+      .select('*')
+      .eq('id', documentId)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      console.error('❌ [Supabase] Error fetching innovation document:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ [Supabase] Error fetching innovation document:', error);
+    return null;
+  }
+}
+
 // Get specific innovation instance
 async function getInnovationInstance(userId: string, instanceId: string) {
   if (!userId || !instanceId) return null;
@@ -987,7 +1013,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, message, instanceId, title } = body;
+    const { action, message, instanceId, title, documentId, chatMode } = body;
 
     if (action === 'create_instance') {
       const instance = await createInnovationInstance(userId, title);
@@ -1023,6 +1049,13 @@ export async function POST(req: Request) {
         getUserData(userId),
         getGlobalInstructions(innovationChatCategories)
       ]);
+      
+      // Get document if needed
+      let documentData = null;
+      if (chatMode === 'document' && documentId) {
+        console.log('🔄 [Innovation API] Document mode detected, fetching document:', documentId);
+        documentData = await getInnovationDocument(userId, documentId);
+      }
 
       // Prepare context using the same functions as regular chat
       const userContext = prepareUserContext(userData);
@@ -1035,11 +1068,43 @@ export async function POST(req: Request) {
       console.log('=== INNOVATION MACHINE MODEL INPUT END ===\n');
 
       // Create innovation-focused system prompt
-      const systemPrompt = `${formattedInstructions}
+      let systemPrompt = `${formattedInstructions}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚀 INNOVATION MACHINE SPECIALIZATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+      // Add document context if available
+      if (documentData && documentData.extracted_content) {
+        systemPrompt += `
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 DOCUMENT ANALYSIS MODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 DOCUMENT CONTEXT:
+You are now analyzing the following document: "${documentData.title}"
+File: ${documentData.file_name}
+Uploaded: ${new Date(documentData.created_at).toLocaleDateString()}
+
+📋 DOCUMENT CONTENT:
+${documentData.extracted_content}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 DOCUMENT-BASED INNOVATION ANALYSIS:
+Based on the document content above AND the business context provided earlier, provide insights on:
+1. Innovation opportunities mentioned or implied in the document
+2. How the document content relates to the user's business context
+3. Specific recommendations for implementing ideas from the document
+4. Gaps or areas for improvement based on the document
+5. Connections between document content and business data
+6. Practical next steps for turning document insights into business innovations
+
+🎯 Focus on making the document content actionable for this specific business context!`;
+      }
+
+      systemPrompt += `
 
 You are the Innovation Machine - a specialized AI designed to help businesses discover breakthrough opportunities and innovations. Your role is to leverage the complete business context above to suggest creative, practical innovations and growth strategies.
 

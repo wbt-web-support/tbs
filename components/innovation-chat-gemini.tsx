@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area"; 
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { 
   Lightbulb, 
   Send, 
@@ -26,11 +27,14 @@ import {
   Bug,
   Sidebar,
   SidebarOpen,
-  MessageSquare
+  MessageSquare,
+  Paperclip,
+  FileText
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { InnovationDocumentManager } from "@/components/innovation-document-manager";
 
 interface Message {
   role: "user" | "assistant";
@@ -58,6 +62,20 @@ interface InnovationChatInstance {
 
 const MEDIUM_SCREEN_BREAKPOINT = 768; // Tailwind 'md' breakpoint
 
+interface InnovationDocument {
+  id: string;
+  title: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  upload_status: 'uploading' | 'processing' | 'completed' | 'error';
+  created_at: string;
+  updated_at: string;
+  extracted_content?: string;
+  file_url?: string;
+  extraction_metadata?: any;
+}
+
 interface InnovationChatGeminiComponentProps { 
   hideDebugButton?: boolean;
   showHeader?: boolean;
@@ -65,6 +83,10 @@ interface InnovationChatGeminiComponentProps {
   selectedInstanceId?: string | null;
   onInstanceChange?: ((instanceId: string) => void) | null;
   onReady?: () => void;
+  selectedDocument?: InnovationDocument | null;
+  chatMode?: 'general' | 'document';
+  onDocumentSelect?: (document: InnovationDocument | null) => void;
+  onChatModeChange?: (mode: 'general' | 'document') => void;
 }
 
 export function InnovationChatGemini({ 
@@ -73,7 +95,11 @@ export function InnovationChatGemini({
   hideInstanceSidebar = false,
   selectedInstanceId = null,
   onInstanceChange = null,
-  onReady
+  onReady,
+  selectedDocument = null,
+  chatMode = 'general',
+  onDocumentSelect,
+  onChatModeChange
 }: InnovationChatGeminiComponentProps = {}) {
   const { toast } = useToast();
   const router = useRouter();
@@ -94,10 +120,34 @@ export function InnovationChatGemini({
   const [debugData, setDebugData] = useState<any>(null);
   const [showDebugPopup, setShowDebugPopup] = useState(false);
   const [showBotTyping, setShowBotTyping] = useState(false);
+  const [showDocumentManager, setShowDocumentManager] = useState(false);
   
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  // Helper function to generate welcome message based on chat mode
+  const getWelcomeMessage = useCallback(() => {
+    if (chatMode === 'document' && selectedDocument) {
+      return `🚀 Welcome to the Innovation Machine! I'm now ready to analyze and discuss your document "${selectedDocument.title}". Ask me anything about this document or let's explore innovation opportunities based on its content!`; 
+    }
+    return "🚀 Welcome to the Innovation Machine! I'm here to help you brainstorm, evaluate, and develop your next big business idea. What innovation are you considering today?";
+  }, [chatMode, selectedDocument]);
+
+  // Document management functions
+  const handleDocumentSelect = (document: InnovationDocument | null) => {
+    if (onDocumentSelect) {
+      onDocumentSelect(document);
+    }
+    if (onChatModeChange) {
+      onChatModeChange(document ? 'document' : 'general');
+    }
+    setShowDocumentManager(false);
+  };
+
+  const toggleDocumentManager = () => {
+    setShowDocumentManager(!showDocumentManager);
+  };
 
   // Screen size detection
   useEffect(() => {
@@ -192,7 +242,7 @@ export function InnovationChatGemini({
       } else {
         setMessages([{ 
           role: "assistant", 
-          content: "🚀 Welcome to the Innovation Machine! I'm here to help you brainstorm, evaluate, and develop your next big business idea. What innovation are you considering today?", 
+          content: getWelcomeMessage(), 
           type: "text", 
           isComplete: true 
         }]);
@@ -201,7 +251,7 @@ export function InnovationChatGemini({
       console.error('Error fetching instance history:', error);
       setMessages([{ 
         role: "assistant", 
-        content: "🚀 Welcome to the Innovation Machine! I'm here to help you brainstorm, evaluate, and develop your next big business idea. What innovation are you considering today?", 
+        content: getWelcomeMessage(), 
         type: "text", 
         isComplete: true 
       }]);
@@ -238,7 +288,7 @@ export function InnovationChatGemini({
         setCurrentInstanceId(data.instance.id);
         setMessages([{ 
           role: "assistant", 
-          content: "🚀 Welcome to the Innovation Machine! I'm here to help you brainstorm, evaluate, and develop your next big business idea. What innovation are you considering today?", 
+          content: getWelcomeMessage(), 
           type: "text", 
           isComplete: true 
         }]);
@@ -438,6 +488,19 @@ export function InnovationChatGemini({
     }
   }, [isDataLoaded, onReady]);
 
+  // Effect to update welcome message when document or chat mode changes
+  useEffect(() => {
+    if (isDataLoaded && messages.length === 1 && messages[0].role === 'assistant') {
+      // Only update if we have just the welcome message
+      setMessages([{
+        role: "assistant",
+        content: getWelcomeMessage(),
+        type: "text",
+        isComplete: true
+      }]);
+    }
+  }, [chatMode, selectedDocument, isDataLoaded, getWelcomeMessage, messages.length]);
+
   // Clear chat history (mark as inactive instead of deleting)
   const clearChatHistory = async () => {
     if (!currentInstanceId) return;
@@ -465,7 +528,7 @@ export function InnovationChatGemini({
 
       setMessages([{ 
         role: "assistant", 
-        content: "🚀 Welcome to the Innovation Machine! I'm here to help you brainstorm, evaluate, and develop your next big business idea. What innovation are you considering today?", 
+        content: getWelcomeMessage(), 
         type: "text", 
         isComplete: true 
       }]);
@@ -521,7 +584,9 @@ export function InnovationChatGemini({
         body: JSON.stringify({
           message: userMessageText,
           instanceId: currentInstanceId,
-          action: 'send_message'
+          action: 'send_message',
+          documentId: chatMode === 'document' && selectedDocument ? selectedDocument.id : null,
+          chatMode: chatMode
         })
       });
 
@@ -728,7 +793,7 @@ export function InnovationChatGemini({
               </Button>
             </div>
             <ScrollArea className="flex-1">
-              <div className="p-3 space-y-2">
+              <div className="p-3 space-y-2 flex-1">
                 {isLoadingInstances ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
@@ -805,6 +870,62 @@ export function InnovationChatGemini({
                   ))
                 )}
               </div>
+              
+                              {/* Document Controls - Bottom of Mobile Sidebar */}
+              <div className="p-3 border-t bg-white/90 space-y-3">
+                {/* Chat Mode Toggle */}
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                  <Button
+                    variant={chatMode === 'general' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => {
+                      if (chatMode !== 'general' && onChatModeChange) {
+                        onChatModeChange('general');
+                      }
+                    }}
+                    className="h-7 px-2 text-xs flex-1"
+                  >
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    General
+                  </Button>
+                  <Button
+                    variant={chatMode === 'document' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => {
+                      toggleDocumentManager();
+                      setMobileInstancesPanelOpen(false);
+                    }}
+                    className="h-7 px-2 text-xs flex-1"
+                  >
+                    <FileText className="h-3 w-3 mr-1" />
+                    Document
+                  </Button>
+                </div>
+                
+                {/* Document Manager Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    toggleDocumentManager();
+                    setMobileInstancesPanelOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2"
+                >
+                  <Paperclip className="h-4 w-4" />
+                  Manage Documents
+                </Button>
+                
+                {/* Selected Document Badge */}
+                {selectedDocument && (
+                  <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3 w-3 text-orange-600" />
+                      <span className="font-medium truncate">{selectedDocument.title}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </ScrollArea>
           </div>
           {mobileInstancesPanelOpen && (
@@ -841,86 +962,180 @@ export function InnovationChatGemini({
             )}
           </div>
 
+          {/* Collapsed Sidebar - Document Controls */}
+          {!showInstanceSidebar && (
+            <div className="flex flex-col items-center gap-2 py-3">
+              <Button
+                variant={chatMode === 'general' ? 'default' : 'ghost'}
+                size="icon"
+                onClick={() => {
+                  if (chatMode !== 'general' && onChatModeChange) {
+                    onChatModeChange('general');
+                  }
+                }}
+                className="w-8 h-8"
+                title="General Chat"
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={chatMode === 'document' ? 'default' : 'ghost'}
+                size="icon"
+                onClick={toggleDocumentManager}
+                className="w-8 h-8"
+                title="Document Chat"
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleDocumentManager}
+                className="w-8 h-8"
+                title="Manage Documents"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              {selectedDocument && (
+                <div className="w-8 h-8 bg-orange-50 border border-orange-200 rounded flex items-center justify-center" title={selectedDocument.title}>
+                  <FileText className="h-3 w-3 text-orange-600" />
+                </div>
+              )}
+            </div>
+          )}
+
           {showInstanceSidebar && (
-            <ScrollArea className="flex-1">
-              <div className="p-3 space-y-2">
-                {isLoadingInstances ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                  </div>
-                ) : innovationInstances.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No sessions yet</p>
-                  </div>
-                ) : (
-                  innovationInstances.map((instance) => (
-                    <div
-                      key={instance.id}
-                      className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${
-                        currentInstanceId === instance.id
-                          ? 'bg-orange-50 border border-orange-200'
-                          : 'hover:bg-gray-50 border border-transparent'
-                      }`}
-                      onClick={() => selectInstance(instance.id)}
-                    >
-                      {editingInstanceId === instance.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') updateInstanceTitle(instance.id, editingTitle);
-                              else if (e.key === 'Escape') setEditingInstanceId(null);
-                            }}
-                            className="flex-1 h-7 text-sm"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => { e.stopPropagation(); updateInstanceTitle(instance.id, editingTitle);}}
-                            className="h-7 w-7 shrink-0"
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-sm text-gray-900 truncate">
-                              {instance.title}
-                            </h3>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {new Date(instance.updated_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <>
+              <ScrollArea className="flex-1">
+                <div className="p-3 space-y-2">
+                  {isLoadingInstances ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                    </div>
+                  ) : innovationInstances.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">
+                      <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No sessions yet</p>
+                    </div>
+                  ) : (
+                    innovationInstances.map((instance) => (
+                      <div
+                        key={instance.id}
+                        className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${
+                          currentInstanceId === instance.id
+                            ? 'bg-orange-50 border border-orange-200'
+                            : 'hover:bg-gray-50 border border-transparent'
+                        }`}
+                        onClick={() => selectInstance(instance.id)}
+                      >
+                        {editingInstanceId === instance.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') updateInstanceTitle(instance.id, editingTitle);
+                                else if (e.key === 'Escape') setEditingInstanceId(null);
+                              }}
+                              className="flex-1 h-7 text-sm"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={(e) => { e.stopPropagation(); setEditingInstanceId(instance.id); setEditingTitle(instance.title);}}
+                              onClick={(e) => { e.stopPropagation(); updateInstanceTitle(instance.id, editingTitle);}}
                               className="h-7 w-7 shrink-0"
                             >
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => { e.stopPropagation(); if (confirm('Delete session?')) deleteInstance(instance.id);}}
-                              className="h-7 w-7 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-3 w-3" />
+                              <Check className="h-3 w-3" />
                             </Button>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-sm text-gray-900 truncate">
+                                {instance.title}
+                              </h3>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {new Date(instance.updated_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => { e.stopPropagation(); setEditingInstanceId(instance.id); setEditingTitle(instance.title);}}
+                                className="h-7 w-7 shrink-0"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => { e.stopPropagation(); if (confirm('Delete session?')) deleteInstance(instance.id);}}
+                                className="h-7 w-7 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+              
+              {/* Document Controls - Bottom of Desktop Sidebar */}
+              <div className="p-3 border-t bg-white/90 space-y-3">
+                {/* Chat Mode Toggle */}
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                  <Button
+                    variant={chatMode === 'general' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => {
+                      if (chatMode !== 'general' && onChatModeChange) {
+                        onChatModeChange('general');
+                      }
+                    }}
+                    className="h-7 px-2 text-xs flex-1"
+                  >
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    General
+                  </Button>
+                  <Button
+                    variant={chatMode === 'document' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={toggleDocumentManager}
+                    className="h-7 px-2 text-xs flex-1"
+                  >
+                    <FileText className="h-3 w-3 mr-1" />
+                    Document
+                  </Button>
+                </div>
+                
+                {/* Document Manager Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleDocumentManager}
+                  className="w-full flex items-center gap-2"
+                >
+                  <Paperclip className="h-4 w-4" />
+                  Manage Documents
+                </Button>
+                
+                {/* Selected Document Badge */}
+                {selectedDocument && (
+                  <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3 w-3 text-orange-600" />
+                      <span className="font-medium truncate">{selectedDocument.title}</span>
                     </div>
-                  ))
+                  </div>
                 )}
               </div>
-            </ScrollArea>
+            </>
           )}
         </div>
       )}
@@ -942,13 +1157,21 @@ export function InnovationChatGemini({
                   <Menu className="h-5 w-5" />
                 </Button>
               )}
+              
+              {/* Innovation Machine Title and Status */}
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-semibold">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-gray-800">Innovation Machine</h2>
-                <p className="text-xs text-gray-500">Trades Business School</p>
+                <p className="text-xs text-gray-500">
+                  {chatMode === 'document' && selectedDocument 
+                    ? `Chatting with: ${selectedDocument.title}`
+                    : 'General innovation chat'
+                  }
+                </p>
               </div>
+              
               {isLoadingHistory && (
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
@@ -986,7 +1209,7 @@ export function InnovationChatGemini({
                 ) : (
                   <div className="flex items-center gap-2">
                     <Trash2 className="h-4 w-4" />
-                    <span>Clear</span>
+                    <span>Clear Session</span>
                   </div>
                 )}
               </Button>
@@ -1170,6 +1393,14 @@ export function InnovationChatGemini({
 
       {/* Render debug popup */}
       {renderDebugPopup()}
+
+      {/* Document Manager Modal */}
+      <InnovationDocumentManager
+        isOpen={showDocumentManager}
+        onClose={() => setShowDocumentManager(false)}
+        onDocumentSelect={handleDocumentSelect}
+        selectedDocumentId={selectedDocument?.id || null}
+      />
     </div>
   );
 } 
