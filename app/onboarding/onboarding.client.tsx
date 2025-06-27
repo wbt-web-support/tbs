@@ -1489,7 +1489,7 @@ export default function OnboardingClient() {
                   <p className="text-sm text-gray-600 mt-2">{categories[currentCategory].description}</p>
                 </div>
 
-                <div className="w-full space-y-6">
+                <div className="w-full space-y-8">
                   {currentQuestions.map((q) => {
                     const fieldName = q.name as keyof z.infer<typeof formSchema>;
                     const fieldValue = form.getValues(fieldName);
@@ -1499,9 +1499,9 @@ export default function OnboardingClient() {
                     return (
                       <div 
                         key={q.name} 
-                        className={`group bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 ${
+                        className={`group bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border-2 border-gray-200 ${
                           currentFocusedQuestion === q.name 
-                            ? 'border-2 border-blue-400 shadow-lg shadow-blue-100/50 bg-blue-50/30' 
+                            ? ' !border-blue-400 shadow-lg shadow-blue-100/50 bg-blue-50/30' 
                             : 'border border-gray-100 hover:border-blue-200'
                         }`}
                       >
@@ -1535,7 +1535,7 @@ export default function OnboardingClient() {
                               id={q.name}
                               type={q.inputType || 'text'}
                               placeholder={q.placeholder}
-                              className="w-full text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg h-12 px-4"
+                              className="w-full text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg h-12 px-4 bg-gray-50"
                               required={q.required}
                               onFocus={() => setCurrentFocusedQuestion(q.name)}
                               {...form.register(fieldName)}
@@ -1544,7 +1544,7 @@ export default function OnboardingClient() {
                             <Textarea
                               id={q.name}
                               placeholder={q.placeholder}
-                              className="w-full min-h-[120px] text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-4 resize-none"
+                              className="w-full min-h-[220px] text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-4 resize-none bg-gray-50"
                               required={q.required}
                               onFocus={() => setCurrentFocusedQuestion(q.name)}
                               {...form.register(fieldName)}
