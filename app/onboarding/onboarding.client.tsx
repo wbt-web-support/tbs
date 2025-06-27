@@ -480,13 +480,17 @@ function FloatingAIAssistant({
   form,
   categories,
   onAcceptContent,
-  isMobile = false
+  isMobile = false,
+  isOpen = true,
+  onToggle
 }: {
   focusedQuestion: string | null;
   form: any;
   categories: any[];
   onAcceptContent: (questionName: string, content: string) => void;
   isMobile?: boolean;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -669,7 +673,10 @@ function FloatingAIAssistant({
     }
   };
 
-  // AI Assistant is always open - no closed state
+  // AI Assistant can now be opened/closed
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="h-full w-full">
@@ -679,9 +686,21 @@ function FloatingAIAssistant({
         {/* Minimal Header - only show on desktop */}
         {!isMobile && (
           <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-blue-600" />
-              <span className="font-medium text-gray-900">AI Assistant</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-blue-600" />
+                <span className="font-medium text-gray-900">AI Assistant</span>
+              </div>
+              {onToggle && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggle}
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -1071,6 +1090,7 @@ export default function OnboardingClient() {
   const [currentFocusedQuestion, setCurrentFocusedQuestion] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [mobileAiOpen, setMobileAiOpen] = useState<{[key: string]: boolean}>({});
+  const [desktopAiOpen, setDesktopAiOpen] = useState(true); // Desktop AI assistant starts open
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -1205,7 +1225,32 @@ export default function OnboardingClient() {
     if (isValid) {
       setCurrentCategory((prev) => Math.min(prev + 1, categories.length - 1));
     } else {
-       toast({
+      // Find the first invalid field and scroll to it
+      const errors = form.formState.errors;
+      const firstInvalidField = currentCategoryQuestions.find(q => 
+        q.required && errors[q.name as keyof z.infer<typeof formSchema>]
+      );
+
+      if (firstInvalidField) {
+        // Scroll to the first invalid field
+        const fieldElement = document.getElementById(firstInvalidField.name);
+        if (fieldElement) {
+          fieldElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+          
+          // Focus on the field after a short delay to ensure scrolling completes
+          setTimeout(() => {
+            fieldElement.focus();
+            // Also set it as the focused question for AI assistant
+            setCurrentFocusedQuestion(firstInvalidField.name);
+          }, 500);
+        }
+      }
+
+      toast({
         title: "Incomplete Section",
         description: "Please complete all required fields in the current section before proceeding.",
         variant: "destructive",
@@ -1239,6 +1284,32 @@ export default function OnboardingClient() {
       if (isCategoryComplete(currentCategory)) {
         setCurrentCategory(index);
       } else {
+        // Find the first invalid field in the current section and scroll to it
+        const currentCategoryQuestions = categories[currentCategory].questions;
+        const formValues = form.getValues();
+        const firstInvalidField = currentCategoryQuestions.find(q => 
+          q.required && (!formValues[q.name as keyof z.infer<typeof formSchema>] || formValues[q.name as keyof z.infer<typeof formSchema>] === '')
+        );
+
+        if (firstInvalidField) {
+          // Scroll to the first invalid field
+          const fieldElement = document.getElementById(firstInvalidField.name);
+          if (fieldElement) {
+            fieldElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest'
+            });
+            
+            // Focus on the field after a short delay to ensure scrolling completes
+            setTimeout(() => {
+              fieldElement.focus();
+              // Also set it as the focused question for AI assistant
+              setCurrentFocusedQuestion(firstInvalidField.name);
+            }, 500);
+          }
+        }
+
         toast({
           title: "Incomplete Section",
           description: "Please complete the current section before moving to the next.",
@@ -1265,11 +1336,38 @@ export default function OnboardingClient() {
 
     // Validate the final section before submitting
     if (!isCategoryComplete(categories.length - 1)) {
-       toast({
+      // Find the first invalid field in the final section and scroll to it
+      const finalCategoryQuestions = categories[categories.length - 1].questions;
+      const formValues = form.getValues();
+      const firstInvalidField = finalCategoryQuestions.find(q => 
+        q.required && (!formValues[q.name as keyof z.infer<typeof formSchema>] || formValues[q.name as keyof z.infer<typeof formSchema>] === '')
+      );
+
+      if (firstInvalidField) {
+        // Scroll to the first invalid field
+        const fieldElement = document.getElementById(firstInvalidField.name);
+        if (fieldElement) {
+          fieldElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+          
+          // Focus on the field after a short delay to ensure scrolling completes
+          setTimeout(() => {
+            fieldElement.focus();
+            // Also set it as the focused question for AI assistant
+            setCurrentFocusedQuestion(firstInvalidField.name);
+          }, 500);
+        }
+      }
+
+      toast({
         title: "Incomplete Section",
         description: "Please complete all required fields in the final section before submitting.",
         variant: "destructive",
       });
+      setIsLoading(false);
       return;
     }
 
@@ -1479,9 +1577,9 @@ export default function OnboardingClient() {
 
             {/* Right Content Area for Questions */}
             <div className="flex justify-center items-center w-full p-4 md:p-8 relative pb-24 md:pb-8 pt-24">
-              <div className="w-full max-w-6xl flex gap-8">
+              <div className={`w-full flex gap-8 ${desktopAiOpen ? 'max-w-6xl' : 'max-w-3xl justify-center'}`}>
                 {/* Form Section */}
-                <form onSubmit={handleSubmit} id="onboarding-form" className="flex-1 max-w-3xl flex flex-col items-center min-h-[calc(100vh-10rem)] pt-0 md:pt-20">
+                <form onSubmit={handleSubmit} id="onboarding-form" className={`flex-1 flex flex-col items-center min-h-[calc(100vh-10rem)] pt-0 md:pt-20 ${desktopAiOpen ? 'max-w-3xl' : 'max-w-3xl'}`}>
               <Progress value={(currentCategory + 1) / categories.length * 100} className="mb-6" />
 
                 <div className="w-full mb-8 text-left">
@@ -1658,15 +1756,32 @@ export default function OnboardingClient() {
                 </div>
               </form>
 
-                {/* Sticky AI Assistant */}
-                <div className="hidden lg:block sticky top-20 self-start h-[calc(100vh-8rem)] w-96">
-                  <FloatingAIAssistant
-                    focusedQuestion={currentFocusedQuestion}
-                    form={form}
-                    categories={categories}
-                    onAcceptContent={handleAiContentAccept}
-                  />
-                </div>
+                {/* Sticky AI Assistant - only render container when open */}
+                {desktopAiOpen && (
+                  <div className="hidden lg:block sticky top-20 self-start h-[calc(100vh-8rem)] w-96">
+                    <FloatingAIAssistant
+                      focusedQuestion={currentFocusedQuestion}
+                      form={form}
+                      categories={categories}
+                      onAcceptContent={handleAiContentAccept}
+                      isOpen={desktopAiOpen}
+                      onToggle={() => setDesktopAiOpen(!desktopAiOpen)}
+                    />
+                  </div>
+                )}
+                
+                {/* Floating AI Open Button - shows when AI is closed */}
+                {!desktopAiOpen && (
+                  <div className="hidden lg:block fixed top-24 right-8 z-20">
+                    <Button
+                      onClick={() => setDesktopAiOpen(true)}
+                      className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg flex items-center justify-center p-0"
+                      title="Open AI Assistant"
+                    >
+                      <Sparkles className="h-6 w-6 text-white" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Mobile AI is now inline - no floating assistant needed */}
