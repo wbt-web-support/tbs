@@ -148,11 +148,11 @@ const navigationSections: NavigationSection[] = [
       //   href: "/planner",
       //   icon: Calendar,
       // },
-      {
-        name: "HWGT Plan",
-        href: "/hwgt-plan",
-        icon: Compass,
-      },
+      // {
+      //   name: "HWGT Plan",
+      //   href: "/hwgt-plan",
+      //   icon: Compass,
+      // },
       {
         name: "User Management",
         href: "/users",

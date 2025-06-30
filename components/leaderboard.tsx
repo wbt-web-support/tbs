@@ -22,7 +22,10 @@ import {
   Calendar,
   CheckCircle,
   Zap,
-  Gift
+  Gift,
+  Users,
+  Lightbulb,
+  BookOpen
 } from "lucide-react";
 
 interface LeaderboardUser {
@@ -186,30 +189,86 @@ export default function Leaderboard() {
     <div className="space-y-6 py-4">
       {/* Points System */}
       <div>
-        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-4">
           <Star className="h-5 w-5 text-yellow-500" />
-          Point System
+          Ways to Earn Points
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-            <Calendar className="h-8 w-8 text-blue-500 bg-blue-100 p-1.5 rounded" />
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Calendar className="h-6 w-6 text-blue-500" />
             <div>
-              <div className="font-medium text-blue-900">Daily Login</div>
-              <div className="text-sm text-blue-700">+10 points (once per day)</div>
+              <div className="font-medium text-gray-900">Daily Login</div>
+              <div className="text-sm text-gray-600">+10 points (once per day)</div>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-            <CheckCircle className="h-8 w-8 text-green-500 bg-green-100 p-1.5 rounded" />
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <CheckCircle className="h-6 w-6 text-green-500" />
             <div>
-              <div className="font-medium text-green-900">Timeline Event</div>
-              <div className="text-sm text-green-700">+50 points per completion</div>
+              <div className="font-medium text-gray-900">Timeline Event</div>
+              <div className="text-sm text-gray-600">+50 points per completion</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Target className="h-6 w-6 text-purple-500" />
+            <div>
+              <div className="font-medium text-gray-900">Business Plan Section</div>
+              <div className="text-sm text-gray-600">+100 points per section</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Zap className="h-6 w-6 text-amber-500" />
+            <div>
+              <div className="font-medium text-gray-900">Machine Setup</div>
+              <div className="text-sm text-gray-600">+200 points per machine</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <TrendingUp className="h-6 w-6 text-emerald-500" />
+            <div>
+              <div className="font-medium text-gray-900">Scorecard Achievement</div>
+              <div className="text-sm text-gray-600">+25 points (green status)</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Award className="h-6 w-6 text-indigo-500" />
+            <div>
+              <div className="font-medium text-gray-900">Profile Completion</div>
+              <div className="text-sm text-gray-600">+75 points (one-time)</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Users className="h-6 w-6 text-cyan-500" />
+            <div>
+              <div className="font-medium text-gray-900">Team Member Added</div>
+              <div className="text-sm text-gray-600">+30 points per member</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Calendar className="h-6 w-6 text-rose-500" />
+            <div>
+              <div className="font-medium text-gray-900">Meeting Scheduled</div>
+              <div className="text-sm text-gray-600">+40 points per meeting</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Lightbulb className="h-6 w-6 text-yellow-500" />
+            <div>
+              <div className="font-medium text-gray-900">Innovation Idea</div>
+              <div className="text-sm text-gray-600">+60 points per idea</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <BookOpen className="h-6 w-6 text-teal-500" />
+            <div>
+              <div className="font-medium text-gray-900">Playbook Completion</div>
+              <div className="text-sm text-gray-600">+150 points per playbook</div>
             </div>
           </div>
         </div>
-        <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+        <div className="mt-4 p-3 border border-gray-200 rounded-lg">
           <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 text-amber-600 mt-0.5" />
-            <div className="text-sm text-amber-800">
+            <Info className="h-4 w-4 text-blue-500 mt-0.5" />
+            <div className="text-sm text-gray-700">
               <strong>Note:</strong> Points are removed if you uncomplete activities (e.g., uncheck a timeline event).
             </div>
           </div>
@@ -218,30 +277,28 @@ export default function Leaderboard() {
 
       {/* Level System */}
       <div>
-        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-4">
           <Award className="h-5 w-5 text-purple-500" />
           Level System
         </h3>
         <div className="space-y-3">
-          <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
-            <div className="text-lg font-semibold text-gray-900 mb-2">
-              Level = (Total Points ÷ 1,000) + 1
-            </div>
+          <div className="p-4 border border-gray-200 rounded-lg">
+          
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div className="text-center">
                 <Badge className="bg-gray-100 text-gray-800 mb-1">Level 1</Badge>
                 <div className="text-gray-600">0-999 pts</div>
               </div>
               <div className="text-center">
-                <Badge className="bg-blue-100 text-blue-800 mb-1">Level 2</Badge>
+                <Badge className="bg-gray-100 text-gray-800 mb-1">Level 2</Badge>
                 <div className="text-gray-600">1K-1.9K pts</div>
               </div>
               <div className="text-center">
-                <Badge className="bg-green-100 text-green-800 mb-1">Level 3</Badge>
+                <Badge className="bg-gray-100 text-gray-800 mb-1">Level 3</Badge>
                 <div className="text-gray-600">2K-2.9K pts</div>
               </div>
               <div className="text-center">
-                <Badge className="bg-purple-100 text-purple-800 mb-1">Level 4+</Badge>
+                <Badge className="bg-gray-100 text-gray-800 mb-1">Level 4+</Badge>
                 <div className="text-gray-600">3K+ pts</div>
               </div>
             </div>
@@ -251,7 +308,7 @@ export default function Leaderboard() {
 
       {/* Leaderboard Types */}
       <div>
-        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-4">
           <Trophy className="h-5 w-5 text-yellow-500" />
           Leaderboard Types
         </h3>
@@ -271,41 +328,42 @@ export default function Leaderboard() {
         </div>
       </div>
 
-      {/* Streaks & Bonuses */}
+      {/* Streaks & Features */}
       <div>
-        <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+        <h3 className="flex items-center gap-2 font-semibold text-lg mb-4">
           <Flame className="h-5 w-5 text-orange-500" />
-          Streaks & Features
+          Features
         </h3>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
             <Flame className="h-6 w-6 text-orange-500" />
             <div>
-              <div className="font-medium text-orange-900">Daily Streaks</div>
-              <div className="text-sm text-orange-700">Track consecutive days of activity</div>
+              <div className="font-medium text-gray-900">Daily Streaks</div>
+              <div className="text-sm text-gray-600">Track consecutive days of activity</div>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-            <Crown className="h-6 w-6 text-yellow-600" />
+          <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+            <Crown className="h-6 w-6 text-yellow-500" />
             <div>
-              <div className="font-medium text-green-900">Rank Icons</div>
-              <div className="text-sm text-green-700">Crown for #1, medals for top 3</div>
+              <div className="font-medium text-gray-900">Rank Icons</div>
+              <div className="text-sm text-gray-600">Crown for #1, medals for top 3</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tips */}
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-        <h4 className="flex items-center gap-2 font-semibold text-blue-900 mb-2">
-          <Gift className="h-5 w-5" />
+      <div className="p-4 border border-gray-200 rounded-lg">
+        <h4 className="flex items-center gap-2 font-semibold text-gray-900 mb-3">
+          <Gift className="h-5 w-5 text-green-500" />
           Pro Tips
         </h4>
-        <ul className="text-sm text-blue-800 space-y-1">
+        <ul className="text-sm text-gray-700 space-y-1">
           <li>• Visit the dashboard daily for consistent points</li>
           <li>• Complete timeline events to boost your rank quickly</li>
+          <li>• Focus on high-value activities like machine setups and playbooks</li>
           <li>• Weekly and monthly leaderboards reset, giving everyone a fresh chance</li>
-          <li>• More activities will be added soon for more ways to earn points!</li>
+          <li>• Build your team and complete your profile for easy bonus points</li>
         </ul>
       </div>
     </div>
@@ -383,7 +441,9 @@ export default function Leaderboard() {
           <TabsContent value="all-time" className="mt-4">
             <div className="space-y-3">
               {leaderboardData.length > 0 ? (
-                leaderboardData.map((user, index) => (
+                leaderboardData
+                  .sort((a, b) => b.total_points - a.total_points)
+                  .map((user, index) => (
                   <div
                     key={user.user_id}
                     className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${

@@ -16,6 +16,122 @@ import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, DollarSign, TrendingUp, Calendar, MapPin, Mail, Phone, FileText, Lightbulb } from "lucide-react";
+
+// Animated AI Blob Component
+function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className?: string; isActive?: boolean }) {
+  return (
+    <div className={`relative ${className}`}>
+      <div className="relative w-full h-full">
+        {/* Main blob */}
+        <div 
+          className={`absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300 ${
+            isActive ? 'animate-pulse scale-110' : ''
+          }`}
+          style={{
+            animation: isActive 
+              ? 'blob-active 2s ease-in-out infinite, pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' 
+              : 'blob-idle 4s ease-in-out infinite'
+          }}
+        />
+        
+        {/* Inner glow */}
+        <div 
+          className="absolute inset-1 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 opacity-60"
+          style={{
+            animation: isActive 
+              ? 'blob-glow-active 1.5s ease-in-out infinite reverse' 
+              : 'blob-glow-idle 3s ease-in-out infinite reverse'
+          }}
+        />
+        
+        {/* Core highlight */}
+        <div 
+          className="absolute inset-2 rounded-full bg-white opacity-30"
+          style={{
+            animation: 'blob-highlight 2.5s ease-in-out infinite'
+          }}
+        />
+      </div>
+      
+      <style jsx>{`
+        @keyframes blob-idle {
+          0%, 100% { 
+            transform: scale(1) rotate(0deg);
+            border-radius: 50%;
+          }
+          25% { 
+            transform: scale(1.1) rotate(90deg);
+            border-radius: 60% 40% 30% 70%/60% 30% 70% 40%;
+          }
+          50% { 
+            transform: scale(0.95) rotate(180deg);
+            border-radius: 30% 70% 70% 30%/40% 60% 40% 60%;
+          }
+          75% { 
+            transform: scale(1.05) rotate(270deg);
+            border-radius: 70% 30% 40% 60%/30% 70% 60% 40%;
+          }
+        }
+        
+        @keyframes blob-active {
+          0%, 100% { 
+            transform: scale(1.1) rotate(0deg);
+            border-radius: 40% 60% 70% 30%/40% 50% 60% 50%;
+          }
+          20% { 
+            transform: scale(1.2) rotate(72deg);
+            border-radius: 60% 40% 50% 50%/30% 60% 40% 70%;
+          }
+          40% { 
+            transform: scale(0.9) rotate(144deg);
+            border-radius: 50% 50% 30% 70%/50% 40% 60% 40%;
+          }
+          60% { 
+            transform: scale(1.15) rotate(216deg);
+            border-radius: 70% 30% 60% 40%/60% 70% 30% 50%;
+          }
+          80% { 
+            transform: scale(1.0) rotate(288deg);
+            border-radius: 30% 70% 40% 60%/50% 30% 70% 40%;
+          }
+        }
+        
+        @keyframes blob-glow-idle {
+          0%, 100% { 
+            transform: scale(1);
+            opacity: 0.6;
+          }
+          50% { 
+            transform: scale(1.2);
+            opacity: 0.3;
+          }
+        }
+        
+        @keyframes blob-glow-active {
+          0%, 100% { 
+            transform: scale(1.1);
+            opacity: 0.8;
+          }
+          50% { 
+            transform: scale(1.4);
+            opacity: 0.4;
+          }
+        }
+        
+        @keyframes blob-highlight {
+          0%, 100% { 
+            transform: scale(1);
+            opacity: 0.3;
+          }
+          50% { 
+            transform: scale(1.3);
+            opacity: 0.1;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
 import { SubmissionLoader } from "./components/submission-loader";
 
 // Question interface for type safety
@@ -688,7 +804,7 @@ function FloatingAIAssistant({
           <div className="p-4 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-blue-600" />
+                <AnimatedAIBlob className="w-5 h-5" isActive={focusedQuestion !== null} />
                 <span className="font-medium text-gray-900">Need Writing Help?</span>
               </div>
               {onToggle && (
@@ -836,7 +952,7 @@ function FloatingAIAssistant({
                             {isLoading ? (
                               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                             ) : (
-                              <Sparkles className="h-4 w-4 text-blue-600" />
+                              <AnimatedAIBlob className="w-4 h-4" isActive={!isLoading} />
                             )}
                           </div>
                           <span className="text-sm text-gray-700 group-hover:text-gray-900">
@@ -893,7 +1009,7 @@ function FloatingAIAssistant({
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-sm">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="h-8 w-8 text-blue-600" />
+                  <AnimatedAIBlob className="w-8 h-8" isActive={true} />
                 </div>
                 <h3 className="text-gray-900 font-semibold mb-2 text-lg">Hi! I'm here to help you</h3>
                 <p className="text-gray-600 mb-3">I'll assist you in filling out your onboarding form with smart suggestions and personalized content.</p>
@@ -1663,22 +1779,22 @@ export default function OnboardingClient() {
                             <div className="lg:hidden mt-3">
                               <div className="border border-gray-200 rounded-lg overflow-hidden">
                                 <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCurrentFocusedQuestion(q.name);
-                                    setMobileAiOpen(prev => ({
-                                      ...prev,
-                                      [q.name]: !prev[q.name]
-                                    }));
-                                  }}
+                                type="button"
+                                onClick={() => {
+                                  setCurrentFocusedQuestion(q.name);
+                                  setMobileAiOpen(prev => ({
+                                    ...prev,
+                                    [q.name]: !prev[q.name]
+                                  }));
+                                }}
                                   className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
-                                >
+                              >
                                   <div className="flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-blue-600" />
+                                    <AnimatedAIBlob className="w-4 h-4" isActive={mobileAiOpen[q.name]} />
                                     <span className="text-sm font-medium text-blue-700">
                                       Need Writing Help?
                                     </span>
-                                  </div>
+                            </div>
                                   {mobileAiOpen[q.name] ? (
                                     <ChevronUp className="h-4 w-4 text-blue-600" />
                                   ) : (
@@ -1795,7 +1911,7 @@ export default function OnboardingClient() {
                       className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg flex items-center justify-center p-0"
                       title="Open AI Assistant"
                     >
-                      <Sparkles className="h-6 w-6 text-white" />
+                      <AnimatedAIBlob className="w-6 h-6" isActive={true} />
                     </Button>
                   </div>
                 )}
