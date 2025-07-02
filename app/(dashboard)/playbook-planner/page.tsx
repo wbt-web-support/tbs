@@ -15,21 +15,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+type PlaybookOwner = {
+  id: string;
+  full_name: string;
+}
+
 type PlaybookData = {
   id: string;
   user_id: string;
   playbookname: string;
   description: string;
   enginetype: "GROWTH" | "FULFILLMENT" | "INNOVATION";
-  owner: string;
+  owner_id: string | null;
+  owner: PlaybookOwner | null;
   status: "Backlog" | "In Progress" | "Behind" | "Completed";
   link: string;
   created_at: string;
   updated_at: string;
 };
 
+type PlaybookFormData = Omit<PlaybookData, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'owner'>;
+
 export default function GrowthEngineLibraryPage() {
   const [playbooksData, setPlaybooksData] = useState<PlaybookData[]>([]);
+  const [teamMembers, setTeamMembers] = useState<PlaybookOwner[]>([]);
   const [filteredData, setFilteredData] = useState<PlaybookData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -40,11 +49,11 @@ export default function GrowthEngineLibraryPage() {
   const [isSaving, setIsSaving] = useState(false);
   
   // Form state
-  const [formData, setFormData] = useState<Omit<PlaybookData, 'id' | 'user_id' | 'created_at' | 'updated_at'>>({
+  const [formData, setFormData] = useState<PlaybookFormData>({
     playbookname: "",
     description: "",
     enginetype: "GROWTH",
-    owner: "",
+    owner_id: null,
     status: "Backlog",
     link: ""
   });
@@ -53,6 +62,7 @@ export default function GrowthEngineLibraryPage() {
 
   useEffect(() => {
     fetchPlaybooksData();
+    fetchTeamMembers();
   }, []);
 
   useEffect(() => {
@@ -74,7 +84,7 @@ export default function GrowthEngineLibraryPage() {
         filtered = filtered.filter(playbook => 
           playbook.playbookname.toLowerCase().includes(lowercasedSearch) ||
           playbook.description.toLowerCase().includes(lowercasedSearch) ||
-          playbook.owner.toLowerCase().includes(lowercasedSearch)
+          playbook.owner?.full_name.toLowerCase().includes(lowercasedSearch)
         );
       }
       
@@ -94,18 +104,58 @@ export default function GrowthEngineLibraryPage() {
       
       const { data, error } = await supabase
         .from("playbooks")
-        .select("*")
+        .select(`
+          *,
+          playbook_assignments (
+            assignment_type,
+            business_info ( id, full_name )
+          )
+        `)
         .in("user_id", teamMemberIds)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       
-      setPlaybooksData(data || []);
-      setFilteredData(data || []);
+      const processedData = data.map(playbook => {
+        const ownerAssignment = playbook.playbook_assignments.find(
+          (assignment: any) => assignment.assignment_type === 'Owner'
+        );
+        const owner = ownerAssignment ? ownerAssignment.business_info : null;
+        
+        const { playbook_assignments, ...rest } = playbook;
+
+        return {
+          ...rest,
+          owner,
+          owner_id: owner ? owner.id : null,
+        };
+      });
+
+      setPlaybooksData(processedData || []);
+      setFilteredData(processedData || []);
     } catch (error) {
       console.error("Error fetching playbooks data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+
+      const { data, error } = await supabase
+        .from("business_info")
+        .select("id, full_name")
+        .in("user_id", teamMemberIds);
+
+      if (error) throw error;
+      setTeamMembers(data || []);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
     }
   };
 
@@ -115,7 +165,7 @@ export default function GrowthEngineLibraryPage() {
       playbookname: "",
       description: "",
       enginetype: "GROWTH",
-      owner: "",
+      owner_id: null,
       status: "Backlog",
       link: ""
     });
@@ -128,7 +178,7 @@ export default function GrowthEngineLibraryPage() {
       playbookname: playbook.playbookname,
       description: playbook.description,
       enginetype: playbook.enginetype,
-      owner: playbook.owner,
+      owner_id: playbook.owner_id,
       status: playbook.status,
       link: playbook.link
     });
@@ -162,36 +212,44 @@ export default function GrowthEngineLibraryPage() {
       
       if (!user) throw new Error("No authenticated user");
 
+      const playbookPayload = {
+        playbookname: formData.playbookname,
+        description: formData.description,
+        enginetype: formData.enginetype,
+        status: formData.status,
+        link: formData.link,
+        user_id: user.id
+      };
+
       if (currentPlaybook) {
         // Update existing playbook
-        const { error } = await supabase
+        const { data: updatedPlaybook, error } = await supabase
           .from("playbooks")
-          .update({
-            playbookname: formData.playbookname,
-            description: formData.description,
-            enginetype: formData.enginetype,
-            owner: formData.owner,
-            status: formData.status,
-            link: formData.link
-          })
-          .eq("id", currentPlaybook.id);
+          .update(playbookPayload)
+          .eq("id", currentPlaybook.id)
+          .select()
+          .single();
           
         if (error) throw error;
+        await handlePlaybookAssignment(updatedPlaybook.id, formData.owner_id);
+
       } else {
         // Create new playbook
-        const { error } = await supabase
+        const { data: newPlaybook, error } = await supabase
           .from("playbooks")
           .insert({
             user_id: user.id,
             playbookname: formData.playbookname,
             description: formData.description,
             enginetype: formData.enginetype,
-            owner: formData.owner,
             status: formData.status,
             link: formData.link
-          });
+          })
+          .select()
+          .single();
           
         if (error) throw error;
+        await handlePlaybookAssignment(newPlaybook.id, formData.owner_id);
       }
       
       await fetchPlaybooksData();
@@ -202,6 +260,36 @@ export default function GrowthEngineLibraryPage() {
       setIsSaving(false);
     }
   };
+
+  const handlePlaybookAssignment = async (playbookId: string, ownerId: string | null) => {
+    if (!ownerId) return;
+
+    // First, remove existing owner assignment for this playbook to handle re-assignments
+    const { error: deleteError } = await supabase
+      .from('playbook_assignments')
+      .delete()
+      .eq('playbook_id', playbookId)
+      .eq('assignment_type', 'Owner');
+
+    if (deleteError) {
+      console.error('Error clearing old owner:', deleteError);
+      // Decide if we should proceed or return
+    }
+
+    // Add the new assignment
+    const { error: insertError } = await supabase
+      .from('playbook_assignments')
+      .insert({
+        playbook_id: playbookId,
+        user_id: ownerId,
+        assignment_type: 'Owner'
+      });
+    
+    if (insertError) {
+      console.error('Error assigning new owner:', insertError);
+      throw insertError;
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -334,7 +422,7 @@ export default function GrowthEngineLibraryPage() {
                           {playbook.enginetype}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-4">{playbook.owner || "—"}</TableCell>
+                      <TableCell className="py-4">{playbook.owner?.full_name || "—"}</TableCell>
                       <TableCell className="py-4">
                         <Badge variant="outline" className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(playbook.status)}`}>
                           {playbook.status}
@@ -457,13 +545,19 @@ export default function GrowthEngineLibraryPage() {
             
             <div className="grid gap-2">
               <Label htmlFor="owner">Owner</Label>
-              <Input
-                id="owner"
-                value={formData.owner}
-                onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                placeholder="Enter owner name"
-                className="w-full"
-              />
+              <Select
+                value={formData.owner_id || ""}
+                onValueChange={(value) => setFormData({ ...formData, owner_id: value })}
+              >
+                <SelectTrigger id="owner">
+                  <SelectValue placeholder="Select owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>{member.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="grid gap-2">

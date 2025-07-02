@@ -23,6 +23,7 @@ import { inviteUser } from './actions'
 import { Loader2, Plus, Trash2, Briefcase, Users, Building, ClipboardList, BookOpen, User, Mail, Phone, Lock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Checkbox } from "@/components/ui/checkbox";
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -30,16 +31,19 @@ const formSchema = z.object({
   full_name: z.string().min(1, { message: 'Full name is required.' }),
   phone_number: z.string().min(1, { message: 'Phone number is required.' }),
   job_title: z.string().optional(),
-  manager: z.string().optional(),
-  department: z.string().optional(),
+  manager_id: z.string().nullable().optional(),
+  department_id: z.string().nullable().optional(),
   critical_accountabilities: z.array(z.object({ value: z.string() })).optional(),
-  playbooks_owned: z.array(z.object({ value: z.string() })).optional(),
-  permissions: z.array(z.string()).refine((value) => value.some((item) => item), {
-    message: 'You have to select at least one permission.',
-  }),
+  playbook_ids: z.array(z.string()).optional(),
+  permissions: z.array(z.string()),
 })
 
 type FormValues = z.infer<typeof formSchema>
+
+type SelectOption = {
+  id: string;
+  name: string;
+}
 
 const DEPARTMENTS = [
   "ACCOUNTING/FINANCE",
@@ -78,17 +82,17 @@ export default function InviteClientContent() {
   const isEditing = !!editUserId
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       email: '',
       password: '',
       full_name: '',
       phone_number: '',
       job_title: '',
-      manager: '',
-      department: '',
+      manager_id: '',
+      department_id: '',
       critical_accountabilities: [],
-      playbooks_owned: [],
+      playbook_ids: [],
       permissions: [],
     },
   })
@@ -96,12 +100,49 @@ export default function InviteClientContent() {
   const [newAccountability, setNewAccountability] = useState("");
   const [newPlaybook, setNewPlaybook] = useState("");
 
+  const [departments, setDepartments] = useState<SelectOption[]>([]);
+  const [teamMembers, setTeamMembers] = useState<SelectOption[]>([]);
+  const [playbooks, setPlaybooks] = useState<SelectOption[]>([]);
+  const [isEditingAdmin, setIsEditingAdmin] = useState(false);
+  const [originalPermissions, setOriginalPermissions] = useState<string[]>([]);
+
   useEffect(() => {
-    if (isEditing) {
-      const loadUserData = async () => {
+    const loadAllData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: adminBusinessInfo } = await supabase
+        .from('business_info')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      const teamId = adminBusinessInfo?.team_id || user.id;
+
+      // Fetch Departments, Team Members, and Playbooks first
+      const [departmentsRes, teamMembersRes, playbooksRes] = await Promise.all([
+        supabase.from('departments').select('id, name').or(`team_id.eq.${teamId},team_id.eq.00000000-0000-0000-0000-000000000000`),
+        supabase.from('business_info').select('id, full_name').eq('team_id', teamId),
+        supabase.from('playbooks').select('id, playbookname').eq('user_id', user.id) // This might need to be scoped to team_id as well
+      ]);
+      
+      if (departmentsRes.error) console.error('Error fetching departments:', departmentsRes.error);
+      else setDepartments(departmentsRes.data || []);
+
+      if (teamMembersRes.error) console.error('Error fetching team members:', teamMembersRes.error);
+      else setTeamMembers(teamMembersRes.data.map(tm => ({ id: tm.id, name: tm.full_name })) || []);
+
+      if (playbooksRes.error) console.error('Error fetching playbooks:', playbooksRes.error);
+      else setPlaybooks(playbooksRes.data.map(p => ({ id: p.id, name: p.playbookname })) || []);
+
+      // Now, if editing, fetch the specific user's data and reset the form
+      if (isEditing) {
         const { data: userData, error } = await supabase
           .from('business_info')
-          .select('*')
+          .select(`
+            *,
+            playbook_assignments(playbook_id)
+          `)
           .eq('id', editUserId)
           .maybeSingle()
 
@@ -116,16 +157,22 @@ export default function InviteClientContent() {
           full_name: userData.full_name,
           phone_number: userData.phone_number,
           job_title: userData.job_title || '',
-          manager: userData.manager || '',
-          department: userData.department || '',
+          manager_id: userData.manager_id,
+          department_id: userData.department_id,
           critical_accountabilities: userData.critical_accountabilities || [],
-          playbooks_owned: userData.playbooks_owned || [],
+          playbook_ids: userData.playbook_assignments?.map((pa: any) => pa.playbook_id) || [],
           permissions: userData.permissions?.pages || [],
-        })
+        });
+
+        setIsEditingAdmin(userData.role === 'admin');
+        if (userData.role === 'admin') {
+          setOriginalPermissions(userData.permissions?.pages || []);
+        }
       }
-      loadUserData()
-    }
-  }, [isEditing, editUserId, form, supabase, router])
+    };
+
+    loadAllData();
+  }, [isEditing, editUserId, supabase, form, router]);
 
   const handleAddAccountability = () => {
     if (!newAccountability.trim()) return;
@@ -143,20 +190,31 @@ export default function InviteClientContent() {
 
   const handleAddPlaybook = () => {
     if (!newPlaybook.trim()) return;
-    const currentValues = form.getValues('playbooks_owned') || [];
-    form.setValue('playbooks_owned', [...currentValues, { value: newPlaybook.trim() }]);
+    const currentValues = form.getValues('playbook_ids') || [];
+    form.setValue('playbook_ids', [...currentValues, newPlaybook.trim()]);
     setNewPlaybook("");
   };
 
   const handleRemovePlaybook = (index: number) => {
-    const currentValues = form.getValues('playbooks_owned') || [];
+    const currentValues = form.getValues('playbook_ids') || [];
     const updated = [...currentValues];
     updated.splice(index, 1);
-    form.setValue('playbooks_owned', updated);
+    form.setValue('playbook_ids', updated);
   };
 
   async function onSubmit(values: FormValues) {
-    const result = await inviteUser(values, editUserId || undefined)
+    let finalValues = { ...values };
+
+    if (isEditingAdmin) {
+      finalValues.permissions = originalPermissions;
+    }
+    
+    if (!isEditing && (!finalValues.permissions || finalValues.permissions.length === 0)) {
+      toast.error("Please select at least one page permission for the new user.");
+      return;
+    }
+    
+    const result = await inviteUser(finalValues, editUserId || undefined)
     if (result.success) {
       toast.success(isEditing ? 'User updated successfully' : 'User invited successfully')
       router.push('/chain-of-command')
@@ -302,7 +360,7 @@ export default function InviteClientContent() {
                 {/* Manager */}
                 <FormField
                   control={form.control}
-                  name="manager"
+                  name="manager_id"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-gray-700 flex items-center gap-2">
@@ -310,11 +368,22 @@ export default function InviteClientContent() {
                         Manager
                       </FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="e.g., John Smith" 
-                          {...field}
-                          className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
-                        />
+                        <Select
+                          value={field.value || ""}
+                          onValueChange={(value) => field.onChange(value === "null" ? null : value)}
+                        >
+                          <SelectTrigger className="border-gray-200 focus:border-gray-400 focus:ring-gray-400">
+                            <SelectValue placeholder="Select a manager" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="null">No Manager</SelectItem>
+                            {teamMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -324,7 +393,7 @@ export default function InviteClientContent() {
                 {/* Department */}
                 <FormField
                   control={form.control}
-                  name="department"
+                  name="department_id"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-gray-700 flex items-center gap-2">
@@ -332,24 +401,73 @@ export default function InviteClientContent() {
                         Department
                       </FormLabel>
                       <FormControl>
-                        <Select 
-                          value={field.value || ""} 
-                          onValueChange={field.onChange}
+                        <Select
+                          value={field.value || ""}
+                          onValueChange={(value) => field.onChange(value === "null" ? null : value)}
                         >
                           <SelectTrigger className="border-gray-200 focus:border-gray-400 focus:ring-gray-400">
-                            <SelectValue placeholder="Select department" />
+                            <SelectValue placeholder="Select a department" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectGroup>
-                              {DEPARTMENTS.map((dept) => (
-                                <SelectItem key={dept} value={dept}>
-                                  {dept}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
+                             <SelectItem value="null">No Department</SelectItem>
+                            {departments.map((dept) => (
+                              <SelectItem key={dept.id} value={dept.id}>
+                                {dept.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Playbooks Owned */}
+                <FormField
+                  control={form.control}
+                  name="playbook_ids"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-blue-600" />
+                        Playbooks Owned
+                      </FormLabel>
+                      <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                        {playbooks.map((playbook) => (
+                          <FormField
+                            key={playbook.id}
+                            control={form.control}
+                            name="playbook_ids"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={playbook.id}
+                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(playbook.id)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), playbook.id])
+                                          : field.onChange(
+                                              field.value?.filter(
+                                                (value) => value !== playbook.id
+                                              )
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="text-sm font-normal">
+                                    {playbook.name}
+                                  </FormLabel>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -416,68 +534,6 @@ export default function InviteClientContent() {
                     </FormItem>
                   )}
                 />
-
-                {/* Playbooks Owned */}
-                <FormField
-                  control={form.control}
-                  name="playbooks_owned"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-700 flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-blue-600" />
-                        Playbooks Owned
-                      </FormLabel>
-                      <FormControl>
-                        <div className="border rounded-md p-3 space-y-2">
-                          {field.value && field.value.length > 0 ? (
-                            <div className="space-y-2">
-                              {field.value.map((item, index) => (
-                                <div key={index} className="flex items-center">
-                                  <div className="flex-1 p-2 bg-gray-50 rounded text-sm">
-                                    {item.value}
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 ml-2"
-                                    onClick={() => handleRemovePlaybook(index)}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-gray-500 text-sm italic">No playbooks added yet</div>
-                          )}
-                          <div className="flex mt-2">
-                            <Input
-                              value={newPlaybook}
-                              onChange={(e) => setNewPlaybook(e.target.value)}
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddPlaybook();
-                                }
-                              }}
-                              placeholder="Add playbook..."
-                              className="flex-1 border-gray-200"
-                            />
-                            <Button
-                              type="button"
-                              className="ml-2 bg-blue-600 hover:bg-blue-700"
-                              onClick={handleAddPlaybook}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
             </div>
           </div>
@@ -490,37 +546,44 @@ export default function InviteClientContent() {
               </p>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                {permissionOptions.map((permission) => (
-                  <FormField
-                    key={permission.id}
-                    control={form.control}
-                    name="permissions"
-                    render={({ field }) => {
-                      return (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 transition-colors">
-                          <div>
-                            <FormLabel className="text-sm font-medium text-gray-800 cursor-pointer">
-                              {permission.label}
-                            </FormLabel>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value?.includes(permission.id)}
-                              onCheckedChange={(checked) => {
-                                return checked
-                                  ? field.onChange([...field.value, permission.id])
-                                  : field.onChange(field.value?.filter((value) => value !== permission.id))
-                              }}
-                              className="data-[state=checked]:bg-blue-600"
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )
-                    }}
-                  />
-                ))}
-              </div>
+              <fieldset disabled={isEditingAdmin}>
+                {isEditingAdmin && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-md">
+                    Page permissions for admin users cannot be changed.
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  {permissionOptions.map((permission) => (
+                    <FormField
+                      key={permission.id}
+                      control={form.control}
+                      name="permissions"
+                      render={({ field }) => {
+                        return (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 transition-colors">
+                            <div>
+                              <FormLabel className="text-sm font-medium text-gray-800 cursor-pointer">
+                                {permission.label}
+                              </FormLabel>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value?.includes(permission.id)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...field.value, permission.id])
+                                    : field.onChange(field.value?.filter((value) => value !== permission.id))
+                                }}
+                                className="data-[state=checked]:bg-blue-600"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )
+                      }}
+                    />
+                  ))}
+                </div>
+              </fieldset>
               <div className="flex justify-end gap-4 mt-4">
             <Button
               type="button"
