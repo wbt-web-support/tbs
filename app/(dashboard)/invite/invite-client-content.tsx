@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -17,9 +17,10 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { inviteUser } from './actions'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus, Trash2, Briefcase, Users, Building, ClipboardList, BookOpen, User, Mail, Phone, Lock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
@@ -28,6 +29,11 @@ const formSchema = z.object({
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }).optional(),
   full_name: z.string().min(1, { message: 'Full name is required.' }),
   phone_number: z.string().min(1, { message: 'Phone number is required.' }),
+  job_title: z.string().optional(),
+  manager: z.string().optional(),
+  department: z.string().optional(),
+  critical_accountabilities: z.array(z.object({ value: z.string() })).optional(),
+  playbooks_owned: z.array(z.object({ value: z.string() })).optional(),
   permissions: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: 'You have to select at least one permission.',
   }),
@@ -35,12 +41,21 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
+const DEPARTMENTS = [
+  "ACCOUNTING/FINANCE",
+  "OPERATIONS",
+  "SUCCESS/SUPPORT",
+  "TECHNOLOGY/DEVELOPMENT",
+  "PRODUCT/PROGRAMS",
+  "SALES",
+  "MARKETING"
+];
+
 const permissionOptions = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'chat', label: 'Chat' },
   { id: 'sop', label: 'Battle Plan' },
   { id: 'chq-timeline', label: 'CHQ Timeline' },
-  { id: 'chain-of-command', label: 'Chain of Command' },
   { id: 'triage-planner', label: 'Triage Planner' },
   { id: 'business-battle-plan', label: 'Business Battle Plan' },
   { id: 'growth-machine-planner', label: 'Growth Machine Planner' },
@@ -69,9 +84,17 @@ export default function InviteClientContent() {
       password: '',
       full_name: '',
       phone_number: '',
+      job_title: '',
+      manager: '',
+      department: '',
+      critical_accountabilities: [],
+      playbooks_owned: [],
       permissions: [],
     },
   })
+
+  const [newAccountability, setNewAccountability] = useState("");
+  const [newPlaybook, setNewPlaybook] = useState("");
 
   useEffect(() => {
     if (isEditing) {
@@ -84,7 +107,7 @@ export default function InviteClientContent() {
 
         if (error || !userData) {
           toast.error('Failed to load user data.')
-          router.push('/users')
+          router.push('/chain-of-command')
           return
         }
         
@@ -92,6 +115,11 @@ export default function InviteClientContent() {
           email: userData.email,
           full_name: userData.full_name,
           phone_number: userData.phone_number,
+          job_title: userData.job_title || '',
+          manager: userData.manager || '',
+          department: userData.department || '',
+          critical_accountabilities: userData.critical_accountabilities || [],
+          playbooks_owned: userData.playbooks_owned || [],
           permissions: userData.permissions?.pages || [],
         })
       }
@@ -99,11 +127,39 @@ export default function InviteClientContent() {
     }
   }, [isEditing, editUserId, form, supabase, router])
 
+  const handleAddAccountability = () => {
+    if (!newAccountability.trim()) return;
+    const currentValues = form.getValues('critical_accountabilities') || [];
+    form.setValue('critical_accountabilities', [...currentValues, { value: newAccountability.trim() }]);
+    setNewAccountability("");
+  };
+
+  const handleRemoveAccountability = (index: number) => {
+    const currentValues = form.getValues('critical_accountabilities') || [];
+    const updated = [...currentValues];
+    updated.splice(index, 1);
+    form.setValue('critical_accountabilities', updated);
+  };
+
+  const handleAddPlaybook = () => {
+    if (!newPlaybook.trim()) return;
+    const currentValues = form.getValues('playbooks_owned') || [];
+    form.setValue('playbooks_owned', [...currentValues, { value: newPlaybook.trim() }]);
+    setNewPlaybook("");
+  };
+
+  const handleRemovePlaybook = (index: number) => {
+    const currentValues = form.getValues('playbooks_owned') || [];
+    const updated = [...currentValues];
+    updated.splice(index, 1);
+    form.setValue('playbooks_owned', updated);
+  };
+
   async function onSubmit(values: FormValues) {
     const result = await inviteUser(values, editUserId || undefined)
     if (result.success) {
       toast.success(isEditing ? 'User updated successfully' : 'User invited successfully')
-      router.push('/users')
+      router.push('/chain-of-command')
     } else {
       toast.error(result.error)
     }
@@ -124,20 +180,23 @@ export default function InviteClientContent() {
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex gap-4">
-          <div className="bg-white rounded-xl border border-gray-100 w-1/4">
+          <div className="bg-white rounded-xl border border-gray-100 w-1/3">
             <div className="p-6 border-b border-gray-100">
               <h2 className="text-xl font-medium text-gray-900">User Details</h2>
               <p className="mt-1 text-sm text-gray-500">
                 Provide the basic information for the new user.
               </p>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-4">
               <FormField
                 control={form.control}
                 name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700">Full Name</FormLabel>
+                    <FormLabel className="text-gray-700 flex items-center gap-2">
+                      <User className="h-4 w-4 text-blue-600" />
+                      Full Name
+                    </FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="John Doe" 
@@ -154,7 +213,10 @@ export default function InviteClientContent() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700">Email Address</FormLabel>
+                    <FormLabel className="text-gray-700 flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-blue-600" />
+                      Email Address
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder="john.doe@example.com"
@@ -172,7 +234,10 @@ export default function InviteClientContent() {
                 name="phone_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700">Phone Number</FormLabel>
+                    <FormLabel className="text-gray-700 flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-blue-600" />
+                      Phone Number
+                    </FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="(123) 456-7890" 
@@ -190,7 +255,10 @@ export default function InviteClientContent() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700">Temporary Password</FormLabel>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <Lock className="h-4 w-4 text-blue-600" />
+                        Temporary Password
+                      </FormLabel>
                       <FormControl>
                         <Input 
                           type="password" 
@@ -203,10 +271,218 @@ export default function InviteClientContent() {
                   )}
                 />
               )}
+
+              {/* Organizational Information */}
+              <Separator className="my-6" />
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Organizational Information</h3>
+                
+                {/* Job Title */}
+                <FormField
+                  control={form.control}
+                  name="job_title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-blue-600" />
+                        Job Title
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Sales Manager" 
+                          {...field}
+                          className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Manager */}
+                <FormField
+                  control={form.control}
+                  name="manager"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        Manager
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., John Smith" 
+                          {...field}
+                          className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Department */}
+                <FormField
+                  control={form.control}
+                  name="department"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <Building className="h-4 w-4 text-blue-600" />
+                        Department
+                      </FormLabel>
+                      <FormControl>
+                        <Select 
+                          value={field.value || ""} 
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger className="border-gray-200 focus:border-gray-400 focus:ring-gray-400">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {DEPARTMENTS.map((dept) => (
+                                <SelectItem key={dept} value={dept}>
+                                  {dept}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Critical Accountabilities */}
+                <FormField
+                  control={form.control}
+                  name="critical_accountabilities"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4 text-blue-600" />
+                        Critical Accountabilities
+                      </FormLabel>
+                      <FormControl>
+                        <div className="border rounded-md p-3 space-y-2">
+                          {field.value && field.value.length > 0 ? (
+                            <div className="space-y-2">
+                              {field.value.map((item, index) => (
+                                <div key={index} className="flex items-center">
+                                  <div className="flex-1 p-2 bg-gray-50 rounded text-sm">
+                                    {item.value}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 ml-2"
+                                    onClick={() => handleRemoveAccountability(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-gray-500 text-sm italic">No accountabilities added yet</div>
+                          )}
+                          <div className="flex mt-2">
+                            <Input
+                              value={newAccountability}
+                              onChange={(e) => setNewAccountability(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddAccountability();
+                                }
+                              }}
+                              placeholder="Add accountability..."
+                              className="flex-1 border-gray-200"
+                            />
+                            <Button
+                              type="button"
+                              className="ml-2 bg-blue-600 hover:bg-blue-700"
+                              onClick={handleAddAccountability}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Playbooks Owned */}
+                <FormField
+                  control={form.control}
+                  name="playbooks_owned"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-blue-600" />
+                        Playbooks Owned
+                      </FormLabel>
+                      <FormControl>
+                        <div className="border rounded-md p-3 space-y-2">
+                          {field.value && field.value.length > 0 ? (
+                            <div className="space-y-2">
+                              {field.value.map((item, index) => (
+                                <div key={index} className="flex items-center">
+                                  <div className="flex-1 p-2 bg-gray-50 rounded text-sm">
+                                    {item.value}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 ml-2"
+                                    onClick={() => handleRemovePlaybook(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-gray-500 text-sm italic">No playbooks added yet</div>
+                          )}
+                          <div className="flex mt-2">
+                            <Input
+                              value={newPlaybook}
+                              onChange={(e) => setNewPlaybook(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddPlaybook();
+                                }
+                              }}
+                              placeholder="Add playbook..."
+                              className="flex-1 border-gray-200"
+                            />
+                            <Button
+                              type="button"
+                              className="ml-2 bg-blue-600 hover:bg-blue-700"
+                              onClick={handleAddPlaybook}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 w-3/4">
+          <div className="bg-white rounded-xl border border-gray-100 w-2/3">
             <div className="p-6 border-b border-gray-100">
               <h2 className="text-xl font-medium text-gray-900">Page Permissions</h2>
               <p className="mt-1 text-sm text-gray-500">
@@ -214,7 +490,7 @@ export default function InviteClientContent() {
               </p>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {permissionOptions.map((permission) => (
                   <FormField
                     key={permission.id}
@@ -249,7 +525,7 @@ export default function InviteClientContent() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push('/users')}
+              onClick={() => router.push('/chain-of-command')}
               disabled={form.formState.isSubmitting}
               className="border-gray-200 hover:bg-gray-50 hover:text-gray-900"
             >

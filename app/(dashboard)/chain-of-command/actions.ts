@@ -26,6 +26,6 @@ export async function deleteUser(userId: string) {
     return { success: false, error: error.message }
   }
   
-  revalidatePath('/users')
+  revalidatePath('/chain-of-command')
   return { success: true }
 } 

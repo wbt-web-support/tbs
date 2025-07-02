@@ -20,6 +20,11 @@ const inviteFormSchema = z.object({
   phone_number: z.string().min(1, {
     message: 'Phone number is required.',
   }),
+  job_title: z.string().optional(),
+  manager: z.string().optional(),
+  department: z.string().optional(),
+  critical_accountabilities: z.array(z.object({ value: z.string() })).optional(),
+  playbooks_owned: z.array(z.object({ value: z.string() })).optional(),
   permissions: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: 'You have to select at least one permission.',
   }),
@@ -83,7 +88,18 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
     return { success: false, error: 'Invalid input.' }
   }
   
-  const { email, password, full_name, phone_number, permissions } = validatedData.data
+  const { 
+    email, 
+    password, 
+    full_name, 
+    phone_number, 
+    job_title,
+    manager,
+    department,
+    critical_accountabilities,
+    playbooks_owned,
+    permissions 
+  } = validatedData.data
 
   if (editUserId) {
     const { error: updateError } = await supabase
@@ -91,6 +107,11 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
       .update({
         full_name,
         phone_number,
+        job_title: job_title || '',
+        manager: manager || '',
+        department: department || '',
+        critical_accountabilities: critical_accountabilities || [],
+        playbooks_owned: playbooks_owned || [],
         permissions: { pages: permissions },
       })
       .eq('id', editUserId)
@@ -168,6 +189,11 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
         full_name: full_name,
         business_name: adminBusinessInfo.business_name,
         phone_number: phone_number,
+        job_title: job_title || '',
+        manager: manager || '',
+        department: department || '',
+        critical_accountabilities: critical_accountabilities || [],
+        playbooks_owned: playbooks_owned || [],
         role: 'user',
         team_id: teamId,
         permissions: { pages: permissions },

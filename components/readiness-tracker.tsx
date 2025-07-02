@@ -17,8 +17,8 @@ const pages = [
     progress: 87,
   },
   {
-    name: "Chain of Command",
-    href: "/chain-of-command",
+    name: "User Management",
+    href: "/users",
     progress: 75,
   },
   {

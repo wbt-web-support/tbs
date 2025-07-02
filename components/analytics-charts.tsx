@@ -676,8 +676,8 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
           </div>
         </Link>
 
-        {/* Chain of Command */}
-        <Link href="/chain-of-command" className='block'>
+        {/* User Management */}
+        <Link href="/users" className='block'>
           <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-purple-300 transition-all cursor-pointer group'>
             <div className='flex items-center gap-3'>
               <div className='p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors'>

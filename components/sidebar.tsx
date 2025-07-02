@@ -140,11 +140,7 @@ const navigationSections: NavigationSection[] = [
       //   href: "/hwgt-plan",
       //   icon: Compass,
       // },
-      {
-        name: "User Management",
-        href: "/users",
-        icon: Users,
-      },
+     
     ]
   },
 ];
@@ -256,7 +252,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             }
                           }}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition-colors",
+                            "flex items-center gap-3 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
                             "hover:bg-blue-50/80 hover:text-blue-700",
                             isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600",
                             item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-600"
