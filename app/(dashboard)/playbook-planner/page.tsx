@@ -14,10 +14,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FormField, FormItem, FormControl, FormLabel } from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
 
 type PlaybookOwner = {
   id: string;
   full_name: string;
+};
+
+type Department = {
+  id: string;
+  name: string;
 }
 
 type PlaybookData = {
@@ -26,19 +35,178 @@ type PlaybookData = {
   playbookname: string;
   description: string;
   enginetype: "GROWTH" | "FULFILLMENT" | "INNOVATION";
-  owner_id: string | null;
-  owner: PlaybookOwner | null;
+  owners: PlaybookOwner[];
+  department_id: string | null;
+  department: Department | null;
   status: "Backlog" | "In Progress" | "Behind" | "Completed";
   link: string;
   created_at: string;
   updated_at: string;
 };
 
-type PlaybookFormData = Omit<PlaybookData, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'owner'>;
+type PlaybookFormData = {
+  playbookname: string;
+  description: string;
+  enginetype: "GROWTH" | "FULFILLMENT" | "INNOVATION";
+  owner_ids: string[];
+  department_id: string | null;
+  status: "Backlog" | "In Progress" | "Behind" | "Completed";
+  link: string;
+};
+
+function PlaybookForm({ form, departments, teamMembers, handleSavePlaybook, setDialogOpen, isSaving, currentPlaybook, formData, setFormData }: any) {
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSavePlaybook)} className="grid gap-4 py-4">
+        <div className="grid gap-2">
+          <Label htmlFor="playbookName">Playbook Name*</Label>
+          <Input
+            id="playbookName"
+            value={formData.playbookname}
+            onChange={(e) => setFormData({ ...formData, playbookname: e.target.value })}
+            placeholder="Enter playbook name"
+          />
+        </div>
+        
+        <div className="grid gap-2">
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Enter description"
+            className="min-h-[80px]"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="engineType">Engine Type*</Label>
+            <Select
+              value={formData.enginetype}
+              onValueChange={(value) => setFormData({ ...formData, enginetype: value as PlaybookFormData["enginetype"] })}
+            >
+              <SelectTrigger id="engineType">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="GROWTH">GROWTH</SelectItem>
+                <SelectItem value="FULFILLMENT">FULFILLMENT</SelectItem>
+                <SelectItem value="INNOVATION">INNOVATION</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="status">Status*</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => setFormData({ ...formData, status: value as PlaybookFormData["status"] })}
+            >
+              <SelectTrigger id="status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Backlog">Backlog</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Behind">Behind</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="department">Department</Label>
+          <Select
+            value={formData.department_id || ""}
+            onValueChange={(value) => setFormData({ ...formData, department_id: value === "null" ? null : value })}
+          >
+            <SelectTrigger id="department">
+              <SelectValue placeholder="Select department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="null">No Department</SelectItem>
+              {departments.map((department: Department) => (
+                <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="owner">Owners</Label>
+          <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+            {teamMembers.map((member: PlaybookOwner) => (
+              <FormField
+                key={member.id}
+                control={form.control}
+                name="owner_ids"
+                render={({ field }) => (
+                  <FormItem
+                    key={member.id}
+                    className="flex flex-row items-center space-x-3 space-y-0"
+                  >
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value?.includes(member.id)}
+                        onCheckedChange={(checked) => {
+                          const newValues = field.value ? [...field.value] : [];
+                          if (checked) newValues.push(member.id);
+                          else {
+                            const index = newValues.indexOf(member.id);
+                            if (index > -1) newValues.splice(index, 1);
+                          }
+                          field.onChange(newValues);
+                        }}
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal text-sm">
+                      {member.full_name}
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+            ))}
+          </div>
+        </div>
+        
+        <div className="grid gap-2">
+          <Label htmlFor="link">Link</Label>
+          <Input
+            id="link"
+            value={formData.link}
+            onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+            placeholder="Enter link to documentation/resource"
+          />
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button 
+            type="button"
+            variant="outline" 
+            onClick={() => setDialogOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={isSaving || !formData.playbookname.trim()}
+          >
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {currentPlaybook ? "Update Playbook" : "Create Playbook"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
 
 export default function GrowthEngineLibraryPage() {
   const [playbooksData, setPlaybooksData] = useState<PlaybookData[]>([]);
   const [teamMembers, setTeamMembers] = useState<PlaybookOwner[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [filteredData, setFilteredData] = useState<PlaybookData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -53,16 +221,21 @@ export default function GrowthEngineLibraryPage() {
     playbookname: "",
     description: "",
     enginetype: "GROWTH",
-    owner_id: null,
+    owner_ids: [],
+    department_id: null,
     status: "Backlog",
     link: ""
   });
   
+  const form = useForm<PlaybookFormData>({
+    defaultValues: formData,
+  });
+
   const supabase = createClient();
 
   useEffect(() => {
     fetchPlaybooksData();
-    fetchTeamMembers();
+    fetchDropdownData();
   }, []);
 
   useEffect(() => {
@@ -84,7 +257,7 @@ export default function GrowthEngineLibraryPage() {
         filtered = filtered.filter(playbook => 
           playbook.playbookname.toLowerCase().includes(lowercasedSearch) ||
           playbook.description.toLowerCase().includes(lowercasedSearch) ||
-          playbook.owner?.full_name.toLowerCase().includes(lowercasedSearch)
+          playbook.owners.some(owner => owner.full_name.toLowerCase().includes(lowercasedSearch))
         );
       }
       
@@ -106,6 +279,7 @@ export default function GrowthEngineLibraryPage() {
         .from("playbooks")
         .select(`
           *,
+          department:departments(id, name),
           playbook_assignments (
             assignment_type,
             business_info ( id, full_name )
@@ -117,17 +291,15 @@ export default function GrowthEngineLibraryPage() {
       if (error) throw error;
       
       const processedData = data.map(playbook => {
-        const ownerAssignment = playbook.playbook_assignments.find(
-          (assignment: any) => assignment.assignment_type === 'Owner'
-        );
-        const owner = ownerAssignment ? ownerAssignment.business_info : null;
+        const owners = playbook.playbook_assignments
+          .filter((pa: any) => pa.assignment_type === 'Owner' && pa.business_info)
+          .map((pa: any) => pa.business_info);
         
         const { playbook_assignments, ...rest } = playbook;
 
         return {
           ...rest,
-          owner,
-          owner_id: owner ? owner.id : null,
+          owners,
         };
       });
 
@@ -140,22 +312,32 @@ export default function GrowthEngineLibraryPage() {
     }
   };
 
-  const fetchTeamMembers = async () => {
+  const fetchDropdownData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const teamMemberIds = await getTeamMemberIds(supabase, user.id);
 
-      const { data, error } = await supabase
+      // Fetch Team Members
+      const { data: teamMembersData, error: teamMembersError } = await supabase
         .from("business_info")
         .select("id, full_name")
         .in("user_id", teamMemberIds);
 
-      if (error) throw error;
-      setTeamMembers(data || []);
+      if (teamMembersError) throw teamMembersError;
+      setTeamMembers(teamMembersData || []);
+      
+      // Fetch Departments
+      const { data: departmentsData, error: departmentsError } = await supabase
+        .from("departments")
+        .select("id, name");
+      
+      if (departmentsError) throw departmentsError;
+      setDepartments(departmentsData || []);
+
     } catch (error) {
-      console.error("Error fetching team members:", error);
+      console.error("Error fetching dropdown data:", error);
     }
   };
 
@@ -165,7 +347,8 @@ export default function GrowthEngineLibraryPage() {
       playbookname: "",
       description: "",
       enginetype: "GROWTH",
-      owner_id: null,
+      owner_ids: [],
+      department_id: null,
       status: "Backlog",
       link: ""
     });
@@ -178,7 +361,8 @@ export default function GrowthEngineLibraryPage() {
       playbookname: playbook.playbookname,
       description: playbook.description,
       enginetype: playbook.enginetype,
-      owner_id: playbook.owner_id,
+      owner_ids: playbook.owners.map(o => o.id),
+      department_id: playbook.department_id,
       status: playbook.status,
       link: playbook.link
     });
@@ -186,6 +370,9 @@ export default function GrowthEngineLibraryPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this playbook? This action cannot be undone.")) {
+      return;
+    }
     try {
       setDeleteLoading(id);
       
@@ -208,8 +395,11 @@ export default function GrowthEngineLibraryPage() {
     try {
       setIsSaving(true);
       
+      if (!formData.playbookname.trim()) {
+        throw new Error("Playbook name is required.");
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) throw new Error("No authenticated user");
 
       const playbookPayload = {
@@ -218,8 +408,11 @@ export default function GrowthEngineLibraryPage() {
         enginetype: formData.enginetype,
         status: formData.status,
         link: formData.link,
+        department_id: formData.department_id,
         user_id: user.id
       };
+
+      let playbookId: string;
 
       if (currentPlaybook) {
         // Update existing playbook
@@ -227,30 +420,24 @@ export default function GrowthEngineLibraryPage() {
           .from("playbooks")
           .update(playbookPayload)
           .eq("id", currentPlaybook.id)
-          .select()
+          .select("id")
           .single();
           
         if (error) throw error;
-        await handlePlaybookAssignment(updatedPlaybook.id, formData.owner_id);
-
+        playbookId = updatedPlaybook.id;
       } else {
         // Create new playbook
         const { data: newPlaybook, error } = await supabase
           .from("playbooks")
-          .insert({
-            user_id: user.id,
-            playbookname: formData.playbookname,
-            description: formData.description,
-            enginetype: formData.enginetype,
-            status: formData.status,
-            link: formData.link
-          })
-          .select()
+          .insert(playbookPayload)
+          .select("id")
           .single();
           
         if (error) throw error;
-        await handlePlaybookAssignment(newPlaybook.id, formData.owner_id);
+        playbookId = newPlaybook.id;
       }
+      
+      await handlePlaybookAssignment(playbookId, formData.owner_ids);
       
       await fetchPlaybooksData();
       setDialogOpen(false);
@@ -261,10 +448,8 @@ export default function GrowthEngineLibraryPage() {
     }
   };
 
-  const handlePlaybookAssignment = async (playbookId: string, ownerId: string | null) => {
-    if (!ownerId) return;
-
-    // First, remove existing owner assignment for this playbook to handle re-assignments
+  const handlePlaybookAssignment = async (playbookId: string, ownerIds: string[]) => {
+    // First, clear all existing owner assignments for this playbook
     const { error: deleteError } = await supabase
       .from('playbook_assignments')
       .delete()
@@ -272,24 +457,44 @@ export default function GrowthEngineLibraryPage() {
       .eq('assignment_type', 'Owner');
 
     if (deleteError) {
-      console.error('Error clearing old owner:', deleteError);
-      // Decide if we should proceed or return
+      console.error('Error clearing old owners:', deleteError);
+      throw deleteError;
     }
 
-    // Add the new assignment
+    // If no new owners, we are done
+    if (!ownerIds || ownerIds.length === 0) {
+      return;
+    }
+
+    // Add the new assignments
+    const newAssignments = ownerIds.map(ownerId => ({
+      playbook_id: playbookId,
+      user_id: ownerId,
+      assignment_type: 'Owner'
+    }));
+
     const { error: insertError } = await supabase
       .from('playbook_assignments')
-      .insert({
-        playbook_id: playbookId,
-        user_id: ownerId,
-        assignment_type: 'Owner'
-      });
+      .insert(newAssignments);
     
     if (insertError) {
-      console.error('Error assigning new owner:', insertError);
+      console.error('Error assigning new owners:', insertError);
       throw insertError;
     }
   }
+
+  const getDepartmentColor = (departmentName: string | undefined) => {
+    if (!departmentName) return "bg-gray-200 text-gray-800";
+  
+    const colors = [
+      "bg-blue-600", "bg-green-600", "bg-purple-600", 
+      "bg-red-600", "bg-yellow-600", "bg-indigo-600", "bg-pink-600"
+    ];
+    
+    // Simple hash function to get a consistent color for a department name
+    const hash = departmentName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return `${colors[hash % colors.length]} text-white`;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -393,23 +598,24 @@ export default function GrowthEngineLibraryPage() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow className="border-b border-gray-200 hover:bg-gray-50/50">
-                    <TableHead className="w-[250px] py-3.5 text-sm font-semibold text-gray-700">Playbook Name</TableHead>
-                    <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700">Engine Type</TableHead>
-                    <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700">Owner</TableHead>
-                    <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700">Status</TableHead>
-                    <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700">Link</TableHead>
-                    <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 text-right">Actions</TableHead>
+                <TableHeader className="bg-gray-50/50">
+                  <TableRow className="border-b border-gray-100">
+                    <TableHead className="w-[250px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Playbook Name</TableHead>
+                    <TableHead className="w-[150px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Engine Type</TableHead>
+                    <TableHead className="w-[150px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Department</TableHead>
+                    <TableHead className="w-[200px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Owners</TableHead>
+                    <TableHead className="w-[120px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Status</TableHead>
+                    <TableHead className="w-[120px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Link</TableHead>
+                    <TableHead className="w-[120px] px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredData.map((playbook) => (
                     <TableRow 
                       key={playbook.id} 
-                      className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors"
+                      className="border-b border-gray-100 hover:bg-blue-50/30"
                     >
-                      <TableCell className="font-medium text-blue-700 py-4">
+                      <TableCell className="px-6 py-4">
                         <div>
                           <div className="font-medium text-blue-700">{playbook.playbookname}</div>
                           {playbook.description && (
@@ -417,18 +623,21 @@ export default function GrowthEngineLibraryPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
                         <Badge variant="outline" className={`px-2.5 py-1 rounded-full text-xs font-medium ${getEngineTypeColor(playbook.enginetype)}`}>
                           {playbook.enginetype}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-4">{playbook.owner?.full_name || "—"}</TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
+                        {playbook.department?.name && <Badge className={getDepartmentColor(playbook.department.name)}>{playbook.department.name}</Badge>}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 border-l">{playbook.owners.map(o => o.full_name).join(", ") || "—"}</TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
                         <Badge variant="outline" className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(playbook.status)}`}>
                           {playbook.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
                         {playbook.link ? (
                           <a 
                             href={playbook.link.startsWith('http') ? playbook.link : `https://${playbook.link}`} 
@@ -441,7 +650,7 @@ export default function GrowthEngineLibraryPage() {
                           </a>
                         ) : "—"}
                       </TableCell>
-                      <TableCell className="py-4 text-right">
+                      <TableCell className="px-6 py-4 text-right border-l">
                         <div className="flex justify-end space-x-2">
                           <Button
                             variant="ghost"
@@ -483,110 +692,17 @@ export default function GrowthEngineLibraryPage() {
           <DialogHeader>
             <DialogTitle>{currentPlaybook ? "Edit Playbook" : "Add New Playbook"}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="playbookName">Playbook Name*</Label>
-              <Input
-                id="playbookName"
-                value={formData.playbookname}
-                onChange={(e) => setFormData({ ...formData, playbookname: e.target.value })}
-                placeholder="Enter playbook name"
-                className="w-full"
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter description"
-                className="min-h-[80px] w-full"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="engineType">Engine Type*</Label>
-                <Select
-                  value={formData.enginetype}
-                  onValueChange={(value) => setFormData({ ...formData, enginetype: value as PlaybookData["enginetype"] })}
-                >
-                  <SelectTrigger id="engineType">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="GROWTH">GROWTH</SelectItem>
-                    <SelectItem value="FULFILLMENT">FULFILLMENT</SelectItem>
-                    <SelectItem value="INNOVATION">INNOVATION</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status*</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value as PlaybookData["status"] })}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Backlog">Backlog</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Behind">Behind</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="owner">Owner</Label>
-              <Select
-                value={formData.owner_id || ""}
-                onValueChange={(value) => setFormData({ ...formData, owner_id: value })}
-              >
-                <SelectTrigger id="owner">
-                  <SelectValue placeholder="Select owner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamMembers.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>{member.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="link">Link</Label>
-              <Input
-                id="link"
-                value={formData.link}
-                onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                placeholder="Enter link to documentation/resource"
-                className="w-full"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end space-x-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSavePlaybook}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={isSaving || !formData.playbookname.trim()}
-            >
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {currentPlaybook ? "Update Playbook" : "Create Playbook"}
-            </Button>
-          </div>
+          <PlaybookForm
+            form={form}
+            departments={departments}
+            teamMembers={teamMembers}
+            handleSavePlaybook={handleSavePlaybook}
+            setDialogOpen={setDialogOpen}
+            isSaving={isSaving}
+            currentPlaybook={currentPlaybook}
+            formData={formData}
+            setFormData={setFormData}
+          />
         </DialogContent>
       </Dialog>
     </div>
