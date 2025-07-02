@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -197,10 +197,10 @@ interface TriagePlanner {
   updated_at: string;
 }
 
-export default function UserDetailPage({ params }: { params: { id: string } }) {
+export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const supabase = createClient();
-  const { id } = params;
+  const { id } = use(params);
 
   // State
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -210,6 +210,7 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
   const [saving, setSaving] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [userDetails, setUserDetails] = useState({
     timeline: [] as TimelineEvent[],
     checklist: [] as ChecklistItem[],
@@ -670,7 +671,7 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
               </Button>
-              <DropdownMenu>
+              <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon">
                     <MoreHorizontal className="h-4 w-4" />
@@ -679,48 +680,61 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      router.push(`/admin/users/${user.id}/reset-password`);
+                    }}
+                    className="cursor-pointer"
+                  >
                     <UserCircle className="w-4 h-4 mr-2" />
                     <span>Reset Password</span>
                   </DropdownMenuItem>
-                  <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                    <DialogTrigger asChild>
-                      <DropdownMenuItem className="text-red-600">
-                        <AlertCircle className="w-4 h-4 mr-2" />
-                        <span>Delete User</span>
-                      </DropdownMenuItem>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Are you sure you want to delete this user?</DialogTitle>
-                        <DialogDescription>
-                          This action cannot be undone. This will permanently delete the user account
-                          and remove all associated data.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
-                          Cancel
-                        </Button>
-                        <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-                          {isDeleting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Deleting...
-                            </>
-                          ) : (
-                            "Delete User"
-                          )}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      // Use setTimeout to ensure dropdown closes before dialog opens
+                      setTimeout(() => setIsDeleteDialogOpen(true), 0);
+                    }}
+                    className="text-red-600 cursor-pointer"
+                  >
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    <span>Delete User</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
           )}
         </div>
       </div>
+
+      {/* Delete User Dialog - moved outside of DropdownMenu to prevent focus conflicts */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure you want to delete this user?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the user account
+              and remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete User"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* User Info & Tabs */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

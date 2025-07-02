@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,8 @@ import {
   Phone,
   CreditCard,
   Eye,
+  MoreHorizontal,
+  KeyRound,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
@@ -42,7 +45,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Define types
 interface UserProfile {
@@ -109,6 +119,8 @@ interface NewUserForm {
 }
 
 export default function UserManagementPage() {
+  const router = useRouter();
+  
   // State
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,10 +151,14 @@ export default function UserManagementPage() {
     role: "user",
   });
   const supabase = createClient();
+  
+  // Current user role for superadmin check
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   // Fetch users on load
   useEffect(() => {
     fetchUsers();
+    fetchCurrentUserRole();
   }, []);
 
   const fetchUsers = async () => {
@@ -292,6 +308,27 @@ export default function UserManagementPage() {
       setDetailsLoading(false);
     }
   };
+
+  const fetchCurrentUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('business_info')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (!error && profile) {
+          setCurrentUserRole(profile.role);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching current user role:", error);
+    }
+  };
+
+
 
   const handleViewDetails = (user: UserProfile) => {
     setSelectedUser(user);
@@ -830,12 +867,33 @@ export default function UserManagementPage() {
                           Managed by team admin
                         </div>
                       ) : (
-                        <Link href={`/admin/users/${user.id}`}>
-                          <Button variant="outline" size="sm" className="gap-1">
-                            <Eye className="h-3.5 w-3.5" />
-                            View
-                          </Button>
-                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => router.push(`/admin/users/${user.id}`)}
+                              className="flex items-center cursor-pointer"
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            {currentUserRole === 'super_admin' && (
+                              <DropdownMenuItem 
+                                onClick={() => router.push(`/admin/users/${user.id}/reset-password`)}
+                                className="flex items-center cursor-pointer text-red-600"
+                              >
+                                <KeyRound className="mr-2 h-4 w-4" />
+                                Reset Password
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </TableCell>
                   </TableRow>
@@ -846,6 +904,8 @@ export default function UserManagementPage() {
         </Table>
         </div>
       </Card>
+
+
     </div>
   );
 } 
