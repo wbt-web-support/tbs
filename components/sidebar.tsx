@@ -80,27 +80,13 @@ const navigationSections: NavigationSection[] = [
     ]
   },
   {
-    title: "Growth",
+    title: "Value Engines",
     items: [
-      {
-        name: "Growth Machine Planner",
-        href: "/growth-machine-planner",
-        icon: Rocket,
-      },
+     
       {
         name: "Growth Machine",
         href: "/growth-machine",
         icon: LineChart,
-      },
-    ]
-  },
-  {
-    title: "Fulfillment",
-    items: [
-      {
-        name: "Fulfillment Machine Planner",
-        href: "/fulfillment-machine-planner",
-        icon: Package,
       },
       {
         name: "Fulfillment Machine",
@@ -109,6 +95,7 @@ const navigationSections: NavigationSection[] = [
       },
     ]
   },
+  
   {
     title: "Innovation",
     items: [
