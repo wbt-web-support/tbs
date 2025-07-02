@@ -62,16 +62,13 @@ const permissionOptions = [
   { id: 'chq-timeline', label: 'CHQ Timeline' },
   { id: 'triage-planner', label: 'Triage Planner' },
   { id: 'business-battle-plan', label: 'Business Battle Plan' },
-  { id: 'growth-machine-planner', label: 'Growth Machine Planner' },
   { id: 'growth-machine', label: 'Growth Machine' },
-  { id: 'fulfillment-machine-planner', label: 'Fulfillment Machine Planner' },
   { id: 'fulfillment-machine', label: 'Fulfillment Machine' },
   { id: 'innovation-machine', label: 'Create Innovations' },
   { id: 'playbook-planner', label: 'Playbook & Machine Planner' },
   { id: 'company-scorecard', label: 'Company Scorecard' },
   { id: 'meeting-rhythm-planner', label: 'Meeting Rhythm Planner' },
   { id: 'quarterly-sprint-canvas', label: 'Quarterly Sprint Canvas' },
-  { id: 'hwgt-plan', label: 'HWGT Plan' },
 ]
 
 export default function InviteClientContent() {
@@ -237,89 +234,30 @@ export default function InviteClientContent() {
       </div>
       
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex gap-4">
-          <div className="bg-white rounded-xl border border-gray-100 w-1/3">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-xl font-medium text-gray-900">User Details</h2>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="">
+          <div className="flex flex-col lg:flex-row gap-6">
+          {/* User Details Section */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm w-full lg:w-1/2">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-medium">User Details</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Provide the basic information for the new user.
+                Provide the basic and organizational information for the new user.
               </p>
             </div>
-            <div className="p-6 space-y-4">
-              <FormField
-                control={form.control}
-                name="full_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-gray-700 flex items-center gap-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      Full Name
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="John Doe" 
-                        {...field}
-                        className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-gray-700 flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-blue-600" />
-                      Email Address
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="john.doe@example.com"
-                        {...field}
-                        readOnly={isEditing}
-                        className={`border-gray-200 focus:border-gray-400 focus:ring-gray-400 ${isEditing ? 'bg-gray-50' : ''}`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-gray-700 flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-blue-600" />
-                      Phone Number
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="(123) 456-7890" 
-                        {...field}
-                        className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {!isEditing && (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="password"
+                  name="full_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-gray-700 flex items-center gap-2">
-                        <Lock className="h-4 w-4 text-blue-600" />
-                        Temporary Password
+                        <User className="h-4 w-4 text-blue-600" />
+                        Full Name
                       </FormLabel>
                       <FormControl>
                         <Input 
-                          type="password" 
+                          placeholder="John Doe" 
                           {...field}
                           className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
                         />
@@ -328,14 +266,75 @@ export default function InviteClientContent() {
                     </FormItem>
                   )}
                 />
-              )}
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-blue-600" />
+                        Email Address
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="john.doe@example.com"
+                          {...field}
+                          readOnly={isEditing}
+                          className={`border-gray-200 focus:border-gray-400 focus:ring-gray-400 ${isEditing ? 'bg-gray-50' : ''}`}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-blue-600" />
+                        Phone Number
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="(123) 456-7890" 
+                          {...field}
+                          className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {!isEditing && (
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 flex items-center gap-2">
+                          <Lock className="h-4 w-4 text-blue-600" />
+                          Temporary Password
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            {...field}
+                            className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
 
               {/* Organizational Information */}
               <Separator className="my-6" />
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900">Organizational Information</h3>
-                
-                {/* Job Title */}
+              <h3 className="text-lg font-medium mb-4">Organizational Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
                   name="job_title"
@@ -356,8 +355,6 @@ export default function InviteClientContent() {
                     </FormItem>
                   )}
                 />
-
-                {/* Manager */}
                 <FormField
                   control={form.control}
                   name="manager_id"
@@ -389,8 +386,6 @@ export default function InviteClientContent() {
                     </FormItem>
                   )}
                 />
-
-                {/* Department */}
                 <FormField
                   control={form.control}
                   name="department_id"
@@ -422,8 +417,10 @@ export default function InviteClientContent() {
                     </FormItem>
                   )}
                 />
+              </div>
 
-                {/* Playbooks Owned */}
+              {/* Playbooks & Accountabilities (Full Width) */}
+              <div className="mt-6 space-y-6">
                 <FormField
                   control={form.control}
                   name="playbook_ids"
@@ -472,8 +469,6 @@ export default function InviteClientContent() {
                     </FormItem>
                   )}
                 />
-
-                {/* Critical Accountabilities */}
                 <FormField
                   control={form.control}
                   name="critical_accountabilities"
@@ -538,79 +533,79 @@ export default function InviteClientContent() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 w-2/3">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-xl font-medium text-gray-900">Page Permissions</h2>
+          {/* Page Permissions Section */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm w-full lg:w-1/2">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-medium">Page Permissions</h2>
               <p className="mt-1 text-sm text-gray-500">
                 Select which pages the user will be able to access.
               </p>
             </div>
             <div className="p-6">
-              <fieldset disabled={isEditingAdmin}>
+              <fieldset disabled={isEditingAdmin} className="space-y-4 grid grid-cols-2 gap-4">
                 {isEditingAdmin && (
                   <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-md">
                     Page permissions for admin users cannot be changed.
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4">
-                  {permissionOptions.map((permission) => (
-                    <FormField
-                      key={permission.id}
-                      control={form.control}
-                      name="permissions"
-                      render={({ field }) => {
-                        return (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 transition-colors">
-                            <div>
-                              <FormLabel className="text-sm font-medium text-gray-800 cursor-pointer">
-                                {permission.label}
-                              </FormLabel>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value?.includes(permission.id)}
-                                onCheckedChange={(checked) => {
-                                  return checked
-                                    ? field.onChange([...field.value, permission.id])
-                                    : field.onChange(field.value?.filter((value) => value !== permission.id))
-                                }}
-                                className="data-[state=checked]:bg-blue-600"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )
-                      }}
-                    />
-                  ))}
-                </div>
+                {permissionOptions.map((permission) => (
+                  <FormField
+                    key={permission.id}
+                    control={form.control}
+                    name="permissions"
+                    render={({ field }) => {
+                      return (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 transition-colors">
+                          <div>
+                            <FormLabel className="text-sm font-medium text-gray-800 cursor-pointer">
+                              {permission.label}
+                            </FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value?.includes(permission.id)}
+                              onCheckedChange={(checked) => {
+                                return checked
+                                  ? field.onChange([...field.value, permission.id])
+                                  : field.onChange(field.value?.filter((value) => value !== permission.id))
+                              }}
+                              className="data-[state=checked]:bg-blue-600"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )
+                    }}
+                  />
+                ))}
               </fieldset>
-              <div className="flex justify-end gap-4 mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push('/chain-of-command')}
-              disabled={form.formState.isSubmitting}
-              className="border-gray-200 hover:bg-gray-50 hover:text-gray-900"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={form.formState.isSubmitting}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {form.formState.isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {isEditing ? 'Update User' : 'Send Invitation'}
-            </Button>
-          </div>
+              
             </div>
-            
           </div>
-          
-       
+          </div>
+
+          <div className="flex justify-end gap-4 mt-6 border-t pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push('/chain-of-command')}
+                  disabled={form.formState.isSubmitting}
+                  className="border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={form.formState.isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {form.formState.isSubmitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {isEditing ? 'Update User' : 'Send Invitation'}
+                </Button>
+              </div>
         </form>
+        
       </Form>
     </div>
   )

@@ -57,11 +57,11 @@ const navigationSections: NavigationSection[] = [
         icon: Calendar,
       },
       {
-        name: "Chain of Command",
+        name: "Team Directory",
         href: "/chain-of-command",
         icon: Users,
       },
-    ]
+    ],
   },
   {
     title: "Planning",
@@ -76,13 +76,11 @@ const navigationSections: NavigationSection[] = [
         href: "/business-battle-plan",
         icon: Swords,
       },
-     
-    ]
+    ],
   },
   {
     title: "Value Engines",
     items: [
-     
       {
         name: "Growth Machine",
         href: "/growth-machine",
@@ -93,9 +91,8 @@ const navigationSections: NavigationSection[] = [
         href: "/fulfillment-machine",
         icon: Gauge,
       },
-    ]
+    ],
   },
-  
   {
     title: "Innovation",
     items: [
@@ -105,7 +102,7 @@ const navigationSections: NavigationSection[] = [
         icon: Lightbulb,
         disabled: false,
       },
-    ]
+    ],
   },
   {
     title: "Management",
@@ -130,18 +127,7 @@ const navigationSections: NavigationSection[] = [
         href: "/quarterly-sprint-canvas",
         icon: Flag,
       },
-      // {
-      //   name: "12Q Planner",
-      //   href: "/planner",
-      //   icon: Calendar,
-      // },
-      // {
-      //   name: "HWGT Plan",
-      //   href: "/hwgt-plan",
-      //   icon: Compass,
-      // },
-     
-    ]
+    ],
   },
 ];
 

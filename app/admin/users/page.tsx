@@ -148,7 +148,7 @@ export default function UserManagementPage() {
     command_hq_created: false,
     gd_folder_created: false,
     meeting_scheduled: false,
-    role: "user",
+    role: "admin",
   });
   const supabase = createClient();
   
@@ -402,7 +402,7 @@ export default function UserManagementPage() {
         command_hq_created: false,
         gd_folder_created: false,
         meeting_scheduled: false,
-        role: "user",
+        role: "admin",
       });
       
       // Refresh users list
@@ -574,24 +574,6 @@ export default function UserManagementPage() {
                     <p className="text-xs text-muted-foreground">
                       Must be at least 6 characters.
                     </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select
-                      name="role"
-                      value={newUserForm.role}
-                      onValueChange={(value) => handleSelectChange("role", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="super_admin">Super Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
               </div>
