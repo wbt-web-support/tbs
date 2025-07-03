@@ -48,6 +48,7 @@ import Link from 'next/link';
 import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/customer-reviews-summary';
 import { CustomerReviewsSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
 import Leaderboard from '@/components/leaderboard';
+import ZapierMappingsDisplay from '@/app/(dashboard)/dashboard/components/zapier-mappings-display';
 
 interface AnalyticsChartsProps {
   data: any;
@@ -634,6 +635,11 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
           </Card>
         )}
       </div>
+
+      {/* New Section for Zapier Mappings */}
+      <div className="mt-8">
+              <ZapierMappingsDisplay />
+            </div>
     </div>
 
 

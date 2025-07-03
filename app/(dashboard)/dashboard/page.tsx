@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { AnalyticsDashboardSkeleton, CustomerReviewsSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
 import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/customer-reviews-summary';
+import ZapierMappingsDisplay from '@/app/(dashboard)/dashboard/components/zapier-mappings-display';
 import { trackActivity } from '@/utils/points';
 import {
   BarChart3,
@@ -554,7 +555,7 @@ export default function NewDashboard() {
               />
             )}
 
-            
+         
           </div>
         )}
       </div>

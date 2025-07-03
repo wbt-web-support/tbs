@@ -15,7 +15,7 @@ import {
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
 interface NavbarProps {
@@ -183,6 +183,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 <Link href="/export" className="w-full text-left flex items-center gap-2">
                     <Download className="h-4 w-4" />
                     Export Data
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+                <Link href="/zapier-mappings" className="w-full text-left flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Zapier Mappings
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
