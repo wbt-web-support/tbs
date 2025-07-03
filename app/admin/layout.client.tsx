@@ -73,7 +73,7 @@ const navigationSections = [
         name: "Chatbot Instructions",
         href: "/admin/instructions",
         icon: MessageSquare,
-      }
+      },
     ]
   }
 ];

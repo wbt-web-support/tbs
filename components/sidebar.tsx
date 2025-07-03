@@ -27,6 +27,7 @@ import {
   Lightbulb,
   LucideIcon,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -127,6 +128,11 @@ const navigationSections: NavigationSection[] = [
         href: "/quarterly-sprint-canvas",
         icon: Flag,
       },
+      {
+        name: "Zapier Mappings",
+        href: "/zapier-mappings",
+        icon: Settings,
+      }
     ],
   },
 ];
