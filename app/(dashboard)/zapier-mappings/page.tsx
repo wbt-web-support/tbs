@@ -219,19 +219,54 @@ export default function ZapierMappingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Zapier Webhook Integration Guide</CardTitle>
-          <p className="text-sm text-gray-500">Follow these steps to integrate Zapier with your application.</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">Follow these steps to integrate Zapier with your application.</p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h3 className="text-md font-semibold mb-2">1. Your User ID (for Zapier Payload)</h3>
-            <p className="text-sm text-gray-700 mb-2">You need to include your unique User ID in the Zapier webhook payload so your data is correctly attributed to your account. Copy it below:</p>
-            <div className="flex items-center space-x-2">
+        <CardContent className="space-y-8">
+          {/* New Step 1: Connect Zapier with your software */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <span className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-primary text-primary-foreground text-sm font-bold">1</span>
+              Connect Zapier with your Software
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">Before configuring the webhook, ensure you have connected Zapier to your desired software (e.g., ServiceM8, QuickBooks, Xero). This step is crucial for Zapier to access the data you wish to send.</p>
+          </div>
+
+          {/* Step 2: Create a Webhook with POST Request and Add URL (formerly part of Step 2) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <span className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-primary text-primary-foreground text-sm font-bold">2</span>
+              Create a Webhook with POST Request and Add URL
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">In Zapier, create a new Zap and select 'Webhooks by Zapier' as the trigger. Choose the 'Catch Hook' event and select 'POST' as the method. Copy the custom webhook URL provided by Zapier and paste it into the 'URL' field of your Zapier 'Webhooks by Zapier (POST)' action in your software.</p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <Input readOnly value={`${appUrl}/api/zapier-webhook`} className="flex-1 font-mono text-xs" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyToClipboard(`${appUrl}/api/zapier-webhook`, 'Webhook URL copied to clipboard!')}
+                className="w-full sm:w-auto"
+              >
+                <Copy className="w-4 h-4 mr-2" /> Copy
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Ensure you select 'JSON' for the 'Payload Type' in Zapier.</p>
+          </div>
+
+          {/* Step 3: Configure Data in Zapier (rephrased and includes User ID) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <span className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-primary text-primary-foreground text-sm font-bold">3</span>
+              Configure Data in Zapier
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">In Zapier's 'Data' section, add the fields you want to send. It is essential to include a field named <code className="font-mono bg-accent p-1 rounded">user_id</code> with your unique User ID as its value. This ensures your data is correctly attributed to your account. Then, add other relevant fields from your Zapier trigger (e.g., <code className="font-mono bg-accent p-1 rounded">customer_name</code>, <code className="font-mono bg-accent p-1 rounded">order_total</code>).</p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <Input readOnly value={userId || 'Loading...'} className="flex-1 font-mono text-xs" />
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => userId && copyToClipboard(userId, 'User ID copied to clipboard!')}
                 disabled={!userId}
+                className="w-full sm:w-auto"
               >
                 <Copy className="w-4 h-4 mr-2" /> Copy
               </Button>
@@ -239,43 +274,35 @@ export default function ZapierMappingsPage() {
             {!userId && <p className="text-xs text-red-500 mt-1">User ID not available. Please ensure you are logged in.</p>}
           </div>
 
-          <div>
-            <h3 className="text-md font-semibold mb-2">2. Your Webhook URL (for Zapier Action)</h3>
-            <p className="text-sm text-gray-700 mb-2">This is the URL where Zapier will send data to your application. Copy it and paste it into the 'URL' field of your Zapier 'Webhooks by Zapier (POST)' action.</p>
-            <div className="flex items-center space-x-2">
-              <Input readOnly value={`${appUrl}/api/zapier-webhook`} className="flex-1 font-mono text-xs" />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => copyToClipboard(`${appUrl}/api/zapier-webhook`, 'Webhook URL copied to clipboard!')}
-              >
-                <Copy className="w-4 h-4 mr-2" /> Copy
-              </Button>
-            </div>
+          {/* Step 4: Test Your Webhook: Fetch Latest Data (moved from earlier) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <span className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-primary text-primary-foreground text-sm font-bold">4</span>
+              Test Your Webhook: Fetch Latest Data
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">After configuring your Zapier webhook and sending test data, click the button below to fetch the latest payload received by your application. This helps verify that your data is being sent correctly.</p>
             <Button
               onClick={fetchLatestWebhookData}
               disabled={loading}
-              className="mt-4"
+              className="mt-4 w-full sm:w-auto"
             >
               {loading ? <LoadingSpinner /> : <><RefreshCw className="w-4 h-4 mr-2" /> Fetch Latest Webhook Data</>}
             </Button>
             {latestWebhookPayload && (
-              <div className="mt-4 p-4 bg-gray-100 rounded-md text-xs font-mono overflow-auto max-h-60">
+              <div className="mt-4 p-4 bg-secondary rounded-md text-xs font-mono overflow-auto max-h-60">
                 <h4 className="font-semibold mb-2">Latest Webhook Payload for User:</h4>
-                <pre>{JSON.stringify(latestWebhookPayload, null, 2)}</pre>
+                <pre className="whitespace-pre-wrap break-all">{JSON.stringify(latestWebhookPayload, null, 2)}</pre>
               </div>
             )}
-            <p className="text-xs text-gray-500 mt-1">Ensure you select 'JSON' for the 'Payload Type' in Zapier.</p>
           </div>
 
-          <div>
-            <h3 className="text-md font-semibold mb-2">3. Configure Data in Zapier</h3>
-            <p className="text-sm text-gray-700">In Zapier's 'Data' section, add the fields you want to send. Make sure to include a field named <code className="font-mono bg-gray-100 p-1 rounded">user_id</code> with your User ID (from step 1) as its value. Then, add other fields from your Zapier trigger (e.g., <code className="font-mono bg-gray-100 p-1 rounded">customer_name</code>, <code className="font-mono bg-gray-100 p-1 rounded">order_total</code>).</p>
-          </div>
-
-          <div>
-            <h3 className="text-md font-semibold mb-2">4. Map Zapier Fields to Internal Fields</h3>
-            <p className="text-sm text-gray-700">Use the section below to map the Zapier field names (the 'Keys' you defined in Zapier's 'Data' section) to your internal generic fields (e.g., <code className="font-mono bg-gray-100 p-1 rounded">field1</code>, <code className="font-mono bg-gray-100 p-1 rounded">field2</code>). These mappings tell your application where to store the incoming Zapier data.</p>
+          {/* Step 5: Map Zapier Fields to Internal Fields (formerly Step 4) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <span className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-primary text-primary-foreground text-sm font-bold">5</span>
+              Map Zapier Fields to Internal Fields
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">Use the section below to map the Zapier field names (the 'Keys' you defined in Zapier's 'Data' section) to your internal generic fields (e.g., <code className="font-mono bg-accent p-1 rounded">field1</code>, <code className="font-mono bg-accent p-1 rounded">field2</code>). These mappings tell your application where to store the incoming Zapier data.</p>
           </div>
         </CardContent>
       </Card>
@@ -283,12 +310,12 @@ export default function ZapierMappingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Zapier Field Mappings</CardTitle>
-          <p className="text-sm text-gray-500">Define how incoming Zapier webhook fields correspond to your internal database fields.</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">Define how incoming Zapier webhook fields correspond to your internal database fields.</p>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
             <Select onValueChange={setNewZapierField} value={newZapierField}>
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select Zapier Field" />
               </SelectTrigger>
               <SelectContent>
@@ -305,7 +332,7 @@ export default function ZapierMappingsPage() {
             </Select>
 
             <Select onValueChange={setNewInternalField} value={newInternalField}>
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select Internal Field" />
               </SelectTrigger>
               <SelectContent>
@@ -325,25 +352,24 @@ export default function ZapierMappingsPage() {
               placeholder="Display Name (e.g., 'Total Revenue')"
               value={newDisplayName}
               onChange={(e) => setNewDisplayName(e.target.value)}
-              className="flex-1"
+              className="w-full"
             />
             <Input
               placeholder="Sample Value (auto-filled)"
               value={newSampleValue}
               onChange={(e) => setNewSampleValue(e.target.value)}
-              className="flex-1"
+              className="w-full"
               readOnly
             />
-
-            <Button onClick={handleAddMapping}>
-              <PlusCircle className="w-4 h-4 mr-2" /> Add Mapping
-            </Button>
           </div>
+          <Button onClick={handleAddMapping} className="w-full md:w-auto mt-2 md:mt-0">
+            <PlusCircle className="w-4 h-4 mr-2" /> Add Mapping
+          </Button>
 
           {mappings.length === 0 ? (
-            <p>No mappings defined yet. Add your first mapping above.</p>
+            <p className="mt-4 text-muted-foreground">No mappings defined yet. Add your first mapping above.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto mt-4">
               <Table>
                 <TableHeader>
                   <TableRow>

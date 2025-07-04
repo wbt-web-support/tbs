@@ -242,7 +242,12 @@ export function FloatingChat() {
 
   // Handle opening chat - show instances popup or open chat directly
   const handleChatButtonClick = () => {
-    if (chatInstances.length === 0 && !isLoadingInstances) {
+    if (isOpen) {
+      setIsOpen(false);
+      setShowInstancePopup(false);
+    } else if (showInstancePopup) {
+      setShowInstancePopup(false);
+    } else if (chatInstances.length === 0 && !isLoadingInstances) {
       // No instances, create new one and open chat
       createNewInstance();
     } else if (chatInstances.length === 1) {
@@ -381,7 +386,7 @@ export function FloatingChat() {
           {showInstancePopup && (
             <div 
               ref={popupRef}
-              className="fixed bottom-20 right-4 z-50 w-80 max-h-96 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+              className={`fixed z-50 w-80 max-h-[80vh] bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col ${isSmallScreen ? 'top-4 bottom-4 left-4 right-4 w-[calc(100vw-2rem)]' : 'bottom-20 right-4'}`}
             >
               {/* Header */}
               <div className="p-4 border-b bg-gray-50">
@@ -400,7 +405,7 @@ export function FloatingChat() {
               </div>
 
               {/* Instances List */}
-              <ScrollArea className="max-h-80">
+              <ScrollArea className="flex-1 max-h-[calc(50vh-10rem)] overflow-y-auto">
                 <div className="p-2">
                   {isLoadingInstances ? (
                     <div className="flex items-center justify-center py-8">
