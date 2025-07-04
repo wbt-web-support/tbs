@@ -293,7 +293,7 @@ export default function RealAnalyticsViewer({
       {!showRawData ? (
         <RawDataSkeleton />
       ) : (
-        <Card className="animate-in fade-in duration-500">
+        <Card className="hidden animate-in fade-in duration-500">
           <CardHeader>
             <CardTitle>Raw API Response</CardTitle>
             <CardDescription>Complete data from Google Analytics API (collapsed for performance)</CardDescription>

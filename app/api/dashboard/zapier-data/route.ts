@@ -4,10 +4,19 @@ import { cookies } from 'next/headers';
 
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    const { data, error } = await supabase.from('zapier_webhooks').select('*').order('created_at', { ascending: false }).limit(10);
+    let query = supabase.from('zapier_webhooks').select('*').order('created_at', { ascending: false }).limit(10);
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching Zapier webhook data:', error);

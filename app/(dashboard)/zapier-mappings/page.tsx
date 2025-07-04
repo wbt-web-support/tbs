@@ -39,6 +39,7 @@ export default function ZapierMappingsPage() {
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newSampleValue, setNewSampleValue] = useState('');
   const [availableZapierFields, setAvailableZapierFields] = useState<string[]>([]);
+  const [availableInternalFields, setAvailableInternalFields] = useState<string[]>(INTERNAL_FIELDS);
   const [latestWebhookPayload, setLatestWebhookPayload] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [appUrl, setAppUrl] = useState<string>('');
@@ -46,10 +47,15 @@ export default function ZapierMappingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchMappings();
-    fetchLatestWebhookData();
     fetchUserIdAndAppUrl();
   }, []);
+
+  useEffect(() => {
+    if (userId) {
+      fetchMappings();
+      fetchLatestWebhookData();
+    }
+  }, [userId]);
 
   const fetchUserIdAndAppUrl = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -60,9 +66,12 @@ export default function ZapierMappingsPage() {
   };
 
   const fetchLatestWebhookData = async () => {
+    if (!userId) return;
+
     try {
       setLoading(true);
-      const response = await fetch('/api/dashboard/zapier-data');
+      // FIX: Include userId parameter in the API call
+      const response = await fetch(`/api/dashboard/zapier-data?userId=${userId}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -88,13 +97,34 @@ export default function ZapierMappingsPage() {
   }, [newZapierField, latestWebhookPayload]);
 
   const fetchMappings = async () => {
+    if (!userId) return;
+
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('zapier_mappings').select('*, display_name, sample_value');
+      const { data, error } = await supabase.from('zapier_mappings').select('*, display_name, sample_value').eq('user_id', userId);
       if (error) {
         throw error;
       }
       setMappings(data || []);
+
+      // FIX: Include userId parameter in the webhook API call
+      const webhookResponse = await fetch(`/api/dashboard/zapier-data?userId=${userId}`);
+      if (webhookResponse.ok) {
+        const webhookResult = await webhookResponse.json();
+        if (webhookResult.data && webhookResult.data.length > 0) {
+          const latestPayload = webhookResult.data[0].raw_payload;
+          const allZapierFields = Object.keys(latestPayload);
+          const mappedZapierFields = (data || []).map(m => m.zapier_field_name);
+          const unmappedFields = allZapierFields.filter(field => !mappedZapierFields.includes(field));
+          setAvailableZapierFields(unmappedFields);
+          setLatestWebhookPayload(latestPayload);
+
+          const mappedInternalFields = (data || []).map(m => m.internal_field_name);
+          const unmappedInternalFields = INTERNAL_FIELDS.filter(field => !mappedInternalFields.includes(field));
+          setAvailableInternalFields(unmappedInternalFields);
+        }
+      }
+
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -131,6 +161,8 @@ export default function ZapierMappingsPage() {
         setNewInternalField('');
         setNewDisplayName('');
         setNewSampleValue('');
+        setAvailableZapierFields(prevFields => prevFields.filter(field => field !== newMapping.zapier_field_name));
+        setAvailableInternalFields(prevFields => prevFields.filter(field => field !== newMapping.internal_field_name));
       }
     } catch (e: any) {
       setError(e.message);
@@ -227,6 +259,12 @@ export default function ZapierMappingsPage() {
             >
               {loading ? <LoadingSpinner /> : <><RefreshCw className="w-4 h-4 mr-2" /> Fetch Latest Webhook Data</>}
             </Button>
+            {latestWebhookPayload && (
+              <div className="mt-4 p-4 bg-gray-100 rounded-md text-xs font-mono overflow-auto max-h-60">
+                <h4 className="font-semibold mb-2">Latest Webhook Payload for User:</h4>
+                <pre>{JSON.stringify(latestWebhookPayload, null, 2)}</pre>
+              </div>
+            )}
             <p className="text-xs text-gray-500 mt-1">Ensure you select 'JSON' for the 'Payload Type' in Zapier.</p>
           </div>
 
@@ -255,7 +293,7 @@ export default function ZapierMappingsPage() {
               </SelectTrigger>
               <SelectContent>
                 {availableZapierFields.length === 0 ? (
-                  <SelectItem disabled value="no-data">No recent webhook data to extract fields.</SelectItem>
+                  <SelectItem disabled value="no-data">No available Zapier fields</SelectItem>
                 ) : (
                   availableZapierFields.map((field) => (
                     <SelectItem key={field} value={field}>
@@ -271,12 +309,15 @@ export default function ZapierMappingsPage() {
                 <SelectValue placeholder="Select Internal Field" />
               </SelectTrigger>
               <SelectContent>
-                {INTERNAL_FIELDS.map((field) => (
-                  <SelectItem key={field} value={field}>
-                    {field}
-                  </SelectItem>
-                ))
-                }
+                {availableInternalFields.length === 0 ? (
+                  <SelectItem disabled value="no-data">No internal fields left to map</SelectItem>
+                ) : (
+                  availableInternalFields.map((field) => (
+                    <SelectItem key={field} value={field}>
+                      {field}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
 
@@ -339,4 +380,4 @@ export default function ZapierMappingsPage() {
       </Card>
     </div>
   );
-} 
+}
