@@ -1,0 +1,16 @@
+# Ignore common files that shouldn't be in Docker image
+.git
+.gitignore
+README.md
+.env*
+*.log
+.DS_Store
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+.venv
+venv/
+env/
