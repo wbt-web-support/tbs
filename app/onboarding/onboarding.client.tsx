@@ -940,6 +940,26 @@ function FloatingAIAssistant({
                 <div className="space-y-4">
                   {/* Quick Actions - Minimal Pills */}
                   <div className="space-y-3">
+                    {hasContent && (
+                      <button
+                        onClick={() => handleGenerateContent('improve', 'Rewrite the existing content in a better way, it is very important to ensure the core message and details are retained and dont make it lengthy keep it short and concise.')}
+                        disabled={isLoading}
+                        className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+                      >
+                        <div className="flex items-start gap-3 items-center">
+                          <div className="w-8 h-8 rounded bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center flex-shrink-0 transition-colors">
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                            ) : (
+                              <AnimatedAIBlob className="w-4 h-4" isActive={!isLoading} />
+                            )}
+                          </div>
+                          <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                            Improve what I wrote
+                          </span>
+                        </div>
+                      </button>
+                    )}
                     {getSmartSuggestions().map((suggestion, index) => (
                       <button
                         key={index}
@@ -1129,6 +1149,15 @@ function MobileAIAssistant({
     <div className="lg:hidden mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
       {/* Compact suggestions */}
       <div className="space-y-2 mb-3">
+        {currentQuestion && form.getValues(focusedQuestion as keyof z.infer<typeof formSchema>) && (
+          <button
+            onClick={() => handleGenerateContent('Rewrite the existing content in a more better way.')}
+            disabled={isLoading}
+            className="w-full text-left p-2 rounded border border-blue-200 bg-white hover:bg-blue-50 transition-colors disabled:opacity-50 text-sm"
+          >
+            Improve what I wrote
+          </button>
+        )}
         {getSmartSuggestions().map((suggestion, index) => (
           <button
             key={index}
