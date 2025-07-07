@@ -44,16 +44,7 @@ export default function DateFilterPopup({ onDateChange, currentRange }: DateFilt
       endDate: 'today',
       label: 'Last 90 days'
     },
-    {
-      startDate: '6monthsAgo',
-      endDate: 'today',
-      label: 'Last 6 months'
-    },
-    {
-      startDate: '1yearAgo',
-      endDate: 'today',
-      label: 'Last year'
-    }
+   
   ];
 
   const today = new Date().toISOString().split('T')[0];

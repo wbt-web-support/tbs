@@ -637,9 +637,9 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
       </div>
 
       {/* New Section for Zapier Mappings */}
-      <div className="mt-8">
+      {/* <div className="mt-8">
               <ZapierMappingsDisplay />
-            </div>
+            </div> */}
     </div>
 
 
@@ -696,9 +696,9 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
       </div>
 
          {/* Leaderboard Section */}
-         <div className="mb-6">
+         {/* <div className="mb-6">
               <Leaderboard />
-            </div>
+            </div> */}
 
 
       {/* Customer Reviews */}

@@ -28,6 +28,7 @@ import {
   LucideIcon,
   Loader2,
   Settings,
+  Box,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -128,10 +129,15 @@ const navigationSections: NavigationSection[] = [
         href: "/quarterly-sprint-canvas",
         icon: Flag,
       },
+      // {
+      //   name: "Zapier Mappings",
+      //   href: "/zapier-mappings",
+      //   icon: Settings,
+      // }
       {
-        name: "Zapier Mappings",
-        href: "/zapier-mappings",
-        icon: Settings,
+        name: "Leads Hub",
+        href: "https://app.theleadshub.ai/",
+        icon: Box,
       }
     ],
   },

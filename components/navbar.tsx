@@ -185,12 +185,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     Export Data
                 </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            {/* <DropdownMenuItem>
                 <Link href="/zapier-mappings" className="w-full text-left flex items-center gap-2">
                     <Settings className="h-4 w-4" />
                     Zapier Mappings
                 </Link>
-            </DropdownMenuItem>
+            </DropdownMenuItem> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <form action={signOutAction} className="w-full">
