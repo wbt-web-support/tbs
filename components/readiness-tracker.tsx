@@ -57,17 +57,17 @@ const pages = [
     progress: 80,
   },
   {
-    name: "Fulfillment Planner",
+    name: "Fulfilment Planner",
     href: "/fulfillment-planner",
     progress: 40,
   },
   {
-    name: "Fulfillment Machine",
+    name: "Fulfilment Machine",
     href: "/fulfillment",
     progress: 55,
   },
   {
-    name: "Fulfillment Engine Library",
+    name: "Fulfilment Engine Library",
     href: "/fulfillment-library",
     progress: 70,
   },

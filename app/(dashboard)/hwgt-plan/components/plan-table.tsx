@@ -39,7 +39,7 @@ export default function PlanTable({ data, planId, onUpdate }: PlanTableProps) {
 
   const sections = [
     { key: "customerAcquisition", label: "Customer Acquisition", color: "text-blue-600", bgColor: "bg-blue-50" },
-    { key: "fulfillmentProduction", label: "Fulfillment/Production", color: "text-purple-600", bgColor: "bg-purple-50" },
+    { key: "fulfillmentProduction", label: "Fulfilment/Production", color: "text-purple-600", bgColor: "bg-purple-50" },
     { key: "productsServices", label: "Products/Services", color: "text-emerald-600", bgColor: "bg-emerald-50" },
     { key: "teamOrganisation", label: "Team/Organisation", color: "text-amber-600", bgColor: "bg-amber-50" },
     { key: "customerAvatars", label: "Customer Avatar(s)", color: "text-rose-600", bgColor: "bg-rose-50" },

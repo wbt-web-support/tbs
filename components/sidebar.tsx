@@ -88,7 +88,7 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    title: "Value Engines",
+    title: "Value Machines",
     items: [
       {
         name: "Growth Machine",

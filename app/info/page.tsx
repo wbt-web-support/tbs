@@ -170,11 +170,11 @@ export default function InfoPage() {
               </CardHeader>
               <CardContent>
                 <CardDescription className="mb-4">
-                  Structured process optimization through Growth, Fulfillment, and Innovation machines with visual workflow design.
+                  Structured process optimization through Growth, Fulfilment, and Innovation machines with visual workflow design.
                 </CardDescription>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Growth Machine Planning</li>
-                  <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Fulfillment Optimization</li>
+                  <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Fulfilment Optimization</li>
                   <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Innovation Management</li>
                   <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Figma Integration</li>
                 </ul>

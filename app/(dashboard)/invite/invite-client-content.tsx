@@ -63,7 +63,7 @@ const permissionOptions = [
   { id: 'triage-planner', label: 'Triage Planner' },
   { id: 'business-battle-plan', label: 'Business Battle Plan' },
   { id: 'growth-machine', label: 'Growth Machine' },
-  { id: 'fulfillment-machine', label: 'Fulfillment Machine' },
+  { id: 'fulfilment-machine', label: 'Fulfilment Machine' },
   { id: 'innovation-machine', label: 'Create Innovations' },
   { id: 'playbook-planner', label: 'Playbook & Machine Planner' },
   { id: 'company-scorecard', label: 'Company Scorecard' },

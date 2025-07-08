@@ -1477,7 +1477,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                               <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAcquisition?.Q12 || "-"}</td>
                             </tr>
                             <tr>
-                              <td className="p-3 border font-medium">Fulfillment Production</td>
+                              <td className="p-3 border font-medium">Fulfilment Production</td>
                               <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.fulfillmentProduction?.Q0 || "-"}</td>
                               <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.fulfillmentProduction?.Q4 || "-"}</td>
                               <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.fulfillmentProduction?.Q8 || "-"}</td>

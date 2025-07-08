@@ -80,12 +80,12 @@ export default function ChqTimelinePage() {
           >
             Benefits
           </TabsTrigger>
-          <TabsTrigger 
+          {/* <TabsTrigger 
             value="contact"
             className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
           >
             Contact Info
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="timeline" className="space-y-4">
