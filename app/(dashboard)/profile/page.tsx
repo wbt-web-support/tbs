@@ -26,6 +26,7 @@ interface BusinessInfo {
   command_hq_link: string | null;
   profile_picture_url: string | null;
   google_review_link: string | null;
+  role?: string;
 }
 
 // Make the page component async
@@ -40,9 +41,22 @@ export default async function ProfilePage() {
     return redirect('/sign-in');
   }
 
+  // Fetch user's role and team info
+  const { data: userProfile, error: userError } = await supabase
+    .from('business_info')
+    .select('role, team_id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (userError) {
+    console.error("Error fetching user profile:", userError);
+    return redirect('/sign-in');
+  }
+
+  const userRole = userProfile?.role || 'user';
   const teamId = await getTeamId(supabase, user.id);
 
-  // Fetch business info for the admin of the team
+  // Fetch business info for the admin of the team (company profile)
   const { data: businessInfo, error } = await supabase
     .from('business_info')
     .select('*')
@@ -58,5 +72,10 @@ export default async function ProfilePage() {
   }
 
   // Render the client component, passing the fetched data as props
-  return <ProfileClientContent user={user} initialBusinessInfo={businessInfo as BusinessInfo | null} />;
+  return <ProfileClientContent 
+    user={user} 
+    initialBusinessInfo={businessInfo as BusinessInfo | null} 
+    userRole={userRole}
+    teamId={teamId}
+  />;
 } 

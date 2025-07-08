@@ -69,6 +69,7 @@ const permissionOptions = [
   { id: 'company-scorecard', label: 'Company Scorecard' },
   { id: 'meeting-rhythm-planner', label: 'Meeting Rhythm Planner' },
   { id: 'quarterly-sprint-canvas', label: 'Quarterly Sprint Canvas' },
+  { id: 'key-initiatives', label: 'Key Initiatives' },
 ]
 
 export default function InviteClientContent() {

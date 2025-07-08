@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     // Fetch user-defined mappings
     const { data: mappings, error: mappingsError } = await supabase
       .from('zapier_mappings')
-      .select('id, zapier_field_name, internal_field_name, sample_value')
+      .select('zapier_field_name, internal_field_name')
       .eq('user_id', userId);
 
     if (mappingsError) {
@@ -30,47 +30,33 @@ export async function POST(req: NextRequest) {
     }
     console.log('Fetched mappings:', mappings);
 
-    // Update sample values for existing mappings if new data is available
-    if (mappings && mappings.length > 0) {
-      const mappingUpdates = [];
-      
-      for (const mapping of mappings) {
-        const zapierFieldName = mapping.zapier_field_name;
-        const newValue = body[zapierFieldName];
-        
-        // Only update if the field exists in the webhook payload and has a value
-        if (newValue !== undefined && newValue !== null) {
-          const newSampleValue = String(newValue);
-          
-          // Only update if the sample value is different from the current one
-          if (mapping.sample_value !== newSampleValue) {
-            mappingUpdates.push({
-              id: mapping.id,
-              sample_value: newSampleValue
-            });
-          }
-        }
+    // Prepare data for updating user profile based on mappings
+    const userProfileUpdates: { [key: string]: any } = {};
+    mappings.forEach(mapping => {
+      const zapierValue = body[mapping.zapier_field_name];
+      if (zapierValue !== undefined) {
+        userProfileUpdates[mapping.internal_field_name] = zapierValue;
       }
+    });
 
-      // Batch update all mappings that need updating
-      if (mappingUpdates.length > 0) {
-        console.log('Updating mappings with new sample values:', mappingUpdates);
-        
-        for (const update of mappingUpdates) {
-          const { error: updateError } = await supabase
-            .from('zapier_mappings')
-            .update({ sample_value: update.sample_value })
-            .eq('id', update.id);
+    console.log('Prepared user profile updates:', userProfileUpdates);
 
-          if (updateError) {
-            console.error('Error updating mapping:', updateError);
-            // Continue with other updates even if one fails
-          }
-        }
+    // Update the user's profile with the mapped data
+    // IMPORTANT: Assuming 'business_info' is the correct table for user data.
+    // If not, this needs to be changed to the correct table name.
+    if (Object.keys(userProfileUpdates).length > 0) {
+      const { error: updateError } = await supabase
+        .from('business_info') // <--- VERIFY THIS TABLE NAME
+        .update(userProfileUpdates)
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error('Error updating user profile:', updateError);
+        // Continue processing webhook even if profile update fails to avoid data loss on webhook side
       }
+      console.log('User profile updated successfully.');
     }
 
-    // Prepare webhook data for insertion
     const webhookData: { [key: string]: any } = {
       source_app: body.source_app || 'unknown',
       event_type: body.event_type || 'unknown',
@@ -80,7 +66,6 @@ export async function POST(req: NextRequest) {
 
     console.log('Webhook data before insert:', webhookData);
 
-    // Insert the webhook data
     const { data, error } = await supabase.from('zapier_webhooks').insert([
       webhookData
     ]);
@@ -90,18 +75,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Return success response with information about updates
-    const response = {
-      message: 'Webhook received and processed',
-      data,
-      mappings_updated: mappings ? mappings.length : 0
-    };
-
-    console.log('Webhook processed successfully:', response);
-    return NextResponse.json(response);
-    
+    return NextResponse.json({ message: 'Webhook received and processed', data });
   } catch (error: any) {
     console.error('Error processing webhook:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
+} 

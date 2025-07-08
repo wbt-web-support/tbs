@@ -18,10 +18,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FormField, FormItem, FormControl, FormLabel } from "@/components/ui/form";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 type PlaybookOwner = {
   id: string;
   full_name: string;
+  profile_picture_url?: string;
 };
 
 type Department = {
@@ -161,7 +163,11 @@ function PlaybookForm({ form, departments, teamMembers, handleSavePlaybook, setD
                         }}
                       />
                     </FormControl>
-                    <FormLabel className="font-normal text-sm">
+                    <FormLabel className="font-normal text-sm flex items-center gap-2">
+                      <Avatar className="h-6 w-6 mr-2">
+                        <AvatarImage src={member.profile_picture_url || ''} alt={member.full_name} />
+                        <AvatarFallback>{member.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                      </Avatar>
                       {member.full_name}
                     </FormLabel>
                   </FormItem>
@@ -282,7 +288,7 @@ export default function GrowthEngineLibraryPage() {
           department:departments(id, name),
           playbook_assignments (
             assignment_type,
-            business_info ( id, full_name )
+            business_info ( id, full_name, profile_picture_url )
           )
         `)
         .in("user_id", teamMemberIds)
@@ -293,7 +299,10 @@ export default function GrowthEngineLibraryPage() {
       const processedData = data.map(playbook => {
         const owners = playbook.playbook_assignments
           .filter((pa: any) => pa.assignment_type === 'Owner' && pa.business_info)
-          .map((pa: any) => pa.business_info);
+          .map((pa: any) => ({
+            ...pa.business_info,
+            profile_picture_url: pa.business_info.profile_picture_url
+          }));
         
         const { playbook_assignments, ...rest } = playbook;
 
@@ -322,7 +331,7 @@ export default function GrowthEngineLibraryPage() {
       // Fetch Team Members
       const { data: teamMembersData, error: teamMembersError } = await supabase
         .from("business_info")
-        .select("id, full_name")
+        .select("id, full_name, profile_picture_url")
         .in("user_id", teamMemberIds);
 
       if (teamMembersError) throw teamMembersError;
@@ -631,7 +640,19 @@ export default function GrowthEngineLibraryPage() {
                       <TableCell className="px-6 py-4 whitespace-nowrap border-l">
                         {playbook.department?.name && <Badge className={getDepartmentColor(playbook.department.name)}>{playbook.department.name}</Badge>}
                       </TableCell>
-                      <TableCell className="px-6 py-4 border-l">{playbook.owners.map(o => o.full_name).join(", ") || "—"}</TableCell>
+                      <TableCell className="px-6 py-4 border-l">
+                        <div className="flex flex-wrap gap-2">
+                          {playbook.owners.length > 0 ? playbook.owners.map(o => (
+                            <div key={o.id} className="flex items-center gap-2">
+                              <Avatar className="h-7 w-7">
+                                <AvatarImage src={o.profile_picture_url || ''} alt={o.full_name} />
+                                <AvatarFallback>{o.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                              </Avatar>
+                              <span>{o.full_name}</span>
+                            </div>
+                          )) : '—'}
+                        </div>
+                      </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap border-l">
                         <Badge variant="outline" className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(playbook.status)}`}>
                           {playbook.status}

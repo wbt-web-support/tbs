@@ -37,6 +37,8 @@ type NavigationItem = {
   href: string;
   icon: LucideIcon;
   disabled?: boolean;
+  target?: string;
+  rel?: string;
 };
 
 type NavigationSection = {
@@ -63,6 +65,11 @@ const navigationSections: NavigationSection[] = [
         href: "/chain-of-command",
         icon: Users,
       },
+      {
+        name: "Key Initiatives",
+        href: "/key-Initiatives",
+        icon: Flag,
+      }
     ],
   },
   {
@@ -138,6 +145,8 @@ const navigationSections: NavigationSection[] = [
         name: "Leads Hub",
         href: "https://app.theleadshub.ai/",
         icon: Box,
+        target: "_blank",
+        rel: "noopener noreferrer"
       }
     ],
   },

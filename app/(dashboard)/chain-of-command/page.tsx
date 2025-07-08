@@ -13,6 +13,7 @@ import { User } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { deleteTeamMember } from "./actions";
 import { toast } from "sonner";
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 // --- New Type Definitions for Relational Data ---
 
@@ -39,6 +40,7 @@ type TeamMember = {
   team_id: string;
   role: string;
   user_id: string;
+  profile_picture_url?: string; // <-- add this
   
   // Relational fields
   manager_id: string | null;
@@ -82,6 +84,7 @@ export default function ChainOfCommandPage() {
           team_id,
           role,
           user_id,
+          profile_picture_url,
           manager_id,
           department_id,
           department:departments(id, name),
@@ -203,8 +206,11 @@ export default function ChainOfCommandPage() {
                     <TableRow key={member.id} className="border-b border-gray-100 hover:bg-gray-50/30">
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
                         <div className="flex items-center gap-3">
-                        <User className="h-5 w-5 text-gray-400" />
-                        <span>{member.full_name}</span>
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.profile_picture_url || ''} alt={member.full_name} />
+                            <AvatarFallback>{member.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                          </Avatar>
+                          <span>{member.full_name}</span>
                         </div>
                       </TableCell>
                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-l">{member.job_title || '—'}</TableCell>
@@ -232,7 +238,10 @@ export default function ChainOfCommandPage() {
                          <div className="flex flex-col gap-1.5">
                           {member.direct_reports?.map((dr) => (
                             <Link href={`#${dr.id}`} key={dr.id} className="text-blue-600 hover:underline flex items-center gap-2">
-                              <User className="h-4 w-4 text-gray-500" />
+                              <Avatar className="h-7 w-7">
+                                <AvatarImage src={dr.profile_picture_url || ''} alt={dr.full_name} />
+                                <AvatarFallback>{dr.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                              </Avatar>
                               {dr.full_name}
                             </Link>
                             ))}
@@ -241,7 +250,10 @@ export default function ChainOfCommandPage() {
                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
                         {member.manager && (
                           <Link href={`#${member.manager.id}`} className="text-blue-600 hover:underline flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-500" />
+                            <Avatar className="h-7 w-7">
+                              <AvatarImage src={member.manager.profile_picture_url || ''} alt={member.manager.full_name} />
+                              <AvatarFallback>{member.manager.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                            </Avatar>
                             {member.manager.full_name}
                           </Link>
                         )}
