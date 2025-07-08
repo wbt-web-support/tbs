@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, MoreHorizontal, User, Calendar, Target } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Loader2, Plus, Trash2, MoreHorizontal, User, Calendar, Target, Check, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,9 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import React, { useMemo, useCallback } from "react";
 
 // Type definitions
 type Owner = {
@@ -66,20 +68,31 @@ type KeyInitiativeFormData = {
   department_ids: string[];
 };
 
+type EditingCell = {
+  initiativeId: string;
+  field: keyof KeyInitiative;
+  value: any;
+};
+
 export default function KeyInitiativesPage() {
   const [initiatives, setInitiatives] = useState<KeyInitiative[]>([]);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentInitiative, setCurrentInitiative] = useState<KeyInitiative | null>(null);
+
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [stakeholderInput, setStakeholderInput] = useState("");
+
   
-  const [formData, setFormData] = useState<KeyInitiativeFormData>({
+  // Inline editing states
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [savingCell, setSavingCell] = useState<string | null>(null);
+  const [tempValues, setTempValues] = useState<{[key: string]: any}>({});
+  
+  // New initiative inline creation
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newInitiativeData, setNewInitiativeData] = useState<KeyInitiativeFormData>({
     name: "",
     status: "Backlog",
     owner_id: null,
@@ -90,12 +103,27 @@ export default function KeyInitiativesPage() {
     department_ids: [],
   });
 
+
   const supabase = createClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const newNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchInitiatives();
     fetchDropdownData();
   }, []);
+
+  useEffect(() => {
+    if (editingCell && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editingCell]);
+
+  useEffect(() => {
+    if (isCreatingNew && newNameInputRef.current) {
+      newNameInputRef.current.focus();
+    }
+  }, [isCreatingNew]);
 
   const fetchInitiatives = async () => {
     try {
@@ -186,8 +214,8 @@ export default function KeyInitiativesPage() {
   };
 
   const handleAddNew = () => {
-    setCurrentInitiative(null);
-    setFormData({
+    setIsCreatingNew(true);
+    setNewInitiativeData({
       name: "",
       status: "Backlog",
       owner_id: null,
@@ -197,24 +225,69 @@ export default function KeyInitiativesPage() {
       associated_playbook_id: null,
       department_ids: [],
     });
-    setStakeholderInput("");
-    setDialogOpen(true);
   };
 
-  const handleEdit = (initiative: KeyInitiative) => {
-    setCurrentInitiative(initiative);
-    setFormData({
-      name: initiative.name,
-      status: initiative.status,
-      owner_id: initiative.owner_id,
-      stakeholders: initiative.stakeholders || [],
-      due_date: initiative.due_date,
-      results: initiative.results,
-      associated_playbook_id: initiative.associated_playbook_id,
-      department_ids: initiative.departments?.map(d => d.id) || [],
+  const cancelNewInitiative = () => {
+    setIsCreatingNew(false);
+    setNewInitiativeData({
+      name: "",
+      status: "Backlog",
+      owner_id: null,
+      stakeholders: [],
+      due_date: null,
+      results: null,
+      associated_playbook_id: null,
+      department_ids: [],
     });
-    setStakeholderInput(initiative.stakeholders?.join(", ") || "");
-    setDialogOpen(true);
+  };
+
+  const saveNewInitiative = async () => {
+    try {
+      if (!newInitiativeData.name.trim()) {
+        toast.error("Initiative name is required");
+        return;
+      }
+
+      if (!teamId) {
+        toast.error("Team ID not found");
+        return;
+      }
+
+      setSavingCell("new-initiative");
+
+      const initiativeData = {
+        name: newInitiativeData.name,
+        status: newInitiativeData.status,
+        owner_id: newInitiativeData.owner_id,
+        stakeholders: newInitiativeData.stakeholders,
+        due_date: newInitiativeData.due_date,
+        results: newInitiativeData.results,
+        associated_playbook_id: newInitiativeData.associated_playbook_id,
+        team_id: teamId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+        const { data: newInitiative, error } = await supabase
+          .from("key_initiatives")
+        .insert(initiativeData)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+
+      // Handle department associations
+      await handleDepartmentAssociations(newInitiative.id, newInitiativeData.department_ids);
+
+      toast.success("Initiative created successfully");
+      setIsCreatingNew(false);
+      await fetchInitiatives();
+    } catch (error) {
+      console.error("Error saving initiative:", error);
+      toast.error("Failed to save initiative");
+    } finally {
+      setSavingCell(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -242,75 +315,7 @@ export default function KeyInitiativesPage() {
     }
   };
 
-  const handleSave = async () => {
-    try {
-      setIsSaving(true);
 
-      if (!formData.name.trim()) {
-        toast.error("Initiative name is required");
-        return;
-      }
-
-      if (!teamId) {
-        toast.error("Team ID not found");
-        return;
-      }
-
-      const stakeholdersArray = stakeholderInput
-        .split(",")
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-
-      const initiativeData = {
-        name: formData.name,
-        status: formData.status,
-        owner_id: formData.owner_id,
-        stakeholders: stakeholdersArray,
-        due_date: formData.due_date,
-        results: formData.results,
-        associated_playbook_id: formData.associated_playbook_id,
-        team_id: teamId,
-        updated_at: new Date().toISOString(),
-      };
-
-      let initiativeId: string;
-
-      if (currentInitiative) {
-        // Update existing initiative
-        const { data: updatedInitiative, error } = await supabase
-          .from("key_initiatives")
-          .update(initiativeData)
-          .eq("id", currentInitiative.id)
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        initiativeId = updatedInitiative.id;
-      } else {
-        // Create new initiative
-        const { data: newInitiative, error } = await supabase
-          .from("key_initiatives")
-          .insert({ ...initiativeData, created_at: new Date().toISOString() })
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        initiativeId = newInitiative.id;
-      }
-
-      // Handle department associations
-      await handleDepartmentAssociations(initiativeId, formData.department_ids);
-
-      toast.success(currentInitiative ? "Initiative updated successfully" : "Initiative created successfully");
-      setDialogOpen(false);
-      await fetchInitiatives();
-    } catch (error) {
-      console.error("Error saving initiative:", error);
-      toast.error("Failed to save initiative");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleDepartmentAssociations = async (initiativeId: string, departmentIds: string[]) => {
     // First, remove existing associations
@@ -336,8 +341,74 @@ export default function KeyInitiativesPage() {
     }
   };
 
-  const handleStakeholderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStakeholderInput(e.target.value);
+
+
+  // Inline editing functions
+  const startEditing = (initiativeId: string, field: keyof KeyInitiative, currentValue: any) => {
+    setEditingCell({ initiativeId, field, value: currentValue });
+    setTempValues(prev => ({ 
+      ...prev,
+      [`${initiativeId}-${field}`]: currentValue || ""
+    }));
+  };
+
+  const cancelEditing = () => {
+    setEditingCell(null);
+    setTempValues({});
+  };
+
+  const saveInlineEdit = async (initiativeId: string, field: keyof KeyInitiative, newValue: any) => {
+    try {
+      setSavingCell(`${initiativeId}-${field}`);
+      
+      const updateData: any = {
+        [field]: newValue,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("key_initiatives")
+        .update(updateData)
+        .eq("id", initiativeId);
+
+      if (error) throw error;
+
+      // Update local state
+      setInitiatives(prev => prev.map(initiative => 
+        initiative.id === initiativeId 
+          ? { ...initiative, [field]: newValue }
+          : initiative
+      ));
+
+      setEditingCell(null);
+      setTempValues({});
+      toast.success("Updated successfully");
+    } catch (error) {
+      console.error("Error updating initiative:", error);
+      toast.error("Failed to update");
+    } finally {
+      setSavingCell(null);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, initiativeId: string, field: keyof KeyInitiative) => {
+    if (e.key === 'Enter') {
+      const tempKey = `${initiativeId}-${field}`;
+      const currentValue = initiatives.find(i => i.id === initiativeId)?.[field] as string;
+      const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+      saveInlineEdit(initiativeId, field, newValue);
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  };
+
+  const handleStakeholdersUpdate = async (initiativeId: string, stakeholdersString: string) => {
+    const stakeholdersArray = stakeholdersString
+      .split(",")
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    
+    await saveInlineEdit(initiativeId, 'stakeholders', stakeholdersArray);
   };
 
   const getStatusColor = (status: string) => {
@@ -366,19 +437,834 @@ export default function KeyInitiativesPage() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Inline editing components
+  const EditableText = ({ initiative, field, className = "" }: { 
+    initiative: KeyInitiative; 
+    field: keyof KeyInitiative; 
+    className?: string;
+  }) => {
+    const isEditing = editingCell?.initiativeId === initiative.id && editingCell?.field === field;
+    const isSaving = savingCell === `${initiative.id}-${field}`;
+    const currentValue = initiative[field] as string;
+    const tempKey = `${initiative.id}-${field}`;
+    
+    if (isEditing) {
+  return (
+        <div className="flex items-center gap-2">
+          <Input
+            value={tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || ""}
+            onChange={(e) => setTempValues(prev => ({
+              ...prev,
+              [tempKey]: e.target.value
+            }))}
+            onKeyDown={(e) => handleKeyDown(e, initiative.id, field)}
+            onBlur={(e) => {
+              // Use setTimeout to allow for potential clicks on other elements
+              setTimeout(() => {
+                if (editingCell?.initiativeId === initiative.id && editingCell?.field === field) {
+                  const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                  if (newValue !== (currentValue || "")) {
+                    saveInlineEdit(initiative.id, field, newValue);
+                  } else {
+                    cancelEditing();
+                  }
+                }
+              }, 100);
+            }}
+            className="h-8 text-sm"
+            autoFocus
+          />
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className={`cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8 flex items-center ${className}`}
+        onClick={() => startEditing(initiative.id, field, currentValue || "")}
+      >
+        {currentValue || <span className="text-gray-400">Click to edit</span>}
+      </div>
+    );
+  };
+
+  const EditableTextarea = ({ initiative, field }: { 
+    initiative: KeyInitiative; 
+    field: keyof KeyInitiative; 
+  }) => {
+    const isEditing = editingCell?.initiativeId === initiative.id && editingCell?.field === field;
+    const isSaving = savingCell === `${initiative.id}-${field}`;
+    const currentValue = initiative[field] as string;
+    const tempKey = `${initiative.id}-${field}`;
+    
+    if (isEditing) {
+      return (
+        <div className="flex items-start gap-2">
+          <Textarea
+            value={tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || ""}
+            onChange={(e) => setTempValues(prev => ({
+              ...prev,
+              [tempKey]: e.target.value
+            }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.ctrlKey) {
+                const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                saveInlineEdit(initiative.id, field, newValue);
+              } else if (e.key === 'Escape') {
+                cancelEditing();
+              }
+            }}
+            onBlur={() => {
+              setTimeout(() => {
+                if (editingCell?.initiativeId === initiative.id && editingCell?.field === field) {
+                  const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                  if (newValue !== (currentValue || "")) {
+                    saveInlineEdit(initiative.id, field, newValue);
+                  } else {
+                    cancelEditing();
+                  }
+                }
+              }, 100);
+            }}
+            className="min-h-20 text-sm"
+            placeholder="Enter results..."
+            autoFocus
+          />
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin mt-2" />}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8 max-w-xs"
+        onClick={() => startEditing(initiative.id, field, currentValue || "")}
+      >
+        {currentValue ? (
+          <div className="truncate" title={currentValue}>
+            {currentValue}
+        </div>
+      ) : (
+          <span className="text-gray-400">Click to add results</span>
+        )}
+                      </div>
+    );
+  };
+
+  const EditableStatus = ({ initiative }: { initiative: KeyInitiative }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const isSaving = savingCell === `${initiative.id}-status`;
+
+    const handleStatusChange = async (newStatus: string) => {
+      setIsOpen(false);
+      await saveInlineEdit(initiative.id, 'status', newStatus);
+    };
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer">
+            <Badge className={`${getStatusColor(initiative.status)} hover:opacity-80`}>
+              {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        {initiative.status}
+                      </Badge>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2">
+          <div className="space-y-1">
+            {["Backlog", "In Progress", "On Track", "Behind", "Completed"].map((status) => (
+              <div
+                key={status}
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+                onClick={() => handleStatusChange(status)}
+              >
+                <Badge className={getStatusColor(status)}>
+                  {status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const EditableOwner = ({ initiative }: { initiative: KeyInitiative }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const isSaving = savingCell === `${initiative.id}-owner_id`;
+
+    const handleOwnerChange = async (newOwnerId: string | null) => {
+      setIsOpen(false);
+      await saveInlineEdit(initiative.id, 'owner_id', newOwnerId);
+      // Refresh to get updated owner data
+      await fetchInitiatives();
+    };
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded flex items-center gap-2">
+            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {initiative.owner ? (
+              <>
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={initiative.owner.profile_picture_url || ''} alt={initiative.owner.full_name} />
+                            <AvatarFallback>{initiative.owner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                          </Avatar>
+                <span className="text-blue-600">{initiative.owner.full_name}</span>
+              </>
+                      ) : (
+              <span className="text-gray-400">Click to assign</span>
+                      )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2">
+          <div className="space-y-1">
+            <div
+              className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+              onClick={() => handleOwnerChange(null)}
+            >
+              No Owner
+            </div>
+            {owners.map((owner) => (
+              <div
+                key={owner.id}
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm flex items-center gap-2"
+                onClick={() => handleOwnerChange(owner.id)}
+              >
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={owner.profile_picture_url || ''} alt={owner.full_name} />
+                  <AvatarFallback>{owner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                </Avatar>
+                <span>{owner.full_name}</span>
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const EditableDate = ({ initiative }: { initiative: KeyInitiative }) => {
+    const isEditing = editingCell?.initiativeId === initiative.id && editingCell?.field === 'due_date';
+    const isSaving = savingCell === `${initiative.id}-due_date`;
+    const currentValue = initiative.due_date;
+    const tempKey = `${initiative.id}-due_date`;
+    
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || ""}
+            onChange={(e) => setTempValues(prev => ({
+              ...prev,
+              [tempKey]: e.target.value
+            }))}
+            onKeyDown={(e) => handleKeyDown(e, initiative.id, 'due_date')}
+            onBlur={() => {
+              setTimeout(() => {
+                if (editingCell?.initiativeId === initiative.id && editingCell?.field === 'due_date') {
+                  const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                  if (newValue !== (currentValue || "")) {
+                    saveInlineEdit(initiative.id, 'due_date', newValue || null);
+                  } else {
+                    cancelEditing();
+                  }
+                }
+              }, 100);
+            }}
+            className="h-8 text-sm w-40"
+            autoFocus
+          />
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8 flex items-center gap-2"
+        onClick={() => startEditing(initiative.id, 'due_date', currentValue || "")}
+      >
+        <Calendar className="h-4 w-4 text-gray-400" />
+        {formatDate(currentValue)}
+      </div>
+    );
+  };
+
+  const EditableStakeholders = ({ initiative }: { initiative: KeyInitiative }) => {
+    const isEditing = editingCell?.initiativeId === initiative.id && editingCell?.field === 'stakeholders';
+    const isSaving = savingCell === `${initiative.id}-stakeholders`;
+    const currentValue = initiative.stakeholders?.join(", ") || "";
+    const tempKey = `${initiative.id}-stakeholders`;
+    
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-2">
+          <Input
+            value={tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || ""}
+            onChange={(e) => setTempValues(prev => ({
+              ...prev,
+              [tempKey]: e.target.value
+            }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                handleStakeholdersUpdate(initiative.id, newValue);
+              } else if (e.key === 'Escape') {
+                cancelEditing();
+              }
+            }}
+            onBlur={() => {
+              setTimeout(() => {
+                if (editingCell?.initiativeId === initiative.id && editingCell?.field === 'stakeholders') {
+                  const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                  if (newValue !== (currentValue || "")) {
+                    handleStakeholdersUpdate(initiative.id, newValue);
+                  } else {
+                    cancelEditing();
+                  }
+                }
+              }, 100);
+            }}
+            className="h-8 text-sm"
+            placeholder="Enter stakeholders separated by commas"
+            autoFocus
+          />
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8"
+        onClick={() => startEditing(initiative.id, 'stakeholders', currentValue)}
+      >
+                      {initiative.stakeholders?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {initiative.stakeholders.map((stakeholder, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {stakeholder}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+          <span className="text-gray-400">Click to add stakeholders</span>
+                      )}
+                      </div>
+    );
+  };
+
+  const EditablePlaybook = ({ initiative }: { initiative: KeyInitiative }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const isSaving = savingCell === `${initiative.id}-associated_playbook_id`;
+
+    const handlePlaybookChange = async (newPlaybookId: string | null) => {
+      setIsOpen(false);
+      await saveInlineEdit(initiative.id, 'associated_playbook_id', newPlaybookId);
+      // Refresh to get updated playbook data
+      await fetchInitiatives();
+    };
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded flex items-center gap-2">
+            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {initiative.playbook ? (
+              <span className="text-blue-600 truncate max-w-[150px]">{initiative.playbook.playbookname}</span>
+            ) : (
+              <span className="text-gray-400">Click to assign</span>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2">
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            <div
+              className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+              onClick={() => handlePlaybookChange(null)}
+            >
+              No Playbook
+            </div>
+            {playbooks.map((playbook) => (
+              <div
+                key={playbook.id}
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+                onClick={() => handlePlaybookChange(playbook.id)}
+              >
+                {playbook.playbookname}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const EditableDepartments = ({ initiative }: { initiative: KeyInitiative }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selectedDepartments, setSelectedDepartments] = useState<string[]>(
+      initiative.departments?.map(d => d.id) || []
+    );
+    const isSaving = savingCell === `${initiative.id}-departments`;
+
+    // Reset selectedDepartments when initiative changes
+    useEffect(() => {
+      setSelectedDepartments(initiative.departments?.map(d => d.id) || []);
+    }, [initiative.id]);
+
+    const handleDepartmentToggle = (departmentId: string) => {
+      setSelectedDepartments(prev => {
+        if (prev.includes(departmentId)) {
+          return prev.filter(id => id !== departmentId);
+        } else {
+          return [...prev, departmentId];
+        }
+      });
+    };
+
+    const handleSaveDepartments = async () => {
+      try {
+        setSavingCell(`${initiative.id}-departments`);
+        setIsOpen(false);
+        
+        // Handle department associations
+        await handleDepartmentAssociations(initiative.id, selectedDepartments);
+        
+        toast.success("Teams updated successfully");
+        await fetchInitiatives();
+      } catch (error) {
+        console.error("Error updating departments:", error);
+        toast.error("Failed to update teams");
+      } finally {
+        setSavingCell(null);
+      }
+    };
+
+    const handleCancel = () => {
+      setSelectedDepartments(initiative.departments?.map(d => d.id) || []);
+      setIsOpen(false);
+    };
+
+    return (
+      <Popover open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleCancel();
+        } else {
+          setIsOpen(open);
+        }
+      }}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8">
+            {isSaving && <Loader2 className="h-4 w-4 animate-spin mb-1" />}
+                      {initiative.departments?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {initiative.departments.map((department) => (
+                            <Badge 
+                              key={department.id} 
+                              className={getDepartmentColor(department.name)}
+                            >
+                              {department.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+              <span className="text-gray-400">Click to assign teams</span>
+                      )}
+                        </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-3">
+          <div className="space-y-3">
+            <div className="text-sm font-medium">Select Teams (Departments)</div>
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {departments.map((department) => (
+                <div key={department.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`dept-edit-${department.id}`}
+                    checked={selectedDepartments.includes(department.id)}
+                    onCheckedChange={() => handleDepartmentToggle(department.id)}
+                  />
+                  <Label 
+                    htmlFor={`dept-edit-${department.id}`} 
+                    className="text-sm font-normal leading-none cursor-pointer flex-1"
+                  >
+                    {department.name}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end space-x-2 pt-2 border-t">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleCancel}
+              >
+                Cancel
+                          </Button>
+              <Button 
+                size="sm" 
+                onClick={handleSaveDepartments}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Save
+              </Button>
+          </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  // New initiative inline editing components (memoized)
+  const NewInitiativeText = React.memo(({ field, placeholder, autoFocus = false, value, onChange }: { field: keyof KeyInitiativeFormData; placeholder: string; autoFocus?: boolean; value: string; onChange: (v: string) => void }) => {
+    const isSaving = false; // spinner handled in parent
+    return (
+      <div className="flex items-center gap-2">
+               <Input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="h-8 text-sm"
+          autoFocus={autoFocus}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              // Save handled in parent
+            } else if (e.key === 'Escape') {
+              // Cancel handled in parent
+            }
+          }}
+        />
+        {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+             </div>
+    );
+  });
+
+  const NewInitiativeTextarea = ({ initiative, field }: { 
+    initiative: KeyInitiative; 
+    field: keyof KeyInitiative; 
+  }) => {
+    const isEditing = editingCell?.initiativeId === initiative.id && editingCell?.field === field;
+    const isSaving = savingCell === `${initiative.id}-${field}`;
+    const currentValue = initiative[field] as string;
+    const tempKey = `${initiative.id}-${field}`;
+    
+    if (isEditing) {
+      return (
+        <div className="flex items-start gap-2">
+          <Textarea
+            value={tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || ""}
+            onChange={(e) => setTempValues(prev => ({
+              ...prev,
+              [tempKey]: e.target.value
+            }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.ctrlKey) {
+                const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                saveInlineEdit(initiative.id, field, newValue);
+              } else if (e.key === 'Escape') {
+                cancelEditing();
+              }
+            }}
+            onBlur={() => {
+              setTimeout(() => {
+                if (editingCell?.initiativeId === initiative.id && editingCell?.field === field) {
+                  const newValue = tempValues[tempKey] !== undefined ? tempValues[tempKey] : currentValue || "";
+                  if (newValue !== (currentValue || "")) {
+                    saveInlineEdit(initiative.id, field, newValue);
+                  } else {
+                    cancelEditing();
+                  }
+                }
+              }, 100);
+            }}
+            className="min-h-20 text-sm"
+            placeholder="Enter results..."
+            autoFocus
+          />
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin mt-2" />}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8 max-w-xs"
+        onClick={() => startEditing(initiative.id, field, currentValue || "")}
+      >
+        {currentValue ? (
+          <div className="truncate" title={currentValue}>
+            {currentValue}
+               </div>
+      ) : (
+          <span className="text-gray-400">Click to add results</span>
+        )}
+                      </div>
+    );
+  };
+
+  const NewInitiativeStatus = () => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer">
+            <Badge className={getStatusColor(newInitiativeData.status)}>
+              {newInitiativeData.status}
+            </Badge>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2">
+          <div className="space-y-1">
+            {["Backlog", "In Progress", "On Track", "Behind", "Completed"].map((status) => (
+              <div
+                key={status}
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+                onClick={() => {
+                  setNewInitiativeData({ ...newInitiativeData, status: status as any });
+                  setIsOpen(false);
+                }}
+              >
+                <Badge className={getStatusColor(status)}>
+                  {status}
+                </Badge>
+               </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const NewInitiativeOwner = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedOwner = owners.find(o => o.id === newInitiativeData.owner_id);
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded flex items-center gap-2">
+            {selectedOwner ? (
+              <>
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={selectedOwner.profile_picture_url || ''} alt={selectedOwner.full_name} />
+                  <AvatarFallback>{selectedOwner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                </Avatar>
+                <span className="text-blue-600">{selectedOwner.full_name}</span>
+              </>
+            ) : (
+              <span className="text-gray-400">Click to assign</span>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2">
+          <div className="space-y-1">
+            <div
+              className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+              onClick={() => {
+                setNewInitiativeData({ ...newInitiativeData, owner_id: null });
+                setIsOpen(false);
+              }}
+            >
+              No Owner
+            </div>
+                     {owners.map((owner) => (
+              <div
+                key={owner.id}
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm flex items-center gap-2"
+                onClick={() => {
+                  setNewInitiativeData({ ...newInitiativeData, owner_id: owner.id });
+                  setIsOpen(false);
+                }}
+              >
+                           <Avatar className="h-6 w-6">
+                             <AvatarImage src={owner.profile_picture_url || ''} alt={owner.full_name} />
+                             <AvatarFallback>{owner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                           </Avatar>
+                           <span>{owner.full_name}</span>
+                         </div>
+                     ))}
+               </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const NewInitiativeDate = () => {
+    return (
+      <div className="flex items-center gap-2">
+                 <Input
+                   type="date"
+          value={newInitiativeData.due_date || ""}
+          onChange={(e) => setNewInitiativeData({ ...newInitiativeData, due_date: e.target.value || null })}
+          className="h-8 text-sm w-40"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && newInitiativeData.name.trim()) {
+              saveNewInitiative();
+            } else if (e.key === 'Escape') {
+              cancelNewInitiative();
+            }
+          }}
+                 />
+               </div>
+    );
+  };
+
+  const NewInitiativeStakeholders = () => {
+    const stakeholdersString = newInitiativeData.stakeholders.join(", ");
+    
+    return (
+      <div className="flex items-center gap-2">
+               <Input
+          value={stakeholdersString}
+          onChange={(e) => {
+            const stakeholdersArray = e.target.value
+              .split(",")
+              .map(s => s.trim())
+              .filter(s => s.length > 0);
+            setNewInitiativeData({ ...newInitiativeData, stakeholders: stakeholdersArray });
+          }}
+                 placeholder="Enter stakeholders separated by commas"
+          className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && newInitiativeData.name.trim()) {
+              saveNewInitiative();
+            } else if (e.key === 'Escape') {
+              cancelNewInitiative();
+            }
+          }}
+               />
+             </div>
+    );
+  };
+
+  const NewInitiativeDepartments = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedDepartments = departments.filter(d => newInitiativeData.department_ids.includes(d.id));
+
+    const handleDepartmentToggle = (departmentId: string) => {
+      const updatedIds = newInitiativeData.department_ids.includes(departmentId)
+        ? newInitiativeData.department_ids.filter(id => id !== departmentId)
+        : [...newInitiativeData.department_ids, departmentId];
+      
+      setNewInitiativeData({ ...newInitiativeData, department_ids: updatedIds });
+    };
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8">
+            {selectedDepartments.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {selectedDepartments.map((department) => (
+                  <Badge 
+                    key={department.id} 
+                    className={getDepartmentColor(department.name)}
+                  >
+                    {department.name}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-gray-400">Click to assign teams</span>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-3">
+          <div className="space-y-3">
+            <div className="text-sm font-medium">Select Teams (Departments)</div>
+            <div className="max-h-48 overflow-y-auto space-y-2">
+                   {departments.map((department) => (
+                     <div key={department.id} className="flex items-center space-x-2">
+                       <Checkbox
+                    id={`dept-new-${department.id}`}
+                    checked={newInitiativeData.department_ids.includes(department.id)}
+                    onCheckedChange={() => handleDepartmentToggle(department.id)}
+                       />
+                  <Label 
+                    htmlFor={`dept-new-${department.id}`} 
+                    className="text-sm font-normal leading-none cursor-pointer flex-1"
+                  >
+                         {department.name}
+                       </Label>
+                     </div>
+                   ))}
+                 </div>
+            <div className="flex justify-end space-x-2 pt-2 border-t">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsOpen(false)}
+              >
+                Close
+              </Button>
+               </div>
+             </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const NewInitiativePlaybook = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedPlaybook = playbooks.find(p => p.id === newInitiativeData.associated_playbook_id);
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded flex items-center gap-2">
+            {selectedPlaybook ? (
+              <span className="text-blue-600 truncate max-w-[150px]">{selectedPlaybook.playbookname}</span>
+            ) : (
+              <span className="text-gray-400">Click to assign</span>
+            )}
+             </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2">
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            <div
+              className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+              onClick={() => {
+                setNewInitiativeData({ ...newInitiativeData, associated_playbook_id: null });
+                setIsOpen(false);
+              }}
+            >
+              No Playbook
+            </div>
+            {playbooks.map((playbook) => (
+              <div
+                key={playbook.id}
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+                onClick={() => {
+                  setNewInitiativeData({ ...newInitiativeData, associated_playbook_id: playbook.id });
+                  setIsOpen(false);
+                }}
+              >
+                {playbook.playbookname}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   return (
     <div className="max-w-full mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Key Initiatives</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage and track your organization's strategic initiatives and their progress.
+            Manage and track your organization's strategic initiatives and their progress. Click on any cell to edit.
           </p>
         </div>
         <Button onClick={handleAddNew} className="bg-blue-600 hover:bg-blue-700 text-white">
           <Plus className="h-4 w-4 mr-2" />
           Add Initiative
-        </Button>
+               </Button>
       </div>
 
       {loading ? (
@@ -408,85 +1294,29 @@ export default function KeyInitiativesPage() {
                     <TableCell className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
                       <div className="flex items-center gap-3">
                         <Target className="h-5 w-5 text-gray-400" />
-                        <span>{initiative.name}</span>
+                        <EditableText initiative={initiative} field="name" />
                       </div>
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
-                      <Badge className={getStatusColor(initiative.status)}>
-                        {initiative.status}
-                      </Badge>
+                      <EditableStatus initiative={initiative} />
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
-                      {initiative.owner ? (
-                        <Link 
-                          href="/chain-of-command" 
-                          className="text-blue-600 hover:underline flex items-center gap-2"
-                        >
-                          <Avatar className="h-7 w-7">
-                            <AvatarImage src={initiative.owner.profile_picture_url || ''} alt={initiative.owner.full_name} />
-                            <AvatarFallback>{initiative.owner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
-                          </Avatar>
-                          {initiative.owner.full_name}
-                        </Link>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <EditableOwner initiative={initiative} />
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-normal text-sm text-gray-600 border-l">
-                      {initiative.stakeholders?.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {initiative.stakeholders.map((stakeholder, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {stakeholder}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <EditableStakeholders initiative={initiative} />
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-l">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        {formatDate(initiative.due_date)}
-                      </div>
+                      <EditableDate initiative={initiative} />
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-normal text-sm border-l">
-                      {initiative.departments?.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {initiative.departments.map((department) => (
-                            <Badge 
-                              key={department.id} 
-                              className={getDepartmentColor(department.name)}
-                            >
-                              {department.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <EditableDepartments initiative={initiative} />
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-normal text-sm text-gray-600 border-l max-w-xs">
-                      {initiative.results ? (
-                        <div className="truncate" title={initiative.results}>
-                          {initiative.results}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <EditableTextarea initiative={initiative} field="results" />
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
-                      {initiative.playbook ? (
-                        <Link 
-                          href={`/playbook-planner?playbook=${initiative.playbook.id}`} 
-                          className="text-blue-600 hover:underline flex items-center gap-2"
-                        >
-                          <span className="truncate max-w-[150px]">{initiative.playbook.playbookname}</span>
-                        </Link>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <EditablePlaybook initiative={initiative} />
                     </TableCell>
                     <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-right border-l">
                       <DropdownMenu>
@@ -497,10 +1327,6 @@ export default function KeyInitiativesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(initiative)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(initiative.id)}
                             className="text-red-600 focus:text-red-600"
@@ -518,186 +1344,213 @@ export default function KeyInitiativesPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                
+                {/* New Initiative Row */}
+                {isCreatingNew && (
+                  <TableRow key="new-initiative-row" className="border-b border-gray-100 bg-blue-50/30">
+                    <TableCell className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
+                      <div className="flex items-center gap-3">
+                        <Target className="h-5 w-5 text-gray-400" />
+                        <Input
+                          ref={newNameInputRef}
+                          value={newInitiativeData.name}
+                          onChange={(e) => setNewInitiativeData(d => ({ ...d, name: e.target.value }))}
+                          placeholder="Enter initiative name..."
+                          className="h-8 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveNewInitiative();
+                            if (e.key === 'Escape') cancelNewInitiative();
+                          }}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="cursor-pointer">
+                            <Badge className={getStatusColor(newInitiativeData.status)}>
+                              {newInitiativeData.status}
+                            </Badge>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 p-2">
+                          <div className="space-y-1">
+                            {["Backlog", "In Progress", "On Track", "Behind", "Completed"].map((status) => (
+                              <div
+                                key={status}
+                                className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm"
+                                onClick={() => setNewInitiativeData(d => ({ ...d, status: status as any }))}
+                              >
+                                <Badge className={getStatusColor(status)}>
+                                  {status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                           <div className="cursor-pointer hover:bg-gray-100 p-1 rounded flex items-center gap-2 min-h-8">
+                            {newInitiativeData.owner_id ? (
+                              <>
+                                <Avatar className="h-7 w-7">
+                                  <AvatarImage src={owners.find(o => o.id === newInitiativeData.owner_id)?.profile_picture_url || ''} />
+                                  <AvatarFallback>{owners.find(o => o.id === newInitiativeData.owner_id)?.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-blue-600">{owners.find(o => o.id === newInitiativeData.owner_id)?.full_name}</span>
+                              </>
+                            ) : (
+                              <span className="text-gray-400">Assign owner</span>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2">
+                          <div className="space-y-1">
+                             <div className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm" onClick={() => setNewInitiativeData(d => ({...d, owner_id: null}))}>No Owner</div>
+                            {owners.map((owner) => (
+                              <div key={owner.id} className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm flex items-center gap-2" onClick={() => setNewInitiativeData(d => ({ ...d, owner_id: owner.id }))}>
+                                <Avatar className="h-6 w-6"><AvatarImage src={owner.profile_picture_url || ''} /><AvatarFallback>{owner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback></Avatar>
+                                <span>{owner.full_name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-normal text-sm text-gray-600 border-l">
+                       <Input
+                          value={newInitiativeData.stakeholders.join(", ")}
+                          onChange={(e) => setNewInitiativeData(d => ({ ...d, stakeholders: e.target.value.split(",").map(s => s.trim()).filter(Boolean) }))}
+                          placeholder="Stakeholders..."
+                          className="h-8 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveNewInitiative();
+                            if (e.key === 'Escape') cancelNewInitiative();
+                          }}
+                        />
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-l">
+                      <Input
+                        type="date"
+                        value={newInitiativeData.due_date || ""}
+                        onChange={(e) => setNewInitiativeData(d => ({...d, due_date: e.target.value || null}))}
+                        className="h-8 text-sm w-40"
+                         onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveNewInitiative();
+                            if (e.key === 'Escape') cancelNewInitiative();
+                          }}
+                      />
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-normal text-sm border-l">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-8">
+                            {newInitiativeData.department_ids.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {newInitiativeData.department_ids.map(id => departments.find(d => d.id === id)).filter(Boolean).map((dept: any) => (
+                                  <Badge key={dept.id} className={getDepartmentColor(dept.name)}>{dept.name}</Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">Assign teams</span>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-3">
+                          <div className="space-y-3">
+                            <div className="text-sm font-medium">Select Teams</div>
+                            <div className="max-h-48 overflow-y-auto space-y-2">
+                              {departments.map((department) => (
+                                <div key={department.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`dept-new-${department.id}`}
+                                    checked={newInitiativeData.department_ids.includes(department.id)}
+                                    onCheckedChange={(checked) => {
+                                      const newDeptIds = checked
+                                        ? [...newInitiativeData.department_ids, department.id]
+                                        : newInitiativeData.department_ids.filter(id => id !== department.id);
+                                      setNewInitiativeData(d => ({ ...d, department_ids: newDeptIds }));
+                                    }}
+                                  />
+                                  <Label htmlFor={`dept-new-${department.id}`} className="text-sm font-normal leading-none cursor-pointer flex-1">{department.name}</Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-normal text-sm text-gray-600 border-l max-w-xs">
+                      <Textarea
+                        value={newInitiativeData.results || ""}
+                        onChange={e => setNewInitiativeData(d => ({ ...d, results: e.target.value }))}
+                        placeholder="Enter results..."
+                        className="min-h-20 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.ctrlKey) saveNewInitiative();
+                          if (e.key === 'Escape') cancelNewInitiative();
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="cursor-pointer hover:bg-gray-100 p-1 rounded flex items-center gap-2 min-h-8">
+                            {newInitiativeData.associated_playbook_id ? (
+                               <span className="text-blue-600 truncate max-w-[150px]">{playbooks.find(p => p.id === newInitiativeData.associated_playbook_id)?.playbookname}</span>
+                            ) : (
+                              <span className="text-gray-400">Assign playbook</span>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2">
+                           <div className="space-y-1 max-h-48 overflow-y-auto">
+                              <div className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm" onClick={() => setNewInitiativeData(d => ({ ...d, associated_playbook_id: null}))}>No Playbook</div>
+                              {playbooks.map((playbook) => (
+                                <div key={playbook.id} className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm" onClick={() => setNewInitiativeData(d => ({ ...d, associated_playbook_id: playbook.id}))}>
+                                  {playbook.playbookname}
+                                </div>
+                              ))}
+                           </div>
+                        </PopoverContent>
+                      </Popover>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-right border-l">
+                      <div className="flex items-center gap-2">
+               <Button 
+                          variant="ghost"
+                          size="sm"
+                          onClick={saveNewInitiative}
+                          disabled={!newInitiativeData.name.trim() || savingCell === "new-initiative"}
+                          className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                        >
+                          {savingCell === "new-initiative" ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Save"
+                          )}
+               </Button>
+               <Button 
+                          variant="ghost"
+                          size="sm"
+                          onClick={cancelNewInitiative}
+                          className="text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+                        >
+                          Cancel
+               </Button>
+             </div>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </Card>
       )}
 
-             {/* Add/Edit Dialog */}
-       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-           <DialogHeader>
-             <DialogTitle>
-               {currentInitiative ? "Edit Initiative" : "Add New Initiative"}
-             </DialogTitle>
-           </DialogHeader>
-           <div className="grid gap-4 py-4">
-             {/* Initiative Name */}
-             <div className="grid gap-2">
-               <Label htmlFor="name">Initiative Name*</Label>
-               <Input
-                 id="name"
-                 value={formData.name}
-                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                 placeholder="Enter initiative name"
-               />
-             </div>
- 
-             {/* Status and Owner */}
-             <div className="grid grid-cols-2 gap-4">
-               <div className="grid gap-2">
-                 <Label htmlFor="status">Status*</Label>
-                 <Select
-                   value={formData.status}
-                   onValueChange={(value) => setFormData({ ...formData, status: value as KeyInitiativeFormData["status"] })}
-                 >
-                   <SelectTrigger id="status">
-                     <SelectValue placeholder="Select status" />
-                   </SelectTrigger>
-                   <SelectContent side="bottom" align="start">
-                     <SelectItem value="Backlog" className="cursor-pointer hover:bg-accent">Backlog</SelectItem>
-                     <SelectItem value="In Progress" className="cursor-pointer hover:bg-accent">In Progress</SelectItem>
-                     <SelectItem value="On Track" className="cursor-pointer hover:bg-accent">On Track</SelectItem>
-                     <SelectItem value="Behind" className="cursor-pointer hover:bg-accent">Behind</SelectItem>
-                     <SelectItem value="Completed" className="cursor-pointer hover:bg-accent">Completed</SelectItem>
-                   </SelectContent>
-                 </Select>
-               </div>
- 
-               <div className="grid gap-2">
-                 <Label htmlFor="owner">Owner</Label>
-                 <Select
-                   value={formData.owner_id || ""}
-                   onValueChange={(value) => setFormData({ ...formData, owner_id: value === "null" ? null : value })}
-                 >
-                   <SelectTrigger id="owner">
-                     <SelectValue placeholder="Select owner" />
-                   </SelectTrigger>
-                   <SelectContent side="bottom" align="start">
-                     <SelectItem value="null" className="cursor-pointer hover:bg-accent">No Owner</SelectItem>
-                     {owners.map((owner) => (
-                       <SelectItem key={owner.id} value={owner.id} className="cursor-pointer hover:bg-accent">
-                         <div className="flex items-center gap-2">
-                           <Avatar className="h-6 w-6">
-                             <AvatarImage src={owner.profile_picture_url || ''} alt={owner.full_name} />
-                             <AvatarFallback>{owner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
-                           </Avatar>
-                           <span>{owner.full_name}</span>
-                         </div>
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
-                 </Select>
-               </div>
-             </div>
- 
-             {/* Due Date and Associated Playbook */}
-             <div className="grid grid-cols-2 gap-4">
-               <div className="grid gap-2">
-                 <Label htmlFor="due_date">Due Date</Label>
-                 <Input
-                   id="due_date"
-                   type="date"
-                   value={formData.due_date || ""}
-                   onChange={(e) => setFormData({ ...formData, due_date: e.target.value || null })}
-                 />
-               </div>
- 
-               <div className="grid gap-2">
-                 <Label htmlFor="playbook">Associated Playbook</Label>
-                 <Select
-                   value={formData.associated_playbook_id || ""}
-                   onValueChange={(value) => setFormData({ ...formData, associated_playbook_id: value === "null" ? null : value })}
-                 >
-                   <SelectTrigger id="playbook">
-                     <SelectValue placeholder="Select playbook" />
-                   </SelectTrigger>
-                   <SelectContent side="bottom" align="start">
-                     <SelectItem value="null" className="cursor-pointer hover:bg-accent">No Playbook</SelectItem>
-                     {playbooks.map((playbook) => (
-                       <SelectItem key={playbook.id} value={playbook.id} className="cursor-pointer hover:bg-accent">
-                         {playbook.playbookname}
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
-                 </Select>
-               </div>
-             </div>
- 
-             {/* Stakeholders */}
-             <div className="grid gap-2">
-               <Label htmlFor="stakeholders">Stakeholders</Label>
-               <Input
-                 id="stakeholders"
-                 value={stakeholderInput}
-                 onChange={handleStakeholderChange}
-                 placeholder="Enter stakeholders separated by commas"
-               />
-             </div>
- 
-             {/* Teams (Departments) - Compact Grid Layout */}
-             <div className="grid gap-2">
-               <Label htmlFor="departments">Teams (Departments)</Label>
-               <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                   {departments.map((department) => (
-                     <div key={department.id} className="flex items-center space-x-2">
-                       <Checkbox
-                         id={`dept-${department.id}`}
-                         checked={formData.department_ids.includes(department.id)}
-                         onCheckedChange={(checked) => {
-                           if (checked) {
-                             setFormData({
-                               ...formData,
-                               department_ids: [...formData.department_ids, department.id]
-                             });
-                           } else {
-                             setFormData({
-                               ...formData,
-                               department_ids: formData.department_ids.filter(id => id !== department.id)
-                             });
-                           }
-                         }}
-                       />
-                       <Label htmlFor={`dept-${department.id}`} className="text-sm font-normal leading-none">
-                         {department.name}
-                       </Label>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-             </div>
- 
-             {/* Results */}
-             <div className="grid gap-2">
-               <Label htmlFor="results">Results</Label>
-               <Textarea
-                 id="results"
-                 value={formData.results || ""}
-                 onChange={(e) => setFormData({ ...formData, results: e.target.value || null })}
-                 placeholder="Enter results or outcomes"
-                 className="min-h-[80px]"
-               />
-             </div>
- 
-             {/* Action Buttons */}
-             <div className="flex justify-end space-x-3 pt-4 border-t">
-               <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                 Cancel
-               </Button>
-               <Button 
-                 onClick={handleSave}
-                 className="bg-blue-600 hover:bg-blue-700 text-white"
-                 disabled={isSaving || !formData.name.trim()}
-               >
-                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                 {currentInitiative ? "Update Initiative" : "Create Initiative"}
-               </Button>
-             </div>
-           </div>
-         </DialogContent>
-       </Dialog>
     </div>
   );
 }
