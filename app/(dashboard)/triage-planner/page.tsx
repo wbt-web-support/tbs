@@ -101,7 +101,7 @@ export default function TriagePlannerPage() {
       <div className="mb-4">
         <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Triage Planner</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Plan and organize your business triage strategy
+          Plan and organise your business triage strategy
         </p>
       </div>
 

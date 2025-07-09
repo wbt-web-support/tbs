@@ -1163,7 +1163,7 @@ export function RealtimeChatGemini({
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       
-      console.log(`📱 Call mode: Audio analyzer set up with buffer length ${bufferLength}`);
+      console.log(`📱 Call mode: Audio analyser set up with buffer length ${bufferLength}`);
       audioAnalyserRef.current = analyser;
       audioDataRef.current = dataArray;
       

@@ -50,7 +50,7 @@ const DEPARTMENTS = [
   "OPERATIONS",
   "SUCCESS/SUPPORT",
   "TECHNOLOGY/DEVELOPMENT",
-  "PRODUCT/PROGRAMS",
+  "PRODUCT/PROGRAMMES",
   "SALES",
   "MARKETING"
 ];
@@ -242,7 +242,7 @@ export default function InviteClientContent() {
             <div className="p-6 border-b">
               <h2 className="text-xl font-medium">User Details</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Provide the basic and organizational information for the new user.
+                Provide the basic and organisational information for the new user.
               </p>
             </div>
             <div className="p-6">
@@ -332,9 +332,9 @@ export default function InviteClientContent() {
                 )}
               </div>
 
-              {/* Organizational Information */}
+              {/* Organisational Information */}
               <Separator className="my-6" />
-              <h3 className="text-lg font-medium mb-4">Organizational Information</h3>
+              <h3 className="text-lg font-medium mb-4">Organisational Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}

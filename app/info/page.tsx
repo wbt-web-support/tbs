@@ -76,7 +76,7 @@ export default function InfoPage() {
             </h2>
             <p className="text-xl text-gray-600 mb-8">
               A comprehensive business management and AI coaching platform designed specifically for trade businesses. 
-              Optimize operations, drive growth, and streamline processes with intelligent automation.
+              Optimise operations, drive growth, and streamline processes with intelligent automation.
             </p>
             <div className="flex flex-wrap justify-center gap-3 mb-8">
               <Badge variant="secondary" className="text-sm py-2 px-4">🚀 Growth Optimization</Badge>
@@ -134,7 +134,7 @@ export default function InfoPage() {
           <div className="text-center mb-12">
             <h3 className="text-3xl font-bold text-gray-900 mb-4">Comprehensive Business Management Suite</h3>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Everything you need to run, grow, and optimize your trade business in one powerful platform
+              Everything you need to run, grow, and optimise your trade business in one powerful platform
             </p>
           </div>
 
@@ -195,7 +195,7 @@ export default function InfoPage() {
                 </CardDescription>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Business Battle Plans</li>
-                  <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Organizational Structure</li>
+                  <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Organisational Structure</li>
                   <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Quarterly Planning</li>
                   <li className="flex items-center"><CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />Progress Tracking</li>
                 </ul>
@@ -294,7 +294,7 @@ export default function InfoPage() {
                   <div>
                     <h4 className="font-semibold mb-3 text-gray-900">What it does:</h4>
                     <ul className="space-y-2 text-sm text-gray-600">
-                      <li>• Analyzes your complete business data using AI to identify strengths, weaknesses, and opportunities</li>
+                      <li>• Analyses your complete business data using AI to identify strengths, weaknesses, and opportunities</li>
                       <li>• Generates personalized priority tasks based on your business goals and current performance</li>
                       <li>• Provides real-time business health scores across key areas like sales, operations, and finance</li>
                       <li>• Tracks progress metrics with visual charts and trend analysis</li>
@@ -338,7 +338,7 @@ export default function InfoPage() {
                       <li>• Map out specific actions and activities in your growth workflow</li>
                       <li>• Set ending events that complete the customer journey</li>
                       <li>• Visual workflow design with Figma integration for process mapping</li>
-                      <li>• Track conversion rates and optimize each step of the funnel</li>
+                      <li>• Track conversion rates and optimise each step of the funnel</li>
                     </ul>
                   </div>
                   <div>
@@ -469,7 +469,7 @@ export default function InfoPage() {
                       Chain of Command
                     </h4>
                     <ul className="space-y-1 text-sm text-gray-600">
-                      <li>• Organizational hierarchy management</li>
+                      <li>• Organisational hierarchy management</li>
                       <li>• Role and responsibility definition</li>
                       <li>• Contact information and reporting structure</li>
                       <li>• Team communication optimization</li>
@@ -659,7 +659,7 @@ export default function InfoPage() {
                       <li>• <strong>Process Documentation:</strong> Step-by-step procedure creation</li>
                       <li>• <strong>Template Library:</strong> Reusable SOP templates for common processes</li>
                       <li>• <strong>Compliance Tracking:</strong> Ensure procedures meet industry standards</li>
-                      <li>• <strong>Training Integration:</strong> Link SOPs to employee training programs</li>
+                      <li>• <strong>Training Integration:</strong> Link SOPs to employee training Programmes</li>
                       <li>• <strong>Performance Monitoring:</strong> Track SOP effectiveness and adherence</li>
                     </ul>
                   </div>
@@ -749,7 +749,7 @@ export default function InfoPage() {
               <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">Built for Trade Professionals</h3>
                 <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                  Specifically designed for contractors, electricians, plumbers, HVAC professionals, and other trade businesses seeking to optimize operations and accelerate growth
+                  Specifically designed for contractors, electricians, plumbers, HVAC professionals, and other trade businesses seeking to optimise operations and accelerate growth
                 </p>
               </div>
               
@@ -757,7 +757,7 @@ export default function InfoPage() {
                 <div className="text-center">
                   <Building className="h-12 w-12 text-blue-600 mx-auto mb-4" />
                   <h4 className="font-semibold mb-2">Small to Medium Businesses</h4>
-                  <p className="text-sm text-gray-600">Optimized for growing trade businesses ready to scale operations and implement systematic processes</p>
+                  <p className="text-sm text-gray-600">Optimised for growing trade businesses ready to scale operations and implement systematic processes</p>
                 </div>
                 <div className="text-center">
                   <Users className="h-12 w-12 text-green-600 mx-auto mb-4" />

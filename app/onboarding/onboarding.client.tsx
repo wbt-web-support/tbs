@@ -659,7 +659,7 @@ function FloatingAIAssistant({
     if (currentQuestion.name.includes('competitor')) {
       suggestions.push("Research top 5 competitors in my industry");
       suggestions.push("Compare pricing and services");
-      suggestions.push("Analyze competitive advantages");
+      suggestions.push("Analsze competitive advantages");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
       suggestions.push("Create an inspiring 5-year vision");
       suggestions.push("Focus on impact and legacy");

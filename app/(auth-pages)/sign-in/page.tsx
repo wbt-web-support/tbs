@@ -130,7 +130,7 @@ export default async function SignIn(props: {
                   </div>
                   <div>
                     <h4 className="text-white font-medium">Team Management</h4>
-                    <p className="text-white/80 text-sm">Optimize team performance and collaboration</p>
+                    <p className="text-white/80 text-sm">Optimise team performance and collaboration</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">

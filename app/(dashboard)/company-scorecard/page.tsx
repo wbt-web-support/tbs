@@ -39,7 +39,7 @@ const DEPARTMENTS = [
   "NORTH STAR METRICS",
   "MARKETING",
   "SALES",
-  "PRODUCT/PROGRAMS",
+  "PRODUCT/PROGRAMMES",
   "TECHNOLOGY/DEVELOPMENT",
   "SUCCESS/SUPPORT",
   "OPERATIONS",
@@ -292,7 +292,7 @@ export default function CompanyScorecardPage() {
         return "bg-purple-100 text-purple-800";
       case "TECHNOLOGY/DEVELOPMENT":
         return "bg-cyan-100 text-cyan-800";
-      case "PRODUCT/PROGRAMS":
+      case "PRODUCT/PROGRAMMES":
         return "bg-amber-100 text-amber-800";
       case "SALES":
         return "bg-red-100 text-red-800";

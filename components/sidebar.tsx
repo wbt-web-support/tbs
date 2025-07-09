@@ -96,7 +96,7 @@ const navigationSections: NavigationSection[] = [
         icon: LineChart,
       },
       {
-        name: "Fulfillment Machine",
+        name: "Fulfilment Machine",
         href: "/fulfillment-machine",
         icon: Gauge,
       },
@@ -245,9 +245,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     {section.items.map((item) => {
                       const isActive = pathname === item.href; 
                       return (
-                        <Link
+                        <a
                           key={item.href}
                           href={item.disabled ? "#" : item.href}
+                          target={item.target}
+                          rel={item.rel}
                           onClick={(e) => {
                             if (item.disabled) {
                               e.preventDefault();
@@ -275,7 +277,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             strokeWidth={2}
                           />
                           {item.name}
-                        </Link>
+                        </a>
                       );
                     })}
                   </div>

@@ -471,7 +471,7 @@ export function ProfileClientContent({ user, initialBusinessInfo, userRole, team
                           placeholder="Enter your Google Business review link (e.g., https://maps.google.com/...)"
                         />
                         <p className="text-xs text-gray-500">
-                          This link will be used to fetch and analyze your Google Business reviews for the dashboard.
+                          This link will be used to fetch and analyse your Google Business reviews for the dashboard.
                         </p>
                       </div>
                     </>
@@ -489,7 +489,7 @@ export function ProfileClientContent({ user, initialBusinessInfo, userRole, team
                       <div className="space-y-1.5">
                        <Label className="text-sm font-medium text-gray-700 block">Payment Remaining</Label>
                        <p className="text-sm text-gray-800 h-10 flex items-center px-3 rounded-md bg-gray-50 border border-gray-200">
-                         {businessInfo?.payment_remaining ?? 'N/A'}
+                         {businessInfo?.payment_remaining ? `£${new Intl.NumberFormat('en-US').format(businessInfo.payment_remaining)}` : 'N/A'}
                        </p>
                      </div>
                      <div className="space-y-1.5">

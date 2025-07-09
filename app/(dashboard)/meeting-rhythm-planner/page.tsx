@@ -615,7 +615,7 @@ export default function MeetingRhythmPlannerPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-gray-900">Meeting Rhythm Planner</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Organize your company's meeting schedule for the year.
+            Organise your company's meeting schedule for the year.
           </p>
         </div>
         <Button onClick={handleAddMeeting} className="bg-blue-600 hover:bg-blue-700">

@@ -641,7 +641,7 @@ ${userContext}`);
 
 1. Be helpful, accurate, and professional in your responses.
 2. When referencing data, clearly specify which part of the context you're using.
-3. Format your responses in an organized, easy-to-read way.
+3. Format your responses in an organised, easy-to-read way.
 4. If you're unsure about something, acknowledge your uncertainty rather than making assumptions.
 5. Be concise but thorough, focusing on providing real value in your answers.`);
 

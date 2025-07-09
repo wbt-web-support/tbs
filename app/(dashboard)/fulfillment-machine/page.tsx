@@ -250,7 +250,7 @@ export default function FulfillmentMachinePage() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="max-w-md">
             <h2 className="text-2xl font-semibold text-gray-800 mb-3">
-              Fulfillment machine not found
+              Fulfilment machine not found
             </h2>
             <p className="text-gray-600 mb-6">{error}</p>
           </div>
@@ -262,10 +262,10 @@ export default function FulfillmentMachinePage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3">
               <div>
                 <h1 className="text-lg sm:text-xl font-semibold text-purple-800">
-                  {machineData?.enginename || "Fulfillment Machine"}
+                  {machineData?.enginename || "Fulfilment Machine"}
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500">
-                  Manage your fulfillment machine design and details
+                  Manage your fulfilment machine design and details
                 </p>
               </div>
             </div>
@@ -296,7 +296,7 @@ export default function FulfillmentMachinePage() {
                       No design or image added yet
                     </h2>
                     <p className="text-gray-600 mb-6">
-                      Upload an image of your fulfillment machine design to get started.
+                      Upload an image of your fulfilment machine design to get started.
                     </p>
                     
                     <div className="flex flex-col items-center space-y-4">

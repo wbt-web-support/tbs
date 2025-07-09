@@ -297,7 +297,7 @@ function prepareUserContextForDashboard(userData: any) {
 const DASHBOARD_SYSTEM_PROMPT = `You are an AI-powered business analyst and virtual COO. Your role is to analyze the user's business data and provide clear, actionable insights for their dashboard. always use the names of person if available.
 
 ANALYSIS FRAMEWORK:
-You must analyze ALL the provided business data and respond with a structured JSON object containing exactly these sections:
+You must analyse ALL the provided business data and respond with a structured JSON object containing exactly these sections:
 
 1. BUSINESS_HEALTH: Analyze what's working, what's lagging, and what needs fixing
 2. TASKS_AND_PRIORITIES: Identify key tasks for today/this week based on the data
@@ -497,7 +497,7 @@ ${userContext}`);
 
 1. Be helpful, accurate, and professional in your responses.
 2. When referencing data, clearly specify which part of the context you're using.
-3. Format your responses in an organized, easy-to-read way.
+3. Format your responses in an organised, easy-to-read way.
 4. If you're unsure about something, acknowledge your uncertainty rather than making assumptions.
 5. Be concise but thorough, focusing on providing real value in your answers.`);
 
@@ -564,7 +564,7 @@ export async function POST(req: Request) {
 === USER BUSINESS DATA TO ANALYZE ===
 ${userContext}
 
-Now analyze this data and provide insights in the required JSON format.`;
+Now analyse this data and provide insights in the required JSON format.`;
 
         console.log('\n=== AI DASHBOARD ANALYSIS START ===');
         console.log('Analyzing user data for dashboard insights...');

@@ -170,7 +170,7 @@ export default function ChainOfCommandPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Team Directory</h1>
           <p className="text-sm text-gray-500 mt-1">
-            An overview of your organization's structure, roles, and responsibilities.
+            An overview of your organisation's structure, roles, and responsibilities.
           </p>
         </div>
         <Link href="/invite">

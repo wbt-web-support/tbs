@@ -471,7 +471,7 @@ export default function KeyInitiativesPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Key Initiatives</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage and track your organization's strategic initiatives and their progress. Click on any cell to edit.
+            Manage and track your organisation's strategic initiatives and their progress. Click on any cell to edit.
           </p>
         </div>
         <Button onClick={handleAddNew} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isCreatingNew}>

@@ -227,7 +227,7 @@ async function generateAISummary(reviews: GoogleReview[]): Promise<{
       return getFallbackAnalysis(reviews);
     }
 
-    const prompt = `Analyze the following customer reviews and provide a comprehensive summary:
+    const prompt = `Analyse the following customer reviews and provide a comprehensive summary:
 
 ${reviewTexts}
 
@@ -399,7 +399,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error in google-reviews API:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch and analyze reviews' },
+      { error: 'Failed to fetch and analyse reviews' },
       { status: 500 }
     );
   }

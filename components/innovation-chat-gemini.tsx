@@ -129,7 +129,7 @@ export function InnovationChatGemini({
   // Helper function to generate welcome message based on chat mode
   const getWelcomeMessage = useCallback(() => {
     if (chatMode === 'document' && selectedDocument) {
-      return `🚀 Welcome to the Innovation Machine! I'm now ready to analyze and discuss your document "${selectedDocument.title}". Ask me anything about this document or let's explore innovation opportunities based on its content!`; 
+      return `🚀 Welcome to the Innovation Machine! I'm now ready to analyse and discuss your document "${selectedDocument.title}". Ask me anything about this document or let's explore innovation opportunities based on its content!`; 
     }
     return "🚀 Welcome to the Innovation Machine! I'm here to help you brainstorm, evaluate, and develop your next big business idea. What innovation are you considering today?";
   }, [chatMode, selectedDocument]);
