@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Upload, 
   File, 
@@ -22,7 +23,8 @@ import {
   Paperclip,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 
 interface InnovationDocument {
@@ -40,15 +42,15 @@ interface InnovationDocument {
 }
 
 interface InnovationDocumentManagerProps {
-  onDocumentSelect: (document: InnovationDocument | null) => void;
-  selectedDocumentId?: string | null;
+  onDocumentSelect: (documents: InnovationDocument[]) => void;
+  selectedDocumentIds?: string[];
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function InnovationDocumentManager({ 
   onDocumentSelect, 
-  selectedDocumentId, 
+  selectedDocumentIds = [], 
   isOpen, 
   onClose 
 }: InnovationDocumentManagerProps) {
@@ -59,7 +61,13 @@ export function InnovationDocumentManager({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDocument, setSelectedDocument] = useState<InnovationDocument | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedDocumentIds);
   const supabase = createClient();
+
+  // Update local selected IDs when props change
+  useEffect(() => {
+    setLocalSelectedIds(selectedDocumentIds);
+  }, [selectedDocumentIds]);
 
   // Fetch documents
   const fetchDocuments = useCallback(async () => {
@@ -205,8 +213,8 @@ export function InnovationDocumentManager({
       setDocuments(prev => prev.filter(doc => doc.id !== documentId));
       
       // If this was the selected document, clear selection
-      if (selectedDocumentId === documentId) {
-        onDocumentSelect(null);
+      if (selectedDocumentIds.includes(documentId)) {
+        onDocumentSelect([]);
       }
 
       toast({
@@ -272,11 +280,37 @@ export function InnovationDocumentManager({
       return;
     }
     
-    onDocumentSelect(document);
-    toast({
-      title: "Document selected",
-      description: `Now chatting with "${document.title}"`,
-    });
+    // Toggle selection
+    const newSelectedIds = localSelectedIds.includes(document.id)
+      ? localSelectedIds.filter(id => id !== document.id)
+      : [...localSelectedIds, document.id];
+    
+    setLocalSelectedIds(newSelectedIds);
+  };
+
+  // Apply selection
+  const applySelection = () => {
+    const selectedDocs = documents.filter(doc => localSelectedIds.includes(doc.id));
+    onDocumentSelect(selectedDocs);
+    
+    if (selectedDocs.length === 0) {
+      toast({
+        title: "No documents selected",
+        description: "Switched back to general innovation chat",
+      });
+    } else if (selectedDocs.length === 1) {
+      toast({
+        title: "Document selected",
+        description: `Now chatting with "${selectedDocs[0].title}"`,
+      });
+    } else {
+      toast({
+        title: "Documents selected",
+        description: `Now chatting with ${selectedDocs.length} documents`,
+      });
+    }
+    
+    onClose();
   };
 
   // Show document preview
@@ -288,7 +322,7 @@ export function InnovationDocumentManager({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Paperclip className="h-5 w-5" />
@@ -296,9 +330,9 @@ export function InnovationDocumentManager({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 overflow-hidden flex flex-col">
+          <div className="space-y-4 overflow-auto flex-1 flex flex-col">
             {/* Upload Section */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex-shrink-0">
               <div className="text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="mt-4">
@@ -341,7 +375,7 @@ export function InnovationDocumentManager({
             </div>
 
             {/* Search and Filter */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -359,7 +393,7 @@ export function InnovationDocumentManager({
 
             {/* Documents List */}
             <div className="flex-1 overflow-hidden">
-              <ScrollArea className="h-[400px]">
+              <ScrollArea className="h-full">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -372,35 +406,42 @@ export function InnovationDocumentManager({
                     <p className="text-sm">Upload your first document to get started</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 pb-4">
                     {filteredDocuments.map((document) => (
                       <div
                         key={document.id}
-                        className={`group relative rounded-lg border p-4 cursor-pointer transition-all hover:shadow-md ${
-                          selectedDocumentId === document.id
+                        className={`group relative rounded-lg border p-4 transition-all hover:shadow-md ${
+                          localSelectedIds.includes(document.id)
                             ? 'border-orange-500 bg-orange-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
-                        onClick={() => handleDocumentSelect(document)}
                       >
                         <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            {getFileIcon(document.file_type)}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-gray-900 truncate">
-                                {document.title}
-                              </h3>
-                              <p className="text-sm text-gray-500 truncate">
-                                {document.file_name}
-                              </p>
-                              <div className="flex items-center gap-2 mt-2">
-                                {getStatusBadge(document.upload_status)}
-                                <span className="text-xs text-gray-400">
-                                  {formatFileSize(document.file_size)}
-                                </span>
-                                <span className="text-xs text-gray-400">
-                                  {new Date(document.created_at).toLocaleDateString()}
-                                </span>
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={localSelectedIds.includes(document.id)}
+                              onCheckedChange={() => handleDocumentSelect(document)}
+                              disabled={document.upload_status !== 'completed'}
+                              className="mt-1"
+                            />
+                            <div className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer" onClick={() => handleDocumentSelect(document)}>
+                              {getFileIcon(document.file_type)}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-gray-900 truncate">
+                                  {document.title}
+                                </h3>
+                                <p className="text-sm text-gray-500 truncate">
+                                  {document.file_name}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  {getStatusBadge(document.upload_status)}
+                                  <span className="text-xs text-gray-400">
+                                    {formatFileSize(document.file_size)}
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(document.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -431,12 +472,6 @@ export function InnovationDocumentManager({
                             </Button>
                           </div>
                         </div>
-                        
-                        {selectedDocumentId === document.id && (
-                          <div className="absolute top-2 right-2">
-                            <CheckCircle className="h-5 w-5 text-orange-500" />
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -445,28 +480,33 @@ export function InnovationDocumentManager({
             </div>
 
             {/* Actions */}
-            <div className="flex justify-between items-center pt-4 border-t">
+            <div className="flex justify-between items-center pt-4 border-t flex-shrink-0">
               <div className="text-sm text-gray-500">
-                {selectedDocumentId ? 'Document selected for chat' : 'Select a document to chat with it'}
+                {localSelectedIds.length > 0 
+                  ? `${localSelectedIds.length} document${localSelectedIds.length > 1 ? 's' : ''} selected for chat`
+                  : 'Select documents to chat with them'
+                }
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={onClose}>
-                  Close
+                  Cancel
                 </Button>
-                {selectedDocumentId && (
+                {localSelectedIds.length > 0 && (
                   <Button 
                     onClick={() => {
-                      onDocumentSelect(null);
-                      toast({
-                        title: "Document deselected",
-                        description: "Switched back to general innovation chat",
-                      });
+                      setLocalSelectedIds([]);
                     }}
                     variant="outline"
                   >
                     Clear Selection
                   </Button>
                 )}
+                <Button 
+                  onClick={applySelection}
+                  disabled={localSelectedIds.length === 0}
+                >
+                  Apply Selection
+                </Button>
               </div>
             </div>
           </div>

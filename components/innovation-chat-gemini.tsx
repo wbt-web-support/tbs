@@ -83,9 +83,9 @@ interface InnovationChatGeminiComponentProps {
   selectedInstanceId?: string | null;
   onInstanceChange?: ((instanceId: string) => void) | null;
   onReady?: () => void;
-  selectedDocument?: InnovationDocument | null;
+  selectedDocuments?: InnovationDocument[];
   chatMode?: 'general' | 'document';
-  onDocumentSelect?: (document: InnovationDocument | null) => void;
+  onDocumentSelect?: (documents: InnovationDocument[]) => void;
   onChatModeChange?: (mode: 'general' | 'document') => void;
 }
 
@@ -96,7 +96,7 @@ export function InnovationChatGemini({
   selectedInstanceId = null,
   onInstanceChange = null,
   onReady,
-  selectedDocument = null,
+  selectedDocuments = [],
   chatMode = 'general',
   onDocumentSelect,
   onChatModeChange
@@ -128,19 +128,24 @@ export function InnovationChatGemini({
 
   // Helper function to generate welcome message based on chat mode
   const getWelcomeMessage = useCallback(() => {
-    if (chatMode === 'document' && selectedDocument) {
-      return `🚀 Welcome to the Innovation Machine! I'm now ready to analyse and discuss your document "${selectedDocument.title}". Ask me anything about this document or let's explore innovation opportunities based on its content!`; 
+    if (chatMode === 'document' && selectedDocuments.length > 0) {
+      if (selectedDocuments.length === 1) {
+        return `🚀 Welcome to the Innovation Machine! I'm now ready to analyse and discuss your document "${selectedDocuments[0].title}". Ask me anything about this document or let's explore innovation opportunities based on its content!`;
+      } else {
+        const titles = selectedDocuments.map(doc => `"${doc.title}"`).join(', ');
+        return `🚀 Welcome to the Innovation Machine! I'm now ready to analyse and discuss ${selectedDocuments.length} documents: ${titles}. Ask me anything about these documents or let's explore innovation opportunities based on their content!`;
+      }
     }
     return "🚀 Welcome to the Innovation Machine! I'm here to help you brainstorm, evaluate, and develop your next big business idea. What innovation are you considering today?";
-  }, [chatMode, selectedDocument]);
+  }, [chatMode, selectedDocuments]);
 
   // Document management functions
-  const handleDocumentSelect = (document: InnovationDocument | null) => {
+  const handleDocumentSelect = (documents: InnovationDocument[]) => {
     if (onDocumentSelect) {
-      onDocumentSelect(document);
+      onDocumentSelect(documents);
     }
     if (onChatModeChange) {
-      onChatModeChange(document ? 'document' : 'general');
+      onChatModeChange(documents.length > 0 ? 'document' : 'general');
     }
     setShowDocumentManager(false);
   };
@@ -499,7 +504,7 @@ export function InnovationChatGemini({
         isComplete: true
       }]);
     }
-  }, [chatMode, selectedDocument, isDataLoaded, getWelcomeMessage, messages.length]);
+  }, [chatMode, selectedDocuments, isDataLoaded, getWelcomeMessage, messages.length]);
 
   // Clear chat history (mark as inactive instead of deleting)
   const clearChatHistory = async () => {
@@ -585,7 +590,7 @@ export function InnovationChatGemini({
           message: userMessageText,
           instanceId: currentInstanceId,
           action: 'send_message',
-          documentId: chatMode === 'document' && selectedDocument ? selectedDocument.id : null,
+          documentIds: chatMode === 'document' && selectedDocuments.length > 0 ? selectedDocuments.map(doc => doc.id) : [],
           chatMode: chatMode
         })
       });
@@ -917,12 +922,33 @@ export function InnovationChatGemini({
                 </Button>
                 
                 {/* Selected Document Badge */}
-                {selectedDocument && (
+                {selectedDocuments.length > 0 && (
                   <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded p-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-3 w-3 text-orange-600" />
-                      <span className="font-medium truncate">{selectedDocument.title}</span>
-                    </div>
+                    {selectedDocuments.length === 1 ? (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3 w-3 text-orange-600" />
+                        <span className="font-medium truncate">{selectedDocuments[0].title}</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileText className="h-3 w-3 text-orange-600" />
+                          <span className="font-medium">{selectedDocuments.length} documents selected</span>
+                        </div>
+                        <div className="space-y-1 pl-5">
+                          {selectedDocuments.slice(0, 3).map((doc, idx) => (
+                            <div key={doc.id} className="text-xs truncate">
+                              • {doc.title}
+                            </div>
+                          ))}
+                          {selectedDocuments.length > 3 && (
+                            <div className="text-xs text-gray-500">
+                              and {selectedDocuments.length - 3} more...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -996,9 +1022,14 @@ export function InnovationChatGemini({
               >
                 <Paperclip className="h-4 w-4" />
               </Button>
-              {selectedDocument && (
-                <div className="w-8 h-8 bg-orange-50 border border-orange-200 rounded flex items-center justify-center" title={selectedDocument.title}>
+              {selectedDocuments.length > 0 && (
+                <div className="w-8 h-8 bg-orange-50 border border-orange-200 rounded flex items-center justify-center relative" title={selectedDocuments.map(d => d.title).join(', ')}>
                   <FileText className="h-3 w-3 text-orange-600" />
+                  {selectedDocuments.length > 1 && (
+                    <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                      {selectedDocuments.length}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -1126,12 +1157,33 @@ export function InnovationChatGemini({
                 </Button>
                 
                 {/* Selected Document Badge */}
-                {selectedDocument && (
+                {selectedDocuments.length > 0 && (
                   <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded p-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-3 w-3 text-orange-600" />
-                      <span className="font-medium truncate">{selectedDocument.title}</span>
-                    </div>
+                    {selectedDocuments.length === 1 ? (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3 w-3 text-orange-600" />
+                        <span className="font-medium truncate">{selectedDocuments[0].title}</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileText className="h-3 w-3 text-orange-600" />
+                          <span className="font-medium">{selectedDocuments.length} documents selected</span>
+                        </div>
+                        <div className="space-y-1 pl-5">
+                          {selectedDocuments.slice(0, 3).map((doc, idx) => (
+                            <div key={doc.id} className="text-xs truncate">
+                              • {doc.title}
+                            </div>
+                          ))}
+                          {selectedDocuments.length > 3 && (
+                            <div className="text-xs text-gray-500">
+                              and {selectedDocuments.length - 3} more...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1165,8 +1217,10 @@ export function InnovationChatGemini({
               <div>
                 <h2 className="text-sm font-semibold text-gray-800">Innovation Machine</h2>
                 <p className="text-xs text-gray-500">
-                  {chatMode === 'document' && selectedDocument 
-                    ? `Chatting with: ${selectedDocument.title}`
+                  {chatMode === 'document' && selectedDocuments.length > 0 
+                    ? selectedDocuments.length === 1 
+                      ? `Chatting with: ${selectedDocuments[0].title}`
+                      : `Chatting with ${selectedDocuments.length} documents`
                     : 'General innovation chat'
                   }
                 </p>
@@ -1399,7 +1453,7 @@ export function InnovationChatGemini({
         isOpen={showDocumentManager}
         onClose={() => setShowDocumentManager(false)}
         onDocumentSelect={handleDocumentSelect}
-        selectedDocumentId={selectedDocument?.id || null}
+        selectedDocumentIds={selectedDocuments.map(doc => doc.id)}
       />
     </div>
   );

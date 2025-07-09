@@ -1290,7 +1290,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, message, instanceId, title, documentId, chatMode } = body;
+    const { action, message, instanceId, title, documentIds, chatMode } = body;
 
     if (action === 'create_instance') {
       const instance = await createInnovationInstance(userId, title);
@@ -1327,11 +1327,16 @@ export async function POST(req: Request) {
         getGlobalInstructions(innovationChatCategories)
       ]);
       
-      // Get document if needed
-      let documentData = null;
-      if (chatMode === 'document' && documentId) {
-        console.log('🔄 [Innovation API] Document mode detected, fetching document:', documentId);
-        documentData = await getInnovationDocument(userId, documentId);
+      // Get documents if needed
+      let documentsData = [];
+      if (chatMode === 'document' && documentIds && documentIds.length > 0) {
+        console.log('🔄 [Innovation API] Document mode detected, fetching documents:', documentIds);
+        // Fetch all documents in parallel
+        documentsData = await Promise.all(
+          documentIds.map((docId: string) => getInnovationDocument(userId, docId))
+        );
+        // Filter out any null results
+        documentsData = documentsData.filter(doc => doc !== null);
       }
 
       // Prepare context using the same functions as regular chat
@@ -1352,7 +1357,7 @@ export async function POST(req: Request) {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
       // Add document context if available
-      if (documentData && documentData.extracted_content) {
+      if (documentsData && documentsData.length > 0) {
         systemPrompt += `
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1360,25 +1365,35 @@ export async function POST(req: Request) {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🔍 DOCUMENT CONTEXT:
-You are now analyzing the following document: "${documentData.title}"
-File: ${documentData.file_name}
-Uploaded: ${new Date(documentData.created_at).toLocaleDateString()}
+You are now analyzing ${documentsData.length} document${documentsData.length > 1 ? 's' : ''}:
+${documentsData.map((doc, idx) => `
+📄 Document ${idx + 1}: "${doc.title}"
+   File: ${doc.file_name}
+   Uploaded: ${new Date(doc.created_at).toLocaleDateString()}`).join('\n')}
 
-📋 DOCUMENT CONTENT:
-${documentData.extracted_content}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 DOCUMENT CONTENTS:
+${documentsData.map((doc, idx) => `
+════════════════════════════════════════════════════════════════════════════════
+📄 Document ${idx + 1}: "${doc.title}"
+════════════════════════════════════════════════════════════════════════════════
+${doc.extracted_content || 'No content available for this document.'}
+`).join('\n')}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 💡 DOCUMENT-BASED INNOVATION ANALYSIS:
-Based on the document content above AND the business context provided earlier, provide insights on:
-1. Innovation opportunities mentioned or implied in the document
-2. How the document content relates to the user's business context
-3. Specific recommendations for implementing ideas from the document
-4. Gaps or areas for improvement based on the document
-5. Connections between document content and business data
+Based on the document${documentsData.length > 1 ? 's' : ''} content above AND the business context provided earlier, provide insights on:
+1. Innovation opportunities mentioned or implied in the document${documentsData.length > 1 ? 's' : ''}
+2. How the document${documentsData.length > 1 ? 's' : ''} content relates to the user's business context
+3. Specific recommendations for implementing ideas from the document${documentsData.length > 1 ? 's' : ''}
+4. Gaps or areas for improvement based on the document${documentsData.length > 1 ? 's' : ''}
+5. Connections between document${documentsData.length > 1 ? 's' : ''} content and business data
 6. Practical next steps for turning document insights into business innovations
+${documentsData.length > 1 ? '7. Synergies and connections between the different documents' : ''}
 
-🎯 Focus on making the document content actionable for this specific business context!`;
+🎯 Focus on making the document${documentsData.length > 1 ? 's' : ''} content actionable for this specific business context!`;
       }
 
       systemPrompt += `
