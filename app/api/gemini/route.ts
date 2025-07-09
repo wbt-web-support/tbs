@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import serverCache from "@/utils/cache";
 
-const MODEL_NAME = "gemini-2.0-flash-lite-001";
+const MODEL_NAME = "gemini-2.5-flash-lite-preview-06-17";
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY || "";
 
@@ -97,12 +97,27 @@ async function getUserData(userId: string) {
       console.log('✅ [Supabase] Chat history fetched successfully');
     }
     
-    // Fetch data from other tables
-    const regularTables = [
+    // Get user's team_id first for team-based tables
+    const userTeamId = businessInfo?.team_id;
+    
+    // Fetch all team members' business info for context
+    console.log('🔄 [Supabase] Fetching team members business info');
+    const { data: teamMembersData, error: teamMembersError } = await supabase
+      .from('business_info')
+      .select('*')
+      .eq('team_id', userTeamId)
+      .order('full_name', { ascending: true });
+
+    if (teamMembersError) {
+      console.error('❌ [Supabase] Error fetching team members:', teamMembersError);
+    } else {
+      console.log(`✅ [Supabase] Fetched ${teamMembersData?.length || 0} team members`);
+    }
+    
+    // Fetch data from user-scoped tables (directly filtered by user_id)
+    const directUserScopedTables = [
       'battle_plan',
-      'chain_of_command',
       'company_onboarding',
-      'hwgt_plan',
       'machines',
       'meeting_rhythm_planner',
       'playbooks',
@@ -111,8 +126,8 @@ async function getUserData(userId: string) {
       'user_timeline_claims'
     ];
     
-    console.log('🔄 [Supabase] Fetching data from regular tables');
-    const regularTablePromises = regularTables.map(table => {
+    console.log('🔄 [Supabase] Fetching data from direct user-scoped tables');
+    const directUserScopedPromises = directUserScopedTables.map(table => {
       console.log(`🔄 [Supabase] Fetching ${table}`);
       return supabase
         .from(table)
@@ -128,6 +143,88 @@ async function getUserData(userId: string) {
           return { table, data: data || [] };
         });
     });
+
+    // Handle playbook_assignments separately (user_id references business_info.id)
+    console.log('🔄 [Supabase] Fetching playbook_assignments');
+    const playbookAssignmentsPromise = supabase
+      .from('playbook_assignments')
+      .select(`
+        *,
+        business_info!inner(user_id)
+      `)
+      .eq('business_info.user_id', userId)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(`❌ [Supabase] Error fetching playbook_assignments:`, error);
+          return { table: 'playbook_assignments', data: [] };
+        }
+        console.log(`✅ [Supabase] Fetched ${data?.length || 0} records from playbook_assignments`);
+        return { table: 'playbook_assignments', data: data || [] };
+      });
+
+    // Fetch data from team-scoped tables (only if we have a team_id)
+    const teamScopedPromises = [];
+    if (userTeamId) {
+      // Key initiatives - filtered by team_id
+      console.log('🔄 [Supabase] Fetching key_initiatives');
+      teamScopedPromises.push(
+        supabase
+          .from('key_initiatives')
+          .select('*')
+          .eq('team_id', userTeamId)
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error(`❌ [Supabase] Error fetching key_initiatives:`, error);
+              return { table: 'key_initiatives', data: [] };
+            }
+            console.log(`✅ [Supabase] Fetched ${data?.length || 0} records from key_initiatives`);
+            return { table: 'key_initiatives', data: data || [] };
+          })
+      );
+
+      // Departments - filtered by team_id
+      console.log('🔄 [Supabase] Fetching departments');
+      teamScopedPromises.push(
+        supabase
+          .from('departments')
+          .select('*')
+          .eq('team_id', userTeamId)
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error(`❌ [Supabase] Error fetching departments:`, error);
+              return { table: 'departments', data: [] };
+            }
+            console.log(`✅ [Supabase] Fetched ${data?.length || 0} records from departments`);
+            return { table: 'departments', data: data || [] };
+          })
+      );
+
+      // Key initiative departments - get all for the user's team initiatives
+      console.log('🔄 [Supabase] Fetching key_initiative_departments');
+      teamScopedPromises.push(
+        supabase
+          .from('key_initiative_departments')
+          .select(`
+            *,
+            key_initiatives!inner(team_id)
+          `)
+          .eq('key_initiatives.team_id', userTeamId)
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error(`❌ [Supabase] Error fetching key_initiative_departments:`, error);
+              return { table: 'key_initiative_departments', data: [] };
+            }
+            console.log(`✅ [Supabase] Fetched ${data?.length || 0} records from key_initiative_departments`);
+            return { table: 'key_initiative_departments', data: data || [] };
+          })
+      );
+    } else {
+      console.log('⚠️ [Supabase] No team_id found, skipping team-scoped tables');
+    }
     
     // Fetch timeline data (chq_timeline doesn't have user_id)
     console.log('🔄 [Supabase] Fetching timeline data');
@@ -144,18 +241,19 @@ async function getUserData(userId: string) {
         return { table: 'chq_timeline', data: data || [] };
       });
     
-    const allPromises = [...regularTablePromises, timelinePromise];
+    const allPromises = [...directUserScopedPromises, playbookAssignmentsPromise, ...teamScopedPromises, timelinePromise];
     const tableResults = await Promise.all(allPromises);
     
     // Format the response
     const userData = {
       businessInfo: businessInfo || null,
       chatHistory: chatHistoryData?.messages || [],
+      teamMembers: teamMembersData || [],
       additionalData: {} as Record<string, any[]>
     };
     
     // Add other table data
-    tableResults.forEach(({ table, data }) => {
+    tableResults.forEach(({ table, data }: { table: string; data: any[] }) => {
       if (data && data.length > 0) {
         console.log(`✅ [Supabase] Adding ${data.length} records from ${table} to response`);
         userData.additionalData[table] = data;
@@ -920,6 +1018,116 @@ function formatTableData(table: string, data: any) {
     return parts.join('\n');
   }
 
+  // Special handling for playbooks
+  if (table === 'playbooks') {
+    parts.push(`- Playbook ID: ${formatValue(data.id)}`);
+    parts.push(`- Playbook Name: ${formatValue(data.playbookname)}`);
+    parts.push(`- Engine Type: ${formatValue(data.enginetype)}`);
+    if (data.description) parts.push(`- Description: ${formatValue(data.description)}`);
+    parts.push(`- Status: ${formatValue(data.status)}`);
+    if (data.owner) parts.push(`- Owner: ${formatValue(data.owner)}`);
+    if (data.department_id) parts.push(`- Department ID: ${formatValue(data.department_id)}`);
+    if (data.link) parts.push(`- Link: ${formatValue(data.link)}`);
+    
+    // Handle any remaining fields
+    Object.entries(data)
+      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'playbookname', 'enginetype', 'description', 'status', 'owner', 'department_id', 'link'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for playbook_assignments
+  if (table === 'playbook_assignments') {
+    parts.push(`- Assignment ID: ${formatValue(data.id)}`);
+    parts.push(`- User ID: ${formatValue(data.user_id)}`);
+    parts.push(`- Playbook ID: ${formatValue(data.playbook_id)}`);
+    parts.push(`- Assignment Type: ${formatValue(data.assignment_type)}`);
+    if (data.created_at) parts.push(`- Assigned On: ${formatValue(data.created_at)}`);
+    
+    // Handle any remaining fields
+    Object.entries(data)
+      .filter(([key]) => !['id', 'user_id', 'playbook_id', 'assignment_type', 'created_at'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for departments
+  if (table === 'departments') {
+    parts.push(`- Department ID: ${formatValue(data.id)}`);
+    parts.push(`- Department Name: ${formatValue(data.name)}`);
+    parts.push(`- Team ID: ${formatValue(data.team_id)}`);
+    if (data.created_at) parts.push(`- Created On: ${formatValue(data.created_at)}`);
+    if (data.updated_at) parts.push(`- Last Updated: ${formatValue(data.updated_at)}`);
+    
+    // Handle any remaining fields
+    Object.entries(data)
+      .filter(([key]) => !['id', 'name', 'team_id', 'created_at', 'updated_at'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for key_initiatives
+  if (table === 'key_initiatives') {
+    parts.push(`- Initiative ID: ${formatValue(data.id)}`);
+    parts.push(`- Initiative Name: ${formatValue(data.name)}`);
+    parts.push(`- Status: ${formatValue(data.status)}`);
+    parts.push(`- Team ID: ${formatValue(data.team_id)}`);
+    if (data.owner_id) parts.push(`- Owner ID: ${formatValue(data.owner_id)}`);
+    if (data.stakeholders && data.stakeholders.length > 0) {
+      parts.push(`- Stakeholders: ${data.stakeholders.join(', ')}`);
+    }
+    if (data.due_date) parts.push(`- Due Date: ${formatValue(data.due_date)}`);
+    if (data.results) parts.push(`- Results: ${formatValue(data.results)}`);
+    if (data.associated_playbook_id) parts.push(`- Associated Playbook ID: ${formatValue(data.associated_playbook_id)}`);
+    if (data.created_at) parts.push(`- Created On: ${formatValue(data.created_at)}`);
+    if (data.updated_at) parts.push(`- Last Updated: ${formatValue(data.updated_at)}`);
+    
+    // Handle any remaining fields
+    Object.entries(data)
+      .filter(([key]) => !['id', 'name', 'status', 'team_id', 'owner_id', 'stakeholders', 'due_date', 'results', 'associated_playbook_id', 'created_at', 'updated_at'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
+  // Special handling for key_initiative_departments
+  if (table === 'key_initiative_departments') {
+    parts.push(`- Assignment ID: ${formatValue(data.id)}`);
+    parts.push(`- Key Initiative ID: ${formatValue(data.key_initiative_id)}`);
+    parts.push(`- Department ID: ${formatValue(data.department_id)}`);
+    if (data.created_at) parts.push(`- Assigned On: ${formatValue(data.created_at)}`);
+    
+    // Handle any remaining fields
+    Object.entries(data)
+      .filter(([key]) => !['id', 'key_initiative_id', 'department_id', 'created_at'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    
+    return parts.join('\n');
+  }
+
   // Add all fields except system fields for other tables
   Object.entries(data)
     .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at'].includes(key))
@@ -962,6 +1170,36 @@ function prepareUserContext(userData: any) {
 - Google Drive Folder: ${info.gd_folder_created ? 'Created ✅' : 'Not Created ❌'}
 - Meeting Scheduled: ${info.meeting_scheduled ? 'Yes ✅' : 'No ❌'}`);
   }
+
+  // Format team members information
+  if (userData.teamMembers && userData.teamMembers.length > 0) {
+    parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 👥 TEAM MEMBERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    
+    userData.teamMembers.forEach((member: any, index: number) => {
+      parts.push(`
+👤 Team Member #${index + 1}:
+────────────────────────────────────────────────────────
+- Business Info ID: ${member.id}
+- User ID: ${member.user_id || 'N/A'}
+- Full Name: ${member.full_name}
+- Email: ${member.email}
+- Role: ${member.role}
+- Job Title: ${member.job_title || 'Not specified'}
+- Department: ${member.department || 'Not specified'}
+- Department ID: ${member.department_id || 'Not specified'}
+- Manager: ${member.manager || 'Not specified'}
+- Manager ID: ${member.manager_id || 'Not specified'}
+- Phone: ${member.phone_number}
+- Business Name: ${member.business_name}
+- Profile Picture: ${member.profile_picture_url || 'None'}
+- Permissions: ${member.permissions ? JSON.stringify(member.permissions) : 'Default'}
+- Critical Accountabilities: ${member.critical_accountabilities ? JSON.stringify(member.critical_accountabilities) : 'None'}
+- Playbooks Owned: ${member.playbooks_owned ? JSON.stringify(member.playbooks_owned) : 'None'}`);
+    });
+  }
   
   // Special handling for timeline data
   if (userData.additionalData && userData.additionalData['chq_timeline'] && userData.additionalData['user_timeline_claims']) {
@@ -1000,14 +1238,16 @@ ${formatTableData('user_timeline_claims', claim)}`
   // Process all other relevant tables
   const relevantTables = [
     'battle_plan',
-    'chain_of_command',
     'company_onboarding',
-    'hwgt_plan',
     'machines',
     'meeting_rhythm_planner',
     'playbooks',
+    'playbook_assignments',
     'quarterly_sprint_canvas',
-    'triage_planner'
+    'triage_planner',
+    'key_initiative_departments',
+    'key_initiatives',
+    'departments'
   ];
   
   if (userData.additionalData) {
