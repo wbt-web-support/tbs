@@ -654,6 +654,26 @@ export function RealtimeChatGemini({
     }
   };
 
+  // Function to automatically generate and update the chat title
+  const generateAndSetTitle = async (messageContent: string, instanceId: string) => {
+    try {
+      const response = await fetch('/api/gemini/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageContent }),
+      });
+      if (response.ok) {
+        const { title } = await response.json();
+        if (title) {
+          await updateInstanceTitle(instanceId, title);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to generate and set title:", error);
+      // We don't want to block user flow if this fails, so we just log the error
+    }
+  };
+
   // Handle sending message with optimistic UI updates
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading || !isDataLoaded) return;
@@ -699,6 +719,13 @@ export function RealtimeChatGemini({
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
+
+    // Check if this is the first message in a new chat to trigger auto-naming
+    const isNewChat = chatInstances.find(inst => inst.id === currentInstanceId)?.title === 'New Chat';
+    if (isNewChat && messages.length === 0 && currentInstanceId) {
+      // Don't await this, let it run in the background
+      generateAndSetTitle(currentInput, currentInstanceId);
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
