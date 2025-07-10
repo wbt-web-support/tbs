@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2, Plus, Pencil, Trash2, Search, Filter, BarChart, Eye, Calendar, Target, User, FileText, Info } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
@@ -13,44 +13,64 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+type Department = {
+  id: string;
+  name: string;
+};
+
+type TeamMember = {
+  id: string;
+  full_name: string;
+  profile_picture_url?: string;
+};
 
 type ScorecardData = {
   id: string;
   user_id: string;
   name: string;
-  department: string;
-  week1: string;
-  week2: string;
-  week3: string;
-  week4: string;
-  remainder: string;
-  monthlyactual: string;
-  monthlytarget: string;
+  department_id: string | null;
+  department?: Department;
+  week1: number | null;
+  week2: number | null;
+  week3: number | null;
+  week4: number | null;
+  remainder: number | null;
+  monthlyactual: number | null;
+  monthlytarget: number | null;
   status: "Green" | "Light Green" | "Yellow" | "Light Red" | "Red";
-  metricowner: string;
+  metricowner_id: string | null;
+  metricowner?: TeamMember;
   metricsource: string;
   notes: string;
   created_at: string;
   updated_at: string;
+  // Keep old fields for backward compatibility during migration
+  department_old?: string;
+  metricowner_old?: string;
 };
 
-const DEPARTMENTS = [
-  "EVERGREEN METRICS",
-  "NORTH STAR METRICS",
-  "MARKETING",
-  "SALES",
-  "PRODUCT/PROGRAMMES",
-  "TECHNOLOGY/DEVELOPMENT",
-  "SUCCESS/SUPPORT",
-  "OPERATIONS",
-  "ACCOUNTING/FINANCE"
-];
-
 const STATUS_OPTIONS = ["Green", "Light Green", "Yellow", "Light Red", "Red"];
+
+// Function to calculate status based on performance
+const calculateStatus = (actual: number | null, target: number | null): ScorecardData["status"] => {
+  if (!actual || !target || target === 0) return "Yellow";
+  
+  const percentage = (actual / target) * 100;
+  
+  if (percentage >= 100) return "Green";
+  if (percentage >= 80) return "Light Green";
+  if (percentage >= 60) return "Yellow";
+  if (percentage >= 40) return "Light Red";
+  return "Red";
+};
 
 export default function CompanyScorecardPage() {
   const [scorecardsData, setScorecardsData] = useState<ScorecardData[]>([]);
   const [filteredData, setFilteredData] = useState<ScorecardData[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -61,26 +81,63 @@ export default function CompanyScorecardPage() {
   const [isSaving, setIsSaving] = useState(false);
   
   // Form state
-  const [formData, setFormData] = useState<Omit<ScorecardData, 'id' | 'user_id' | 'created_at' | 'updated_at'>>({
+  const [formData, setFormData] = useState<Omit<ScorecardData, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'department' | 'metricowner' | 'status'>>({
     name: "",
-    department: "",
-    week1: "",
-    week2: "",
-    week3: "",
-    week4: "",
-    remainder: "",
-    monthlyactual: "",
-    monthlytarget: "",
-    status: "Green",
-    metricowner: "",
+    department_id: null,
+    week1: null,
+    week2: null,
+    week3: null,
+    week4: null,
+    remainder: null,
+    monthlyactual: null,
+    monthlytarget: null,
+    metricowner_id: null,
     metricsource: "",
     notes: ""
   });
+  // Track if monthlyactual was edited manually
+  const monthlyActualManuallyEdited = useRef(false);
+
+  // Auto-calculate monthlyactual from week fields unless manually edited
+  useEffect(() => {
+    if (!monthlyActualManuallyEdited.current) {
+      const sum = [formData.week1, formData.week2, formData.week3, formData.week4]
+        .map((v) => v || 0)
+        .reduce((a, b) => a + b, 0);
+      setFormData((prev) => ({ ...prev, monthlyactual: sum }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.week1, formData.week2, formData.week3, formData.week4]);
+
+  // Additional useEffect to handle calculation when dialog opens (for editing)
+  useEffect(() => {
+    if (dialogOpen && !monthlyActualManuallyEdited.current) {
+      const sum = [formData.week1, formData.week2, formData.week3, formData.week4]
+        .map((v) => v || 0)
+        .reduce((a, b) => a + b, 0);
+      if (formData.monthlyactual !== sum) {
+        setFormData((prev) => ({ ...prev, monthlyactual: sum }));
+      }
+    }
+  }, [dialogOpen, formData.week1, formData.week2, formData.week3, formData.week4, formData.monthlyactual]);
+
+  // When user edits monthlyactual, set the manual edit flag
+  const handleMonthlyActualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    monthlyActualManuallyEdited.current = true;
+    setFormData({ ...formData, monthlyactual: e.target.value ? Number(e.target.value) : null });
+  };
+
+  // If user edits any week field, reset the manual edit flag so auto-calc resumes
+  const handleWeekChange = (field: keyof typeof formData, value: string) => {
+    monthlyActualManuallyEdited.current = false;
+    setFormData({ ...formData, [field]: value ? Number(value) : null });
+  };
   
   const supabase = createClient();
 
   useEffect(() => {
     fetchScorecardsData();
+    fetchDropdownData();
   }, []);
 
   useEffect(() => {
@@ -92,7 +149,7 @@ export default function CompanyScorecardPage() {
       // Filter by department if not "all"
       if (activeDepartment !== "all") {
         filtered = filtered.filter(scorecard => 
-          scorecard.department === activeDepartment
+          scorecard.department_id === activeDepartment
         );
       }
       
@@ -101,7 +158,7 @@ export default function CompanyScorecardPage() {
         const lowercasedSearch = searchTerm.toLowerCase();
         filtered = filtered.filter(scorecard => 
           scorecard.name.toLowerCase().includes(lowercasedSearch) ||
-          scorecard.metricowner.toLowerCase().includes(lowercasedSearch) ||
+          scorecard.metricowner?.full_name.toLowerCase().includes(lowercasedSearch) ||
           scorecard.metricsource.toLowerCase().includes(lowercasedSearch)
         );
       }
@@ -122,10 +179,13 @@ export default function CompanyScorecardPage() {
       
       const { data, error } = await supabase
         .from("company_scorecards")
-        .select("*")
+        .select(`
+          *,
+          department:departments(id, name),
+          metricowner:business_info(id, full_name, profile_picture_url)
+        `)
         .in("user_id", teamMemberIds)
-        .order("department", { ascending: true })
-        .order("name", { ascending: true });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       
@@ -138,20 +198,51 @@ export default function CompanyScorecardPage() {
     }
   };
 
+  const fetchDropdownData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+
+      // Fetch departments
+      const { data: departmentsData, error: departmentsError } = await supabase
+        .from("departments")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+      if (departmentsError) throw departmentsError;
+      setDepartments(departmentsData || []);
+
+      // Fetch team members
+      const { data: teamMembersData, error: teamMembersError } = await supabase
+        .from("business_info")
+        .select("id, full_name, profile_picture_url")
+        .in("user_id", teamMemberIds)
+        .order("full_name", { ascending: true });
+
+      if (teamMembersError) throw teamMembersError;
+      setTeamMembers(teamMembersData || []);
+    } catch (error) {
+      console.error("Error fetching dropdown data:", error);
+    }
+  };
+
   const handleAddNew = () => {
     setCurrentScorecard(null);
+    // Reset the manual edit flag when adding new
+    monthlyActualManuallyEdited.current = false;
     setFormData({
       name: "",
-      department: "",
-      week1: "",
-      week2: "",
-      week3: "",
-      week4: "",
-      remainder: "",
-      monthlyactual: "",
-      monthlytarget: "",
-      status: "Green",
-      metricowner: "",
+      department_id: null,
+      week1: null,
+      week2: null,
+      week3: null,
+      week4: null,
+      remainder: null,
+      monthlyactual: null,
+      monthlytarget: null,
+      metricowner_id: null,
       metricsource: "",
       notes: ""
     });
@@ -160,18 +251,19 @@ export default function CompanyScorecardPage() {
 
   const handleEdit = (scorecard: ScorecardData) => {
     setCurrentScorecard(scorecard);
+    // Reset the manual edit flag when editing
+    monthlyActualManuallyEdited.current = false;
     setFormData({
       name: scorecard.name,
-      department: scorecard.department,
-      week1: scorecard.week1 || "",
-      week2: scorecard.week2 || "",
-      week3: scorecard.week3 || "",
-      week4: scorecard.week4 || "",
-      remainder: scorecard.remainder || "",
-      monthlyactual: scorecard.monthlyactual || "",
-      monthlytarget: scorecard.monthlytarget || "",
-      status: scorecard.status,
-      metricowner: scorecard.metricowner || "",
+      department_id: scorecard.department_id,
+      week1: scorecard.week1 !== null ? Number(scorecard.week1) : null,
+      week2: scorecard.week2 !== null ? Number(scorecard.week2) : null,
+      week3: scorecard.week3 !== null ? Number(scorecard.week3) : null,
+      week4: scorecard.week4 !== null ? Number(scorecard.week4) : null,
+      remainder: scorecard.remainder !== null ? Number(scorecard.remainder) : null,
+      monthlyactual: scorecard.monthlyactual !== null ? Number(scorecard.monthlyactual) : null,
+      monthlytarget: scorecard.monthlytarget !== null ? Number(scorecard.monthlytarget) : null,
+      metricowner_id: scorecard.metricowner_id,
       metricsource: scorecard.metricsource || "",
       notes: scorecard.notes || ""
     });
@@ -205,13 +297,17 @@ export default function CompanyScorecardPage() {
       
       if (!user) throw new Error("No authenticated user");
 
+      // Calculate status automatically
+      const calculatedStatus = calculateStatus(formData.monthlyactual, formData.monthlytarget);
+
       if (currentScorecard) {
         // Update existing scorecard
         const { error } = await supabase
           .from("company_scorecards")
           .update({
             name: formData.name,
-            department: formData.department,
+            department_id: formData.department_id,
+            department_old: formData.department_id ? departments.find(d => d.id === formData.department_id)?.name || "" : "",
             week1: formData.week1,
             week2: formData.week2,
             week3: formData.week3,
@@ -219,8 +315,9 @@ export default function CompanyScorecardPage() {
             remainder: formData.remainder,
             monthlyactual: formData.monthlyactual,
             monthlytarget: formData.monthlytarget,
-            status: formData.status,
-            metricowner: formData.metricowner,
+            status: calculatedStatus,
+            metricowner_id: formData.metricowner_id,
+            metricowner_old: formData.metricowner_id ? teamMembers.find(m => m.id === formData.metricowner_id)?.full_name || "" : "",
             metricsource: formData.metricsource,
             notes: formData.notes,
             updated_at: new Date().toISOString()
@@ -235,7 +332,8 @@ export default function CompanyScorecardPage() {
           .insert({
             user_id: user.id,
             name: formData.name,
-            department: formData.department,
+            department_id: formData.department_id,
+            department_old: formData.department_id ? departments.find(d => d.id === formData.department_id)?.name || "" : "",
             week1: formData.week1,
             week2: formData.week2,
             week3: formData.week3,
@@ -243,8 +341,9 @@ export default function CompanyScorecardPage() {
             remainder: formData.remainder,
             monthlyactual: formData.monthlyactual,
             monthlytarget: formData.monthlytarget,
-            status: formData.status,
-            metricowner: formData.metricowner,
+            status: calculatedStatus,
+            metricowner_id: formData.metricowner_id,
+            metricowner_old: formData.metricowner_id ? teamMembers.find(m => m.id === formData.metricowner_id)?.full_name || "" : "",
             metricsource: formData.metricsource,
             notes: formData.notes
           });
@@ -357,8 +456,8 @@ export default function CompanyScorecardPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      {DEPARTMENTS.map((dept) => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -373,13 +472,13 @@ export default function CompanyScorecardPage() {
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow className="border-b border-gray-200 hover:bg-gray-50/50">
-                      <TableHead className="w-[200px] py-3.5 text-sm font-semibold text-gray-700">Name</TableHead>
-                      <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700">Department</TableHead>
-                      <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700">Monthly Actual</TableHead>
-                      <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700">Monthly Target</TableHead>
-                      <TableHead className="w-[100px] py-3.5 text-sm font-semibold text-gray-700">Status</TableHead>
-                      <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700">Owner</TableHead>
-                      <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700 text-right">Actions</TableHead>
+                      <TableHead className="w-[180px] py-3.5 text-sm font-semibold text-gray-700 px-6">Name</TableHead>
+                      <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Department</TableHead>
+                      <TableHead className="w-[200px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Weekly Breakdown</TableHead>
+                      <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Actual / Target</TableHead>
+                      <TableHead className="w-[90px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Status</TableHead>
+                      <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Owner</TableHead>
+                      <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -389,25 +488,49 @@ export default function CompanyScorecardPage() {
                           key={scorecard.id} 
                           className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors"
                         >
-                          <TableCell className="font-medium text-blue-700 py-4">{scorecard.name || "—"}</TableCell>
-                          <TableCell className="py-4">
+                          <TableCell className="font-medium text-blue-700 py-4 px-6">{scorecard.name || "—"}</TableCell>
+                          <TableCell className="py-4 px-6 border-l">
                             {scorecard.department ? (
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDepartmentColor(scorecard.department)}`}>
-                                {scorecard.department}
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDepartmentColor(scorecard.department.name)}`}>
+                                {scorecard.department.name}
                               </span>
                             ) : "—"}
                           </TableCell>
-                          <TableCell className="py-4">{scorecard.monthlyactual || "—"}</TableCell>
-                          <TableCell className="py-4">{scorecard.monthlytarget || "—"}</TableCell>
-                          <TableCell className="py-4">
+                          <TableCell className="py-4 text-center px-6 border-l">
+                            {[
+                              scorecard.week1,
+                              scorecard.week2,
+                              scorecard.week3,
+                              scorecard.week4
+                            ].every((v) => v === null) && scorecard.remainder === null
+                              ? "—"
+                              : `${scorecard.week1 ?? "-"} / ${scorecard.week2 ?? "-"} / ${scorecard.week3 ?? "-"} / ${scorecard.week4 ?? "-"}` +
+                                (scorecard.remainder !== null ? ` (Rem: ${scorecard.remainder})` : "")}
+                          </TableCell>
+                          <TableCell className="py-4 text-center font-medium px-6 border-l">
+                            {(scorecard.monthlyactual !== null || scorecard.monthlytarget !== null)
+                              ? `${scorecard.monthlyactual ?? "-"} / ${scorecard.monthlytarget ?? "-"}`
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="py-4 px-6 border-l">
                             {scorecard.status ? (
                               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(scorecard.status)}`}>
                                 {scorecard.status}
                               </span>
                             ) : "—"}
                           </TableCell>
-                          <TableCell className="py-4">{scorecard.metricowner || "—"}</TableCell>
-                          <TableCell className="py-4 text-right">
+                          <TableCell className="py-4 px-6 border-l">
+                            {scorecard.metricowner ? (
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={scorecard.metricowner.profile_picture_url || ''} alt={scorecard.metricowner.full_name} />
+                                  <AvatarFallback>{scorecard.metricowner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm">{scorecard.metricowner.full_name}</span>
+                              </div>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell className="py-4 text-right px-6 border-l">
                             <div className="flex justify-end space-x-2">
                               <Button
                                 variant="ghost"
@@ -493,9 +616,11 @@ export default function CompanyScorecardPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">{currentScorecard.name}</h2>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDepartmentColor(currentScorecard.department)}`}>
-                      {currentScorecard.department}
-                    </span>
+                    {currentScorecard.department && (
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDepartmentColor(currentScorecard.department.name)}`}>
+                        {currentScorecard.department.name}
+                      </span>
+                    )}
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(currentScorecard.status)}`}>
                       {currentScorecard.status}
                     </span>
@@ -515,23 +640,23 @@ export default function CompanyScorecardPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 1</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week1 || "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week1 !== null ? currentScorecard.week1 : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 2</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week2 || "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week2 !== null ? currentScorecard.week2 : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 3</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week3 || "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week3 !== null ? currentScorecard.week3 : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 4</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week4 || "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week4 !== null ? currentScorecard.week4 : "—"}</div>
                     </div>
                     <div className="col-span-2">
                       <div className="text-sm font-medium text-gray-500">Remainder</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.remainder || "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.remainder !== null ? currentScorecard.remainder : "—"}</div>
                     </div>
                   </div>
                 </div>
@@ -546,16 +671,15 @@ export default function CompanyScorecardPage() {
                   <div className="space-y-4">
                     <div>
                       <div className="text-sm font-medium text-gray-500">Monthly Actual</div>
-                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlyactual || "—"}</div>
+                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlyactual !== null ? currentScorecard.monthlyactual : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Monthly Target</div>
-                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlytarget || "—"}</div>
+                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlytarget !== null ? currentScorecard.monthlytarget : "—"}</div>
                     </div>
                     
                     {/* Progress visualization - simple percentage if both values are numbers */}
-                    {currentScorecard.monthlyactual && currentScorecard.monthlytarget && 
-                     !isNaN(Number(currentScorecard.monthlyactual)) && !isNaN(Number(currentScorecard.monthlytarget)) && (
+                    {currentScorecard.monthlyactual !== null && currentScorecard.monthlytarget !== null && (
                       <div className="mt-4">
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-medium text-gray-500">Progress</span>
@@ -586,7 +710,17 @@ export default function CompanyScorecardPage() {
                   <div className="space-y-4">
                     <div>
                       <div className="text-sm font-medium text-gray-500">Metric Owner</div>
-                      <div className="text-md mt-1">{currentScorecard.metricowner || "—"}</div>
+                      <div className="text-md mt-1">
+                        {currentScorecard.metricowner ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={currentScorecard.metricowner.profile_picture_url || ''} alt={currentScorecard.metricowner.full_name} />
+                              <AvatarFallback>{currentScorecard.metricowner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                            </Avatar>
+                            <span>{currentScorecard.metricowner.full_name}</span>
+                          </div>
+                        ) : "—"}
+                      </div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Metric Source</div>
@@ -668,147 +802,139 @@ export default function CompanyScorecardPage() {
               <div>
                 <Label htmlFor="department" className="text-sm font-medium">Department</Label>
                 <Select 
-                  value={formData.department} 
-                  onValueChange={(value) => setFormData({ ...formData, department: value })}
+                  value={formData.department_id || ""} 
+                  onValueChange={(value) => setFormData({ ...formData, department_id: value === "null" ? null : value })}
                 >
                   <SelectTrigger className="w-full mt-1">
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEPARTMENTS.map((dept) => (
-                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                    <SelectItem value="null">No Department</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              {/* Status Field */}
-              <div>
-                <Label htmlFor="status" className="text-sm font-medium">Status</Label>
-                <Select 
-                  value={formData.status} 
-                  onValueChange={(value) => setFormData({ ...formData, status: value as ScorecardData["status"] })}
-                >
-                  <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((status) => (
-                      <SelectItem key={status} value={status}>{status}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Weekly Data Fields */}
-              <div>
-                <Label htmlFor="week1" className="text-sm font-medium">Week 1</Label>
-                <ExpandableInput
-                  id="week1"
-                  value={formData.week1}
-                  onChange={(e) => setFormData({ ...formData, week1: e.target.value })}
-                  placeholder="Week 1 value"
-                  className="mt-1"
-                  expandAfter={30}
-                  lined={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="week2" className="text-sm font-medium">Week 2</Label>
-                <ExpandableInput
-                  id="week2"
-                  value={formData.week2}
-                  onChange={(e) => setFormData({ ...formData, week2: e.target.value })}
-                  placeholder="Week 2 value"
-                  className="mt-1"
-                  expandAfter={30}
-                  lined={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="week3" className="text-sm font-medium">Week 3</Label>
-                <ExpandableInput
-                  id="week3"
-                  value={formData.week3}
-                  onChange={(e) => setFormData({ ...formData, week3: e.target.value })}
-                  placeholder="Week 3 value"
-                  className="mt-1"
-                  expandAfter={30}
-                  lined={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="week4" className="text-sm font-medium">Week 4</Label>
-                <ExpandableInput
-                  id="week4"
-                  value={formData.week4}
-                  onChange={(e) => setFormData({ ...formData, week4: e.target.value })}
-                  placeholder="Week 4 value"
-                  className="mt-1"
-                  expandAfter={30}
-                  lined={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="remainder" className="text-sm font-medium">Remainder</Label>
-                <ExpandableInput
-                  id="remainder"
-                  value={formData.remainder}
-                  onChange={(e) => setFormData({ ...formData, remainder: e.target.value })}
-                  placeholder="Remainder value"
-                  className="mt-1"
-                  expandAfter={30}
-                  lined={true}
-                />
-              </div>
-
-              {/* Monthly Data Fields */}
-              <div>
-                <Label htmlFor="monthlyactual" className="text-sm font-medium">Monthly Actual</Label>
-                <ExpandableInput
-                  id="monthlyactual"
-                  value={formData.monthlyactual}
-                  onChange={(e) => setFormData({ ...formData, monthlyactual: e.target.value })}
-                  placeholder="Monthly actual value"
-                  className="mt-1"
-                  expandAfter={30}
-                  lined={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="monthlytarget" className="text-sm font-medium">Monthly Target</Label>
-                <ExpandableInput
-                  id="monthlytarget"
-                  value={formData.monthlytarget}
-                  onChange={(e) => setFormData({ ...formData, monthlytarget: e.target.value })}
-                  placeholder="Monthly target value"
-                  className="mt-1"
-                  expandAfter={30}
-                  lined={true}
-                />
               </div>
 
               {/* Metric Owner Field */}
               <div>
                 <Label htmlFor="metricowner" className="text-sm font-medium">Metric Owner</Label>
-                <ExpandableInput
-                  id="metricowner"
-                  value={formData.metricowner}
-                  onChange={(e) => setFormData({ ...formData, metricowner: e.target.value })}
-                  placeholder="Who owns this metric"
+                <Select 
+                  value={formData.metricowner_id || ""} 
+                  onValueChange={(value) => setFormData({ ...formData, metricowner_id: value === "null" ? null : value })}
+                >
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Select metric owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="null">No Owner</SelectItem>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarImage src={member.profile_picture_url || ''} alt={member.full_name} />
+                            <AvatarFallback>{member.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                          </Avatar>
+                          <span>{member.full_name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Weekly Breakdown Grouped Fields in Form */}
+              <div className="col-span-2">
+                <Label className="text-sm font-medium">Weekly Breakdown</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    id="week1"
+                    type="number"
+                    value={formData.week1 || ""}
+                    onChange={(e) => handleWeekChange("week1", e.target.value)}
+                    placeholder="W1"
+                    className="w-20"
+                  />
+                  <Input
+                    id="week2"
+                    type="number"
+                    value={formData.week2 || ""}
+                    onChange={(e) => handleWeekChange("week2", e.target.value)}
+                    placeholder="W2"
+                    className="w-20"
+                  />
+                  <Input
+                    id="week3"
+                    type="number"
+                    value={formData.week3 || ""}
+                    onChange={(e) => handleWeekChange("week3", e.target.value)}
+                    placeholder="W3"
+                    className="w-20"
+                  />
+                  <Input
+                    id="week4"
+                    type="number"
+                    value={formData.week4 || ""}
+                    onChange={(e) => handleWeekChange("week4", e.target.value)}
+                    placeholder="W4"
+                    className="w-20"
+                  />
+                  <Input
+                    id="remainder"
+                    type="number"
+                    value={formData.remainder || ""}
+                    onChange={(e) => handleWeekChange("remainder", e.target.value)}
+                    placeholder="Rem."
+                    className="w-24"
+                  />
+                </div>
+              </div>
+
+              {/* Monthly Data Fields */}
+              <div>
+                <Label htmlFor="monthlyactual" className="text-sm font-medium">Monthly Actual</Label>
+                <Input
+                  id="monthlyactual"
+                  type="number"
+                  value={formData.monthlyactual || ""}
+                  onChange={handleMonthlyActualChange}
+                  placeholder="Monthly actual value"
                   className="mt-1"
-                  expandAfter={30}
-                  lined={true}
                 />
               </div>
 
-              {/* Metric Source Field */}
               <div>
+                <Label htmlFor="monthlytarget" className="text-sm font-medium">Monthly Target</Label>
+                <Input
+                  id="monthlytarget"
+                  type="number"
+                  value={formData.monthlytarget || ""}
+                  onChange={(e) => setFormData({ ...formData, monthlytarget: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="Monthly target value"
+                  className="mt-1"
+                />
+              </div>
+
+              {/* Status Preview */}
+              {formData.monthlyactual !== null && formData.monthlytarget !== null && (
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Status (Auto-calculated)</Label>
+                  <div className="mt-1">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(calculateStatus(formData.monthlyactual, formData.monthlytarget))}`}>
+                      {calculateStatus(formData.monthlyactual, formData.monthlytarget)}
+                    </span>
+                    {formData.monthlytarget > 0 && (
+                      <span className="ml-2 text-sm text-gray-500">
+                        ({Math.round((formData.monthlyactual / formData.monthlytarget) * 100)}% of target)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Metric Source Field */}
+              <div className="col-span-2">
                 <Label htmlFor="metricsource" className="text-sm font-medium">Metric Source</Label>
                 <ExpandableInput
                   id="metricsource"

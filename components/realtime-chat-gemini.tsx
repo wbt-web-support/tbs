@@ -48,6 +48,7 @@ interface RealtimeChatGeminiProps {
   selectedInstanceId?: string | null;
   onInstanceChange?: ((instanceId: string) => void) | null;
   onReady?: () => void; // New prop
+  onFirstMessage?: ((message: string, instanceId: string) => void) | null; // New prop for floating chat
 }
 
 export function RealtimeChatGemini({ 
@@ -56,7 +57,8 @@ export function RealtimeChatGemini({
   hideInstanceSidebar = false,
   selectedInstanceId = null,
   onInstanceChange = null,
-  onReady // Destructure new prop
+  onReady, // Destructure new prop
+  onFirstMessage = null // Destructure new prop
 }: RealtimeChatGeminiProps = {}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -323,7 +325,7 @@ export function RealtimeChatGemini({
         setChatInstances(prev => [data.instance, ...prev]);
         setCurrentInstanceId(data.instance.id);
         setMessages([]); // A new chat starts with no messages.
-
+        
         if (onInstanceChange) {
           onInstanceChange(data.instance.id);
         }
@@ -720,9 +722,14 @@ export function RealtimeChatGemini({
 
     // Check if this is the first message in a new chat to trigger auto-naming
     const isNewChat = chatInstances.find(inst => inst.id === currentInstanceId)?.title === 'New Chat';
-    if (isNewChat && messages.length === 0 && currentInstanceId) {
+    if (isNewChat && messages.filter(m => m.role === 'user').length === 0 && currentInstanceId) {
       // Don't await this, let it run in the background
       generateAndSetTitle(currentInput, currentInstanceId);
+    }
+
+    // Call onFirstMessage callback if provided (for floating chat)
+    if (onFirstMessage && messages.filter(m => m.role === 'user').length === 0 && currentInstanceId) {
+      onFirstMessage(currentInput, currentInstanceId);
     }
 
     try {

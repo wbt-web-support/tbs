@@ -138,16 +138,34 @@ export function FloatingChat() {
       const data = await response.json();
       
       if (data.success && data.instance) {
-        // Refresh instances list
-        await fetchChatInstances();
-        
-        // Select the new instance
+        // Optimistically update the list and switch to the new instance
+        setChatInstances(prev => [data.instance, ...prev]);
         setCurrentInstanceId(data.instance.id);
         setShowInstancePopup(false);
         setIsOpen(true);
       }
     } catch (error) {
       console.error('Error creating new chat instance:', error);
+    }
+  };
+
+  // Function to automatically generate and update the chat title
+  const generateAndSetTitle = async (messageContent: string, instanceId: string) => {
+    try {
+      const response = await fetch('/api/gemini/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageContent }),
+      });
+      if (response.ok) {
+        const { title } = await response.json();
+        if (title) {
+          await updateInstanceTitle(instanceId, title);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to generate and set title:", error);
+      // We don't want to block user flow if this fails, so we just log the error
     }
   };
 
@@ -352,7 +370,7 @@ export function FloatingChat() {
     };
   }, [isResizing, resize, stopResizing]);
 
-  const shouldShowChatUI = pathname !== '/chat';
+  const shouldShowChatUI = pathname !== '/chat' && pathname !== '/innovation-machine';
 
   return (
     <div ref={contentRef} className="relative">
@@ -569,6 +587,13 @@ export function FloatingChat() {
                   hideInstanceSidebar={true}
                   selectedInstanceId={currentInstanceId}
                   onInstanceChange={setCurrentInstanceId}
+                  onFirstMessage={(message, instanceId) => {
+                    // Check if this is a new chat that needs renaming
+                    const instance = chatInstances.find(inst => inst.id === instanceId);
+                    if (instance?.title === 'New Chat') {
+                      generateAndSetTitle(message, instanceId);
+                    }
+                  }}
                 />
               </div>
             </div>
