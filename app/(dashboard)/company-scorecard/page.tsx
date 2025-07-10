@@ -11,9 +11,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  DepartmentDropdown, 
+  TeamMemberDropdown, 
+  MetricTypeDropdown, 
+  DepartmentFilterDropdown,
+  getFormatHint,
+  getMetricTypeIcon 
+} from "@/components/ui/dropdown-helpers";
 
 type Department = {
   id: string;
@@ -129,19 +136,6 @@ const formatActualTarget = (scorecard: ScorecardData): string => {
   return `${actual} / ${target}`;
 };
 
-// Function to get format hint based on metric type
-const getFormatHint = (metricType: string): string => {
-  switch (metricType) {
-    case "Currency / Revenue":
-      return "Will display as: £1,234";
-    case "Percentages":
-      return "Will display as: 85%";
-    case "Numeric Count":
-    default:
-      return "Will display as: 1,234";
-  }
-};
-
 // Function to get placeholder based on metric type
 const getPlaceholder = (metricType: string, field: string): string => {
   const baseText = field === "target" ? "target" : "value";
@@ -156,6 +150,8 @@ const getPlaceholder = (metricType: string, field: string): string => {
       return `Enter ${baseText} (e.g. 100)`;
   }
 };
+
+
 
 export default function CompanyScorecardPage() {
   const [scorecardsData, setScorecardsData] = useState<ScorecardData[]>([]);
@@ -539,20 +535,13 @@ export default function CompanyScorecardPage() {
                   />
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <Select 
-                    value={activeDepartment} 
-                    onValueChange={setActiveDepartment}
-                  >
-                    <SelectTrigger className="w-full sm:w-[200px]">
-                      <SelectValue placeholder="All Departments" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Departments</SelectItem>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <DepartmentFilterDropdown
+                    value={activeDepartment}
+                    onChange={setActiveDepartment}
+                    departments={departments}
+                    placeholder="All Departments"
+                    className="w-full sm:w-[200px]"
+                  />
                   <div className="flex items-center text-sm text-gray-500 whitespace-nowrap">
                     <Filter className="h-4 w-4 mr-1" />
                     {filteredData.length} of {scorecardsData.length} metrics
@@ -887,47 +876,25 @@ export default function CompanyScorecardPage() {
               {/* Department Field */}
               <div>
                 <Label htmlFor="department" className="text-sm font-medium">Department</Label>
-                <Select 
-                  value={formData.department_id || ""} 
-                  onValueChange={(value) => setFormData({ ...formData, department_id: value === "null" ? null : value })}
-                >
-                  <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="null">No Department</SelectItem>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <DepartmentDropdown
+                  value={formData.department_id || ""}
+                  onChange={(value) => setFormData({ ...formData, department_id: value === "" ? null : value })}
+                  departments={departments}
+                  placeholder="Select department"
+                  className="w-full mt-1"
+                />
               </div>
 
               {/* Metric Owner Field */}
               <div>
                 <Label htmlFor="metricowner" className="text-sm font-medium">Metric Owner</Label>
-                <Select 
-                  value={formData.metricowner_id || ""} 
-                  onValueChange={(value) => setFormData({ ...formData, metricowner_id: value === "null" ? null : value })}
-                >
-                  <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Select metric owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="null">No Owner</SelectItem>
-                    {teamMembers.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarImage src={member.profile_picture_url || ''} alt={member.full_name} />
-                            <AvatarFallback>{member.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
-                          </Avatar>
-                          <span>{member.full_name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <TeamMemberDropdown
+                  value={formData.metricowner_id || ""}
+                  onChange={(value) => setFormData({ ...formData, metricowner_id: value === "" ? null : value })}
+                  teamMembers={teamMembers}
+                  placeholder="Select owner"
+                  className="w-full mt-1"
+                />
               </div>
 
               {/* Weekly Breakdown Grouped Fields in Form */}
@@ -997,19 +964,14 @@ export default function CompanyScorecardPage() {
               {/* Metric Type Field */}
               <div className="w-full">
                 <Label htmlFor="metric_type" className="text-sm font-medium">Metric Type</Label>
-                <Select 
-                  value={formData.metric_type} 
-                  onValueChange={(value) => setFormData({ ...formData, metric_type: value as ScorecardData["metric_type"] })}
-                >
-                  <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Select metric type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {METRIC_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MetricTypeDropdown
+                  value={formData.metric_type}
+                  onChange={(value) => setFormData({ ...formData, metric_type: value as ScorecardData["metric_type"] })}
+                  metricTypes={METRIC_TYPES}
+                  placeholder="Select metric type"
+                  className="w-full mt-1"
+                  showHints={true}
+                />
                 <p className="text-xs text-gray-500 mt-1">{getFormatHint(formData.metric_type)}</p>
               </div>
 

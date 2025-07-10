@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -623,19 +623,15 @@ export default function UserManagementPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="payment_option">Payment Option</Label>
-                    <Select
-                      name="payment_option"
+                    <CustomDropdown
+                      options={[
+                        { value: "FULL", label: "Full Payment" },
+                        { value: "6_MONTH_SPLIT", label: "6 Month Split" },
+                      ]}
                       value={newUserForm.payment_option}
-                      onValueChange={(value) => handleSelectChange("payment_option", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select payment option" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="FULL">Full Payment</SelectItem>
-                        <SelectItem value="6_MONTH_SPLIT">6 Month Split</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      onChange={(value) => handleSelectChange("payment_option", value)}
+                      placeholder="Select payment option"
+                    />
       </div>
 
                   <div className="space-y-2">

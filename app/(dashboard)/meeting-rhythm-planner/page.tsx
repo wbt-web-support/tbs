@@ -14,13 +14,7 @@ import {
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar, Info, Plus, Trash2, Eye, Edit, ChevronRight, ChevronLeft, SquareCode } from "lucide-react";
@@ -196,27 +190,35 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onDelete, onEdit, meeting, isL
             <Label htmlFor="meeting_type" className="text-sm font-medium">
               Meeting Type
             </Label>
-            <Select
-              value={formData.meeting_type}
-              onValueChange={(value) => handleChange("meeting_type", value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select meeting type" />
-              </SelectTrigger>
-              <SelectContent>
-                {MEETING_TYPES.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    <div className="flex items-center">
-                      <div 
-                        className="w-3 h-3 rounded-sm mr-2" 
-                        style={{ backgroundColor: type.color }}
-                      />
-                      {type.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CustomDropdown
+              value={formData.meeting_type || ""}
+              onChange={(value) => handleChange("meeting_type", value)}
+              placeholder="Select meeting type"
+              options={MEETING_TYPES.map(type => ({ 
+                value: type.id, 
+                label: type.name, 
+                data: type 
+              }))}
+              renderOption={(option) => (
+                <div className="flex items-center">
+                  <div 
+                    className="w-3 h-3 rounded-sm mr-2" 
+                    style={{ backgroundColor: option.data.color }}
+                  />
+                  {option.label}
+                </div>
+              )}
+              renderSelected={(option) => (
+                <div className="flex items-center">
+                  <div 
+                    className="w-3 h-3 rounded-sm mr-2" 
+                    style={{ backgroundColor: option.data.color }}
+                  />
+                  {option.label}
+                </div>
+              )}
+              className="w-full"
+            />
           </div>
           
           <div className="space-y-1">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomDropdown } from "@/components/ui/custom-dropdown";
+import { DepartmentDropdown } from "@/components/ui/dropdown-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -84,56 +85,42 @@ function PlaybookForm({ form, departments, teamMembers, handleSavePlaybook, setD
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="engineType">Engine Type*</Label>
-            <Select
+            <CustomDropdown
+              options={[
+                { value: "GROWTH", label: "Growth" },
+                { value: "FULFILLMENT", label: "Fulfilment" },
+                { value: "INNOVATION", label: "Innovation" },
+              ]}
               value={formData.enginetype}
-              onValueChange={(value) => setFormData({ ...formData, enginetype: value as PlaybookFormData["enginetype"] })}
-            >
-              <SelectTrigger id="engineType">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="GROWTH">GROWTH</SelectItem>
-                <SelectItem value="FULFILLMENT">FULFILLMENT</SelectItem>
-                <SelectItem value="INNOVATION">INNOVATION</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(value) => setFormData({ ...formData, enginetype: value as PlaybookFormData["enginetype"] })}
+              placeholder="Select type"
+            />
           </div>
           
           <div className="grid gap-2">
             <Label htmlFor="status">Status*</Label>
-            <Select
+            <CustomDropdown
+              options={[
+                { value: "Backlog", label: "Backlog" },
+                { value: "In Progress", label: "In Progress" },
+                { value: "Behind", label: "Behind" },
+                { value: "Completed", label: "Completed" },
+              ]}
               value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value as PlaybookFormData["status"] })}
-            >
-              <SelectTrigger id="status">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Backlog">Backlog</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Behind">Behind</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(value) => setFormData({ ...formData, status: value as PlaybookFormData["status"] })}
+              placeholder="Select status"
+            />
           </div>
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="department">Department</Label>
-          <Select
+          <DepartmentDropdown
+            departments={departments}
             value={formData.department_id || ""}
-            onValueChange={(value) => setFormData({ ...formData, department_id: value === "null" ? null : value })}
-          >
-            <SelectTrigger id="department">
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="null">No Department</SelectItem>
-              {departments.map((department: Department) => (
-                <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={(value) => setFormData({ ...formData, department_id: value === "null" ? null : value })}
+            placeholder="Select department"
+          />
         </div>
 
         <div className="grid gap-2">

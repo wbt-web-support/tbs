@@ -131,6 +131,11 @@ const navigationSections: NavigationSection[] = [
         href: "/meeting-rhythm-planner",
         icon: Clock,
       },
+      {
+        name: "12Q Planner",
+        href: "/12q-planner",
+        icon: Flag,
+      },
       // {
       //   name: "Quarterly Sprint Canvas",
       //   href: "/quarterly-sprint-canvas",
