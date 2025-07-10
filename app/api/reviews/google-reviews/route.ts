@@ -197,7 +197,7 @@ function formatRelativeTime(dateString: string): string {
 }
 
 // Enhanced AI Summary generation (matching SOP route pattern)
-async function generateAISummary(reviews: GoogleReview[]): Promise<{
+async function generateAISummary(reviews: GoogleReview[], language: string = 'en'): Promise<{
   ai_summary: string;
   sentiment_analysis: {
     positive_highlights: string[];
@@ -227,6 +227,10 @@ async function generateAISummary(reviews: GoogleReview[]): Promise<{
       return getFallbackAnalysis(reviews);
     }
 
+    const languageInstruction = language === 'en-GB' 
+      ? '\n\nIMPORTANT: Please respond in UK English using British spelling, terminology, and conventions (e.g., use "colour" not "color", "realise" not "realize", "whilst" not "while", etc.).'
+      : '';
+
     const prompt = `Analyse the following customer reviews and provide a comprehensive summary:
 
 ${reviewTexts}
@@ -239,7 +243,7 @@ Please provide a response in the following JSON format:
   "key_themes": ["4-6 key themes or topics that appear frequently in reviews"]
 }
 
-Focus on being specific and actionable. Extract the most valuable insights that would help the business understand their strengths and areas for improvement.`;
+Focus on being specific and actionable. Extract the most valuable insights that would help the business understand their strengths and areas for improvement.${languageInstruction}`;
 
     console.log('🤖 Sending request to Gemini AI...');
     const result = await model.generateContent(prompt);
@@ -342,7 +346,7 @@ function calculateReviewsStatistics(reviews: GoogleReview[]) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { businessName, googleReviewLink, forceRefresh } = await request.json();
+    const { businessName, googleReviewLink, forceRefresh, language } = await request.json();
 
     console.log('📊 Google Reviews API called:', { businessName, hasGoogleLink: !!googleReviewLink, forceRefresh });
 
@@ -378,7 +382,7 @@ export async function POST(request: NextRequest) {
     console.log('📊 Calculated statistics:', statistics);
 
     // Generate AI summary
-    const aiAnalysis = await generateAISummary(reviews);
+    const aiAnalysis = await generateAISummary(reviews, language);
 
     // Sort reviews by date (most recent first)
     const sortedReviews = reviews.sort((a, b) => 

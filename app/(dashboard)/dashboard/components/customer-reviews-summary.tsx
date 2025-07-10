@@ -71,29 +71,31 @@ export default function CustomerReviewsSummary({ businessName, googleReviewLink 
       }
       setError(null);
 
-      // First, try to get cached reviews data
-      const { data: cachedData, error: cacheError } = await supabase
-        .from('reviews_cache')
-        .select('*')
-        .eq('business_name', businessName)
-        .order('last_updated', { ascending: false })
-        .limit(1);
+      // If refreshing, skip cache and force fresh data
+      if (!isRefresh) {
+        // First, try to get cached reviews data
+        const { data: cachedData, error: cacheError } = await supabase
+          .from('reviews_cache')
+          .select('*')
+          .eq('business_name', businessName)
+          .order('last_updated', { ascending: false })
+          .limit(1);
 
-      // Check if we have recent cached data (less than 24 hours old)
-      const now = new Date();
-      const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-      
-      if (cachedData && cachedData.length > 0 && !isRefresh) {
-        const lastUpdated = new Date(cachedData[0].last_updated);
-        if (now.getTime() - lastUpdated.getTime() < cacheExpiry) {
-          setReviewsData(cachedData[0].summary_data);
-          setLoading(false);
-          setRefreshing(false);
-          return;
+        // Check if we have recent cached data (less than 24 hours old)
+        const now = new Date();
+        const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        
+        if (cachedData && cachedData.length > 0) {
+          const lastUpdated = new Date(cachedData[0].last_updated);
+          if (now.getTime() - lastUpdated.getTime() < cacheExpiry) {
+            setReviewsData(cachedData[0].summary_data);
+            setLoading(false);
+            return;
+          }
         }
       }
 
-      // If no cached data or expired, fetch new data
+      // Fetch fresh data from API (this will include AI analysis)
       const response = await fetch('/api/reviews/google-reviews', {
         method: 'POST',
         headers: {
@@ -102,7 +104,8 @@ export default function CustomerReviewsSummary({ businessName, googleReviewLink 
         body: JSON.stringify({
           businessName: businessName,
           googleReviewLink: googleReviewLink,
-          forceRefresh: isRefresh
+          forceRefresh: true, // Always force refresh to get fresh data and AI analysis
+          language: 'en-GB' // Specify UK English for AI responses
         }),
       });
 
@@ -114,6 +117,7 @@ export default function CustomerReviewsSummary({ businessName, googleReviewLink 
       setReviewsData(data);
 
       // Cache the new data
+      const now = new Date();
       await supabase
         .from('reviews_cache')
         .upsert({

@@ -428,49 +428,45 @@ ${formatTableData(table, record)}`);
   return parts.join('\n');
 }
 
-export async function GET(req: Request) {
-  const userId = await getUserId(req);
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
+async function generateInsights(userId: string, language: string = 'en') {
+  console.log('🔄 [API] Generating AI insights for dashboard');
+  
+  // Get user data using cache
+  const userData = await serverCache.getUserData(userId, getUserData);
+  
+  if (!userData) {
+    throw new Error('No user data available for insights');
   }
 
-  try {
-    console.log('🔄 [API] Generating AI insights for dashboard');
-    
-    // Get user data using cache
-    const userData = await serverCache.getUserData(userId, getUserData);
-    
-    if (!userData) {
-      return NextResponse.json({
-        type: 'error',
-        error: 'No user data available for insights'
-      }, { status: 404 });
-    }
+  // Get global instructions for comprehensive context
+  const regularChatCategories = [
+    'course_videos',
+    'main_chat_instructions', 
+    'global_instructions',
+    'product_features',
+    'faq_content',
+    'internal_knowledge_base',
+    'uncategorized'
+  ];
 
-    // Get global instructions for comprehensive context
-    const regularChatCategories = [
-      'course_videos',
-      'main_chat_instructions', 
-      'global_instructions',
-      'product_features',
-      'faq_content',
-      'internal_knowledge_base',
-      'uncategorized'
-    ];
+  // Get user context and instructions using cache
+  const [fullUserData, globalInstructions] = await Promise.all([
+    userData, // We already have this
+    serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories))
+  ]);
 
-    // Get user context and instructions using cache
-    const [fullUserData, globalInstructions] = await Promise.all([
-      userData, // We already have this
-      serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories))
-    ]);
+  // Prepare comprehensive context
+  const userContext = prepareUserContext(fullUserData);
+  const context = `${userContext}\n\nGLOBAL INSTRUCTIONS: ${globalInstructions.length} business guidance instructions available.`;
+  
+  // Language instruction for UK English
+  const languageInstruction = language === 'en-GB' 
+    ? '\n\nIMPORTANT: Please respond in UK English using British spelling, terminology, and conventions (e.g., use "colour" not "color", "realise" not "realize", "whilst" not "while", "analyse" not "analyze", etc.).'
+    : '';
 
-    // Prepare comprehensive context
-    const userContext = prepareUserContext(fullUserData);
-    const context = `${userContext}\n\nGLOBAL INSTRUCTIONS: ${globalInstructions.length} business guidance instructions available.`;
-    
-    // Create insights prompt
-    const insightsPrompt = `
-You are an AI business advisor analyzing a company's current state and progress. Based on the following business context, provide exactly 3 concise, actionable insights with detailed implementation steps.
+  // Create insights prompt
+  const insightsPrompt = `
+You are an AI business adviser analysing a company's current state and progress. Based on the following business context, provide exactly 3 concise, actionable insights with detailed implementation steps.
 
 Business Context: ${context}
 
@@ -508,60 +504,93 @@ Focus on business growth, team efficiency, and strategic planning. Keep insights
 
 IMPORTANT: 
 - Keep "howTo" instructions very short and simple - just mention which page to visit and what to do there in one sentence.
-- Include only ONE relevant page link per insight in the relevantPages array.
+- Include only ONE relevant page link per insight in the relevantPages array.${languageInstruction}
 `;
 
-    // Generate insights using Gemini
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-    
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [{ text: insightsPrompt }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 500,
-        temperature: 0.7,
-        topK: 20,
-        topP: 0.8,
-      }
-    });
-
-    const insights = result.response.text();
-    
-    // Parse JSON response
-    let parsedInsights;
-    try {
-      // Clean the response and try to parse JSON
-      const cleanedResponse = insights.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      parsedInsights = JSON.parse(cleanedResponse);
-    } catch (error) {
-      console.error('Failed to parse JSON response:', error);
-      // Fallback to simple text parsing
-      const simpleInsights = insights
-        .split('\n')
-        .filter(line => line.trim().length > 0)
-        .slice(0, 3)
-        .map(line => ({
-          insight: line.replace(/^[•\-\d\.]\s*/, '').trim(),
-          howTo: "Visit the relevant sections in the app to take action on this insight.",
-          relevantPages: ["/chat"]
-        }));
-      
-      parsedInsights = { insights: simpleInsights };
+  // Generate insights using Gemini
+  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  
+  const result = await model.generateContent({
+    contents: [{
+      role: 'user',
+      parts: [{ text: insightsPrompt }]
+    }],
+    generationConfig: {
+      maxOutputTokens: 500,
+      temperature: 0.7,
+      topK: 20,
+      topP: 0.8,
     }
+  });
 
-    // Ensure we have exactly 3 insights
-    const finalInsights = parsedInsights.insights ? parsedInsights.insights.slice(0, 3) : [];
-
-    console.log('✅ [API] Generated insights successfully');
+  const insights = result.response.text();
+  
+  // Parse JSON response
+  let parsedInsights;
+  try {
+    // Clean the response and try to parse JSON
+    const cleanedResponse = insights.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    parsedInsights = JSON.parse(cleanedResponse);
+  } catch (error) {
+    console.error('Failed to parse JSON response:', error);
+    // Fallback to simple text parsing
+    const simpleInsights = insights
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .slice(0, 3)
+      .map(line => ({
+        insight: line.replace(/^[•\-\d\.]\s*/, '').trim(),
+        howTo: "Visit the relevant sections in the app to take action on this insight.",
+        relevantPages: ["/chat"]
+      }));
     
+    parsedInsights = { insights: simpleInsights };
+  }
+
+  // Ensure we have exactly 3 insights
+  const finalInsights = parsedInsights.insights ? parsedInsights.insights.slice(0, 3) : [];
+
+  console.log('✅ [API] Generated insights successfully');
+  
+  return {
+    type: 'dashboard_insights',
+    insights: finalInsights,
+    context: context,
+    timestamp: new Date().toISOString()
+  };
+}
+
+export async function POST(req: Request) {
+  const userId = await getUserId(req);
+  if (!userId) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { language } = body;
+    
+    const result = await generateInsights(userId, language);
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('❌ [API] Error generating insights:', error);
     return NextResponse.json({
-      type: 'dashboard_insights',
-      insights: finalInsights,
-      context: context,
-      timestamp: new Date().toISOString()
-    });
+      type: 'error',
+      error: 'Failed to generate insights',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  const userId = await getUserId(req);
+  if (!userId) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const result = await generateInsights(userId);
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('❌ [API] Error generating insights:', error);

@@ -57,6 +57,7 @@ const MEETING_TYPES = [
   { id: "holidays", name: "Holidays", color: "#263238" },
   { id: "monthly_business_review", name: "Monthly Business Review", color: "#FFF9C4" },
   { id: "weekly_pulse", name: "Weekly Pulse", color: "#E1BEE7" },
+  { id: "others", name: "Others", color: "#FF9800" },
 ];
 
 const MeetingDialog = ({ isOpen, onClose, onSave, onDelete, onEdit, meeting, isLoading, viewOnly = false }: MeetingDialogProps) => {
@@ -649,13 +650,114 @@ export default function MeetingRhythmPlannerPage() {
         </CardContent>
       </Card>
 
-      {isLoading && !isDialogOpen ? (
-        <div className="flex justify-center my-12">
-          <Spinner className="h-8 w-8 text-blue-600" />
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Calendar Section - Left side (3/4 width) */}
+        <div className="lg:col-span-3">
+          {isLoading && !isDialogOpen ? (
+            <div className="flex justify-center my-12">
+              <Spinner className="h-8 w-8 text-blue-600" />
+            </div>
+          ) : (
+            renderCalendar()
+          )}
         </div>
-      ) : (
-        renderCalendar()
-      )}
+
+        {/* Meetings List Section - Right side (1/4 width) */}
+        <div className="lg:col-span-1">
+          <Card className="border shadow-sm bg-white h-fit">
+            <CardHeader className="py-3 bg-blue-50 border-b">
+              <CardTitle className="text-base font-semibold flex items-center text-gray-800">
+                <div className="bg-blue-100 p-1.5 rounded-lg mr-3">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">All Meetings</div>
+                  <div className="text-xs text-gray-500 font-normal">{meetings.length} scheduled</div>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-auto">
+                <div className="p-4">
+                  {meetings.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <div className="bg-gray-50 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <Calendar className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-600">No meetings scheduled</p>
+                      <p className="text-xs text-gray-400 mt-1">Add your first meeting to get started</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {meetings
+                        .sort((a, b) => new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime())
+                        .map((meeting) => {
+                          const meetingType = MEETING_TYPES.find(t => t.id === meeting.meeting_type);
+                          return (
+                            <div
+                              key={meeting.id}
+                              className="relative overflow-hidden rounded-xl cursor-pointer transition-all duration-200 border border-gray-200"
+                              style={{ 
+                                backgroundColor: meeting.meeting_color,
+                              }}
+                              onClick={() => handleViewMeeting(meeting)}
+                            >
+                              {/* Subtle gradient overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-60"></div>
+                              
+                              <div className="relative p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0 mr-2">
+                                    <div className="flex items-center gap-2 mb-1 justify-between">
+                                      <h4 className="text-sm font-semibold leading-tight" style={{
+                                        color: meeting.meeting_color === "#263238" ? "white" : "#1f2937"
+                                      }}>
+                                        {meeting.meeting_title || meetingType?.name || meeting.meeting_type}
+                                      </h4>
+                                      <Badge 
+                                        className="text-xs font-medium px-2 py-1 rounded-md border-0"
+                                        style={{
+                                          backgroundColor: meeting.meeting_color === "#263238" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
+                                          color: meeting.meeting_color === "#263238" ? "white" : "#374151",
+                                          backdropFilter: "blur(4px)"
+                                        }}
+                                      >
+                                        {meetingType?.name || meeting.meeting_type}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1 mb-2">
+                                      <div className="w-1 h-1 rounded-full" style={{
+                                        backgroundColor: meeting.meeting_color === "#263238" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.4)"
+                                      }}></div>
+                                      <p className="text-xs font-medium" style={{
+                                        color: meeting.meeting_color === "#263238" ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.7)"
+                                      }}>
+                                        {format(new Date(meeting.meeting_date), "MMM d, yyyy")}
+                                      </p>
+                                    </div>
+                                    {meeting.meeting_description && (
+                                      <p className="text-xs leading-relaxed line-clamp-2" style={{
+                                        color: meeting.meeting_color === "#263238" ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.6)"
+                                      }}>
+                                        {meeting.meeting_description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      }
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <MeetingDialog
         isOpen={isDialogOpen}

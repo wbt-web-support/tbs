@@ -131,11 +131,11 @@ const navigationSections: NavigationSection[] = [
         href: "/meeting-rhythm-planner",
         icon: Clock,
       },
-      {
-        name: "Quarterly Sprint Canvas",
-        href: "/quarterly-sprint-canvas",
-        icon: Flag,
-      },
+      // {
+      //   name: "Quarterly Sprint Canvas",
+      //   href: "/quarterly-sprint-canvas",
+      //   icon: Flag,
+      // },
       // {
       //   name: "Zapier Mappings",
       //   href: "/zapier-mappings",
@@ -261,16 +261,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             }
                           }}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
+                            "flex items-center gap-3 rounded-sm px-4 py-1.5 text-[14px] font-medium transition-colors",
                             "hover:bg-blue-50/80 hover:text-blue-700",
-                            isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600",
+                            isActive ? "bg-blue-50/60 text-blue-700 font-bold" : "text-gray-600",
                             item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-600"
                           )}
                           title={item.disabled ? "Coming Soon" : ""}
                         >
                           <item.icon 
                             className={cn(
-                              "h-4 w-4 transition-transform group-hover:scale-110",
+                              "h-5 w-5 transition-transform group-hover:scale-110",
                               isActive ? "text-blue-600" : "text-blue-500",
                               item.disabled && "text-gray-400"
                             )}

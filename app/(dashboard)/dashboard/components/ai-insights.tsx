@@ -42,7 +42,15 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
     try {
       setError(null);
       
-      const response = await fetch('/api/ai-dashboard');
+      const response = await fetch('/api/ai-dashboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          language: 'en-GB' // Specify UK English for AI responses
+        })
+      });
       const data = await response.json();
       
       if (!response.ok) {
