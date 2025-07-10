@@ -295,7 +295,7 @@ export default function InfoPage() {
                     <h4 className="font-semibold mb-3 text-gray-900">What it does:</h4>
                     <ul className="space-y-2 text-sm text-gray-600">
                       <li>• Analyses your complete business data using AI to identify strengths, weaknesses, and opportunities</li>
-                      <li>• Generates personalized priority tasks based on your business goals and current performance</li>
+                      <li>• Generates personalised priority tasks based on your business goals and current performance</li>
                       <li>• Provides real-time business health scores across key areas like sales, operations, and finance</li>
                       <li>• Tracks progress metrics with visual charts and trend analysis</li>
                       <li>• Integrates customer review analysis with sentiment scoring</li>

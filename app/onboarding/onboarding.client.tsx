@@ -518,7 +518,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
               </div>
 
               <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                Let's set up your personalised workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">TBS</span>.
+                Let's set up your personalised workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">Trade Business School</span>.
                 We'll configure everything to match your workflow and preferences.
               </p>
 
@@ -530,7 +530,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Workspace Setup</h3>
-                    <p className="text-sm text-gray-600">Personalized dashboard and tools</p>
+                    <p className="text-sm text-gray-600">Personalised dashboard and tools</p>
                   </div>
                 </div>
 
@@ -1032,7 +1032,7 @@ function FloatingAIAssistant({
                   <AnimatedAIBlob className="w-8 h-8" isActive={true} />
                 </div>
                 <h3 className="text-gray-900 font-semibold mb-2 text-lg">Hi! I'm here to help you</h3>
-                <p className="text-gray-600 mb-3">I'll assist you in filling out your onboarding form with smart suggestions and personalized content.</p>
+                <p className="text-gray-600 mb-3">I'll assist you in filling out your onboarding form with smart suggestions and personalised content.</p>
                 <p className="text-sm text-blue-600 font-medium">
                   ✨ Select any question below to get started
                 </p>

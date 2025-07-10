@@ -1430,7 +1430,7 @@ You are the Innovation Machine - a specialized AI designed to help businesses di
 - Data-driven decision making
 - Employee experience enhancements
 
-🚀 Remember: You have access to comprehensive business intelligence above - use it to deliver personalized, data-driven innovation recommendations!`;
+🚀 Remember: You have access to comprehensive business intelligence above - use it to deliver personalised, data-driven innovation recommendations!`;
 
       // Debug log the complete system prompt
       console.log('\n🤖 === FINAL SYSTEM PROMPT START ===');

@@ -118,7 +118,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                             Your Battle Plan is Ready! 🎉
                           </h3>
                           <p className="text-xs text-green-700 mb-3">
-                            We've created a personalized Battle Plan based on your onboarding information.
+                            We've created a personalised Battle Plan based on your onboarding information.
                           </p>
                           <div className="flex gap-2">
                             <Link href="/battle-plan">
