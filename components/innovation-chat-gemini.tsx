@@ -266,7 +266,7 @@ export function InnovationChatGemini({
   }, [supabase]);
 
   // Create new instance
-  const createNewInstance = useCallback(async (title: string = 'New Innovation') => {
+  const createNewInstance = useCallback(async (title: string = 'New Innovation Session') => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user?.id) return;
@@ -356,6 +356,26 @@ export function InnovationChatGemini({
         description: "Failed to delete innovation session",
         variant: "destructive",
       });
+    }
+  };
+
+  // Function to automatically generate and update the chat title
+  const generateAndSetTitle = async (messageContent: string, instanceId: string) => {
+    try {
+      const response = await fetch('/api/innovation-chat/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageContent }),
+      });
+      if (response.ok) {
+        const { title } = await response.json();
+        if (title) {
+          await updateInstanceTitle(instanceId, title);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to generate and set title:", error);
+      // We don't want to block user flow if this fails, so we just log the error
     }
   };
 
@@ -573,6 +593,13 @@ export function InnovationChatGemini({
     
     setShowBotTyping(true); // Show the animated lines indicator
     setIsLoading(true); // Disable input and indicate general loading
+
+    // Check if this is the first message in a new chat to trigger auto-naming
+    const isNewChat = innovationInstances.find(inst => inst.id === currentInstanceId)?.title === 'New Innovation Session';
+    if (isNewChat && messages.filter(m => m.role === 'user').length === 0 && currentInstanceId) {
+      // Don't await this, let it run in the background
+      generateAndSetTitle(userMessageText, currentInstanceId);
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();

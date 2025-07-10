@@ -319,13 +319,11 @@ export function RealtimeChatGemini({
       const data = await response.json();
       
       if (data.success && data.instance) {
-        // Refresh instances list and select the new instance
-        // This will implicitly call fetchInstanceHistory via fetchChatInstances
-        await fetchChatInstances();
-        
-        // setCurrentInstanceId(data.instance.id); // This is handled by fetchChatInstances now
-        // setMessages([]); // Also handled by fetchInstanceHistory
-        
+        // Optimistically update the list and switch to the new instance
+        setChatInstances(prev => [data.instance, ...prev]);
+        setCurrentInstanceId(data.instance.id);
+        setMessages([]); // A new chat starts with no messages.
+
         if (onInstanceChange) {
           onInstanceChange(data.instance.id);
         }
