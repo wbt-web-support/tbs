@@ -60,6 +60,13 @@ export default function QuarterPlannerPage() {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [tempValue, setTempValue] = useState('');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [dialogFormData, setDialogFormData] = useState<QuarterPlanningData>({
+    team_id: '',
+    y1_sales: null,
+    y1_profit: null,
+    target_sales: null,
+    target_profit: null,
+  });
 
   const supabase = createClient();
 
@@ -169,17 +176,23 @@ export default function QuarterPlannerPage() {
 
   const handleInputChange = (field: keyof QuarterPlanningData, value: string) => {
     const numericValue = value === '' ? null : Number(value);
-    setPlanningData(prev => ({
+    setDialogFormData(prev => ({
       ...prev,
       [field]: numericValue,
     }));
+  };
+
+  const openEditDialog = () => {
+    // Initialize dialog form with current planning data
+    setDialogFormData({ ...planningData });
+    setEditDialogOpen(true);
   };
 
   const savePlanningData = async () => {
     try {
       setSaving(true);
       
-      const { y1_sales, y1_profit, target_sales, target_profit, team_id } = planningData;
+      const { y1_sales, y1_profit, target_sales, target_profit, team_id } = dialogFormData;
       
       if (!y1_sales || !y1_profit || !target_sales || !target_profit) {
         toast.error("Please fill in all required fields");
@@ -202,6 +215,9 @@ export default function QuarterPlannerPage() {
           .eq('id', planningData.id);
 
         if (error) throw error;
+        
+        // Update main planning data with dialog form data
+        setPlanningData({ ...dialogFormData, id: planningData.id });
       } else {
         // Insert new record
         const { data, error } = await supabase
@@ -212,7 +228,8 @@ export default function QuarterPlannerPage() {
 
         if (error) throw error;
         
-        setPlanningData(prev => ({ ...prev, id: data.id }));
+        // Update main planning data with dialog form data and new ID
+        setPlanningData({ ...dialogFormData, id: data.id });
       }
 
       setEditDialogOpen(false);
@@ -396,6 +413,12 @@ export default function QuarterPlannerPage() {
             Plan and track your sales and profit targets across 12 quarters. QoQ growth projections based on your targets.
           </p>
         </div>
+        {planningData.y1_sales && planningData.y1_profit && planningData.target_sales && planningData.target_profit && (
+          <Button onClick={openEditDialog} variant="outline" className="flex items-center gap-2">
+            <Edit className="h-4 w-4" />
+            Edit Targets
+          </Button>
+        )}
       </div>
 
       {/* Compact Planning Summary */}
@@ -457,105 +480,11 @@ export default function QuarterPlannerPage() {
           <Card className="border border-gray-200 bg-white shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">QoQ Profit Growth</p>
-                  <p className="text-lg font-bold text-blue-600">{formatPercentage(qoqGrowth.profitGrowth)}</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-gray-500">Required quarterly growth</p>
-                    <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Edit Planning Targets</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Y1 Starting Point */}
-                            <div className="space-y-3">
-                              <h3 className="font-medium text-gray-900">Y1 Starting Point</h3>
-                              <div>
-                                <Label htmlFor="edit-y1-sales">Sales</Label>
-                                <Input
-                                  id="edit-y1-sales"
-                                  type="number"
-                                  placeholder="2,000,000"
-                                  value={planningData.y1_sales?.toString() || ''}
-                                  onChange={(e) => handleInputChange('y1_sales', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-y1-profit">Profit</Label>
-                                <Input
-                                  id="edit-y1-profit"
-                                  type="number"
-                                  placeholder="100,000"
-                                  value={planningData.y1_profit?.toString() || ''}
-                                  onChange={(e) => handleInputChange('y1_profit', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-
-                            {/* 3-Year Target */}
-                            <div className="space-y-3">
-                              <h3 className="font-medium text-gray-900">3-Year Target</h3>
-                              <div>
-                                <Label htmlFor="edit-target-sales">Sales</Label>
-                                <Input
-                                  id="edit-target-sales"
-                                  type="number"
-                                  placeholder="10,000,000"
-                                  value={planningData.target_sales?.toString() || ''}
-                                  onChange={(e) => handleInputChange('target_sales', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-target-profit">Profit</Label>
-                                <Input
-                                  id="edit-target-profit"
-                                  type="number"
-                                  placeholder="2,000,000"
-                                  value={planningData.target_profit?.toString() || ''}
-                                  onChange={(e) => handleInputChange('target_profit', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button
-                              onClick={savePlanningData}
-                              disabled={saving || !planningData.y1_sales || !planningData.y1_profit || !planningData.target_sales || !planningData.target_profit}
-                              className="bg-blue-600 hover:bg-blue-700"
-                            >
-                              {saving ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Saving...
-                                </>
-                              ) : (
-                                <>
-                                  <Save className="h-4 w-4 mr-2" />
-                                  Save
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
+                                                  <div>
+                   <p className="text-sm font-medium text-gray-600">QoQ Profit Growth</p>
+                   <p className="text-lg font-bold text-blue-600">{formatPercentage(qoqGrowth.profitGrowth)}</p>
+                   <p className="text-sm text-gray-500">Required quarterly growth</p>
+                 </div>
                 <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
                 </div>
@@ -574,103 +503,192 @@ export default function QuarterPlannerPage() {
               <p className="text-gray-600">
                 Configure your starting point and 3-year targets to begin planning.
               </p>
-              <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Calculator className="h-4 w-4 mr-2" />
-                    Configure Planning
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Configure Planning Targets</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Y1 Starting Point */}
-                      <div className="space-y-3">
-                        <h3 className="font-medium text-gray-900">Y1 Starting Point</h3>
-                        <div>
-                          <Label htmlFor="setup-y1-sales">Sales</Label>
-                          <Input
-                            id="setup-y1-sales"
-                            type="number"
-                            placeholder="2,000,000"
-                            value={planningData.y1_sales?.toString() || ''}
-                            onChange={(e) => handleInputChange('y1_sales', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="setup-y1-profit">Profit</Label>
-                          <Input
-                            id="setup-y1-profit"
-                            type="number"
-                            placeholder="100,000"
-                            value={planningData.y1_profit?.toString() || ''}
-                            onChange={(e) => handleInputChange('y1_profit', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
+                             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                 <DialogTrigger asChild>
+                   <Button className="bg-blue-600 hover:bg-blue-700" onClick={openEditDialog}>
+                     <Calculator className="h-4 w-4 mr-2" />
+                     Configure Planning
+                   </Button>
+                 </DialogTrigger>
+                 <DialogContent className="sm:max-w-md">
+                   <DialogHeader>
+                     <DialogTitle>Configure Planning Targets</DialogTitle>
+                   </DialogHeader>
+                   <div className="space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       {/* Y1 Starting Point */}
+                       <div className="space-y-3">
+                         <h3 className="font-medium text-gray-900">Y1 Starting Point</h3>
+                         <div>
+                           <Label htmlFor="setup-y1-sales">Sales</Label>
+                           <Input
+                             id="setup-y1-sales"
+                             type="number"
+                             placeholder="2,000,000"
+                             value={dialogFormData.y1_sales?.toString() || ''}
+                             onChange={(e) => handleInputChange('y1_sales', e.target.value)}
+                             className="mt-1"
+                           />
+                         </div>
+                         <div>
+                           <Label htmlFor="setup-y1-profit">Profit</Label>
+                           <Input
+                             id="setup-y1-profit"
+                             type="number"
+                             placeholder="100,000"
+                             value={dialogFormData.y1_profit?.toString() || ''}
+                             onChange={(e) => handleInputChange('y1_profit', e.target.value)}
+                             className="mt-1"
+                           />
+                         </div>
+                       </div>
 
-                      {/* 3-Year Target */}
-                      <div className="space-y-3">
-                        <h3 className="font-medium text-gray-900">3-Year Target</h3>
-                        <div>
-                          <Label htmlFor="setup-target-sales">Sales</Label>
-                          <Input
-                            id="setup-target-sales"
-                            type="number"
-                            placeholder="10,000,000"
-                            value={planningData.target_sales?.toString() || ''}
-                            onChange={(e) => handleInputChange('target_sales', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="setup-target-profit">Profit</Label>
-                          <Input
-                            id="setup-target-profit"
-                            type="number"
-                            placeholder="2,000,000"
-                            value={planningData.target_profit?.toString() || ''}
-                            onChange={(e) => handleInputChange('target_profit', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={savePlanningData}
-                        disabled={saving || !planningData.y1_sales || !planningData.y1_profit || !planningData.target_sales || !planningData.target_profit}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {saving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-2" />
-                            Save
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                       {/* 3-Year Target */}
+                       <div className="space-y-3">
+                         <h3 className="font-medium text-gray-900">3-Year Target</h3>
+                         <div>
+                           <Label htmlFor="setup-target-sales">Sales</Label>
+                           <Input
+                             id="setup-target-sales"
+                             type="number"
+                             placeholder="10,000,000"
+                             value={dialogFormData.target_sales?.toString() || ''}
+                             onChange={(e) => handleInputChange('target_sales', e.target.value)}
+                             className="mt-1"
+                           />
+                         </div>
+                         <div>
+                           <Label htmlFor="setup-target-profit">Profit</Label>
+                           <Input
+                             id="setup-target-profit"
+                             type="number"
+                             placeholder="2,000,000"
+                             value={dialogFormData.target_profit?.toString() || ''}
+                             onChange={(e) => handleInputChange('target_profit', e.target.value)}
+                             className="mt-1"
+                           />
+                         </div>
+                       </div>
+                     </div>
+                     
+                     <div className="flex justify-end gap-2">
+                       <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                         Cancel
+                       </Button>
+                       <Button
+                         onClick={savePlanningData}
+                         disabled={saving || !dialogFormData.y1_sales || !dialogFormData.y1_profit || !dialogFormData.target_sales || !dialogFormData.target_profit}
+                         className="bg-blue-600 hover:bg-blue-700"
+                       >
+                         {saving ? (
+                           <>
+                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                             Saving...
+                           </>
+                         ) : (
+                           <>
+                             <Save className="h-4 w-4 mr-2" />
+                             Save
+                           </>
+                         )}
+                       </Button>
+                     </div>
+                   </div>
+                 </DialogContent>
+               </Dialog>
             </div>
           </CardContent>
-        </Card>
-      )}
+                 </Card>
+       )}
+
+      {/* Main Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Planning Targets</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Y1 Starting Point */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">Y1 Starting Point</h3>
+                <div>
+                  <Label htmlFor="main-y1-sales">Sales</Label>
+                  <Input
+                    id="main-y1-sales"
+                    type="number"
+                    placeholder="2,000,000"
+                    value={dialogFormData.y1_sales?.toString() || ''}
+                    onChange={(e) => handleInputChange('y1_sales', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="main-y1-profit">Profit</Label>
+                  <Input
+                    id="main-y1-profit"
+                    type="number"
+                    placeholder="100,000"
+                    value={dialogFormData.y1_profit?.toString() || ''}
+                    onChange={(e) => handleInputChange('y1_profit', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              {/* 3-Year Target */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">3-Year Target</h3>
+                <div>
+                  <Label htmlFor="main-target-sales">Sales</Label>
+                  <Input
+                    id="main-target-sales"
+                    type="number"
+                    placeholder="10,000,000"
+                    value={dialogFormData.target_sales?.toString() || ''}
+                    onChange={(e) => handleInputChange('target_sales', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="main-target-profit">Profit</Label>
+                  <Input
+                    id="main-target-profit"
+                    type="number"
+                    placeholder="2,000,000"
+                    value={dialogFormData.target_profit?.toString() || ''}
+                    onChange={(e) => handleInputChange('target_profit', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={savePlanningData}
+                disabled={saving || !dialogFormData.y1_sales || !dialogFormData.y1_profit || !dialogFormData.target_sales || !dialogFormData.target_profit}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Charts */}
       {quarterData.length > 0 && (
