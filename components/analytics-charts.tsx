@@ -49,6 +49,7 @@ import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/custo
 import { CustomerReviewsSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
 import Leaderboard from '@/components/leaderboard';
 import ZapierMappingsDisplay from '@/app/(dashboard)/dashboard/components/zapier-mappings-display';
+import AIInsights from '@/app/(dashboard)/dashboard/components/ai-insights';
 
 interface AnalyticsChartsProps {
   data: any;
@@ -75,6 +76,7 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
   const [showMainChart, setShowMainChart] = useState(false);
   const [showSideCharts, setShowSideCharts] = useState(false);
   const [showQuickLinks, setShowQuickLinks] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
 
   // Start staggered loading when component mounts
   useEffect(() => {
@@ -91,6 +93,9 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
     
     // Show quick links and reviews section
     timeouts.push(setTimeout(() => setShowQuickLinks(true), 1000));
+    
+    // Show AI insights after quick links
+    timeouts.push(setTimeout(() => setShowAIInsights(true), 1200));
     
     return () => {
       timeouts.forEach(clearTimeout);
@@ -645,7 +650,8 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
 
     <div className='col-span-2 md:col-span-1 space-y-6'>
       {/* Quick Links Grid */}
-      <div className='grid grid-cols-2 gap-4'>
+      {showQuickLinks && (
+        <div className='grid grid-cols-2 gap-4 animate-in fade-in duration-500'>
         {/* Chat */}
         <Link href="/chat" className='block'>
           <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all cursor-pointer group'>
@@ -693,7 +699,15 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
             </div>
           </div>
         </Link>
-      </div>
+        </div>
+      )}
+
+      {/* AI Insights Section */}
+      {showAIInsights && (
+        <div className="mb-6 animate-in fade-in duration-500">
+          <AIInsights />
+        </div>
+      )}
 
          {/* Leaderboard Section */}
          {/* <div className="mb-6">
@@ -702,15 +716,19 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
 
 
       {/* Customer Reviews */}
-      {customerReviewsLoading ? (
-        <CustomerReviewsSkeleton />
-      ) : (
-        adminProfile && (
-          <CustomerReviewsSummary 
-            businessName={adminProfile.business_name} 
-            googleReviewLink={adminProfile.google_review_link} 
-          />
-        )
+      {showQuickLinks && (
+        <div className="animate-in fade-in duration-500">
+          {customerReviewsLoading ? (
+            <CustomerReviewsSkeleton />
+          ) : (
+            adminProfile && (
+              <CustomerReviewsSummary 
+                businessName={adminProfile.business_name} 
+                googleReviewLink={adminProfile.google_review_link} 
+              />
+            )
+          )}
+        </div>
       )}
     </div>
 

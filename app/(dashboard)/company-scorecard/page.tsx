@@ -42,6 +42,7 @@ type ScorecardData = {
   status: "Green" | "Light Green" | "Yellow" | "Light Red" | "Red";
   metricowner_id: string | null;
   metricowner?: TeamMember;
+  metric_type: "Numeric Count" | "Currency / Revenue" | "Percentages";
   metricsource: string;
   notes: string;
   created_at: string;
@@ -53,17 +54,107 @@ type ScorecardData = {
 
 const STATUS_OPTIONS = ["Green", "Light Green", "Yellow", "Light Red", "Red"];
 
+const METRIC_TYPES = [
+  "Numeric Count",
+  "Currency / Revenue", 
+  "Percentages",
+];
+
 // Function to calculate status based on performance
 const calculateStatus = (actual: number | null, target: number | null): ScorecardData["status"] => {
-  if (!actual || !target || target === 0) return "Yellow";
-  
+  if (actual === null || target === null || target === 0) return "Red";
   const percentage = (actual / target) * 100;
-  
   if (percentage >= 100) return "Green";
   if (percentage >= 80) return "Light Green";
   if (percentage >= 60) return "Yellow";
   if (percentage >= 40) return "Light Red";
   return "Red";
+};
+
+// Function to format values based on metric type
+const formatValue = (value: number | null, metricType: string): string => {
+  if (value === null) return "—";
+  
+  switch (metricType) {
+    case "Currency / Revenue":
+      return `£${value.toLocaleString()}`;
+    case "Percentages":
+      return `${value}%`;
+
+    case "Numeric Count":
+    default:
+      return value.toLocaleString();
+  }
+};
+
+// Function to format weekly breakdown display
+const formatWeeklyBreakdown = (scorecard: ScorecardData): string => {
+  const weeks = [
+    scorecard.week1,
+    scorecard.week2,
+    scorecard.week3,
+    scorecard.week4
+  ];
+  
+  if (weeks.every((v) => v === null) && scorecard.remainder === null) {
+    return "—";
+  }
+  
+  const formattedWeeks = weeks.map((week) => 
+    week !== null ? formatValue(week, scorecard.metric_type) : "—"
+  );
+  
+  let result = formattedWeeks.join(" / ");
+  
+  if (scorecard.remainder !== null) {
+    result += ` (Rem: ${formatValue(scorecard.remainder, scorecard.metric_type)})`;
+  }
+  
+  return result;
+};
+
+// Function to format actual/target display
+const formatActualTarget = (scorecard: ScorecardData): string => {
+  if (scorecard.monthlyactual === null && scorecard.monthlytarget === null) {
+    return "—";
+  }
+  
+  const actual = scorecard.monthlyactual !== null 
+    ? formatValue(scorecard.monthlyactual, scorecard.metric_type) 
+    : "—";
+  const target = scorecard.monthlytarget !== null 
+    ? formatValue(scorecard.monthlytarget, scorecard.metric_type) 
+    : "—";
+  
+  return `${actual} / ${target}`;
+};
+
+// Function to get format hint based on metric type
+const getFormatHint = (metricType: string): string => {
+  switch (metricType) {
+    case "Currency / Revenue":
+      return "Will display as: £1,234";
+    case "Percentages":
+      return "Will display as: 85%";
+    case "Numeric Count":
+    default:
+      return "Will display as: 1,234";
+  }
+};
+
+// Function to get placeholder based on metric type
+const getPlaceholder = (metricType: string, field: string): string => {
+  const baseText = field === "target" ? "target" : "value";
+  
+  switch (metricType) {
+    case "Currency / Revenue":
+      return `Enter ${baseText} (e.g. 5000)`;
+    case "Percentages":
+      return `Enter ${baseText} (e.g. 85)`;
+    case "Numeric Count":
+    default:
+      return `Enter ${baseText} (e.g. 100)`;
+  }
 };
 
 export default function CompanyScorecardPage() {
@@ -92,6 +183,7 @@ export default function CompanyScorecardPage() {
     monthlyactual: null,
     monthlytarget: null,
     metricowner_id: null,
+    metric_type: "Numeric Count",
     metricsource: "",
     notes: ""
   });
@@ -101,25 +193,25 @@ export default function CompanyScorecardPage() {
   // Auto-calculate monthlyactual from week fields unless manually edited
   useEffect(() => {
     if (!monthlyActualManuallyEdited.current) {
-      const sum = [formData.week1, formData.week2, formData.week3, formData.week4]
+      const sum = [formData.week1, formData.week2, formData.week3, formData.week4, formData.remainder]
         .map((v) => v || 0)
         .reduce((a, b) => a + b, 0);
       setFormData((prev) => ({ ...prev, monthlyactual: sum }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.week1, formData.week2, formData.week3, formData.week4]);
+  }, [formData.week1, formData.week2, formData.week3, formData.week4, formData.remainder]);
 
   // Additional useEffect to handle calculation when dialog opens (for editing)
   useEffect(() => {
     if (dialogOpen && !monthlyActualManuallyEdited.current) {
-      const sum = [formData.week1, formData.week2, formData.week3, formData.week4]
+      const sum = [formData.week1, formData.week2, formData.week3, formData.week4, formData.remainder]
         .map((v) => v || 0)
         .reduce((a, b) => a + b, 0);
       if (formData.monthlyactual !== sum) {
         setFormData((prev) => ({ ...prev, monthlyactual: sum }));
       }
     }
-  }, [dialogOpen, formData.week1, formData.week2, formData.week3, formData.week4, formData.monthlyactual]);
+  }, [dialogOpen, formData.week1, formData.week2, formData.week3, formData.week4, formData.remainder, formData.monthlyactual]);
 
   // When user edits monthlyactual, set the manual edit flag
   const handleMonthlyActualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,6 +335,7 @@ export default function CompanyScorecardPage() {
       monthlyactual: null,
       monthlytarget: null,
       metricowner_id: null,
+      metric_type: "Numeric Count",
       metricsource: "",
       notes: ""
     });
@@ -264,6 +357,7 @@ export default function CompanyScorecardPage() {
       monthlyactual: scorecard.monthlyactual !== null ? Number(scorecard.monthlyactual) : null,
       monthlytarget: scorecard.monthlytarget !== null ? Number(scorecard.monthlytarget) : null,
       metricowner_id: scorecard.metricowner_id,
+      metric_type: scorecard.metric_type || "Numeric Count",
       metricsource: scorecard.metricsource || "",
       notes: scorecard.notes || ""
     });
@@ -307,7 +401,6 @@ export default function CompanyScorecardPage() {
           .update({
             name: formData.name,
             department_id: formData.department_id,
-            department_old: formData.department_id ? departments.find(d => d.id === formData.department_id)?.name || "" : "",
             week1: formData.week1,
             week2: formData.week2,
             week3: formData.week3,
@@ -317,7 +410,7 @@ export default function CompanyScorecardPage() {
             monthlytarget: formData.monthlytarget,
             status: calculatedStatus,
             metricowner_id: formData.metricowner_id,
-            metricowner_old: formData.metricowner_id ? teamMembers.find(m => m.id === formData.metricowner_id)?.full_name || "" : "",
+            metric_type: formData.metric_type,
             metricsource: formData.metricsource,
             notes: formData.notes,
             updated_at: new Date().toISOString()
@@ -333,7 +426,6 @@ export default function CompanyScorecardPage() {
             user_id: user.id,
             name: formData.name,
             department_id: formData.department_id,
-            department_old: formData.department_id ? departments.find(d => d.id === formData.department_id)?.name || "" : "",
             week1: formData.week1,
             week2: formData.week2,
             week3: formData.week3,
@@ -343,7 +435,7 @@ export default function CompanyScorecardPage() {
             monthlytarget: formData.monthlytarget,
             status: calculatedStatus,
             metricowner_id: formData.metricowner_id,
-            metricowner_old: formData.metricowner_id ? teamMembers.find(m => m.id === formData.metricowner_id)?.full_name || "" : "",
+            metric_type: formData.metric_type,
             metricsource: formData.metricsource,
             notes: formData.notes
           });
@@ -474,8 +566,8 @@ export default function CompanyScorecardPage() {
                     <TableRow className="border-b border-gray-200 hover:bg-gray-50/50">
                       <TableHead className="w-[180px] py-3.5 text-sm font-semibold text-gray-700 px-6">Name</TableHead>
                       <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Department</TableHead>
-                      <TableHead className="w-[200px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Weekly Breakdown</TableHead>
-                      <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Actual / Target</TableHead>
+                      <TableHead className="w-[220px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Weekly Breakdown</TableHead>
+                      <TableHead className="w-[140px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Actual / Target</TableHead>
                       <TableHead className="w-[90px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Status</TableHead>
                       <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Owner</TableHead>
                       <TableHead className="w-[120px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l text-right">Actions</TableHead>
@@ -497,20 +589,10 @@ export default function CompanyScorecardPage() {
                             ) : "—"}
                           </TableCell>
                           <TableCell className="py-4 text-center px-6 border-l">
-                            {[
-                              scorecard.week1,
-                              scorecard.week2,
-                              scorecard.week3,
-                              scorecard.week4
-                            ].every((v) => v === null) && scorecard.remainder === null
-                              ? "—"
-                              : `${scorecard.week1 ?? "-"} / ${scorecard.week2 ?? "-"} / ${scorecard.week3 ?? "-"} / ${scorecard.week4 ?? "-"}` +
-                                (scorecard.remainder !== null ? ` (Rem: ${scorecard.remainder})` : "")}
+                            {formatWeeklyBreakdown(scorecard)}
                           </TableCell>
                           <TableCell className="py-4 text-center font-medium px-6 border-l">
-                            {(scorecard.monthlyactual !== null || scorecard.monthlytarget !== null)
-                              ? `${scorecard.monthlyactual ?? "-"} / ${scorecard.monthlytarget ?? "-"}`
-                              : "—"}
+                            {formatActualTarget(scorecard)}
                           </TableCell>
                           <TableCell className="py-4 px-6 border-l">
                             {scorecard.status ? (
@@ -640,23 +722,23 @@ export default function CompanyScorecardPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 1</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week1 !== null ? currentScorecard.week1 : "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week1 !== null ? formatValue(currentScorecard.week1, currentScorecard.metric_type) : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 2</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week2 !== null ? currentScorecard.week2 : "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week2 !== null ? formatValue(currentScorecard.week2, currentScorecard.metric_type) : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 3</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week3 !== null ? currentScorecard.week3 : "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week3 !== null ? formatValue(currentScorecard.week3, currentScorecard.metric_type) : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Week 4</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.week4 !== null ? currentScorecard.week4 : "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.week4 !== null ? formatValue(currentScorecard.week4, currentScorecard.metric_type) : "—"}</div>
                     </div>
                     <div className="col-span-2">
                       <div className="text-sm font-medium text-gray-500">Remainder</div>
-                      <div className="text-md mt-1 font-semibold">{currentScorecard.remainder !== null ? currentScorecard.remainder : "—"}</div>
+                      <div className="text-md mt-1 font-semibold">{currentScorecard.remainder !== null ? formatValue(currentScorecard.remainder, currentScorecard.metric_type) : "—"}</div>
                     </div>
                   </div>
                 </div>
@@ -671,11 +753,11 @@ export default function CompanyScorecardPage() {
                   <div className="space-y-4">
                     <div>
                       <div className="text-sm font-medium text-gray-500">Monthly Actual</div>
-                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlyactual !== null ? currentScorecard.monthlyactual : "—"}</div>
+                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlyactual !== null ? formatValue(currentScorecard.monthlyactual, currentScorecard.metric_type) : "—"}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Monthly Target</div>
-                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlytarget !== null ? currentScorecard.monthlytarget : "—"}</div>
+                      <div className="text-lg mt-1 font-semibold">{currentScorecard.monthlytarget !== null ? formatValue(currentScorecard.monthlytarget, currentScorecard.metric_type) : "—"}</div>
                     </div>
                     
                     {/* Progress visualization - simple percentage if both values are numbers */}
@@ -725,6 +807,10 @@ export default function CompanyScorecardPage() {
                     <div>
                       <div className="text-sm font-medium text-gray-500">Metric Source</div>
                       <div className="text-md mt-1">{currentScorecard.metricsource || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">Metric Type</div>
+                      <div className="text-md mt-1">{currentScorecard.metric_type || "—"}</div>
                     </div>
                   </div>
                 </div>
@@ -845,75 +931,113 @@ export default function CompanyScorecardPage() {
               </div>
 
               {/* Weekly Breakdown Grouped Fields in Form */}
-              <div className="col-span-2">
-                <Label className="text-sm font-medium">Weekly Breakdown</Label>
+              <div className="col-span-2 bg-gray-100 p-4 rounded-lg">
                 <div className="flex gap-2 mt-1">
+                  <div className="w-1/4">
+                  <label htmlFor="week1" className="text-sm font-medium">Week 1</label>
                   <Input
                     id="week1"
                     type="number"
                     value={formData.week1 || ""}
                     onChange={(e) => handleWeekChange("week1", e.target.value)}
-                    placeholder="W1"
-                    className="w-20"
+                    placeholder={getPlaceholder(formData.metric_type, "week")}
+                    
                   />
+                  </div>
+                  <div className="w-1/4">
+                  <label htmlFor="week2" className="text-sm font-medium">Week 2</label>
                   <Input
                     id="week2"
                     type="number"
                     value={formData.week2 || ""}
                     onChange={(e) => handleWeekChange("week2", e.target.value)}
-                    placeholder="W2"
-                    className="w-20"
+                    placeholder={getPlaceholder(formData.metric_type, "week")}
+                    
                   />
+                  </div>
+                  <div className="w-1/4">
+                  <label htmlFor="week3" className="text-sm font-medium">Week 3</label>
                   <Input
                     id="week3"
                     type="number"
                     value={formData.week3 || ""}
                     onChange={(e) => handleWeekChange("week3", e.target.value)}
-                    placeholder="W3"
-                    className="w-20"
+                    placeholder={getPlaceholder(formData.metric_type, "week")}
+                    
                   />
+                  </div>
+                  <div className="w-1/4">
+                  <label htmlFor="week4" className="text-sm font-medium">Week 4</label>
                   <Input
                     id="week4"
                     type="number"
                     value={formData.week4 || ""}
                     onChange={(e) => handleWeekChange("week4", e.target.value)}
-                    placeholder="W4"
-                    className="w-20"
+                    placeholder={getPlaceholder(formData.metric_type, "week")}
+                    
                   />
+                  </div>
+                  <div className="w-1/4">
+                  <label htmlFor="remainder" className="text-sm font-medium">Remainder</label>
                   <Input
                     id="remainder"
                     type="number"
                     value={formData.remainder || ""}
                     onChange={(e) => handleWeekChange("remainder", e.target.value)}
-                    placeholder="Rem."
-                    className="w-24"
+                    placeholder={getPlaceholder(formData.metric_type, "remainder")}
+                    
                   />
+                  </div>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">{getFormatHint(formData.metric_type)}</p>
+              </div>
+
+                    <div className="flex flex-row gap-4 w-full justify-between col-span-2">
+
+              {/* Metric Type Field */}
+              <div className="w-full">
+                <Label htmlFor="metric_type" className="text-sm font-medium">Metric Type</Label>
+                <Select 
+                  value={formData.metric_type} 
+                  onValueChange={(value) => setFormData({ ...formData, metric_type: value as ScorecardData["metric_type"] })}
+                >
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Select metric type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {METRIC_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">{getFormatHint(formData.metric_type)}</p>
               </div>
 
               {/* Monthly Data Fields */}
-              <div>
+              <div className="w-full">
                 <Label htmlFor="monthlyactual" className="text-sm font-medium">Monthly Actual</Label>
                 <Input
                   id="monthlyactual"
                   type="number"
                   value={formData.monthlyactual || ""}
                   onChange={handleMonthlyActualChange}
-                  placeholder="Monthly actual value"
+                  placeholder={getPlaceholder(formData.metric_type, "actual")}
                   className="mt-1"
                 />
               </div>
 
-              <div>
+              <div className="w-full">
                 <Label htmlFor="monthlytarget" className="text-sm font-medium">Monthly Target</Label>
                 <Input
                   id="monthlytarget"
                   type="number"
                   value={formData.monthlytarget || ""}
                   onChange={(e) => setFormData({ ...formData, monthlytarget: e.target.value ? Number(e.target.value) : null })}
-                  placeholder="Monthly target value"
+                  placeholder={getPlaceholder(formData.metric_type, "target")}
                   className="mt-1"
                 />
+              </div>
+
               </div>
 
               {/* Status Preview */}
