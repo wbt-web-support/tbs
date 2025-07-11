@@ -102,17 +102,7 @@ const navigationSections: NavigationSection[] = [
       },
     ],
   },
-  {
-    title: "Innovation",
-    items: [
-      {
-        name: "Create Innovations",
-        href: "/innovation-machine",
-        icon: Lightbulb,
-        disabled: false,
-      },
-    ],
-  },
+ 
   {
     title: "Management",
     items: [
@@ -144,15 +134,19 @@ const navigationSections: NavigationSection[] = [
       // {
       //   name: "Zapier Mappings",
       //   href: "/zapier-mappings",
-      //   icon: Settings,
+      //   icon: Settings, 
       // }
+    ],
+  },
+  {
+    title: "Innovation",
+    items: [
       {
-        name: "Leads Hub",
-        href: "https://app.theleadshub.ai/",
-        icon: Box,
-        target: "_blank",
-        rel: "noopener noreferrer"
-      }
+        name: "Innovations Lab",
+        href: "/innovation-machine",
+        icon: Lightbulb,
+        disabled: false,
+      },
     ],
   },
 ];
@@ -292,20 +286,31 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           )}
         </nav>
         
-        {/* Skool Classroom Link - Fixed at bottom */}
+        {/* Important Links - Fixed at bottom */}
         <div className="p-4 border-t mt-auto">
-          <a 
-            href="https://www.skool.com/tradesgang" 
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between w-full p-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all"
-          >
-            <div className="flex items-center">
-              <GraduationCap className="h-5 w-5 mr-2" />
-              <span className="font-medium text-sm">Trades Gang Classroom</span>
-            </div>
-          </a>
-          <p className="text-xs text-center text-gray-500 mt-2">Access your training videos & community</p>
+          <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider mb-3">
+            Important Links
+          </h2>
+          <div className="space-y-0">
+            <a 
+              href="https://app.theleadshub.ai/" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] font-medium text-gray-600 hover:bg-blue-50/80 hover:text-blue-700 transition-colors"
+            >
+              <Box className="h-4 w-4" />
+              Leads Hub
+            </a>
+            <a 
+              href="https://www.skool.com/tradesgang" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] font-medium text-gray-600 hover:bg-blue-50/80 hover:text-blue-700 transition-colors"
+            >
+              <GraduationCap className="h-4 w-4" />
+              Trades Gang Classroom
+            </a>
+          </div>
         </div>
       </div>
     </>

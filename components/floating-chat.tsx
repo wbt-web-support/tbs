@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { RealtimeChatGemini } from "./realtime-chat-gemini";
-import { MessageSquare, X, Plus, ChevronDown, Trash2, Edit2, Check } from "lucide-react";
+import { MessageSquare, X, Plus, ChevronDown, Trash2, Edit2, Check, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
@@ -388,7 +388,7 @@ export function FloatingChat() {
               {isLoadingInstances ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
               ) : (
-                <MessageSquare className="h-6 w-6" />
+                <Sparkles className="h-6 w-6" />
               )}
             </Button>
 
@@ -431,7 +431,7 @@ export function FloatingChat() {
                     </div>
                   ) : chatInstances.length === 0 ? (
                     <div className="text-center py-8 text-gray-500 text-sm">
-                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>No chats yet</p>
                       <Button
                         variant="ghost"

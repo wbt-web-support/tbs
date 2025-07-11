@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     // Build comprehensive prompt for SOP generation
     const prompt = `You are an expert business consultant creating a comprehensive Standard Operating Procedure (SOP) document for a trades business. 
 
-Based on the following company information, create a detailed, professional SOP that covers all critical business operations.
+Based on the following company information, create a detailed, professional SOP that covers all critical business operations. Important: Please make sure all the writing is in UK English.
 
 COMPANY INFORMATION:
 ${Object.entries(dataToUse).map(([key, value]) => {
