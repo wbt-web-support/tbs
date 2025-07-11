@@ -471,7 +471,7 @@ export default function QuarterPlannerPage() {
 
       {/* Compact Planning Summary */}
       {planningData.y1_sales && planningData.y1_profit && planningData.target_sales && planningData.target_profit ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Y1 Starting Point */}
           <Card className="border border-gray-200 bg-white shadow-sm">
             <CardContent className="p-4">
@@ -513,9 +513,9 @@ export default function QuarterPlannerPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                                  <div>
-                   <p className="text-sm font-medium text-gray-600">Annual Sales Growth</p>
+                   <p className="text-sm font-medium text-gray-600">Annual Growth Rate</p>
                    <p className="text-lg font-bold text-green-600">{formatPercentage(annualGrowth.salesGrowth)}</p>
-                   <p className="text-sm text-gray-500">Required annual growth</p>
+                   <p className="text-sm text-gray-500">Required annual growth to hit your target</p>
                  </div>
                 <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
                   <BarChart3 className="h-5 w-5 text-green-600" />
@@ -524,21 +524,6 @@ export default function QuarterPlannerPage() {
             </CardContent>
           </Card>
 
-          {/* QoQ Profit Growth */}
-          <Card className="border border-gray-200 bg-white shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                                                  <div>
-                   <p className="text-sm font-medium text-gray-600">Annual Profit Growth</p>
-                   <p className="text-lg font-bold text-blue-600">{formatPercentage(annualGrowth.profitGrowth)}</p>
-                   <p className="text-sm text-gray-500">Required annual growth</p>
-                 </div>
-                <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       ) : (
         <Card className="border border-gray-200 bg-white shadow-sm">
@@ -776,8 +761,7 @@ export default function QuarterPlannerPage() {
                   <h4 className="font-medium text-blue-600 mb-2">Annual Growth Rate</h4>
                   <p className="text-gray-700">We calculate how much you need to grow each year to hit your target.</p>
                   <div className="mt-2 text-sm text-gray-600">
-                    <p>• Sales: 71.0% per year (to go $2M → $10M)</p>
-                    <p>• Profit: 171.4% per year (to go $100K → $2M)</p>
+                    <p>71.0% per year (to go $2M → $10M)</p>
                   </div>
                 </div>
                 
