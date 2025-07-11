@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Loader2, Save, Calculator, TrendingUp, DollarSign, Edit, Target, BarChart3 } from 'lucide-react';
+import { Loader2, Save, Calculator, TrendingUp, DollarSign, Edit, Target, BarChart3, Info } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,10 +40,8 @@ type QuarterData = {
   actual_margin: number | null;
 };
 
-type EditingCell = {
-  quarter: string;
-  field: 'actual_sales' | 'actual_profit';
-  value: string;
+type EditingCells = {
+  [key: string]: string; // key format: "quarter-field", value is the temp input value
 };
 
 export default function QuarterPlannerPage() {
@@ -57,9 +55,9 @@ export default function QuarterPlannerPage() {
     target_profit: null,
   });
   const [quarterData, setQuarterData] = useState<QuarterData[]>([]);
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [tempValue, setTempValue] = useState('');
+  const [editingCells, setEditingCells] = useState<EditingCells>({});
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [explanationOpen, setExplanationOpen] = useState(false);
   const [dialogFormData, setDialogFormData] = useState<QuarterPlanningData>({
     team_id: '',
     y1_sales: null,
@@ -152,13 +150,29 @@ export default function QuarterPlannerPage() {
     if (!y1_sales || !y1_profit || !target_sales || !target_profit) return;
 
     const quarters = [];
-    const salesGrowth = (target_sales - y1_sales) / 12; // Growth per quarter
-    const profitGrowth = (target_profit - y1_profit) / 12; // Growth per quarter
+    
+    // Calculate the compound quarterly growth rate
+    // From the sheet: appears to be ~9.6% quarterly growth
+    const totalGrowthFactor = target_sales / y1_sales; // e.g., 3M / 1M = 3
+    const quarterlyGrowthRate = Math.pow(totalGrowthFactor, 1/12) - 1; // Compound growth over 12 quarters
+    
+    // Use TARGET margin consistently for straight line calculations (like in your sheet)
+    const targetMargin = (target_profit / target_sales) * 100; // e.g., 20%
+    
+    // Calculate Q1 starting point that will reach annual target by Q12
+    // If target is $3M annually, Q12 should be target_sales / 4 (quarterly)
+    const q12Sales = target_sales / 4; // Quarterly target (3M annual / 4 quarters)
+    const q1Sales = q12Sales / Math.pow(1 + quarterlyGrowthRate, 11);
 
     for (let i = 1; i <= 12; i++) {
-      const quarterSales = y1_sales + (salesGrowth * i);
-      const quarterProfit = y1_profit + (profitGrowth * i);
-      const quarterMargin = (quarterProfit / quarterSales) * 100;
+      // Calculate sales using compound growth
+      const quarterSales = q1Sales * Math.pow(1 + quarterlyGrowthRate, i - 1);
+      
+      // Use consistent TARGET margin for straight line (like your sheet)
+      const quarterMargin = targetMargin;
+      
+      // Calculate profit based on sales and target margin
+      const quarterProfit = (quarterSales * quarterMargin) / 100;
 
       quarters.push({
         quarter: `Q${i}`,
@@ -244,13 +258,20 @@ export default function QuarterPlannerPage() {
 
   const startEditing = (quarter: string, field: 'actual_sales' | 'actual_profit') => {
     const currentValue = quarterData.find(q => q.quarter === quarter)?.[field];
-    setEditingCell({ quarter, field, value: currentValue?.toString() || '' });
-    setTempValue(currentValue?.toString() || '');
+    const cellKey = `${quarter}-${field}`;
+    setEditingCells(prev => ({
+      ...prev,
+      [cellKey]: currentValue?.toString() || ''
+    }));
   };
 
-  const cancelEditing = () => {
-    setEditingCell(null);
-    setTempValue('');
+  const cancelEditing = (quarter: string, field: 'actual_sales' | 'actual_profit') => {
+    const cellKey = `${quarter}-${field}`;
+    setEditingCells(prev => {
+      const newState = { ...prev };
+      delete newState[cellKey];
+      return newState;
+    });
   };
 
   const saveActualValue = async (quarter: string, field: 'actual_sales' | 'actual_profit', value: string) => {
@@ -315,7 +336,14 @@ export default function QuarterPlannerPage() {
         })
       );
 
-      cancelEditing();
+      // Remove from editing state
+      const cellKey = `${quarter}-${field}`;
+      setEditingCells(prev => {
+        const newState = { ...prev };
+        delete newState[cellKey];
+        return newState;
+      });
+      
       toast.success("Actual value updated successfully");
     } catch (error) {
       console.error("Error saving actual value:", error);
@@ -324,11 +352,22 @@ export default function QuarterPlannerPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, quarter: string, field: 'actual_sales' | 'actual_profit') => {
+    const cellKey = `${quarter}-${field}`;
+    const currentValue = editingCells[cellKey] || '';
+    
     if (e.key === 'Enter') {
-      saveActualValue(quarter, field, tempValue);
+      saveActualValue(quarter, field, currentValue);
     } else if (e.key === 'Escape') {
-      cancelEditing();
+      cancelEditing(quarter, field);
     }
+  };
+
+  const updateEditingValue = (quarter: string, field: 'actual_sales' | 'actual_profit', value: string) => {
+    const cellKey = `${quarter}-${field}`;
+    setEditingCells(prev => ({
+      ...prev,
+      [cellKey]: value
+    }));
   };
 
   const formatCurrency = (value: number | null) => {
@@ -352,17 +391,20 @@ export default function QuarterPlannerPage() {
     
     if (!y1_sales || !y1_profit || !target_sales || !target_profit) return { salesGrowth: 0, profitGrowth: 0 };
 
-    // Calculate growth over 12 quarters (3 years)
-    const salesGrowth = Math.pow(target_sales / y1_sales, 1/12) - 1; // Compound quarterly growth rate
-    const profitGrowth = Math.pow(target_profit / y1_profit, 1/12) - 1; // Compound quarterly growth rate
+    // Calculate compound annual growth rate, then convert to quarterly
+    const annualSalesGrowthFactor = target_sales / y1_sales; // e.g., 3M / 1M = 3x over 3 years
+    const annualSalesGrowth = Math.pow(annualSalesGrowthFactor, 1/3) - 1; // Compound annual growth rate
+    
+    const annualProfitGrowthFactor = target_profit / y1_profit; // e.g., 600K / 100K = 6x over 3 years  
+    const annualProfitGrowth = Math.pow(annualProfitGrowthFactor, 1/3) - 1; // Compound annual growth rate
 
     return {
-      salesGrowth: salesGrowth * 100,
-      profitGrowth: profitGrowth * 100,
+      salesGrowth: annualSalesGrowth * 100, // Display as annual percentage
+      profitGrowth: annualProfitGrowth * 100, // Display as annual percentage
     };
   };
 
-  const qoqGrowth = calculateQoQGrowth();
+  const annualGrowth = calculateQoQGrowth();
 
   // Prepare chart data and config
   const chartData = quarterData.map(quarter => ({
@@ -410,15 +452,21 @@ export default function QuarterPlannerPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">12 Quarter Planner</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Plan and track your sales and profit targets across 12 quarters. QoQ growth projections based on your targets.
+            Plan and track your sales and profit targets across 12 quarters. Compound growth projections based on your targets.
           </p>
         </div>
-        {planningData.y1_sales && planningData.y1_profit && planningData.target_sales && planningData.target_profit && (
-          <Button onClick={openEditDialog} variant="outline" className="flex items-center gap-2">
-            <Edit className="h-4 w-4" />
-            Edit Targets
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setExplanationOpen(true)} variant="ghost" size="sm" className="flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            How it works
           </Button>
-        )}
+          {planningData.y1_sales && planningData.y1_profit && planningData.target_sales && planningData.target_profit && (
+            <Button onClick={openEditDialog} variant="outline" className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Edit Targets
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Compact Planning Summary */}
@@ -464,11 +512,11 @@ export default function QuarterPlannerPage() {
           <Card className="border border-gray-200 bg-white shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">QoQ Sales Growth</p>
-                  <p className="text-lg font-bold text-green-600">{formatPercentage(qoqGrowth.salesGrowth)}</p>
-                  <p className="text-sm text-gray-500">Required quarterly growth</p>
-                </div>
+                                 <div>
+                   <p className="text-sm font-medium text-gray-600">Annual Sales Growth</p>
+                   <p className="text-lg font-bold text-green-600">{formatPercentage(annualGrowth.salesGrowth)}</p>
+                   <p className="text-sm text-gray-500">Required annual growth</p>
+                 </div>
                 <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
                   <BarChart3 className="h-5 w-5 text-green-600" />
                 </div>
@@ -481,9 +529,9 @@ export default function QuarterPlannerPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                                                   <div>
-                   <p className="text-sm font-medium text-gray-600">QoQ Profit Growth</p>
-                   <p className="text-lg font-bold text-blue-600">{formatPercentage(qoqGrowth.profitGrowth)}</p>
-                   <p className="text-sm text-gray-500">Required quarterly growth</p>
+                   <p className="text-sm font-medium text-gray-600">Annual Profit Growth</p>
+                   <p className="text-lg font-bold text-blue-600">{formatPercentage(annualGrowth.profitGrowth)}</p>
+                   <p className="text-sm text-gray-500">Required annual growth</p>
                  </div>
                 <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -690,6 +738,143 @@ export default function QuarterPlannerPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Explanation Dialog */}
+      <Dialog open={explanationOpen} onOpenChange={setExplanationOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto p-12">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Calculator className="h-6 w-6 text-blue-600" />
+              How the 12Q Planner Works
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-8">
+            
+            {/* Section 1: What You Input */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">1. What You Input</h3>
+              <div className="space-y-3">
+                <div>
+                  <span className="font-medium text-blue-600">Y1 Starting Point:</span>
+                  <span className="ml-2">Your current annual sales and profit numbers</span>
+                </div>
+                <div>
+                  <span className="font-medium text-blue-600">3-Year Target:</span>
+                  <span className="ml-2">Where you want to be in 3 years (12 quarters)</span>
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 rounded border-l-4 border-blue-400">
+                  <span className="text-sm text-gray-700">Example: Start at $2M sales → Reach $10M sales in 3 years</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: How Growth is Calculated */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">2. How Growth is Calculated</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-blue-600 mb-2">Annual Growth Rate</h4>
+                  <p className="text-gray-700">We calculate how much you need to grow each year to hit your target.</p>
+                  <div className="mt-2 text-sm text-gray-600">
+                    <p>• Sales: 71.0% per year (to go $2M → $10M)</p>
+                    <p>• Profit: 171.4% per year (to go $100K → $2M)</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-blue-600 mb-2">Quarterly Growth Rate</h4>
+                  <p className="text-gray-700">Annual growth is broken into smaller quarterly steps.</p>
+                  <div className="mt-2 text-sm text-gray-600">
+                    <p>• Each quarter grows ~14.2% from the previous quarter</p>
+                    <p>• This compounds over 12 quarters to reach your target</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Why Q1 Starts Where It Does */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Why Q1 Starts Where It Does</h3>
+              <div className="space-y-3">
+                <p className="text-gray-700">Q1 is calculated backwards from your final target to ensure you hit your goal.</p>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Q12 Target (quarterly):</span>
+                    <span className="font-medium">$2.5M</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Q1 Starting Point:</span>
+                    <span className="font-medium">$571K</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Growth per quarter:</span>
+                    <span className="font-medium">~14.2%</span>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-blue-50 rounded border-l-4 border-blue-400">
+                  <span className="text-sm text-gray-700">Think of it like: Working backwards from where you want to end up, then growing consistently each quarter to get there.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: The Two Tables */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">4. Understanding the Two Tables</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium text-blue-600 mb-2">Straight Line Table</h4>
+                  <p className="text-gray-700 text-sm mb-3">Shows your "perfect" growth path using your target profit margin consistently.</p>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <p>Q1: $571K sales × 20% = $114K profit</p>
+                    <p>Q2: $653K sales × 20% = $131K profit</p>
+                    <p>Q12: $2.5M sales × 20% = $500K profit</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-blue-600 mb-2">Actual Table</h4>
+                  <p className="text-gray-700 text-sm mb-3">Where you input your real results as they happen.</p>
+                  <div className="text-xs text-gray-600">
+                    <p>Click any cell to edit and track your actual performance against the straight line target.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 5: How to Use This */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">5. How to Use This Tool</h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-sm">1.</span>
+                  <span className="text-gray-700">Set your starting point and 3-year target</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-sm">2.</span>
+                  <span className="text-gray-700">Review the straight line growth path</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-sm">3.</span>
+                  <span className="text-gray-700">Input actual results each quarter</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-sm">4.</span>
+                  <span className="text-gray-700">Compare actual vs straight line to track progress</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-sm">5.</span>
+                  <span className="text-gray-700">Adjust strategy if you're ahead or behind target</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Charts */}
       {quarterData.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -823,40 +1008,40 @@ export default function QuarterPlannerPage() {
                     {quarterData.map((quarter) => (
                       <TableRow key={quarter.quarter} className="border-b border-gray-100">
                         <TableCell className="font-medium">{quarter.quarter}</TableCell>
-                        <TableCell>
-                          {editingCell?.quarter === quarter.quarter && editingCell?.field === 'actual_sales' ? (
+                        <TableCell className="relative">
+                          {editingCells[`${quarter.quarter}-actual_sales`] !== undefined ? (
                             <Input
                               type="number"
-                              value={tempValue}
-                              onChange={(e) => setTempValue(e.target.value)}
+                              value={editingCells[`${quarter.quarter}-actual_sales`]}
+                              onChange={(e) => updateEditingValue(quarter.quarter, 'actual_sales', e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, quarter.quarter, 'actual_sales')}
-                              onBlur={() => saveActualValue(quarter.quarter, 'actual_sales', tempValue)}
-                              className="h-8 text-sm"
+                              onBlur={() => saveActualValue(quarter.quarter, 'actual_sales', editingCells[`${quarter.quarter}-actual_sales`])}
+                              className="absolute top-2.5 left-5 h-8 text-sm w-full border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 max-w-60"
                               autoFocus
                             />
                           ) : (
                             <div
-                              className="cursor-pointer hover:bg-gray-100 rounded flex items-center"
+                              className="cursor-pointer hover:bg-gray-100 rounded flex items-center px-1 min-w-0"
                               onClick={() => startEditing(quarter.quarter, 'actual_sales')}
                             >
                               {formatCurrency(quarter.actual_sales)}
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
-                          {editingCell?.quarter === quarter.quarter && editingCell?.field === 'actual_profit' ? (
+                        <TableCell className="relative">
+                          {editingCells[`${quarter.quarter}-actual_profit`] !== undefined ? (
                             <Input
                               type="number"
-                              value={tempValue}
-                              onChange={(e) => setTempValue(e.target.value)}
+                              value={editingCells[`${quarter.quarter}-actual_profit`]}
+                              onChange={(e) => updateEditingValue(quarter.quarter, 'actual_profit', e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, quarter.quarter, 'actual_profit')}
-                              onBlur={() => saveActualValue(quarter.quarter, 'actual_profit', tempValue)}
-                              className="h-8 text-sm"
+                              onBlur={() => saveActualValue(quarter.quarter, 'actual_profit', editingCells[`${quarter.quarter}-actual_profit`])}
+                              className="absolute top-2.5 left-5 h-8 text-sm w-full border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 max-w-40"
                               autoFocus
                             />
                           ) : (
                             <div
-                              className="cursor-pointer hover:bg-gray-100 rounded flex items-center"
+                              className="cursor-pointer hover:bg-gray-100 rounded flex items-center px-1 min-w-0"
                               onClick={() => startEditing(quarter.quarter, 'actual_profit')}
                             >
                               {formatCurrency(quarter.actual_profit)}
