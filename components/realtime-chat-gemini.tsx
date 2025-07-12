@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink, Plus, MessageSquare, Trash2, Edit2, Check, Sidebar, SidebarOpen, Menu } from "lucide-react";
+import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink, Plus, MessageSquare, Trash2, Edit2, Check, Sidebar, SidebarOpen, Menu, Bot, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
 import { Input } from "@/components/ui/input";
@@ -1804,10 +1804,10 @@ export function RealtimeChatGemini({
               </Button>
             )}
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-              G
+            <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
+              <h2 className="text-sm font-semibold text-gray-800">AI Assistant</h2>
               <p className="text-xs text-gray-500">Trades Business School</p>
             </div>
             {isLoadingHistory && (

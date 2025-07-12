@@ -28,6 +28,8 @@ type QuarterPlanningData = {
   y1_profit: number | null;
   target_sales: number | null;
   target_profit: number | null;
+  straight_line_data?: Record<string, { sales: number; profit: number; margin: number }>;
+  actual_data?: Record<string, { sales: number; profit: number; margin: number }>;
 };
 
 type QuarterData = {
@@ -72,12 +74,6 @@ export default function QuarterPlannerPage() {
     fetchPlanningData();
   }, []);
 
-  useEffect(() => {
-    if (planningData.y1_sales && planningData.y1_profit && planningData.target_sales && planningData.target_profit) {
-      calculateStraightLineData();
-    }
-  }, [planningData.y1_sales, planningData.y1_profit, planningData.target_sales, planningData.target_profit]);
-
   const fetchPlanningData = async () => {
     try {
       setLoading(true);
@@ -89,7 +85,7 @@ export default function QuarterPlannerPage() {
       // Fetch existing planning data
       const { data: existingData, error } = await supabase
         .from('quarter_planning')
-        .select('*')
+        .select('id, team_id, y1_sales, y1_profit, target_sales, target_profit, straight_line_data, actual_data, created_at, updated_at')
         .eq('team_id', teamId)
         .maybeSingle();
 
@@ -102,35 +98,43 @@ export default function QuarterPlannerPage() {
           y1_profit: existingData.y1_profit ? Number(existingData.y1_profit) : null,
           target_sales: existingData.target_sales ? Number(existingData.target_sales) : null,
           target_profit: existingData.target_profit ? Number(existingData.target_profit) : null,
+          straight_line_data: existingData.straight_line_data || {},
+          actual_data: existingData.actual_data || {},
         });
 
-        // Fetch actual data for quarters
-        const { data: actualData, error: actualError } = await supabase
-          .from('quarter_actual_data')
-          .select('*')
-          .eq('quarter_planning_id', existingData.id);
+        // Check if we have straight line data in JSON format
+        const straightLineData = existingData.straight_line_data;
+        const actualData = existingData.actual_data;
 
-        if (actualError) throw actualError;
+        if (straightLineData && typeof straightLineData === 'object' && Object.keys(straightLineData).length > 0) {
+          // Build quarter data from JSON straight line data
+          const quarterDataFromDB: QuarterData[] = [];
+          
+          for (let i = 1; i <= 12; i++) {
+            const quarter = `Q${i}`;
+            const straightLine = straightLineData[quarter];
+            const actual = actualData?.[quarter];
+            
+            if (straightLine) {
+              const quarterEntry = {
+                quarter,
+                straight_line_sales: Number(straightLine.sales),
+                straight_line_profit: Number(straightLine.profit),
+                straight_line_margin: Number(straightLine.margin),
+                actual_sales: actual?.sales !== undefined && actual?.sales !== null ? Number(actual.sales) : null,
+                actual_profit: actual?.profit !== undefined && actual?.profit !== null ? Number(actual.profit) : null,
+                actual_margin: actual?.margin !== undefined && actual?.margin !== null ? Number(actual.margin) : null,
+              };
+              
+              quarterDataFromDB.push(quarterEntry);
+            }
+          }
 
-        // Update quarter data with actual values
-        if (actualData && actualData.length > 0) {
+          setQuarterData(quarterDataFromDB);
+        } else {
+          // Calculate straight line data if not in database
           setTimeout(() => {
-            setQuarterData(prevData => 
-              prevData.map(quarter => {
-                const actual = actualData.find(a => a.quarter === quarter.quarter);
-                if (actual) {
-                  const actualSales = Number(actual.actual_sales);
-                  const actualProfit = Number(actual.actual_profit);
-                  return {
-                    ...quarter,
-                    actual_sales: actualSales,
-                    actual_profit: actualProfit,
-                    actual_margin: actualSales > 0 ? (actualProfit / actualSales) * 100 : null,
-                  };
-                }
-                return quarter;
-              })
-            );
+            calculateStraightLineData();
           }, 100);
         }
       } else {
@@ -144,7 +148,40 @@ export default function QuarterPlannerPage() {
     }
   };
 
-  const calculateStraightLineData = () => {
+  const saveStraightLineData = async (quarters: QuarterData[]) => {
+    try {
+      if (!planningData.id) return;
+
+      // Convert quarters array to JSON object
+      const straightLineData: Record<string, { sales: number; profit: number; margin: number }> = {};
+      quarters.forEach(quarter => {
+        straightLineData[quarter.quarter] = {
+          sales: quarter.straight_line_sales,
+          profit: quarter.straight_line_profit,
+          margin: quarter.straight_line_margin,
+        };
+      });
+
+      // Update the planning record with straight line data
+      const { error } = await supabase
+        .from('quarter_planning')
+        .update({ straight_line_data: straightLineData })
+        .eq('id', planningData.id);
+
+      if (error) throw error;
+
+      // Update planning data state with new straight line data
+      setPlanningData(prev => ({
+        ...prev,
+        straight_line_data: straightLineData,
+      }));
+    } catch (error) {
+      console.error("Error saving straight line data:", error);
+      toast.error("Failed to save straight line data");
+    }
+  };
+
+  const calculateStraightLineData = async () => {
     const { y1_sales, y1_profit, target_sales, target_profit } = planningData;
     
     if (!y1_sales || !y1_profit || !target_sales || !target_profit) return;
@@ -186,6 +223,11 @@ export default function QuarterPlannerPage() {
     }
 
     setQuarterData(quarters);
+    
+    // Save straight line data to database if planning data exists
+    if (planningData.id) {
+      await saveStraightLineData(quarters);
+    }
   };
 
   const handleInputChange = (field: keyof QuarterPlanningData, value: string) => {
@@ -221,6 +263,8 @@ export default function QuarterPlannerPage() {
         target_profit,
       };
 
+      let updatedPlanningData;
+
       if (planningData.id) {
         // Update existing record
         const { error } = await supabase
@@ -231,7 +275,8 @@ export default function QuarterPlannerPage() {
         if (error) throw error;
         
         // Update main planning data with dialog form data
-        setPlanningData({ ...dialogFormData, id: planningData.id });
+        updatedPlanningData = { ...dialogFormData, id: planningData.id };
+        setPlanningData(updatedPlanningData);
       } else {
         // Insert new record
         const { data, error } = await supabase
@@ -243,11 +288,55 @@ export default function QuarterPlannerPage() {
         if (error) throw error;
         
         // Update main planning data with dialog form data and new ID
-        setPlanningData({ ...dialogFormData, id: data.id });
+        updatedPlanningData = { ...dialogFormData, id: data.id };
+        setPlanningData(updatedPlanningData);
       }
 
+      // Recalculate and save straight line data with updated planning targets
+      setPlanningData(updatedPlanningData);
+      
+      // Calculate straight line data based on new targets
+      const totalGrowthFactor = target_sales / y1_sales;
+      const quarterlyGrowthRate = Math.pow(totalGrowthFactor, 1/12) - 1;
+      const targetMargin = (target_profit / target_sales) * 100;
+      const q12Sales = target_sales / 4;
+      const q1Sales = q12Sales / Math.pow(1 + quarterlyGrowthRate, 11);
+
+      const calculatedQuarters: QuarterData[] = [];
+      for (let i = 1; i <= 12; i++) {
+        const quarterSales = q1Sales * Math.pow(1 + quarterlyGrowthRate, i - 1);
+        const quarterMargin = targetMargin;
+        const quarterProfit = (quarterSales * quarterMargin) / 100;
+
+        calculatedQuarters.push({
+          quarter: `Q${i}`,
+          straight_line_sales: Math.round(quarterSales),
+          straight_line_profit: Math.round(quarterProfit),
+          straight_line_margin: Math.round(quarterMargin * 100) / 100,
+          actual_sales: null,
+          actual_profit: null,
+          actual_margin: null,
+        });
+      }
+
+      // Save straight line data
+      await saveStraightLineData(calculatedQuarters);
+
+      // Update quarter data with calculated values, preserving any existing actual values
+      setQuarterData(prevData => {
+        return calculatedQuarters.map(newQuarter => {
+          const existingQuarter = prevData.find(q => q.quarter === newQuarter.quarter);
+          return {
+            ...newQuarter,
+            actual_sales: existingQuarter?.actual_sales || null,
+            actual_profit: existingQuarter?.actual_profit || null,
+            actual_margin: existingQuarter?.actual_margin || null,
+          };
+        });
+      });
+
       setEditDialogOpen(false);
-      toast.success("Planning data saved successfully");
+      toast.success("Planning data and straight line projections saved successfully");
     } catch (error) {
       console.error("Error saving planning data:", error);
       toast.error("Failed to save planning data");
@@ -283,43 +372,49 @@ export default function QuarterPlannerPage() {
 
       const numericValue = value === '' ? null : Number(value);
 
-      // Get current actual data for this quarter
-      const { data: existingActual, error: fetchError } = await supabase
-        .from('quarter_actual_data')
-        .select('*')
-        .eq('quarter_planning_id', planningData.id)
-        .eq('quarter', quarter)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-
+      // Get current quarter data
       const currentQuarterData = quarterData.find(q => q.quarter === quarter);
       const otherField = field === 'actual_sales' ? 'actual_profit' : 'actual_sales';
       const otherValue = currentQuarterData?.[otherField];
 
-      const dataToSave = {
-        quarter_planning_id: planningData.id,
-        quarter,
-        [field]: numericValue,
-        [otherField]: otherValue,
+      // Get current actual data JSON and update it
+      const { data: currentPlanningData, error: fetchError } = await supabase
+        .from('quarter_planning')
+        .select('actual_data')
+        .eq('id', planningData.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const actualData = currentPlanningData.actual_data || {};
+      
+      // Update the specific quarter's data
+      const existingQuarterData = actualData[quarter] || {};
+      const sales = field === 'actual_sales' ? numericValue : (existingQuarterData.sales || otherValue);
+      const profit = field === 'actual_profit' ? numericValue : (existingQuarterData.profit || otherValue);
+      const margin = sales && profit && sales > 0 ? (profit / sales) * 100 : null;
+
+
+
+      actualData[quarter] = {
+        sales: sales !== null ? Number(sales) : null,
+        profit: profit !== null ? Number(profit) : null,
+        margin: margin !== null ? Number(margin) : null,
       };
 
-      if (existingActual) {
-        // Update existing record
-        const { error } = await supabase
-          .from('quarter_actual_data')
-          .update(dataToSave)
-          .eq('id', existingActual.id);
+      // Save updated actual data to database
+      const { error } = await supabase
+        .from('quarter_planning')
+        .update({ actual_data: actualData })
+        .eq('id', planningData.id);
 
-        if (error) throw error;
-      } else {
-        // Insert new record
-        const { error } = await supabase
-          .from('quarter_actual_data')
-          .insert(dataToSave);
+      if (error) throw error;
 
-        if (error) throw error;
-      }
+      // Update planning data state with new actual data
+      setPlanningData(prev => ({
+        ...prev,
+        actual_data: actualData,
+      }));
 
       // Update local state
       setQuarterData(prev => 

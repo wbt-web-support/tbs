@@ -222,6 +222,24 @@ async function getUserData(userId: string) {
             return { table: 'key_initiative_departments', data: data || [] };
           })
       );
+
+      // Quarter Planning - filtered by team_id
+      console.log('🔄 [Supabase] Fetching quarter_planning');
+      teamScopedPromises.push(
+        supabase
+          .from('quarter_planning')
+          .select('*')
+          .eq('team_id', userTeamId)
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error(`❌ [Supabase] Error fetching quarter_planning:`, error);
+              return { table: 'quarter_planning', data: [] };
+            }
+            console.log(`✅ [Supabase] Fetched ${data?.length || 0} records from quarter_planning`);
+            return { table: 'quarter_planning', data: data || [] };
+          })
+      );
     } else {
       console.log('⚠️ [Supabase] No team_id found, skipping team-scoped tables');
     }
@@ -1128,6 +1146,33 @@ function formatTableData(table: string, data: any) {
     return parts.join('\n');
   }
 
+  // Special handling for Quarter Planning
+  if (table === 'quarter_planning') {
+    parts.push(`- Team ID: ${formatValue(data.team_id)}`);
+    if (data.y1_sales) parts.push(`- Year 1 Sales: ${formatValue(data.y1_sales)}`);
+    if (data.y1_profit) parts.push(`- Year 1 Profit: ${formatValue(data.y1_profit)}`);
+    if (data.target_sales) parts.push(`- Target Sales: ${formatValue(data.target_sales)}`);
+    if (data.target_profit) parts.push(`- Target Profit: ${formatValue(data.target_profit)}`);
+
+    if (data.straight_line_data) {
+      parts.push(`- Straight Line Data: ${formatValue(data.straight_line_data)}`);
+    }
+
+    if (data.actual_data) {
+      parts.push(`- Actual Data: ${formatValue(data.actual_data)}`);
+    }
+
+    // Add any other fields if necessary, excluding system fields and already handled ones
+    Object.entries(data)
+      .filter(([key]) => !['id', 'created_at', 'updated_at', 'team_id', 'y1_sales', 'y1_profit', 'target_sales', 'target_profit', 'straight_line_data', 'actual_data'].includes(key))
+      .forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
+        }
+      });
+    return parts.join('\n');
+  }
+
   // Add all fields except system fields for other tables
   Object.entries(data)
     .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at'].includes(key))
@@ -1244,6 +1289,7 @@ ${formatTableData('user_timeline_claims', claim)}`
     'playbooks',
     'playbook_assignments',
     'quarterly_sprint_canvas',
+    'quarter_planning',
     'triage_planner',
     'key_initiative_departments',
     'key_initiatives',
