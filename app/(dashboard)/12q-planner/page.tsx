@@ -74,6 +74,21 @@ export default function QuarterPlannerPage() {
     fetchPlanningData();
   }, []);
 
+  useEffect(() => {
+    const hasData =
+      planningData.y1_sales &&
+      planningData.y1_profit &&
+      planningData.target_sales &&
+      planningData.target_profit;
+    if (
+      hasData &&
+      (!planningData.straight_line_data ||
+        Object.keys(planningData.straight_line_data).length === 0)
+    ) {
+      calculateStraightLineData();
+    }
+  }, [planningData]);
+
   const fetchPlanningData = async () => {
     try {
       setLoading(true);
@@ -132,10 +147,7 @@ export default function QuarterPlannerPage() {
 
           setQuarterData(quarterDataFromDB);
         } else {
-          // Calculate straight line data if not in database
-          setTimeout(() => {
-            calculateStraightLineData();
-          }, 100);
+          // Data will be calculated by the useEffect hook that watches planningData
         }
       } else {
         setPlanningData(prev => ({ ...prev, team_id: teamId }));
@@ -457,7 +469,7 @@ export default function QuarterPlannerPage() {
     }
   };
 
-  const updateEditingValue = (quarter: string, field: 'actual_sales' | 'actual_profit', value: string) => {
+  const handleEditingValue = (quarter: string, field: 'actual_sales' | 'actual_profit', value: string) => {
     const cellKey = `${quarter}-${field}`;
     setEditingCells(prev => ({
       ...prev,
@@ -467,9 +479,9 @@ export default function QuarterPlannerPage() {
 
   const formatCurrency = (value: number | null) => {
     if (value === null) return "—";
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'GBP',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
@@ -1092,7 +1104,7 @@ export default function QuarterPlannerPage() {
                             <Input
                               type="number"
                               value={editingCells[`${quarter.quarter}-actual_sales`]}
-                              onChange={(e) => updateEditingValue(quarter.quarter, 'actual_sales', e.target.value)}
+                              onChange={(e) => handleEditingValue(quarter.quarter, 'actual_sales', e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, quarter.quarter, 'actual_sales')}
                               onBlur={() => saveActualValue(quarter.quarter, 'actual_sales', editingCells[`${quarter.quarter}-actual_sales`])}
                               className="absolute top-2.5 left-5 h-8 text-sm w-full border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 max-w-60"
@@ -1112,7 +1124,7 @@ export default function QuarterPlannerPage() {
                             <Input
                               type="number"
                               value={editingCells[`${quarter.quarter}-actual_profit`]}
-                              onChange={(e) => updateEditingValue(quarter.quarter, 'actual_profit', e.target.value)}
+                              onChange={(e) => handleEditingValue(quarter.quarter, 'actual_profit', e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, quarter.quarter, 'actual_profit')}
                               onBlur={() => saveActualValue(quarter.quarter, 'actual_profit', editingCells[`${quarter.quarter}-actual_profit`])}
                               className="absolute top-2.5 left-5 h-8 text-sm w-full border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 max-w-40"

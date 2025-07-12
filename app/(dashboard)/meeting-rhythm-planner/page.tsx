@@ -231,6 +231,7 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onDelete, onEdit, meeting, isL
               value={formData.meeting_date}
               onChange={(e) => handleChange("meeting_date", e.target.value)}
               className="w-full"
+              min={format(new Date(), "yyyy-MM-dd")}
             />
           </div>
           
@@ -531,6 +532,12 @@ export default function MeetingRhythmPlannerPage() {
                       const isWeekendDay = isWeekend(selectedYear, monthIndex, dayNumber);
                       const isThursdayDay = isThursday(selectedYear, monthIndex, dayNumber);
                       
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const currentDate = new Date(selectedYear, monthIndex, dayNumber);
+                      currentDate.setHours(0, 0, 0, 0);
+                      const isPastAndEmpty = currentDate < today && dateMeetings.length === 0;
+
                       // Default background for the day cell
                       let bgColor = isWeekendDay ? "bg-gray-50" : "bg-white";
                       let mainMeeting = dateMeetings[0]; // Get the first meeting for this date
@@ -551,12 +558,21 @@ export default function MeetingRhythmPlannerPage() {
                       return (
                         <div
                           key={day}
-                          className="aspect-square p-1 relative cursor-pointer hover:opacity-90 transition-all rounded-md hover:scale-105 hover:z-10 hover:border transform"
+                          className={`aspect-square p-1 relative transition-all rounded-md transform ${!isPastAndEmpty ? 'cursor-pointer hover:opacity-90 hover:scale-105 hover:z-10 border-2 border-transparent hover:border-gray-200' : 'cursor-not-allowed'}`}
                           onClick={() => {
-                            // If there are meetings, show the first one
+                            // Allow viewing meetings on any date
                             if (dateMeetings.length > 0) {
                               handleViewMeeting(dateMeetings[0]);
-                            } else if (isThursdayDay) {
+                              return;
+                            }
+
+                            // Prevent creating meetings on past dates
+                            if (isPastAndEmpty) {
+                              return;
+                            }
+                            
+                            // Handle future date clicks
+                            if (isThursdayDay) {
                               // If it's a Thursday with no meeting, create a Weekly Pulse entry
                               const weeklyPulseType = MEETING_TYPES.find(t => t.id === "weekly_pulse");
                               const dateStr = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
@@ -589,13 +605,14 @@ export default function MeetingRhythmPlannerPage() {
                             backgroundColor: mainMeeting ? mainMeeting.meeting_color : 
                                             isThursdayDay && dateMeetings.length === 0 ? getMeetingTypeColor("weekly_pulse") : 
                                             isWeekendDay ? "#f4f5f6" : "#ffffff",
-                            opacity: isWeekendDay ? 0.9 : 1
+                            opacity: isWeekendDay || isPastAndEmpty ? 0.7 : 1
                           }}
                         >
                           <div className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium" style={{
                             color: (mainMeeting && mainMeeting.meeting_color === "#263238") || 
                                   (isThursdayDay && dateMeetings.length === 0 && getMeetingTypeColor("weekly_pulse") === "#263238") 
-                                  ? "white" : "black"
+                                  ? "white" : "black",
+                             opacity: isPastAndEmpty ? 0.6 : 1,
                           }}>
                             {dayNumber}
                           </div>

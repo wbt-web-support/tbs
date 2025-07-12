@@ -369,6 +369,7 @@ export default function UserManagementPage() {
         .from('business_info')
         .insert({
           user_id: authData.user.id,
+          team_id: authData.user.id,
           full_name: newUserForm.full_name,
           business_name: newUserForm.business_name,
           email: newUserForm.email,

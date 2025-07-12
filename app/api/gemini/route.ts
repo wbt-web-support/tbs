@@ -1297,10 +1297,9 @@ ${formatTableData('user_timeline_claims', claim)}`
   ];
   
   if (userData.additionalData) {
-    Object.entries(userData.additionalData)
-      .filter(([table]) => relevantTables.includes(table))
-      .forEach(([table, data]) => {
-        if (Array.isArray(data) && data.length > 0) {
+    relevantTables.forEach((table) => {
+      const data = userData.additionalData[table];
+        if (data && Array.isArray(data) && data.length > 0) {
           const formattedTableName = table
             .split('_')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
