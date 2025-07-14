@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, Save, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import TiptapEditor from '../../components/tiptap-editor';
+import TiptapEditor from '@/components/tiptap-editor';
 
 interface PlaybookData {
   id: string;
@@ -25,7 +25,7 @@ export default function PlaybookEditPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+
   
   const supabase = createClient();
   const playbookId = params.id as string;
@@ -61,49 +61,27 @@ export default function PlaybookEditPage() {
     }
   };
 
-  const handleSave = async () => {
+
+
+  const handleAutoSave = async (newContent: string) => {
     try {
-      setSaving(true);
-
-      if (!title.trim()) {
-        toast({
-          title: "Error",
-          description: "Playbook title is required.",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      setContent(newContent);
+      
+      // Auto-save to database
       const { error } = await supabase
         .from('playbooks')
         .update({
-          playbookname: title,
-          description: description,
-          content: content,
+          content: newContent,
         })
         .eq('id', playbookId);
 
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Playbook saved successfully!",
-      });
+      
+      console.log('Auto-saved successfully');
     } catch (error) {
-      console.error('Error saving playbook:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save playbook. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
+      console.error('Auto-save failed:', error);
+      throw error; // Re-throw so the editor can handle the error
     }
-  };
-
-  const handleAutoSave = () => {
-    // Auto-save functionality (optional)
-    // Could be implemented with a debounce
   };
 
   if (loading) {
@@ -176,15 +154,7 @@ export default function PlaybookEditPage() {
             <p className="text-sm text-gray-500">Make changes to your playbook content</p>
           </div>
         </div>
-        <Button 
-          onClick={handleSave} 
-          disabled={saving}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          <Save className="h-4 w-4 mr-2" />
-          Save Changes
-        </Button>
+
       </div>
 
     
@@ -193,7 +163,7 @@ export default function PlaybookEditPage() {
       <div className="flex-1 relative">
         <TiptapEditor
           content={content}
-          onChange={setContent}
+          onChange={handleAutoSave}
           className="h-full"
         />
       </div>

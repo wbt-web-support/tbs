@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Eye, Edit } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Edit, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
@@ -165,7 +165,7 @@ function PlaybookForm({ form, departments, teamMembers, handleSavePlaybook, setD
           </div>
         </div>
         
-        <div className="grid gap-2">
+        <div className="grid gap-2 hidden">
           <Label htmlFor="link">External Link (Optional)</Label>
           <Input
             id="link"
@@ -606,8 +606,7 @@ export default function GrowthEngineLibraryPage() {
                     <TableHead className="w-[150px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Department</TableHead>
                     <TableHead className="w-[200px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Owners</TableHead>
                     <TableHead className="w-[120px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Status</TableHead>
-                    <TableHead className="w-[150px] px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Actions</TableHead>
-                    <TableHead className="w-[120px] px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Manage</TableHead>
+                    <TableHead className="w-[180px] px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -651,43 +650,30 @@ export default function GrowthEngineLibraryPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-center border-l">
-                        <div className="flex justify-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.push(`/playbook-planner/view/${playbook.id}`)}
-                            className="h-8 w-8 p-0 hover:bg-blue-100 rounded-full"
-                            title="View playbook"
-                          >
-                            <Eye className="h-4 w-4 text-blue-600" />
-                          </Button>
+                        <div className="flex justify-center items-center space-x-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => router.push(`/playbook-planner/edit/${playbook.id}`)}
-                            className="h-8 w-8 p-0 hover:bg-green-100 rounded-full"
+                            className="h-8 w-8 p-0 hover:bg-blue-100 rounded-full transition-colors"
                             title="Edit playbook content"
                           >
-                            <Edit className="h-4 w-4 text-green-600" />
+                            <Edit className="h-4 w-4 text-blue-600" />
                           </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-6 py-4 text-right border-l">
-                        <div className="flex justify-end space-x-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(playbook)}
-                            className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
+                            className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full transition-colors"
                             title="Edit playbook settings"
                           >
-                            <Pencil className="h-4 w-4 text-gray-600" />
+                            <Settings className="h-4 w-4 text-gray-600" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(playbook.id)}
-                            className="h-8 w-8 p-0 hover:bg-red-100 rounded-full"
+                            className="h-8 w-8 p-0 hover:bg-red-100 rounded-full transition-colors"
                             title="Delete playbook"
                             disabled={deleteLoading === playbook.id}
                           >
