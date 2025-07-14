@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Eye, Edit } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
@@ -165,13 +166,16 @@ function PlaybookForm({ form, departments, teamMembers, handleSavePlaybook, setD
         </div>
         
         <div className="grid gap-2">
-          <Label htmlFor="link">Link</Label>
+          <Label htmlFor="link">External Link (Optional)</Label>
           <Input
             id="link"
             value={formData.link}
             onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-            placeholder="Enter link to documentation/resource"
+            placeholder="Enter link to external documentation (optional)"
           />
+          <p className="text-xs text-gray-500">
+            You can add content directly using our rich text editor after creating the playbook.
+          </p>
         </div>
 
         <div className="flex justify-end space-x-3 pt-4">
@@ -197,6 +201,7 @@ function PlaybookForm({ form, departments, teamMembers, handleSavePlaybook, setD
 }
 
 export default function GrowthEngineLibraryPage() {
+  const router = useRouter();
   const [playbooksData, setPlaybooksData] = useState<PlaybookData[]>([]);
   const [teamMembers, setTeamMembers] = useState<PlaybookOwner[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -601,8 +606,8 @@ export default function GrowthEngineLibraryPage() {
                     <TableHead className="w-[150px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Department</TableHead>
                     <TableHead className="w-[200px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Owners</TableHead>
                     <TableHead className="w-[120px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Status</TableHead>
-                    <TableHead className="w-[120px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Link</TableHead>
-                    <TableHead className="w-[120px] px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Actions</TableHead>
+                    <TableHead className="w-[150px] px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Actions</TableHead>
+                    <TableHead className="w-[120px] px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Manage</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -645,18 +650,27 @@ export default function GrowthEngineLibraryPage() {
                           {playbook.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
-                        {playbook.link ? (
-                          <a 
-                            href={playbook.link.startsWith('http') ? playbook.link : `https://${playbook.link}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center"
+                      <TableCell className="px-6 py-4 text-center border-l">
+                        <div className="flex justify-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push(`/playbook-planner/view/${playbook.id}`)}
+                            className="h-8 w-8 p-0 hover:bg-blue-100 rounded-full"
+                            title="View playbook"
                           >
-                            <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                            <span className="text-sm">Link</span>
-                          </a>
-                        ) : "—"}
+                            <Eye className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push(`/playbook-planner/edit/${playbook.id}`)}
+                            className="h-8 w-8 p-0 hover:bg-green-100 rounded-full"
+                            title="Edit playbook content"
+                          >
+                            <Edit className="h-4 w-4 text-green-600" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right border-l">
                         <div className="flex justify-end space-x-2">
@@ -665,7 +679,7 @@ export default function GrowthEngineLibraryPage() {
                             size="sm"
                             onClick={() => handleEdit(playbook)}
                             className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
-                            title="Edit playbook"
+                            title="Edit playbook settings"
                           >
                             <Pencil className="h-4 w-4 text-gray-600" />
                           </Button>

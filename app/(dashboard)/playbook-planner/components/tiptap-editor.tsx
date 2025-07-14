@@ -1,0 +1,912 @@
+"use client";
+
+import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import StarterKit from '@tiptap/starter-kit';
+import TextAlign from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import Link from '@tiptap/extension-link';
+import Underline from '@tiptap/extension-underline';
+import { Table } from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableHeader from '@tiptap/extension-table-header';
+import TableCell from '@tiptap/extension-table-cell';
+import Image from '@tiptap/extension-image';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { createLowlight, common } from 'lowlight';
+import Highlight from '@tiptap/extension-highlight';
+import Typography from '@tiptap/extension-typography';
+import Placeholder from '@tiptap/extension-placeholder';
+import CharacterCount from '@tiptap/extension-character-count';
+import Focus from '@tiptap/extension-focus';
+import Gapcursor from '@tiptap/extension-gapcursor';
+import Dropcursor from '@tiptap/extension-dropcursor';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import Youtube from '@tiptap/extension-youtube';
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import { Extension } from '@tiptap/core';
+
+import { Button } from '@/components/ui/button';
+import { 
+  Bold, 
+  Italic, 
+  Underline as UnderlineIcon, 
+  Strikethrough, 
+  List, 
+  ListOrdered, 
+  AlignLeft, 
+  AlignCenter, 
+  AlignRight, 
+  Link as LinkIcon,
+  Quote,
+  Code,
+  Undo,
+  Redo,
+  Table as TableIcon,
+  Image as ImageIcon,
+  Highlighter,
+  Minus,
+  Check,
+  Subscript as SubscriptIcon,
+  Superscript as SuperscriptIcon,
+  Youtube as YoutubeIcon,
+  Heading1,
+  Heading2,
+  Heading3,
+  Code2,
+  Palette,
+  FileText,
+  Save,
+  Plus
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useCallback, useState, useEffect, useRef } from 'react';
+
+const lowlight = createLowlight(common);
+
+interface TiptapEditorProps {
+  content: string;
+  onChange: (content: string) => void;
+  className?: string;
+}
+
+export default function TiptapEditor({ content, onChange, className }: TiptapEditorProps) {
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFloatingMenu, setShowFloatingMenu] = useState(false);
+  const [floatingMenuPosition, setFloatingMenuPosition] = useState({ x: 0, y: 0 });
+  const floatingMenuRef = useRef<HTMLDivElement>(null);
+  const [selectedMenuIndex, setSelectedMenuIndex] = useState(0);
+
+  // Menu commands for keyboard navigation
+  const menuCommands = [
+    {
+      icon: Heading1,
+      title: "Heading 1",
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).toggleHeading({ level: 1 }).run();
+      }
+    },
+    {
+      icon: Heading2,
+      title: "Heading 2", 
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).toggleHeading({ level: 2 }).run();
+      }
+    },
+    {
+      icon: List,
+      title: "Bullet List",
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).toggleBulletList().run();
+      }
+    },
+    {
+      icon: ListOrdered,
+      title: "Numbered List",
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).toggleOrderedList().run();
+      }
+    },
+    {
+      icon: Check,
+      title: "Task List", 
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).toggleTaskList().run();
+      }
+    },
+    {
+      icon: Code2,
+      title: "Code Block",
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).toggleCodeBlock().run();
+      }
+    },
+    {
+      icon: Quote,
+      title: "Blockquote",
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).toggleBlockquote().run();
+      }
+    },
+    {
+      icon: TableIcon,
+      title: "Table",
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      }
+    },
+    {
+      icon: ImageIcon,
+      title: "Image",
+      action: () => {
+        editor?.chain().focus().deleteRange({
+          from: editor.state.selection.$anchor.pos - editor.state.selection.$anchor.parentOffset,
+          to: editor.state.selection.to
+        }).run();
+        // Trigger image insertion
+        const url = window.prompt('Enter image URL:');
+        if (url && editor) {
+          editor.chain().focus().setImage({ src: url }).run();
+        }
+      }
+    }
+  ];
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        codeBlock: false,
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      TextStyle,
+      Color,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-600 underline cursor-pointer hover:text-blue-800',
+        },
+      }),
+      Underline,
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Image.configure({
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full h-auto',
+        },
+      }),
+      CodeBlockLowlight.configure({
+        lowlight,
+        HTMLAttributes: {
+          class: 'not-prose bg-gray-900 text-gray-100 p-4 rounded-lg my-4 overflow-x-auto',
+        },
+      }),
+      Highlight.configure({
+        multicolor: true,
+      }),
+      Typography,
+      Placeholder.configure({
+        placeholder: ({ node }) => {
+          if (node.type.name === 'heading') {
+            return "What's the title?";
+          }
+          return "Start writing your playbook... Type '/' for commands";
+        },
+      }),
+      CharacterCount,
+      Focus.configure({
+        className: 'has-focus',
+        mode: 'all',
+      }),
+      Gapcursor,
+      Dropcursor,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      Subscript,
+      Superscript,
+      Youtube.configure({
+        controls: false,
+        nocookie: true,
+        width: 640,
+        height: 480,
+      }),
+      HorizontalRule,
+    ],
+    content,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+    immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class: 'prose prose-lg prose-slate max-w-none focus:outline-none min-h-screen px-8 py-12',
+      },
+    },
+  });
+
+  const addImage = useCallback(() => {
+    const url = window.prompt('Enter image URL:');
+    if (url && editor) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+  }, [editor]);
+
+  const addYoutube = useCallback(() => {
+    const url = window.prompt('Enter YouTube URL:');
+    if (url && editor) {
+      editor.commands.setYoutubeVideo({
+        src: url,
+        width: 640,
+        height: 480,
+      });
+    }
+  }, [editor]);
+
+  const addLink = useCallback(() => {
+    if (editor) {
+      const url = window.prompt('Enter URL:');
+      if (url) {
+        editor.chain().focus().setLink({ href: url }).run();
+      }
+    }
+  }, [editor]);
+
+  const addTable = useCallback(() => {
+    if (editor) {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    }
+  }, [editor]);
+
+  const setColor = useCallback((color: string) => {
+    if (editor) {
+      editor.chain().focus().setColor(color).run();
+      setShowColorPicker(false);
+    }
+  }, [editor]);
+
+
+
+  // Handle slash commands (floating menu when typing "/")
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateFloatingMenu = () => {
+      const { state, view } = editor;
+      const { selection } = state;
+      const { $anchor } = selection;
+
+      // Only show when there's no text selection
+      if (selection.from !== selection.to) {
+        setShowFloatingMenu(false);
+        return;
+      }
+
+      const currentNode = $anchor.parent;
+      const nodeText = currentNode.textContent;
+      
+      // Only show if:
+      // 1. We're in a paragraph  
+      // 2. The text is exactly "/" (nothing else)
+      // 3. The cursor is at the end of the text
+      const isValidSlashCommand = currentNode.type.name === 'paragraph' && 
+          nodeText === '/' &&
+          selection.from === selection.to && // No text selected
+          $anchor.parentOffset === nodeText.length; // Cursor at end
+      
+      if (isValidSlashCommand) {
+        const coords = view.coordsAtPos(selection.from);
+        
+        setFloatingMenuPosition({ 
+          x: coords.left + 20, 
+          y: coords.top + 25 
+        });
+        setShowFloatingMenu(true);
+        setSelectedMenuIndex(0); // Reset selection when menu shows
+      } else {
+        setShowFloatingMenu(false);
+      }
+    };
+
+    editor.on('selectionUpdate', updateFloatingMenu);
+    editor.on('transaction', updateFloatingMenu);
+
+    return () => {
+      editor.off('selectionUpdate', updateFloatingMenu);
+      editor.off('transaction', updateFloatingMenu);
+    };
+  }, [editor]);
+
+  // Handle keyboard navigation for slash commands
+  useEffect(() => {
+    if (!showFloatingMenu || !editor) return;
+
+    const editorElement = editor.view.dom;
+    
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle these keys when the floating menu is visible
+      if (!showFloatingMenu) return;
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          setSelectedMenuIndex(prev => 
+            prev < menuCommands.length - 1 ? prev + 1 : 0
+          );
+          return false;
+        case 'ArrowUp':
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          setSelectedMenuIndex(prev => 
+            prev > 0 ? prev - 1 : menuCommands.length - 1
+          );
+          return false;
+        case 'Enter':
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          
+          // Execute the command
+          setTimeout(() => {
+            menuCommands[selectedMenuIndex].action();
+            setShowFloatingMenu(false);
+          }, 0);
+          return false;
+        case 'Escape':
+          event.preventDefault();
+          event.stopPropagation();
+          setShowFloatingMenu(false);
+          return false;
+      }
+    };
+
+    // Add event listener to editor element with high priority
+    editorElement.addEventListener('keydown', handleKeyDown, true);
+    
+    // Also add to document as backup
+    document.addEventListener('keydown', handleKeyDown, true);
+    
+    return () => {
+      editorElement.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [showFloatingMenu, selectedMenuIndex, editor, menuCommands]);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (floatingMenuRef.current && !floatingMenuRef.current.contains(event.target as Node)) {
+        setShowFloatingMenu(false);
+      }
+    };
+
+    if (showFloatingMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFloatingMenu]);
+
+  if (!editor) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-white">
+        <div className="text-gray-500">Loading editor...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("h-screen w-full flex flex-col bg-white", className)}>
+      {/* Fixed Toolbar */}
+      <div className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+        <div className="px-6 py-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Document Actions */}
+            <div className="flex items-center gap-1 mr-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor?.chain().focus().undo().run()}
+                disabled={!editor?.can().undo()}
+                className="h-9 px-3"
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo className="h-4 w-4 mr-1" />
+                Undo
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor?.chain().focus().redo().run()}
+                disabled={!editor?.can().redo()}
+                className="h-9 px-3"
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo className="h-4 w-4 mr-1" />
+                Redo
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Headings */}
+            <div className="flex items-center gap-1">
+              <select
+                onChange={(e) => {
+                  const level = parseInt(e.target.value);
+                  if (level === 0) {
+                    editor.chain().focus().setParagraph().run();
+                  } else {
+                    editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 }).run();
+                  }
+                }}
+                value={
+                  editor.isActive('heading', { level: 1 }) ? 1 :
+                  editor.isActive('heading', { level: 2 }) ? 2 :
+                  editor.isActive('heading', { level: 3 }) ? 3 :
+                  editor.isActive('heading', { level: 4 }) ? 4 :
+                  editor.isActive('heading', { level: 5 }) ? 5 :
+                  editor.isActive('heading', { level: 6 }) ? 6 : 0
+                }
+                className="h-9 px-3 pr-8 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value={0}>Paragraph</option>
+                <option value={1}>Heading 1</option>
+                <option value={2}>Heading 2</option>
+                <option value={3}>Heading 3</option>
+                <option value={4}>Heading 4</option>
+                <option value={5}>Heading 5</option>
+                <option value={6}>Heading 6</option>
+              </select>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Text Formatting */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('bold') && "bg-blue-100 text-blue-700")}
+                title="Bold (Ctrl+B)"
+              >
+                <Bold className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('italic') && "bg-blue-100 text-blue-700")}
+                title="Italic (Ctrl+I)"
+              >
+                <Italic className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('underline') && "bg-blue-100 text-blue-700")}
+                title="Underline (Ctrl+U)"
+              >
+                <UnderlineIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('strike') && "bg-blue-100 text-blue-700")}
+                title="Strikethrough"
+              >
+                <Strikethrough className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleHighlight().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('highlight') && "bg-yellow-100 text-yellow-700")}
+                title="Highlight"
+              >
+                <Highlighter className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Text Alignment */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                className={cn("h-9 w-9 p-0", editor.isActive({ textAlign: 'left' }) && "bg-blue-100 text-blue-700")}
+                title="Align Left"
+              >
+                <AlignLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                className={cn("h-9 w-9 p-0", editor.isActive({ textAlign: 'center' }) && "bg-blue-100 text-blue-700")}
+                title="Align Center"
+              >
+                <AlignCenter className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                className={cn("h-9 w-9 p-0", editor.isActive({ textAlign: 'right' }) && "bg-blue-100 text-blue-700")}
+                title="Align Right"
+              >
+                <AlignRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Lists */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('bulletList') && "bg-blue-100 text-blue-700")}
+                title="Bullet List"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('orderedList') && "bg-blue-100 text-blue-700")}
+                title="Numbered List"
+              >
+                <ListOrdered className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleTaskList().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('taskList') && "bg-blue-100 text-blue-700")}
+                title="Task List"
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Block Elements */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('blockquote') && "bg-blue-100 text-blue-700")}
+                title="Quote"
+              >
+                <Quote className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('codeBlock') && "bg-blue-100 text-blue-700")}
+                title="Code Block"
+              >
+                <Code2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                className="h-9 w-9 p-0"
+                title="Horizontal Rule"
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Media & Links */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={addLink}
+                className={cn("h-9 w-9 p-0", editor.isActive('link') && "bg-blue-100 text-blue-700")}
+                title="Add Link"
+              >
+                <LinkIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={addImage}
+                className="h-9 w-9 p-0"
+                title="Insert Image"
+              >
+                <ImageIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={addTable}
+                className="h-9 w-9 p-0"
+                title="Insert Table"
+              >
+                <TableIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={addYoutube}
+                className="h-9 w-9 p-0"
+                title="Insert YouTube Video"
+              >
+                <YoutubeIcon className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Subscript/Superscript */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleSubscript().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('subscript') && "bg-blue-100 text-blue-700")}
+                title="Subscript"
+              >
+                <SubscriptIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor.chain().focus().toggleSuperscript().run()}
+                className={cn("h-9 w-9 p-0", editor.isActive('superscript') && "bg-blue-100 text-blue-700")}
+                title="Superscript"
+              >
+                <SuperscriptIcon className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Text Colors */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                className="h-9 w-9 p-0"
+                title="Text Color"
+              >
+                <Palette className="h-4 w-4" />
+              </Button>
+              {showColorPicker && (
+                <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50">
+                  <div className="grid grid-cols-6 gap-2">
+                    {[
+                      '#000000', '#374151', '#6B7280', '#EF4444', '#F97316', '#EAB308',
+                      '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899', '#F43F5E'
+                    ].map((color) => (
+                      <button
+                        key={color}
+                        className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        onClick={() => setColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Editor Container */}
+      <div className="flex-1 overflow-y-auto bg-white relative">
+        <div className="max-w-5xl mx-auto">
+          <EditorContent 
+            editor={editor} 
+            className="min-h-[calc(100vh-140px)] focus-within:outline-none"
+          />
+        </div>
+
+        {/* Bubble Menu for Text Selection */}
+        {editor && (
+          <BubbleMenu 
+            editor={editor}
+            shouldShow={({ state, from, to }) => {
+              // Only show when text is selected
+              return from !== to;
+            }}
+          >
+            <div className="bg-white border border-gray-200 rounded-lg shadow-xl p-2 flex gap-1">
+              <Button
+                size="sm"
+                variant={editor.isActive('bold') ? 'default' : 'ghost'}
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                className="h-8 w-8 p-0"
+                title="Bold"
+              >
+                <Bold className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={editor.isActive('italic') ? 'default' : 'ghost'}
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                className="h-8 w-8 p-0"
+                title="Italic"
+              >
+                <Italic className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={editor.isActive('underline') ? 'default' : 'ghost'}
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                className="h-8 w-8 p-0"
+                title="Underline"
+              >
+                <UnderlineIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={editor.isActive('strike') ? 'default' : 'ghost'}
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                className="h-8 w-8 p-0"
+                title="Strikethrough"
+              >
+                <Strikethrough className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={editor.isActive('highlight') ? 'default' : 'ghost'}
+                onClick={() => editor.chain().focus().toggleHighlight().run()}
+                className="h-8 w-8 p-0"
+                title="Highlight"
+              >
+                <Highlighter className="h-4 w-4" />
+              </Button>
+              
+              <div className="w-px h-6 bg-gray-300 mx-1" />
+              
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={addLink}
+                className="h-8 w-8 p-0"
+                title="Add Link"
+              >
+                <LinkIcon className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => editor.chain().focus().toggleCode().run()}
+                className={cn("h-8 w-8 p-0", editor.isActive('code') && "bg-blue-100")}
+                title="Inline Code"
+              >
+                <Code className="h-4 w-4" />
+              </Button>
+            </div>
+          </BubbleMenu>
+        )}
+
+        {/* Slash Commands Menu */}
+        {showFloatingMenu && editor && (
+          <div
+            ref={floatingMenuRef}
+            className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-1 min-w-[180px]"
+            style={{
+              left: `${floatingMenuPosition.x}px`,
+              top: `${floatingMenuPosition.y}px`,
+            }}
+          >
+            <div className="space-y-0.5">
+              <div className="flex items-center text-xs text-gray-500 px-2 py-1 border-b border-gray-100">
+                <span>Commands</span>
+                <span className="ml-auto text-xs">↑↓ • Enter • Esc</span>
+              </div>
+              
+              {menuCommands.map((command, index) => {
+                const IconComponent = command.icon;
+                const isSelected = index === selectedMenuIndex;
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      command.action();
+                      setShowFloatingMenu(false);
+                    }}
+                    className={cn(
+                      "w-full text-left px-2 py-1.5 rounded text-sm flex items-center gap-2 transition-colors",
+                      isSelected 
+                        ? "bg-blue-100 text-blue-900" 
+                        : "hover:bg-gray-100"
+                    )}
+                  >
+                    <IconComponent className={cn(
+                      "h-4 w-4",
+                      isSelected ? "text-blue-600" : "text-gray-600"
+                    )} />
+                    <span className="font-medium">{command.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Stats */}
+      {editor && (
+        <div className="sticky bottom-0 border-t border-gray-200 px-6 py-3 text-sm text-gray-500 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+          <div className="max-w-5xl mx-auto flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <span>{editor.storage.characterCount.characters()} characters</span>
+              <span>{editor.storage.characterCount.words()} words</span>
+            </div>
+                         <div className="text-gray-400 text-xs">
+               Use keyboard shortcuts: <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Ctrl+B</kbd> Bold, <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Ctrl+I</kbd> Italic
+             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+} 
