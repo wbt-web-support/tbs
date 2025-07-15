@@ -258,12 +258,18 @@ function BusinessOwnersRepeater({
         Add Business Owner
       </Button>
       
-      {required && value.length === 0 && (
-        <p className="text-red-500 text-sm flex items-center gap-1">
-          <X className="h-4 w-4" />
-          At least one business owner is required
-        </p>
-      )}
+                            {required && value.length === 0 && (
+                        <p className="text-red-500 text-sm flex items-center gap-1">
+                          <X className="h-4 w-4" />
+                          At least one business owner is required
+                        </p>
+                      )}
+                      {required && value.length > 0 && !value.every((owner: any) => owner.fullName && owner.role) && (
+                        <p className="text-red-500 text-sm flex items-center gap-1">
+                          <X className="h-4 w-4" />
+                          Please fill in all business owner names and roles
+                        </p>
+                      )}
     </div>
   );
 }
@@ -337,6 +343,12 @@ function CompetitorsRepeater({
         <p className="text-red-500 text-sm flex items-center gap-1">
           <X className="h-4 w-4" />
           At least one competitor is required
+        </p>
+      )}
+      {required && value.length > 0 && !value.every((competitor: any) => competitor.name) && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          Please fill in all competitor names
         </p>
       )}
     </div>
@@ -440,6 +452,12 @@ function EmployeesRepeater({
           At least one employee is required
         </p>
       )}
+      {required && value.length > 0 && !value.every((employee: any) => employee.name && employee.role && employee.responsibilities) && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          Please fill in all employee names, roles, and responsibilities
+        </p>
+      )}
     </div>
   );
 }
@@ -528,6 +546,12 @@ function SOPLinksRepeater({
         <p className="text-red-500 text-sm flex items-center gap-1">
           <X className="h-4 w-4" />
           At least one SOP link is required
+        </p>
+      )}
+      {required && value.length > 0 && !value.every((link: any) => link.title && link.url) && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          Please fill in all SOP document titles and URLs
         </p>
       )}
     </div>
@@ -2039,43 +2063,94 @@ export default function OnboardingClient() {
   };
 
   const handleNext = async () => {
-    // Trigger form validation for the current category's questions
+    // Custom validation for the current category's questions
     const currentCategoryQuestions = categories[currentCategory].questions;
-    const fieldsToValidate = currentCategoryQuestions.filter(q => q.required).map(q => q.name);
+    const formValues = form.getValues();
+    let firstInvalidField: Question | null = null;
+    let invalidFieldError = "";
 
-    const isValid = await form.trigger(fieldsToValidate as (keyof z.infer<typeof formSchema>)[]);
+    // Check each required field in the current category
+    for (const question of currentCategoryQuestions) {
+      if (question.required) {
+        const fieldValue = formValues[question.name as keyof z.infer<typeof formSchema>];
+        let isFieldValid = false;
 
-    if (isValid) {
+        // Validate different field types
+        if (question.type === 'business-owners-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((owner: any) => owner.fullName && owner.role);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all business owner names and roles.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one business owner.";
+          }
+        } else if (question.type === 'competitors-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((competitor: any) => competitor.name);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all competitor names.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one competitor.";
+          }
+        } else if (question.type === 'employees-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all employee names, roles, and responsibilities.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one employee.";
+          }
+        } else if (question.type === 'sop-links-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((link: any) => link.title && link.url);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all SOP document titles and URLs.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one SOP document.";
+          }
+        } else {
+          // Standard field validation
+          isFieldValid = fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
+          if (!isFieldValid) {
+            invalidFieldError = "This field is required.";
+          }
+        }
+
+        if (!isFieldValid) {
+          firstInvalidField = question;
+          break;
+        }
+      }
+    }
+
+    // If all fields are valid, proceed to next category
+    if (!firstInvalidField) {
       setCurrentCategory((prev) => Math.min(prev + 1, categories.length - 1));
     } else {
-      // Find the first invalid field and scroll to it
-      const errors = form.formState.errors;
-      const firstInvalidField = currentCategoryQuestions.find(q => 
-        q.required && errors[q.name as keyof z.infer<typeof formSchema>]
-      );
-
-      if (firstInvalidField) {
-        // Scroll to the first invalid field
-        const fieldElement = document.getElementById(firstInvalidField.name);
-        if (fieldElement) {
-          fieldElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',
-            inline: 'nearest'
-          });
-          
-          // Focus on the field after a short delay to ensure scrolling completes
-          setTimeout(() => {
-            fieldElement.focus();
-            // Also set it as the focused question for AI assistant
-            setCurrentFocusedQuestion(firstInvalidField.name);
-          }, 500);
-        }
+      // Scroll to the first invalid field
+      const fieldElement = document.getElementById(firstInvalidField.name);
+      if (fieldElement) {
+        fieldElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'nearest'
+        });
+        
+        // Focus on the field after a short delay to ensure scrolling completes
+        setTimeout(() => {
+          fieldElement.focus();
+          // Also set it as the focused question for AI assistant
+          setCurrentFocusedQuestion(firstInvalidField.name);
+        }, 500);
       }
 
       toast({
-        title: "Incomplete Section",
-        description: "Please complete all required fields in the current section before proceeding.",
+        title: "Incomplete Field",
+        description: invalidFieldError,
         variant: "destructive",
       });
     }
@@ -2116,16 +2191,73 @@ export default function OnboardingClient() {
       setCurrentCategory(index);
     } else if (index === currentCategory + 1) {
       // Allow navigating to the next section if the current section is complete
-      if (isCategoryComplete(currentCategory)) {
+      const currentCategoryQuestions = categories[currentCategory].questions;
+      const formValues = form.getValues();
+      let firstInvalidField: Question | null = null;
+      let invalidFieldError = "";
+
+      // Check each required field in the current category
+      for (const question of currentCategoryQuestions) {
+        if (question.required) {
+          const fieldValue = formValues[question.name as keyof z.infer<typeof formSchema>];
+          let isFieldValid = false;
+
+          // Validate different field types
+          if (question.type === 'business-owners-repeater') {
+            if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+              isFieldValid = fieldValue.every((owner: any) => owner.fullName && owner.role);
+              if (!isFieldValid) {
+                invalidFieldError = "Please fill in all business owner names and roles.";
+              }
+            } else {
+              invalidFieldError = "Please add at least one business owner.";
+            }
+          } else if (question.type === 'competitors-repeater') {
+            if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+              isFieldValid = fieldValue.every((competitor: any) => competitor.name);
+              if (!isFieldValid) {
+                invalidFieldError = "Please fill in all competitor names.";
+              }
+            } else {
+              invalidFieldError = "Please add at least one competitor.";
+            }
+          } else if (question.type === 'employees-repeater') {
+            if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+              isFieldValid = fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities);
+              if (!isFieldValid) {
+                invalidFieldError = "Please fill in all employee names, roles, and responsibilities.";
+              }
+            } else {
+              invalidFieldError = "Please add at least one employee.";
+            }
+          } else if (question.type === 'sop-links-repeater') {
+            if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+              isFieldValid = fieldValue.every((link: any) => link.title && link.url);
+              if (!isFieldValid) {
+                invalidFieldError = "Please fill in all SOP document titles and URLs.";
+              }
+            } else {
+              invalidFieldError = "Please add at least one SOP document.";
+            }
+          } else {
+            // Standard field validation
+            isFieldValid = fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
+            if (!isFieldValid) {
+              invalidFieldError = "This field is required.";
+            }
+          }
+
+          if (!isFieldValid) {
+            firstInvalidField = question;
+            break;
+          }
+        }
+      }
+
+      if (!firstInvalidField) {
         setCurrentCategory(index);
       } else {
         // Find the first invalid field in the current section and scroll to it
-        const currentCategoryQuestions = categories[currentCategory].questions;
-        const formValues = form.getValues();
-        const firstInvalidField = currentCategoryQuestions.find(q => 
-          q.required && (!formValues[q.name as keyof z.infer<typeof formSchema>] || formValues[q.name as keyof z.infer<typeof formSchema>] === '')
-        );
-
         if (firstInvalidField) {
           // Scroll to the first invalid field
           const fieldElement = document.getElementById(firstInvalidField.name);
@@ -2146,8 +2278,8 @@ export default function OnboardingClient() {
         }
 
         toast({
-          title: "Incomplete Section",
-          description: "Please complete the current section before moving to the next.",
+          title: "Incomplete Field",
+          description: invalidFieldError,
           variant: "destructive",
         });
       }
@@ -2170,36 +2302,90 @@ export default function OnboardingClient() {
     }
 
     // Validate the final section before submitting
-    if (!isCategoryComplete(categories.length - 1)) {
-      // Find the first invalid field in the final section and scroll to it
-      const finalCategoryQuestions = categories[categories.length - 1].questions;
-      const formValues = form.getValues();
-      const firstInvalidField = finalCategoryQuestions.find(q => 
-        q.required && (!formValues[q.name as keyof z.infer<typeof formSchema>] || formValues[q.name as keyof z.infer<typeof formSchema>] === '')
-      );
+    const finalCategoryQuestions = categories[categories.length - 1].questions;
+    const formValues = form.getValues();
+    let firstInvalidField: Question | null = null;
+    let invalidFieldError = "";
 
-      if (firstInvalidField) {
-        // Scroll to the first invalid field
-        const fieldElement = document.getElementById(firstInvalidField.name);
-        if (fieldElement) {
-          fieldElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',
-            inline: 'nearest'
-          });
-          
-          // Focus on the field after a short delay to ensure scrolling completes
-          setTimeout(() => {
-            fieldElement.focus();
-            // Also set it as the focused question for AI assistant
-            setCurrentFocusedQuestion(firstInvalidField.name);
-          }, 500);
+    // Check each required field in the final category
+    for (const question of finalCategoryQuestions) {
+      if (question.required) {
+        const fieldValue = formValues[question.name as keyof z.infer<typeof formSchema>];
+        let isFieldValid = false;
+
+        // Validate different field types
+        if (question.type === 'business-owners-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((owner: any) => owner.fullName && owner.role);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all business owner names and roles.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one business owner.";
+          }
+        } else if (question.type === 'competitors-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((competitor: any) => competitor.name);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all competitor names.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one competitor.";
+          }
+        } else if (question.type === 'employees-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all employee names, roles, and responsibilities.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one employee.";
+          }
+        } else if (question.type === 'sop-links-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((link: any) => link.title && link.url);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all SOP document titles and URLs.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one SOP document.";
+          }
+        } else {
+          // Standard field validation
+          isFieldValid = fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
+          if (!isFieldValid) {
+            invalidFieldError = "This field is required.";
+          }
         }
+
+        if (!isFieldValid) {
+          firstInvalidField = question;
+          break;
+        }
+      }
+    }
+
+    if (firstInvalidField) {
+      // Scroll to the first invalid field
+      const fieldElement = document.getElementById(firstInvalidField.name);
+      if (fieldElement) {
+        fieldElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'nearest'
+        });
+        
+        // Focus on the field after a short delay to ensure scrolling completes
+        setTimeout(() => {
+          fieldElement.focus();
+          // Also set it as the focused question for AI assistant
+          setCurrentFocusedQuestion(firstInvalidField.name);
+        }, 500);
       }
 
       toast({
-        title: "Incomplete Section",
-        description: "Please complete all required fields in the final section before submitting.",
+        title: "Incomplete Field",
+        description: invalidFieldError,
         variant: "destructive",
       });
       setIsLoading(false);
