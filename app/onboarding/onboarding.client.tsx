@@ -969,8 +969,8 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                     <Sparkles size={20} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">AI Onboarding</h3>
-                    <p className="text-sm text-gray-600">Allow AI to help you answer key questions about your business.</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">AI Enhancement</h3>
+                    <p className="text-sm text-gray-600">Write your thoughts first, then let AI help improve and expand them.</p>
                   </div>
                 </div>
 
@@ -1060,8 +1060,18 @@ function FloatingAIAssistant({
   const { toast } = useToast();
 
   const currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
-  const currentValue = focusedQuestion ? form.getValues(focusedQuestion as keyof z.infer<typeof formSchema>) || "" : "";
-  const hasContent = !!currentValue;
+  const currentValue = focusedQuestion ? form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "" : "";
+  const hasContent = currentQuestion ? (
+    currentQuestion.type === 'business-owners-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
+      : currentQuestion.type === 'competitors-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((competitor: any) => competitor.name)
+      : currentQuestion.type === 'employees-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
+      : currentQuestion.type === 'sop-links-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
+      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim() : currentValue)
+  ) : false;
 
   // Get current chat state for focused question
   const currentChatState = focusedQuestion ? chatStates[focusedQuestion] : null;
@@ -1090,32 +1100,32 @@ function FloatingAIAssistant({
 
   // Auto-scroll functionality removed since we now use editable content instead of chat history
 
-  // Generate smart suggestions based on question type
+  // Generate smart suggestions based on question type - only for improving existing content
   const getSmartSuggestions = () => {
-    if (!currentQuestion) return [];
+    if (!currentQuestion || !hasContent) return [];
 
     const suggestions = [];
     
     if (currentQuestion.name.includes('competitor')) {
-      suggestions.push("Research top 5 competitors in my industry");
-      suggestions.push("Compare pricing and services");
-      suggestions.push("Analsze competitive advantages");
+      suggestions.push("Add more detail about why these are competitors");
+      suggestions.push("Include their pricing and service comparison");
+      suggestions.push("Explain their competitive advantages");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
-      suggestions.push("Create an inspiring 5-year vision");
-      suggestions.push("Focus on impact and legacy");
-      suggestions.push("Include specific measurable outcomes");
+      suggestions.push("Make this more inspiring and compelling");
+      suggestions.push("Add specific measurable outcomes");
+      suggestions.push("Include timeline and milestones");
     } else if (currentQuestion.name.includes('sales') || currentQuestion.name.includes('process')) {
-      suggestions.push("Detail each step of the process");
-      suggestions.push("Include timeline and responsibilities");
+      suggestions.push("Add more detail to each step");
+      suggestions.push("Include timelines and responsibilities");
       suggestions.push("Add qualification criteria");
     } else if (currentQuestion.name.includes('team') || currentQuestion.name.includes('employee')) {
-      suggestions.push("List roles and responsibilities clearly");
-      suggestions.push("Include reporting structure");
-      suggestions.push("Mention skills and experience levels");
+      suggestions.push("Clarify roles and responsibilities");
+      suggestions.push("Add reporting structure details");
+      suggestions.push("Include skills and experience levels");
     } else {
-      suggestions.push("Generate a comprehensive answer");
-      suggestions.push("Make it more detailed and specific");
+      suggestions.push("Make this more detailed and specific");
       suggestions.push("Add examples from my industry");
+      suggestions.push("Improve the structure and flow");
     }
 
     return suggestions;
@@ -1239,20 +1249,25 @@ function FloatingAIAssistant({
       <div className={`h-full bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden ${
         isMobile ? 'shadow-none border-gray-200' : 'shadow-lg'
       }`}>
-        {/* Minimal Header - only show on desktop */}
+        {/* Clean Header - only show on desktop */}
         {!isMobile && (
-          <div className="p-4 border-b border-gray-100">
+          <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AnimatedAIBlob className="w-5 h-5" isActive={focusedQuestion !== null} />
-                <span className="font-medium text-gray-900">Need Writing Help?</span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center shadow-sm">
+                  <AnimatedAIBlob className="w-4 h-4" isActive={focusedQuestion !== null} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm">Need Writing Help?</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">AI assistant ready to help</p>
+                </div>
               </div>
               {onToggle && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onToggle}
-                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  className="h-8 w-8 p-0 hover:bg-white/60 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -1266,13 +1281,20 @@ function FloatingAIAssistant({
           {focusedQuestion && currentQuestion && currentQuestion.aiAssist ? (
             <div className="space-y-4 h-full flex flex-col">
               {/* Current Question Header */}
-              <div className="flex-shrink-0">
-                <h3 className="text-lg font-medium text-gray-900 mb-1 line-clamp-2">
-                  {currentQuestion.label}
-                </h3>
-                {currentQuestion.description && (
-                  <p className="text-sm text-gray-500">{currentQuestion.description}</p>
-                )}
+              <div className="flex-shrink-0 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="hidden w-10 h-10 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    {currentQuestion.icon && <currentQuestion.icon className="w-5 h-5 text-blue-600" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight">
+                      {currentQuestion.label}
+                    </h3>
+                    {currentQuestion.description && (
+                      <p className="text-sm text-gray-600 leading-relaxed">{currentQuestion.description}</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {chatMode ? (
@@ -1378,80 +1400,102 @@ function FloatingAIAssistant({
               ) : (
                 /* Suggestion Mode Interface */
                 <div className="space-y-4">
-                  {/* Quick Actions - Minimal Pills */}
-                  <div className="space-y-3">
-                    {hasContent && (
-                      <button
-                        onClick={() => handleGenerateContent('improve', 'Rewrite the existing content in a better way, it is very important to ensure the core message and details are retained and dont make it lengthy keep it short and concise.')}
-                        disabled={isLoading}
-                        className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
-                      >
-                        <div className="flex items-start gap-3 items-center">
-                          <div className="w-8 h-8 rounded bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center flex-shrink-0 transition-colors">
-                            {isLoading ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                            ) : (
-                              <AnimatedAIBlob className="w-4 h-4" isActive={!isLoading} />
-                            )}
+                  {hasContent ? (
+                    <>
+                      {/* Quick Actions - Clean Pills */}
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => handleGenerateContent('improve', 'Rewrite the existing content in a better way, it is very important to ensure the core message and details are retained and dont make it lengthy keep it short and concise.')}
+                          disabled={isLoading}
+                          className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/80 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group bg-white shadow-sm hover:shadow-md"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 group-hover:from-blue-200 group-hover:to-indigo-200 flex items-center justify-center flex-shrink-0 transition-all duration-200 shadow-sm">
+                              {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                              ) : (
+                                <AnimatedAIBlob className="w-4 h-4" isActive={!isLoading} />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <span className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
+                                Improve what I wrote
+                              </span>
+                              <p className="text-xs text-gray-500 mt-1">Make it better and more polished</p>
+                            </div>
                           </div>
-                          <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                            Improve what I wrote
-                          </span>
-                        </div>
-                      </button>
-                    )}
-                    {getSmartSuggestions().map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleGenerateContent(hasContent ? 'improve' : 'generate', suggestion)}
-                        disabled={isLoading}
-                        className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
-                      >
-                        <div className="flex items-start gap-3 items-center">
-                          <div className="w-8 h-8 rounded bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center flex-shrink-0 transition-colors">
-                            {isLoading ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                            ) : (
-                              <AnimatedAIBlob className="w-4 h-4" isActive={!isLoading} />
-                            )}
-                          </div>
-                          <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                            {suggestion}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                        </button>
+                        {getSmartSuggestions().map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleGenerateContent('improve', suggestion)}
+                            disabled={isLoading}
+                            className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/80 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group bg-white shadow-sm hover:shadow-md"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 group-hover:from-blue-200 group-hover:to-indigo-200 flex items-center justify-center flex-shrink-0 transition-all duration-200 shadow-sm">
+                                {isLoading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                                ) : (
+                                  <AnimatedAIBlob className="w-4 h-4" isActive={!isLoading} />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <span className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
+                                  {suggestion}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
 
-                  {/* Custom Input - Minimal */}
-                  <div className="relative">
-                    <Input
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      placeholder="Or describe what you want me to write..."
-                      className="pr-10 border-gray-200 focus:border-blue-400"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !isLoading && customPrompt.trim()) {
-                          e.preventDefault();
-                          handleGenerateContent(hasContent ? 'improve' : 'generate');
-                          setCustomPrompt("");
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (customPrompt.trim()) {
-                          handleGenerateContent(hasContent ? 'improve' : 'generate');
-                          setCustomPrompt("");
-                        }
-                      }}
-                      disabled={isLoading || !customPrompt.trim()}
-                      className="absolute right-1 top-1 h-8 w-8 p-0"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      {/* Custom Input - Clean */}
+                      <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-blue-300 focus-within:shadow-md transition-all duration-200">
+                        <Input
+                          value={customPrompt}
+                          onChange={(e) => setCustomPrompt(e.target.value)}
+                          placeholder="Tell me how to improve what you wrote..."
+                          className="pr-12 border-0 focus:ring-0 bg-transparent h-12 text-sm placeholder:text-gray-400"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && !isLoading && customPrompt.trim()) {
+                              e.preventDefault();
+                              handleGenerateContent('improve');
+                              setCustomPrompt("");
+                            }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (customPrompt.trim()) {
+                              handleGenerateContent('improve');
+                              setCustomPrompt("");
+                            }
+                          }}
+                          disabled={isLoading || !customPrompt.trim()}
+                          className="absolute right-2 top-2 h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 shadow-sm"
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    /* No content message */
+                    <div className="flex flex-col items-center justify-center py-12 px-6">
+                      <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                        <FileText className="h-9 w-9 text-blue-600" />
+                      </div>
+                      <h3 className="text-gray-900 font-semibold mb-3 text-lg">Write your thoughts first</h3>
+                      <p className="text-gray-600 text-sm max-w-sm mx-auto text-center leading-relaxed">
+                        Start by writing your own answer in the form field above. Then I'll help you improve and expand on it.
+                      </p>
+                      <div className="mt-6 flex items-center gap-2 text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-full">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                        <span>Ready to help once you start writing</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1472,9 +1516,9 @@ function FloatingAIAssistant({
                   <AnimatedAIBlob className="w-8 h-8" isActive={true} />
                 </div>
                 <h3 className="text-gray-900 font-semibold mb-2 text-lg">Hi! I'm here to help you</h3>
-                <p className="text-gray-600 mb-3">I'll assist you in filling out your onboarding form with smart suggestions and personalised content.</p>
+                <p className="text-gray-600 mb-3">I'll help you improve and expand on your answers after you've written your initial thoughts.</p>
                 <p className="text-sm text-blue-600 font-medium">
-                  ✨ Select any question below to get started
+                  ✨ Start writing your answers and I'll help you improve them
                 </p>
               </div>
             </div>
@@ -1503,24 +1547,39 @@ function MobileAIAssistant({
 
   const currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
 
-  // Generate smart suggestions based on question type
+  // Generate smart suggestions based on question type - only for improving existing content
   const getSmartSuggestions = () => {
     if (!currentQuestion) return [];
+
+    const currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    const hasContent = currentQuestion ? (
+      currentQuestion.type === 'business-owners-repeater'
+        ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
+        : currentQuestion.type === 'competitors-repeater'
+        ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((competitor: any) => competitor.name)
+        : currentQuestion.type === 'employees-repeater'
+        ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
+        : currentQuestion.type === 'sop-links-repeater'
+        ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
+        : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim() : currentValue)
+    ) : false;
+    
+    if (!hasContent) return [];
 
     const suggestions = [];
     
     if (currentQuestion.name.includes('competitor')) {
-      suggestions.push("Research top 5 competitors in my industry");
-      suggestions.push("Compare pricing and services");
+      suggestions.push("Add more detail about why these are competitors");
+      suggestions.push("Include their pricing and service comparison");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
-      suggestions.push("Create an inspiring 5-year vision");
-      suggestions.push("Include specific measurable outcomes");
+      suggestions.push("Make this more inspiring and compelling");
+      suggestions.push("Add specific measurable outcomes");
     } else if (currentQuestion.name.includes('sales') || currentQuestion.name.includes('process')) {
-      suggestions.push("Detail each step of the process");
+      suggestions.push("Add more detail to each step");
       suggestions.push("Add qualification criteria");
     } else {
-      suggestions.push("Generate a comprehensive answer");
-      suggestions.push("Make it more detailed and specific");
+      suggestions.push("Make this more detailed and specific");
+      suggestions.push("Improve the structure and flow");
     }
 
     return suggestions.slice(0, 2); // Only show 2 suggestions for mobile
@@ -1585,70 +1644,108 @@ function MobileAIAssistant({
     }
   };
 
+  const currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+  const hasContent = currentQuestion ? (
+    currentQuestion.type === 'business-owners-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
+      : currentQuestion.type === 'competitors-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((competitor: any) => competitor.name)
+      : currentQuestion.type === 'employees-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
+      : currentQuestion.type === 'sop-links-repeater'
+      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
+      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim() : currentValue)
+  ) : false;
+
   return (
     <div className="lg:hidden mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-      {/* Compact suggestions */}
-      <div className="space-y-2 mb-3">
-        {currentQuestion && form.getValues(focusedQuestion as keyof z.infer<typeof formSchema>) && (
-          <button
-            onClick={() => handleGenerateContent('Rewrite the existing content in a more better way.')}
-            disabled={isLoading}
-            className="w-full text-left p-2 rounded border border-blue-200 bg-white hover:bg-blue-50 transition-colors disabled:opacity-50 text-sm"
-          >
-            Improve what I wrote
-          </button>
-        )}
-        {getSmartSuggestions().map((suggestion, index) => (
-          <button
-            key={index}
-            onClick={() => handleGenerateContent(suggestion)}
-            disabled={isLoading}
-            className="w-full text-left p-2 rounded border border-blue-200 bg-white hover:bg-blue-50 transition-colors disabled:opacity-50 text-sm"
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
+      {hasContent ? (
+        <>
+          {/* Compact suggestions */}
+          <div className="space-y-2 mb-3">
+            <button
+              onClick={() => handleGenerateContent('Rewrite the existing content in a more better way.')}
+              disabled={isLoading}
+              className="w-full text-left p-2 rounded border border-blue-200 bg-white hover:bg-blue-50 transition-colors disabled:opacity-50 text-sm"
+            >
+              Improve what I wrote
+            </button>
+            {getSmartSuggestions().map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => handleGenerateContent(suggestion)}
+                disabled={isLoading}
+                className="w-full text-left p-2 rounded border border-blue-200 bg-white hover:bg-blue-50 transition-colors disabled:opacity-50 text-sm"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
 
-      {/* Custom input */}
-      <div className="relative">
-        <Input
-          value={customPrompt}
-          onChange={(e) => setCustomPrompt(e.target.value)}
-          placeholder="Or describe what you want..."
-          className="pr-16 text-sm border-blue-200 focus:border-blue-400"
-          onKeyPress={(e) => {
-            if (e.key === 'Enter' && !isLoading && customPrompt.trim()) {
-              e.preventDefault();
-              handleGenerateContent();
-              setCustomPrompt("");
-            }
-          }}
-        />
-        <div className="absolute right-1 top-1 flex gap-1">
-          <Button
-            size="sm"
-            onClick={() => {
-              if (customPrompt.trim()) {
-                handleGenerateContent();
-                setCustomPrompt("");
-              }
-            }}
-            disabled={isLoading || !customPrompt.trim()}
-            className="h-7 w-7 p-0"
-          >
-            {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-          </Button>
+          {/* Custom input */}
+          <div className="relative">
+            <Input
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Tell me how to improve what you wrote..."
+              className="pr-16 text-sm border-blue-200 focus:border-blue-400"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !isLoading && customPrompt.trim()) {
+                  e.preventDefault();
+                  handleGenerateContent();
+                  setCustomPrompt("");
+                }
+              }}
+            />
+            <div className="absolute right-1 top-1 flex gap-1">
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (customPrompt.trim()) {
+                    handleGenerateContent();
+                    setCustomPrompt("");
+                  }
+                }}
+                disabled={isLoading || !customPrompt.trim()}
+                className="h-7 w-7 p-0"
+              >
+                {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onClose}
+                className="h-7 w-7 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* No content message */
+        <div className="flex flex-col items-center py-6 px-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center mb-4 shadow-sm">
+            <FileText className="h-6 w-6 text-blue-600" />
+          </div>
+          <h4 className="text-gray-900 font-medium text-sm mb-2">Write your thoughts first</h4>
+          <p className="text-xs text-gray-600 text-center leading-relaxed mb-4">
+            Start by writing your own answer above, then I'll help you improve it.
+          </p>
+          <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
+            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+            <span>Ready to help</span>
+          </div>
           <Button
             size="sm"
             variant="ghost"
             onClick={onClose}
-            className="h-7 w-7 p-0"
+            className="mt-3 h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
           >
-            <X className="h-3 w-3" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -2361,7 +2458,7 @@ export default function OnboardingClient() {
                 <div className="w-full space-y-8">
                   {currentQuestions.map((q) => {
                     const fieldName = q.name as keyof z.infer<typeof formSchema>;
-                    const fieldValue = form.getValues(fieldName);
+                    const fieldValue = form.watch(fieldName);
                     const hasContent = q.type === 'business-owners-repeater'
                       ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((owner: any) => owner.fullName && owner.role)
                       : q.type === 'competitors-repeater'
@@ -2370,7 +2467,7 @@ export default function OnboardingClient() {
                       ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
                       : q.type === 'sop-links-repeater'
                       ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((link: any) => link.title && link.url)
-                      : !!fieldValue;
+                      : !!(fieldValue && typeof fieldValue === 'string' ? fieldValue.trim() : fieldValue);
                     const IconComponent = q.icon || HelpCircle;
 
                     return (
@@ -2479,7 +2576,7 @@ export default function OnboardingClient() {
                           )}
 
                           {/* Mobile AI Dropdown - FAQ-style collapsible for AI-enabled questions */}
-                          {q.aiAssist && (
+                          {q.aiAssist && hasContent && (
                             <div className="lg:hidden mt-3">
                               <div className="border border-gray-200 rounded-lg overflow-hidden">
                                 <button
@@ -2510,7 +2607,7 @@ export default function OnboardingClient() {
                                   <div className="border-t border-gray-200 bg-white">
                                     <div className="p-3">
                                       <p className="text-xs text-gray-600 mb-3">
-                                        Get AI help with writing and improving your response
+                                        Get AI help with improving your response
                                       </p>
                                       <MobileAIAssistant
                                         focusedQuestion={q.name}

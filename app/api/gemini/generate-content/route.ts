@@ -15,21 +15,27 @@ export async function POST(req: NextRequest) {
     const { currentFormValues, questionName, questionLabel, categoryTitle, customPrompt, existingContent, action } = await req.json();
 
     // Build the prompt for the AI
-    let prompt = `You are an AI assistant helping a business owner fill out an onboarding form for a trades business school program.
-    The current question is "${questionLabel}" in the "${categoryTitle}" section. 
+    let prompt = `You are an AI assistant helping a business owner improve their written responses in an onboarding form for a trades business school program.
+    The current question is "${questionLabel}" in the "${categoryTitle}" section.
     
-    IMPORTANT: Provide ONLY plain text without ANY markdown formatting. Do not use asterisks, hashtags, backticks, or any other markdown symbols. Use simple line breaks for readability. Write in UK English. Keep the answer concise and relevant.`;
+    CRITICAL INSTRUCTIONS:
+    - You can ONLY work with information that has been explicitly provided by the user
+    - Do NOT create, invent, or assume any information about the business
+    - Do NOT add specific details, names, locations, or numbers that weren't provided
+    - If there isn't enough information to improve the answer, suggest what specific information the user should add
+    - Provide ONLY plain text without ANY markdown formatting
+    - Write in UK English and keep responses concise
+    - Focus on improving structure, clarity, and flow of existing content`;
 
     if (customPrompt) {
-      prompt += `\nThe user has provided the following custom instructions: "${customPrompt}".`;
+      prompt += `\n\nUser's specific improvement request: "${customPrompt}"`;
     }
 
     // Include previous answers as context
     if (Object.keys(currentFormValues).length > 0) {
-      prompt += `\nHere are the user's previous answers from the form for context:\n`;
+      prompt += `\n\nContext from other form answers (use only as background, don't reference directly):\n`;
       for (const key in currentFormValues) {
-        if (currentFormValues[key] && key !== questionName) { // Include only answered fields, exclude the current question
-          // Find the label for the key to make the context more readable
+        if (currentFormValues[key] && key !== questionName) {
           const question = questions.find(q => q.name === key);
           const label = question ? question.label : key;
           prompt += `- ${label}: ${currentFormValues[key]}\n`;
@@ -38,21 +44,84 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'generate') {
-      prompt += `\nPlease generate a concise and relevant answer for the question "${questionLabel}" based on the provided context and custom instructions. Remember: NO markdown formatting - just plain text with simple line breaks.`;
+      return NextResponse.json({ error: "Content generation not supported. Users must write their own content first." }, { status: 400 });
     } else if (action === 'improve') {
-      prompt += `\nThe current answer for this question is: "${existingContent}".`;
-      prompt += `\nPlease improve this answer based on the provided context and custom instructions. Output only the improved plain text answer without any markdown formatting.`;
+      if (!existingContent || existingContent.trim() === '') {
+        return NextResponse.json({ error: "No existing content to improve. Please write your answer first." }, { status: 400 });
+      }
+      
+             prompt += `\n\nCURRENT ANSWER TO IMPROVE: "${existingContent}"`;
+       prompt += `\n\nIMPROVEMENT TASK:
+       - Improve the clarity, structure, and flow of the existing answer
+       - Fix any grammatical or spelling errors
+       - Make the language more professional and compelling
+       - Keep ALL the original facts and information intact
+       - Do NOT add any new information, examples, or details that weren't in the original answer
+       - Do NOT add specific numbers, dates, names, or locations unless they were in the original
+       - If the original answer lacks detail, suggest what specific information should be added rather than inventing it
+       - If you cannot improve the answer without adding new information, simply say "Your answer looks good. Consider adding more specific details about [specific aspect] to make it stronger."`;
     } else {
        return NextResponse.json({ error: "Invalid action specified." }, { status: 400 });
     }
 
 
-    // Use the generative model
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite-001" });
+    // Use the generative model with safety settings
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash-lite-001",
+      generationConfig: {
+        temperature: 0.3, // Lower temperature for more conservative responses
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 500, // Limit output length to prevent rambling
+      }
+    });
 
     const result = await model.generateContent(prompt);
     const response = result.response;
-    const generatedContent = response.text();
+    let generatedContent = response.text();
+
+    // Safety checks: ensure the response doesn't contain made-up information
+    const suspiciousPatterns = [
+      /\[.*\]/g, // Placeholder brackets
+      /Example:/gi,
+      /e\.g\./gi,
+      /For example/gi,
+      /ABC Company/gi,
+      /XYZ Limited/gi,
+      /123 Main Street/gi,
+      /\$\d+/g, // Specific dollar amounts
+      /£\d+/g, // Specific pound amounts
+      /\d{4}-\d{2}-\d{2}/g, // Specific dates
+      /\d{3}-\d{3}-\d{4}/g, // Phone numbers
+      /\d{5} \d{6}/g, // UK phone numbers
+      /\.co\.uk|\.com/g, // Specific domains
+      /such as/gi, // Often leads to made-up examples
+      /including/gi, // Often leads to made-up lists
+      /typically/gi, // Often leads to assumptions
+    ];
+
+    const containsSuspiciousContent = suspiciousPatterns.some(pattern => pattern.test(generatedContent));
+    
+    if (containsSuspiciousContent) {
+      // If the response contains placeholder-like content, provide a more conservative response
+      generatedContent = "I can help improve your answer, but I need you to provide the specific details first. Please add more information to your response and I'll help you make it clearer and more professional.";
+    }
+
+    // Additional check: ensure the improved content is longer than a minimal response
+    if (existingContent && generatedContent.length < existingContent.length * 0.8) {
+      // If the "improved" content is significantly shorter, it might be a generic response
+      generatedContent = "I can help improve your answer, but I need more specific details from you. Please add more information about your actual situation and I'll help you make it clearer and more professional.";
+    }
+
+    // Remove any remaining markdown formatting
+    generatedContent = generatedContent
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/#{1,6}\s/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^\s*[-*+]\s/gm, '') // Remove bullet points
+      .trim();
 
     return NextResponse.json({ generatedContent });
 
