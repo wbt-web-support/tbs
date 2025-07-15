@@ -60,16 +60,14 @@ const permissionOptions = [
   { id: 'chat', label: 'Chat' },
   { id: 'sop', label: 'Battle Plan' },
   { id: 'calendar', label: 'Calendar' },
-  { id: 'triage-planner', label: 'Triage Planner' },
-  { id: 'business-battle-plan', label: 'Business Battle Plan' },
+  { id: 'company-overview', label: 'Company Overview' },
+  { id: 'business-plan', label: 'Business Plan' },
   { id: 'growth-machine', label: 'Growth Machine' },
   { id: 'fulfilment-machine', label: 'Fulfilment Machine' },
   { id: 'innovation-machine', label: 'Create Innovations' },
   { id: 'playbook-planner', label: 'Playbook & Machine Planner' },
-  { id: 'company-scorecard', label: 'Company Scorecard' },
   { id: 'meeting-rhythm-planner', label: 'Meeting Rhythm Planner' },
   { id: 'quarterly-sprint-canvas', label: 'Quarterly Sprint Canvas' },
-  { id: 'key-initiatives', label: 'Key Initiatives' },
 ]
 
 export default function InviteClientContent() {
@@ -91,7 +89,7 @@ export default function InviteClientContent() {
       department_id: '',
       critical_accountabilities: [],
       playbook_ids: [],
-      permissions: [],
+      permissions: permissionOptions.map(option => option.id),
     },
   })
 

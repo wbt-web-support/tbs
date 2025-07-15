@@ -345,6 +345,9 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
           subject: `You're invited to join ${adminBusinessInfo.business_name}`,
           html: emailHtml,
         });
+
+        revalidatePath('/chain-of-command');
+        return { success: true, userId: newBusinessInfo.id, userName: full_name }
       }
     }
     revalidatePath('/chain-of-command');

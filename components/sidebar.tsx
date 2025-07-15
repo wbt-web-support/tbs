@@ -29,6 +29,8 @@ import {
   Loader2,
   Settings,
   Box,
+  Building,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,29 +63,29 @@ const navigationSections: NavigationSection[] = [
         icon: Calendar,
       },
       {
-        name: "Team Directory",
-        href: "/chain-of-command",
+        name: "Tem",
+        href: "/tem",
         icon: Users,
       },
-      {
-        name: "Key Initiatives",
-        href: "/key-Initiatives",
-        icon: Flag,
-      }
+      // {
+      //   name: "Key Initiatives",
+      //   href: "/key-Initiatives",
+      //   icon: Flag,
+      // }
     ],
   },
   {
     title: "Planning",
     items: [
       {
-        name: "Triage Planner",
-        href: "/triage-planner",
-        icon: AlertTriangle,
+        name: "Company Overview",
+        href: "/company-overview",
+        icon: Building,
       },
       {
-        name: "Business Battle Plan",
-        href: "/business-battle-plan",
-        icon: Swords,
+        name: "Business Plan",
+        href: "/business-plan",
+        icon: ClipboardList,
       },
     ],
   },

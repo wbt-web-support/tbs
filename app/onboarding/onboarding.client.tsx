@@ -846,7 +846,7 @@ const categories = [
   },
   {
     id: 'war-machine',
-    title: 'War Machine Vision',
+    title: 'Company Vision',
     description: 'Your long-term business goals and vision',
     questions: questions.slice(12, 17),
     color: 'purple',

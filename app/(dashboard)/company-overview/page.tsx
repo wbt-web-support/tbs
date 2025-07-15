@@ -90,7 +90,7 @@ export default function TriagePlannerPage() {
         setPlannerData(newData);
       }
     } catch (error) {
-      console.error("Error fetching triage planner data:", error);
+      console.error("Error fetching company overview data:", error);
     } finally {
       setLoading(false);
     }
@@ -99,9 +99,9 @@ export default function TriagePlannerPage() {
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="mb-4">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Triage Planner</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Company Overview</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Plan and organise your business triage strategy
+          Plan and organise your business company overview
         </p>
       </div>
 

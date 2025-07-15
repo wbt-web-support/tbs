@@ -510,7 +510,7 @@ export default function InfoPage() {
                   <div>
                     <h4 className="font-semibold mb-3 text-gray-900 flex items-center">
                       <AlertTriangle className="h-4 w-4 mr-2 text-red-600" />
-                      Triage Planner
+                      Company Overview
                     </h4>
                     <ul className="space-y-1 text-sm text-gray-600">
                       <li>• Problem identification and root cause analysis</li>

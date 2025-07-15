@@ -62,7 +62,8 @@ import {
   CheckCircle2,
   Plus,
   X,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCallback, useState, useEffect, useRef } from 'react';
@@ -430,7 +431,7 @@ export default function ReusableTiptapEditor({
   }, [editor]);
 
   // AI Enhancement Functions
-  const handleAIAction = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer', selectedOnly = false) => {
+  const handleAIAction = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format', selectedOnly = false) => {
     if (!editor || aiLoading) return;
 
     setAiLoading(true);
@@ -529,11 +530,11 @@ export default function ReusableTiptapEditor({
     }
   }, [editor, aiLoading]);
 
-  const handleToolbarAI = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer') => {
+  const handleToolbarAI = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format') => {
     await handleAIAction(action, false);
   }, [handleAIAction]);
 
-  const handleBubbleAI = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer') => {
+  const handleBubbleAI = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format') => {
     await handleAIAction(action, true);
     setBubbleMenuMode('main'); // Return to main menu after AI action
   }, [handleAIAction]);
@@ -723,7 +724,6 @@ export default function ReusableTiptapEditor({
                   title="Undo (Ctrl+Z)"
                 >
                   <Undo className="h-4 w-4 mr-1" />
-                  Undo
                 </Button>
                 <Button
                   variant="ghost"
@@ -734,7 +734,6 @@ export default function ReusableTiptapEditor({
                   title="Redo (Ctrl+Y)"
                 >
                   <Redo className="h-4 w-4 mr-1" />
-                  Redo
                 </Button>
               </div>
 
@@ -1126,8 +1125,8 @@ export default function ReusableTiptapEditor({
           
           {/* AI Processing Overlay */}
           {aiLoading && (
-            <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-10">
-              <div className=" px-4 py-3 flex items-center gap-3">
+            <div className="fixed inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-lg px-6 py-4 flex items-center gap-3 border border-gray-200">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                 <span className="text-sm font-medium text-gray-700">AI is enhancing your content...</span>
               </div>
@@ -1368,7 +1367,7 @@ export default function ReusableTiptapEditor({
               )}
 
               {bubbleMenuMode === 'ai' && (
-                <div className="flex items-center gap-1 min-w-[280px]">
+                <div className="flex items-center gap-1 min-w-[320px]">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -1412,6 +1411,17 @@ export default function ReusableTiptapEditor({
                   >
                     <Plus className="h-3 w-3" />
                     <span className="text-xs">Longer</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleBubbleAI('format')}
+                    disabled={aiLoading}
+                    className="h-8 px-2 flex items-center gap-1"
+                    title="Format document"
+                  >
+                    <FileText className="h-3 w-3" />
+                    <span className="text-xs">Format</span>
                   </Button>
                   
                   <div className="w-px h-6 bg-gray-300 mx-1" />

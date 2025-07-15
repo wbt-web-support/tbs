@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { deleteTeamMember } from "./actions";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import AddUserDialog from './add-user-dialog';
 
 // --- New Type Definitions for Relational Data ---
 
@@ -58,6 +59,7 @@ export default function ChainOfCommandPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -173,12 +175,13 @@ export default function ChainOfCommandPage() {
             An overview of your organisation's structure, roles, and responsibilities.
           </p>
         </div>
-        <Link href="/invite">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Team Member
-          </Button>
-        </Link>
+        <Button 
+          onClick={() => setAddUserDialogOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Team Member
+        </Button>
       </div>
       
       {loading ? (
@@ -295,6 +298,15 @@ export default function ChainOfCommandPage() {
           </div>
       </Card>
       )}
+      
+      <AddUserDialog 
+        open={addUserDialogOpen}
+        onOpenChange={setAddUserDialogOpen}
+        onUserAdded={fetchTeamDirectoryData}
+        onEditUser={(userId) => {
+          window.location.href = `/invite?edit=${userId}`
+        }}
+      />
     </div>
   );
 } 

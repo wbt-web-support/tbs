@@ -13,12 +13,13 @@ import {
   CheckCircle, 
   ArrowUp, 
   ArrowDown, 
-  Loader2 
+  Loader2,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface AIDropdownProps {
-  onAction: (action: 'simplify' | 'grammar' | 'shorter' | 'longer') => Promise<void>;
+  onAction: (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format') => Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
   variant?: 'toolbar' | 'bubble';
@@ -34,7 +35,7 @@ export function AIDropdown({
 }: AIDropdownProps) {
   const [currentAction, setCurrentAction] = useState<string | null>(null);
 
-  const handleAction = async (action: 'simplify' | 'grammar' | 'shorter' | 'longer') => {
+  const handleAction = async (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format') => {
     setCurrentAction(action);
     try {
       await onAction(action);
@@ -67,6 +68,12 @@ export function AIDropdown({
       label: 'Make longer',
       icon: ArrowUp,
       description: 'Add more detail and examples'
+    },
+    {
+      action: 'format' as const,
+      label: 'Format document',
+      icon: FileText,
+      description: 'Improve structure and formatting'
     }
   ];
 
@@ -141,10 +148,7 @@ export function AIDropdown({
             </DropdownMenuItem>
           );
         })}
-        
-        <div className="px-3 py-2 text-xs text-gray-500 border-t bg-gray-50">
-          Powered by Gemini AI
-        </div>
+       
       </DropdownMenuContent>
     </DropdownMenu>
   );

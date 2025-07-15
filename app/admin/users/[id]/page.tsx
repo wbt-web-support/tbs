@@ -995,7 +995,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               <TabsTrigger value="meetings">Meetings</TabsTrigger>
               <TabsTrigger value="playbooks">Playbooks</TabsTrigger>
               <TabsTrigger value="quarterly">Quarterly Sprint</TabsTrigger>
-              <TabsTrigger value="triage">Triage Planner</TabsTrigger>
+              <TabsTrigger value="triage">Company Overview</TabsTrigger>
             </TabsList>
             
             <TabsContent value="timeline" className="space-y-4">
@@ -2026,7 +2026,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               <Card>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Triage Planner</h3>
+                    <h3 className="text-lg font-medium">Company Overview</h3>
                     {userDetails.triagePlanner ? (
                       <Badge variant="outline" className="bg-blue-100 text-blue-700">
                         Last Updated: {new Date(userDetails.triagePlanner.updated_at).toLocaleDateString()}

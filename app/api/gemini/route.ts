@@ -827,7 +827,7 @@ function formatTableData(table: string, data: any) {
     return parts.join('\n');
   }
 
-  // Special handling for triage planner
+  // Special handling for Company Overview
   if (table === 'triage_planner') {
     // Handle company info first
     if (data.company_info) {

@@ -1,19 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Link as LinkIcon, ExternalLink } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
-import { ExpandableInput } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import BattlePlanDetails from "./components/battle-plan-details";
 import StrategicElements from "./components/strategic-elements";
+import ReusableTiptapEditor from "@/components/reusable-tiptap-editor";
 
 type BattlePlanData = {
   id: string;
   user_id: string;
   businessplanlink: string;
+  business_plan_content: string;
   missionstatement: string;
   visionstatement: string;
   purposewhy: any[];
@@ -27,20 +27,12 @@ type BattlePlanData = {
 export default function BattlePlanPage() {
   const [battlePlanData, setBattlePlanData] = useState<BattlePlanData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [businessLink, setBusinessLink] = useState("");
-  const [editingLink, setEditingLink] = useState(false);
-  const [savingLink, setSavingLink] = useState(false);
+  const [savingContent, setSavingContent] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     fetchBattlePlanData();
   }, []);
-
-  useEffect(() => {
-    if (battlePlanData) {
-      setBusinessLink(battlePlanData.businessplanlink || "");
-    }
-  }, [battlePlanData]);
 
   const fetchBattlePlanData = async () => {
     try {
@@ -69,6 +61,7 @@ export default function BattlePlanPage() {
         const newBattlePlan = {
           user_id: teamId,
           businessplanlink: "",
+          business_plan_content: "",
           missionstatement: "",
           visionstatement: "",
           purposewhy: [],
@@ -93,27 +86,27 @@ export default function BattlePlanPage() {
     }
   };
 
-  const handleSaveLink = async () => {
+  const handleSaveBusinessPlanContent = async (content: string) => {
     if (!battlePlanData?.id) return;
     
     try {
-      setSavingLink(true);
+      setSavingContent(true);
       
       const { error } = await supabase
         .from("battle_plan")
         .update({
-          businessplanlink: businessLink
+          business_plan_content: content
         })
         .eq("id", battlePlanData.id);
         
       if (error) throw error;
       
-      fetchBattlePlanData();
-      setEditingLink(false);
+      // Update local state
+      setBattlePlanData(prev => prev ? { ...prev, business_plan_content: content } : null);
     } catch (error) {
-      console.error("Error saving business plan link:", error);
+      console.error("Error saving business plan content:", error);
     } finally {
-      setSavingLink(false);
+      setSavingContent(false);
     }
   };
 
@@ -132,74 +125,6 @@ export default function BattlePlanPage() {
         </div>
       ) : (
         <div className="space-y-5">
-          {/* Business Plan Link */}
-          <Card className="overflow-hidden border-gray-200">
-            <div className="px-4 py-2 bg-white border-b border-gray-200">
-              <div className="flex flex-wrap md:flex-nowrap items-center gap-3">
-                <div className="flex items-center text-gray-700">
-                  <LinkIcon className="h-4 w-4 text-gray-600 mr-2" />
-                  <span className="text-sm font-medium">Business Plan Link:</span>
-                </div>
-                
-                {editingLink ? (
-                  <div className="flex flex-1 items-center gap-2">
-                    <ExpandableInput
-                      value={businessLink}
-                      onChange={(e) => setBusinessLink(e.target.value)}
-                      placeholder="https://example.com/my-business-plan"
-                      className="flex-1 text-sm"
-                      expandAfter={40}
-                      lined={true}
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 text-xs whitespace-nowrap"
-                      onClick={() => setEditingLink(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
-                      onClick={handleSaveLink}
-                      disabled={savingLink}
-                    >
-                      {savingLink ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                      Save
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      {businessLink ? (
-                        <a 
-                          href={businessLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline truncate max-w-full"
-                        >
-                          <span className="truncate">{businessLink}</span>
-                          <ExternalLink className="h-3 w-3 ml-1 flex-shrink-0" />
-                        </a>
-                      ) : (
-                        <span className="text-sm text-gray-400 italic">No business plan link provided</span>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 text-xs ml-auto"
-                      onClick={() => setEditingLink(true)}
-                    >
-                      Edit Link
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </Card>
-
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Left Column - Mission & Vision */}
             <div className="lg:col-span-4">
@@ -225,6 +150,41 @@ export default function BattlePlanPage() {
               />
             </div>
           </div>
+
+          {/* Business Plan Document Editor */}
+          <Card className="overflow-hidden border-gray-200">
+            <div className="px-6 py-4 bg-white border-b border-gray-200">
+              <div className="mb-2">
+                <h2 className="text-lg font-semibold text-gray-900">Business Plan Document</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Create and edit your comprehensive business plan with rich text formatting, AI assistance, and real-time collaboration
+                </p>
+              </div>
+              {savingContent && (
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </div>
+              )}
+            </div>
+            <div className="bg-white">
+              <ReusableTiptapEditor
+                content={battlePlanData?.business_plan_content || ""}
+                onChange={() => {}} // We handle changes through onSave
+                onSave={handleSaveBusinessPlanContent}
+                placeholder="Start writing your business plan... Type '/' for commands"
+                showToolbar={true}
+                showBubbleMenu={true}
+                showSlashCommands={true}
+                showStatusBar={true}
+                editorHeight="600px"
+                autoSave={true}
+                autoSaveDelay={2000}
+                className="border-0"
+                editorClassName="prose prose-lg prose-slate max-w-none focus:outline-none min-h-[600px] px-6 py-8"
+              />
+            </div>
+          </Card>
         </div>
       )}
     </div>
