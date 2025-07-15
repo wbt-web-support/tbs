@@ -1,5 +1,6 @@
 'use client';
 
+import React from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
@@ -15,7 +16,10 @@ import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, DollarSign, TrendingUp, Calendar, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, DollarSign, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Animated AI Blob Component
 function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className?: string; isActive?: boolean }) {
@@ -138,7 +142,7 @@ import { SubmissionLoader } from "./components/submission-loader";
 interface Question {
   name: string;
   label: string;
-  type: 'input' | 'textarea';
+  type: 'input' | 'textarea' | 'business-owners-repeater' | 'competitors-repeater' | 'employees-repeater' | 'date-picker' | 'sop-links-repeater';
   placeholder?: string;
   inputType?: string;
   required: boolean;
@@ -147,18 +151,475 @@ interface Question {
   description?: string;
 }
 
+// Business Owner interface
+interface BusinessOwner {
+  id: string;
+  fullName: string;
+  role: string;
+}
+
+// Competitor interface
+interface Competitor {
+  id: string;
+  name: string;
+}
+
+// Employee interface
+interface Employee {
+  id: string;
+  name: string;
+  role: string;
+  responsibilities: string;
+}
+
+// SOP Link interface
+interface SOPLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
+// Business Owners Repeater Component
+function BusinessOwnersRepeater({ 
+  value, 
+  onChange, 
+  required 
+}: { 
+  value: BusinessOwner[]; 
+  onChange: (owners: BusinessOwner[]) => void; 
+  required: boolean;
+}) {
+  const addOwner = () => {
+    const newOwner: BusinessOwner = {
+      id: Date.now().toString(),
+      fullName: '',
+      role: ''
+    };
+    onChange([...value, newOwner]);
+  };
+
+  const removeOwner = (id: string) => {
+    onChange(value.filter(owner => owner.id !== id));
+  };
+
+  const updateOwner = (id: string, field: 'fullName' | 'role', newValue: string) => {
+    onChange(value.map(owner => 
+      owner.id === id ? { ...owner, [field]: newValue } : owner
+    ));
+  };
+
+  return (
+    <div className="space-y-4">
+      {value.map((owner, index) => (
+        <div key={owner.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <Input
+                value={owner.fullName}
+                onChange={(e) => updateOwner(owner.id, 'fullName', e.target.value)}
+                placeholder="e.g. Jane Doe"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Role
+              </label>
+              <Input
+                value={owner.role}
+                onChange={(e) => updateOwner(owner.id, 'role', e.target.value)}
+                placeholder="e.g. CEO, COO, Director"
+                className="w-full"
+              />
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => removeOwner(owner.id)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 mt-6"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      
+      <Button
+        type="button"
+        variant="outline"
+        onClick={addOwner}
+        className="w-full border-dashed border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+      >
+        <Users className="h-4 w-4 mr-2" />
+        Add Business Owner
+      </Button>
+      
+      {required && value.length === 0 && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          At least one business owner is required
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Competitors Repeater Component
+function CompetitorsRepeater({ 
+  value, 
+  onChange, 
+  required 
+}: { 
+  value: Competitor[]; 
+  onChange: (competitors: Competitor[]) => void; 
+  required: boolean;
+}) {
+  const addCompetitor = () => {
+    const newCompetitor: Competitor = {
+      id: Date.now().toString(),
+      name: ''
+    };
+    onChange([...value, newCompetitor]);
+  };
+
+  const removeCompetitor = (id: string) => {
+    onChange(value.filter(competitor => competitor.id !== id));
+  };
+
+  const updateCompetitor = (id: string, newValue: string) => {
+    onChange(value.map(competitor => 
+      competitor.id === id ? { ...competitor, name: newValue } : competitor
+    ));
+  };
+
+  return (
+    <div className="space-y-4">
+      {value.map((competitor, index) => (
+        <div key={competitor.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Competitor {index + 1}
+            </label>
+            <Input
+              value={competitor.name}
+              onChange={(e) => updateCompetitor(competitor.id, e.target.value)}
+              placeholder="e.g. ABC Company Ltd (similar services, same target market)"
+              className="w-full"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => removeCompetitor(competitor.id)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 mt-6"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      
+      <Button
+        type="button"
+        variant="outline"
+        onClick={addCompetitor}
+        className="w-full border-dashed border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+      >
+        <TrendingUp className="h-4 w-4 mr-2" />
+        Add Competitor
+      </Button>
+      
+      {required && value.length === 0 && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          At least one competitor is required
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Employees Repeater Component
+function EmployeesRepeater({ 
+  value, 
+  onChange, 
+  required 
+}: { 
+  value: Employee[]; 
+  onChange: (employees: Employee[]) => void; 
+  required: boolean;
+}) {
+  const addEmployee = () => {
+    const newEmployee: Employee = {
+      id: Date.now().toString(),
+      name: '',
+      role: '',
+      responsibilities: ''
+    };
+    onChange([...value, newEmployee]);
+  };
+
+  const removeEmployee = (id: string) => {
+    onChange(value.filter(employee => employee.id !== id));
+  };
+
+  const updateEmployee = (id: string, field: 'name' | 'role' | 'responsibilities', newValue: string) => {
+    onChange(value.map(employee => 
+      employee.id === id ? { ...employee, [field]: newValue } : employee
+    ));
+  };
+
+  return (
+    <div className="space-y-4">
+      {value.map((employee, index) => (
+        <div key={employee.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Employee Name
+              </label>
+              <Input
+                value={employee.name}
+                onChange={(e) => updateEmployee(employee.id, 'name', e.target.value)}
+                placeholder="e.g. John Smith"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Role/Position
+              </label>
+              <Input
+                value={employee.role}
+                onChange={(e) => updateEmployee(employee.id, 'role', e.target.value)}
+                placeholder="e.g. Operations Manager"
+                className="w-full"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Main Responsibilities
+              </label>
+              <Textarea
+                value={employee.responsibilities}
+                onChange={(e) => updateEmployee(employee.id, 'responsibilities', e.target.value)}
+                placeholder="e.g. Managing daily operations, overseeing team performance, handling customer inquiries"
+                className="w-full min-h-[80px]"
+              />
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => removeEmployee(employee.id)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 mt-6"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      
+      <Button
+        type="button"
+        variant="outline"
+        onClick={addEmployee}
+        className="w-full border-dashed border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+      >
+        <Users className="h-4 w-4 mr-2" />
+        Add Employee
+      </Button>
+      
+      {required && value.length === 0 && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          At least one employee is required
+        </p>
+      )}
+    </div>
+  );
+}
+
+// SOP Links Repeater Component
+function SOPLinksRepeater({
+  value,
+  onChange,
+  required
+}: {
+  value: SOPLink[];
+  onChange: (links: SOPLink[]) => void;
+  required: boolean;
+}) {
+  const addLink = () => {
+    const newLink: SOPLink = {
+      id: Date.now().toString(),
+      title: '',
+      url: ''
+    };
+    onChange([...value, newLink]);
+  };
+
+  const removeLink = (id: string) => {
+    onChange(value.filter(link => link.id !== id));
+  };
+
+  const updateLink = (id: string, field: 'title' | 'url', newValue: string) => {
+    onChange(value.map(link =>
+      link.id === id ? { ...link, [field]: newValue } : link
+    ));
+  };
+
+  return (
+    <div className="space-y-4">
+      {value.map((link, index) => (
+        <div key={link.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Document Title
+              </label>
+              <Input
+                value={link.title}
+                onChange={(e) => updateLink(link.id, 'title', e.target.value)}
+                placeholder="e.g. Customer Onboarding SOP"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Document URL
+              </label>
+              <Input
+                value={link.url}
+                onChange={(e) => updateLink(link.id, 'url', e.target.value)}
+                placeholder="https://docs.google.com/document/..."
+                className="w-full"
+                type="url"
+              />
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => removeLink(link.id)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 mt-6"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      
+      <Button
+        type="button"
+        variant="outline"
+        onClick={addLink}
+        className="w-full border-dashed border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+      >
+        <FileText className="h-4 w-4 mr-2" />
+        Add SOP Link
+      </Button>
+      
+      {required && value.length === 0 && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          At least one SOP link is required
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Date Picker Component
+function DatePicker({
+  value,
+  onChange,
+  required,
+  placeholder = "Pick a date"
+}: {
+  value: string;
+  onChange: (date: string) => void;
+  required: boolean;
+  placeholder?: string;
+}) {
+  const [date, setDate] = React.useState<Date | undefined>(
+    value ? new Date(value) : undefined
+  );
+
+  // Update internal date when value prop changes
+  React.useEffect(() => {
+    setDate(value ? new Date(value) : undefined);
+  }, [value]);
+
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    setDate(selectedDate);
+    if (selectedDate) {
+      // Format date as YYYY-MM-DD for form submission
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+      onChange(formattedDate);
+    } else {
+      onChange('');
+    }
+  };
+
+  // Get today's date for max date restriction
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // Set to end of today
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={`w-full justify-start text-left font-normal h-12 px-4 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+            !date && "text-muted-foreground"
+          }`}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date ? format(date, "PPP") : placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={handleDateSelect}
+          disabled={(date) => date > today} // Disable future dates
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // Highly descriptive schema for AI training
 const formSchema = z.object({
   // Company Information
   company_name_official_registered: z.string().min(2, "Company name must be at least 2 characters"),
-  list_of_business_owners_full_names: z.string().min(2, "Please list at least one business owner"),
+  list_of_business_owners_full_names: z.array(z.object({
+    id: z.string(),
+    fullName: z.string().min(1, "Full name is required"),
+    role: z.string().min(1, "Role is required")
+  })),
   primary_company_email_address: z.string().email("Please enter a valid email"),
   primary_company_phone_number: z.string().min(2, "Please enter a valid phone number"),
   main_office_physical_address_full: z.string().min(2, "Please enter a complete address"),
   business_founding_date_iso: z.string().min(1, "Please enter the founding date"),
   company_origin_story_and_founder_motivation: z.string().min(2, "Please provide more details about your company's story"),
-  main_competitors_list_and_reasons: z.string().min(2, "Please list 3-5 competitors with reasons"),
-  current_employees_and_roles_responsibilities: z.string().min(2, "Please list employees with their roles"),
+  main_competitors_list_and_reasons: z.array(z.object({
+    id: z.string(),
+    name: z.string().min(1, "Competitor name is required")
+  })).min(1, "Please add at least one competitor"),
+  current_employees_and_roles_responsibilities: z.array(z.object({
+    id: z.string(),
+    name: z.string().min(1, "Employee name is required"),
+    role: z.string().min(1, "Role is required"),
+    responsibilities: z.string().min(1, "Responsibilities are required")
+  })),
   last_full_year_annual_revenue_amount: z.string().min(1, "Please enter annual revenue"),
   current_profit_margin_percentage: z.string().min(1, "Please enter profit margin"),
   company_long_term_vision_statement: z.string().min(2, "Please provide your company's vision"),
@@ -185,7 +646,11 @@ const formSchema = z.object({
   customer_experience_and_fulfillment_process: z.string().optional(),
 
   // Operations & Systems
-  documented_systems_or_sops_links: z.string().optional(),
+  documented_systems_or_sops_links: z.array(z.object({
+    id: z.string(),
+    title: z.string().min(1, "Document title is required"),
+    url: z.string().url("Please enter a valid URL")
+  })).optional(),
   software_and_tools_used_for_operations: z.string().optional(),
   team_structure_and_admin_sales_marketing_roles: z.string().optional(),
   regular_team_meetings_frequency_attendees_agenda: z.string().optional(),
@@ -203,7 +668,7 @@ const questions: Question[] = [
   // Company Information
   {
     name: 'company_name_official_registered',
-    label: "What is your business's full legal name as registered?",
+    label: "What is your company name?",
     description: "This helps us set up your official business profile",
     type: 'input',
     placeholder: "Enter your business's legal name",
@@ -213,17 +678,16 @@ const questions: Question[] = [
   },
   {
     name: 'list_of_business_owners_full_names',
-    label: "List all business owners with their full names and roles.",
+    label: "Please list the Business Owners names and roles.",
     description: "We need to know who the key decision makers are",
-    type: 'input',
-    placeholder: "e.g. Jane Doe (CEO), John Smith (COO)",
+    type: 'business-owners-repeater',
     required: true,
     aiAssist: false,
     icon: Users,
   },
   {
     name: 'primary_company_email_address',
-    label: "What is the primary business email address for official communication?",
+    label: "What is the best company email address?",
     description: "This will be used for all official business correspondence",
     type: 'input',
     inputType: 'email',
@@ -234,7 +698,7 @@ const questions: Question[] = [
   },
   {
     name: 'primary_company_phone_number',
-    label: "What is the main business phone number for client or partner contact?",
+    label: "What is the best company phone number?",
     description: "Your main contact number for business purposes",
     type: 'input',
     placeholder: "Enter business phone number",
@@ -244,7 +708,7 @@ const questions: Question[] = [
   },
   {
     name: 'main_office_physical_address_full',
-    label: "What is the full address of your business's main office or headquarters?",
+    label: "What is your companies main office address? (Please insert the full company address as you would want it displayed across the internet).",
     description: "We need your complete business address",
     type: 'textarea',
     placeholder: "Enter full business address",
@@ -254,17 +718,16 @@ const questions: Question[] = [
   },
   {
     name: 'business_founding_date_iso',
-    label: "What is the official founding date of the business? (YYYY-MM-DD)",
+    label: "What date was the business founded?",
     description: "When was your business officially established?",
-    type: 'input',
-    inputType: 'date',
+    type: 'date-picker',
     required: true,
     aiAssist: false,
-    icon: Calendar,
+    icon: CalendarIcon,
   },
   {
     name: 'company_origin_story_and_founder_motivation',
-    label: "Describe the origin story of your company and the motivation behind starting it.",
+    label: "Can you tell us more about how the company got started and what was the motivation to start?",
     description: "Tell us your unique business story - this helps us understand your journey",
     type: 'textarea',
     placeholder: "Share your company's origin story and motivation",
@@ -274,20 +737,18 @@ const questions: Question[] = [
   },
   {
     name: 'main_competitors_list_and_reasons',
-    label: "Who are your main competitors and why did you select them as competitors? (List 3-5 with reasons)",
+    label: "Who are your main competitors? (Please list 3-5 with a reason to why you have chose them).",
     description: "Understanding your competitive landscape helps us position your business better",
-    type: 'textarea',
-    placeholder: "List competitors and reasons",
+    type: 'competitors-repeater',
     required: true,
     aiAssist: false,
     icon: TrendingUp,
   },
   {
     name: 'current_employees_and_roles_responsibilities',
-    label: "List all current employees, their roles, and their main responsibilities.",
+    label: "Please let us know how many Employees currently work for the business? (It is important here not just to name the team members, but also to include their role and responsibilities within the business).",
     description: "This helps us understand your team structure and capabilities",
-    type: 'textarea',
-    placeholder: "List employees, roles, and responsibilities",
+    type: 'employees-repeater',
     required: true,
     aiAssist: false,
     icon: Users,
@@ -325,7 +786,7 @@ const questions: Question[] = [
 
   // War Machine Vision
   { name: 'ultimate_long_term_goal_for_business_owner', label: 'What is your ultimate long-term goal? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false, aiAssist: true, icon: Target, description: 'Define your ultimate business destination' },
-  { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 5, 10, and 20 years?', type: 'textarea', required: false, aiAssist: true, icon: Calendar, description: 'Paint a picture of your future success' },
+  { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 5, 10, and 20 years?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'Paint a picture of your future success' },
   { name: 'additional_income_streams_or_investments_needed', label: "If your current business isn't enough to reach this goal, what other income streams, investments, or businesses might be needed?", type: 'textarea', required: false, aiAssist: true, icon: PoundSterling, description: 'Think beyond your current business model' },
   { name: 'focus_on_single_business_or_multiple_long_term', label: 'Do you see yourself focusing on one business long-term, or do you want to build a group of companies?', type: 'textarea', required: false, aiAssist: true, icon: Building, description: 'Single focus or empire building?' },
   { name: 'personal_skills_knowledge_networks_to_develop', label: 'What personal skills, knowledge, or networks do you think you would need to develop to build your War Machine successfully?', type: 'textarea', required: false, aiAssist: true, icon: Users, description: 'Identify your growth areas' },
@@ -345,10 +806,10 @@ const questions: Question[] = [
   { name: 'customer_experience_and_fulfillment_process', label: 'How do you ensure customers have a great experience with your business? (From closed deal to completing the job - please be as detailed as possible as to the fulfilment process)', type: 'textarea', required: false, aiAssist: true, icon: Users, description: 'Detail your customer success process' },
 
   // Operations & Systems
-  { name: 'documented_systems_or_sops_links', label: 'Do you currently have documented systems or SOPs in place? (If so, please share link to them below so we can review before your 3-1 kick-off meeting).', type: 'textarea', required: false, aiAssist: true, icon: FileText, description: 'Share your existing documentation' },
+  { name: 'documented_systems_or_sops_links', label: 'Do you currently have documented systems or SOPs in place? (If so, please share link to them below so we can review before your 3-1 kick-off meeting).', type: 'sop-links-repeater', required: false, aiAssist: true, icon: FileText, description: 'Share your existing documentation' },
   { name: 'software_and_tools_used_for_operations', label: 'What software or tools are you currently using for operations? (E.g., CRM, job management, accounting, etc.)', type: 'textarea', required: false, aiAssist: false, icon: Settings, description: 'List your current tech stack' },
   { name: 'team_structure_and_admin_sales_marketing_roles', label: 'Do you have a team that handles admin, sales, or marketing, or are you doing most of it yourself?', type: 'textarea', required: false, aiAssist: false, icon: Users, description: 'Understand your current team structure' },
-  { name: 'regular_team_meetings_frequency_attendees_agenda', label: 'Do you currently hold regular team meetings? If so, how often do they happen, who attends, and do you follow a set agenda?', type: 'textarea', required: false, aiAssist: true, icon: Calendar, description: 'How does your team communicate?' },
+  { name: 'regular_team_meetings_frequency_attendees_agenda', label: 'Do you currently hold regular team meetings? If so, how often do they happen, who attends, and do you follow a set agenda?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'How does your team communicate?' },
   { name: 'kpi_scorecards_metrics_tracked_and_review_frequency', label: 'Do you currently use scorecards or track key performance indicators (KPIs) for your team members? If so, what metrics do you monitor, and how frequently do you review them? If not, what challenges have prevented you from implementing a tracking system?', type: 'textarea', required: false, aiAssist: true, icon: TrendingUp, description: 'How do you measure performance?' },
   { name: 'biggest_current_operational_headache', label: 'What is your biggest operational headache right now?', type: 'textarea', required: false, aiAssist: true, icon: HelpCircle, description: 'What keeps you up at night?' },
 
@@ -449,16 +910,7 @@ function OnboardingHeader({ userName }: { userName: string }) {
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b">
       <div className="px-4 h-16 flex items-center justify-between">
         <div className="flex items-center">
-          <Link href="/" className="flex items-center">
-            {/* <Image
-              src="/logo.png"
-              alt="Logo"
-              width={32}
-              height={32}
-              className="mr-2"
-            /> */}
-            <span className="font-semibold text-lg">TBS</span>
-          </Link>
+          <img src="https://tradebusinessschool.com/wp-content/uploads/2024/11/TBS-coloured-logo-1.webp" alt="Logo" width={100} />
         </div>
 
         <div className="flex items-center gap-4">
@@ -492,9 +944,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">TBS</span>
-            </div>
+           
             <span className="text-sm text-gray-500 font-medium">Trades business School</span>
           </div>
         </div>
@@ -518,29 +968,28 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
               </div>
 
               <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                Let's set up your personalised workspace in <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">Trade Business School</span>.
-                We'll configure everything to match your workflow and preferences.
+              Let's set up your personalised workspace in your Command HQ. This will become the digital brain of your business.
               </p>
 
               {/* Enhanced features grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Settings size={20} className="text-white" />
+                    <Sparkles size={20} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Workspace Setup</h3>
-                    <p className="text-sm text-gray-600">Personalised dashboard and tools</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">AI Onboarding</h3>
+                    <p className="text-sm text-gray-600">Allow AI to help you answer key questions about your business.</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Target size={20} className="text-white" />
+                    <Settings size={20} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Preferences</h3>
-                    <p className="text-sm text-gray-600">Tailored experience configuration</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">Detailed Information</h3>
+                    <p className="text-sm text-gray-600">Take your time as this information will be used to train your AI.</p>
                   </div>
                 </div>
 
@@ -549,8 +998,8 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                     <Zap size={20} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Quick Start</h3>
-                    <p className="text-sm text-gray-600">Ready in under 5 minutes</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">Setup Time</h3>
+                    <p className="text-sm text-gray-600">Estimated 30-45 minutes</p>
                   </div>
                 </div>
               </div>
@@ -1243,14 +1692,14 @@ export default function OnboardingClient() {
     mode: "onChange", // Enable real-time validation
     defaultValues: {
       company_name_official_registered: "",
-      list_of_business_owners_full_names: "",
+      list_of_business_owners_full_names: [],
       primary_company_email_address: "",
       primary_company_phone_number: "",
       main_office_physical_address_full: "",
       business_founding_date_iso: "",
       company_origin_story_and_founder_motivation: "",
-      main_competitors_list_and_reasons: "",
-      current_employees_and_roles_responsibilities: "",
+      main_competitors_list_and_reasons: [],
+      current_employees_and_roles_responsibilities: [],
       last_full_year_annual_revenue_amount: "",
       current_profit_margin_percentage: "",
       company_long_term_vision_statement: "",
@@ -1269,7 +1718,7 @@ export default function OnboardingClient() {
       detailed_sales_process_from_first_contact_to_close: "",
       structured_follow_up_process_for_unconverted_leads: "",
       customer_experience_and_fulfillment_process: "",
-      documented_systems_or_sops_links: "",
+      documented_systems_or_sops_links: [],
       software_and_tools_used_for_operations: "",
       team_structure_and_admin_sales_marketing_roles: "",
       regular_team_meetings_frequency_attendees_agenda: "",
@@ -1289,12 +1738,45 @@ export default function OnboardingClient() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        
+        // Convert business owners array to string format for backward compatibility
+        const dataToSave = { ...data } as any;
+        if (dataToSave.list_of_business_owners_full_names && Array.isArray(dataToSave.list_of_business_owners_full_names)) {
+          dataToSave.list_of_business_owners_full_names = dataToSave.list_of_business_owners_full_names
+            .filter((owner: any) => owner && owner.fullName && owner.role)
+            .map((owner: any) => `${owner.fullName} (${owner.role})`)
+            .join(', ');
+        }
+
+        // Convert competitors array to string format for backward compatibility
+        if (dataToSave.main_competitors_list_and_reasons && Array.isArray(dataToSave.main_competitors_list_and_reasons)) {
+          dataToSave.main_competitors_list_and_reasons = dataToSave.main_competitors_list_and_reasons
+            .filter((competitor: any) => competitor && competitor.name)
+            .map((competitor: any) => competitor.name)
+            .join(', ');
+        }
+
+        // Convert employees array to string format for backward compatibility
+        if (dataToSave.current_employees_and_roles_responsibilities && Array.isArray(dataToSave.current_employees_and_roles_responsibilities)) {
+          dataToSave.current_employees_and_roles_responsibilities = dataToSave.current_employees_and_roles_responsibilities
+            .filter((employee: any) => employee && employee.name && employee.role)
+            .map((employee: any) => `${employee.name} (${employee.role})`)
+            .join(', ');
+// Convert SOP links array to string format for backward compatibility
+        if (dataToSave.documented_systems_or_sops_links && Array.isArray(dataToSave.documented_systems_or_sops_links)) {
+          dataToSave.documented_systems_or_sops_links = dataToSave.documented_systems_or_sops_links
+            .filter((link: any) => link && link.title && link.url)
+            .map((link: any) => `${link.title}: ${link.url}`)
+            .join('\n');
+        }
+        }
+        
         await supabase
           .from('company_onboarding')
           .upsert(
             {
               user_id: user.id,
-              onboarding_data: data,
+              onboarding_data: dataToSave,
               completed: false,
             },
             {
@@ -1321,8 +1803,116 @@ export default function OnboardingClient() {
         .eq('user_id', user.id)
         .single();
       if (data && data.onboarding_data) {
+        // Convert legacy string format to new array format for business owners
+        const onboardingData = { ...data.onboarding_data } as any;
+        if (typeof onboardingData.list_of_business_owners_full_names === 'string') {
+          // Parse the old string format and convert to new array format
+          const ownersString = onboardingData.list_of_business_owners_full_names;
+          if (ownersString.trim()) {
+            // Try to parse comma-separated format like "Jane Doe (CEO), John Smith (COO)"
+            const owners = ownersString.split(',').map((owner: string, index: number) => {
+              const trimmed = owner.trim();
+              const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+              if (match) {
+                return {
+                  id: `legacy-${index}`,
+                  fullName: match[1].trim(),
+                  role: match[2].trim()
+                };
+              } else {
+                return {
+                  id: `legacy-${index}`,
+                  fullName: trimmed,
+                  role: ''
+                };
+              }
+            });
+            onboardingData.list_of_business_owners_full_names = owners;
+          } else {
+            onboardingData.list_of_business_owners_full_names = [];
+          }
+        }
+
+        // Convert legacy string format to new array format for competitors
+        if (typeof onboardingData.main_competitors_list_and_reasons === 'string') {
+          // Parse the old string format and convert to new array format
+          const competitorsString = onboardingData.main_competitors_list_and_reasons;
+          if (competitorsString.trim()) {
+            // Parse comma-separated format - keep the full text as the name
+            const competitors = competitorsString.split(',').map((competitor: string, index: number) => {
+              return {
+                id: `legacy-competitor-${index}`,
+                name: competitor.trim()
+              };
+            });
+            onboardingData.main_competitors_list_and_reasons = competitors;
+          } else {
+            onboardingData.main_competitors_list_and_reasons = [];
+          }
+        }
+
+        // Convert legacy string format to new array format for employees
+        if (typeof onboardingData.current_employees_and_roles_responsibilities === 'string') {
+          // Parse the old string format and convert to new array format
+          const employeesString = onboardingData.current_employees_and_roles_responsibilities;
+          if (employeesString.trim()) {
+            // Try to parse comma-separated format like "John Smith (Operations Manager), Jane Doe (Sales Director)"
+            const employees = employeesString.split(',').map((employee: string, index: number) => {
+              const trimmed = employee.trim();
+              const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+              if (match) {
+                return {
+                  id: `legacy-employee-${index}`,
+                  name: match[1].trim(),
+                  role: match[2].trim(),
+                  responsibilities: ''
+                };
+              } else {
+                return {
+                  id: `legacy-employee-${index}`,
+                  name: trimmed,
+                  role: '',
+                  responsibilities: ''
+                };
+              }
+            });
+            onboardingData.current_employees_and_roles_responsibilities = employees;
+          } else {
+            onboardingData.current_employees_and_roles_responsibilities = [];
+          }
+        }
+        // Convert legacy string format to new array format for SOP links
+        if (typeof onboardingData.documented_systems_or_sops_links === 'string') {
+          // Parse the old string format and convert to new array format
+          const sopsString = onboardingData.documented_systems_or_sops_links;
+          if (sopsString.trim()) {
+            // Try to parse line-separated format like "Title: URL"
+            const links = sopsString.split('\n').map((line: string, index: number) => {
+              const trimmed = line.trim();
+              const match = trimmed.match(/^(.+?):\s*(https?:\/\/.+)$/);
+              if (match) {
+                return {
+                  id: `legacy-sop-${index}`,
+                  title: match[1].trim(),
+                  url: match[2].trim()
+                };
+              } else {
+                // Fallback: treat entire line as URL with generic title
+                return {
+                  id: `legacy-sop-${index}`,
+                  title: `Document ${index + 1}`,
+                  url: trimmed
+                };
+              }
+            });
+            onboardingData.documented_systems_or_sops_links = links;
+          } else {
+            onboardingData.documented_systems_or_sops_links = [];
+          }
+        }
+
         // Use reset to set form values from fetched data
-        form.reset(data.onboarding_data);
+        form.reset(onboardingData);
       }
     };
     fetchOnboardingData();
@@ -1414,6 +2004,18 @@ export default function OnboardingClient() {
     return category.questions.every(q => {
       if (q.required) {
         const answer = formValues[q.name as keyof z.infer<typeof formSchema>];
+        if (q.type === 'business-owners-repeater') {
+          return Array.isArray(answer) && answer.length > 0 && answer.every((owner: any) => owner.fullName && owner.role);
+        }
+        if (q.type === 'competitors-repeater') {
+          return Array.isArray(answer) && answer.length > 0 && answer.every((competitor: any) => competitor.name);
+        }
+        if (q.type === 'employees-repeater') {
+          return Array.isArray(answer) && answer.length > 0 && answer.every((employee: any) => employee.name && employee.role && employee.responsibilities);
+        }
+        if (q.type === 'sop-links-repeater') {
+          return Array.isArray(answer) && answer.length > 0 && answer.every((link: any) => link.title && link.url);
+        }
         return answer !== undefined && answer !== null && answer !== '';
       }
       return true; // Optional fields are considered complete
@@ -1519,6 +2121,39 @@ export default function OnboardingClient() {
     // Get all form values for submission
     const allFormValues = form.getValues();
 
+    // Convert business owners array to string format for backward compatibility
+    const dataToSubmit = { ...allFormValues } as any;
+    if (dataToSubmit.list_of_business_owners_full_names && Array.isArray(dataToSubmit.list_of_business_owners_full_names)) {
+      dataToSubmit.list_of_business_owners_full_names = dataToSubmit.list_of_business_owners_full_names
+        .filter((owner: any) => owner && owner.fullName && owner.role)
+        .map((owner: any) => `${owner.fullName} (${owner.role})`)
+        .join(', ');
+    }
+
+    // Convert competitors array to string format for backward compatibility
+    if (dataToSubmit.main_competitors_list_and_reasons && Array.isArray(dataToSubmit.main_competitors_list_and_reasons)) {
+      dataToSubmit.main_competitors_list_and_reasons = dataToSubmit.main_competitors_list_and_reasons
+        .filter((competitor: any) => competitor && competitor.name)
+        .map((competitor: any) => competitor.name)
+        .join(', ');
+    }
+
+    // Convert employees array to string format for backward compatibility
+    if (dataToSubmit.current_employees_and_roles_responsibilities && Array.isArray(dataToSubmit.current_employees_and_roles_responsibilities)) {
+      dataToSubmit.current_employees_and_roles_responsibilities = dataToSubmit.current_employees_and_roles_responsibilities
+        .filter((employee: any) => employee && employee.name && employee.role)
+        .map((employee: any) => `${employee.name} (${employee.role})`)
+        .join(', ');
+    }
+
+    // Convert SOP links array to string format for backward compatibility
+    if (dataToSubmit.documented_systems_or_sops_links && Array.isArray(dataToSubmit.documented_systems_or_sops_links)) {
+      dataToSubmit.documented_systems_or_sops_links = dataToSubmit.documented_systems_or_sops_links
+        .filter((link: any) => link && link.title && link.url)
+        .map((link: any) => `${link.title}: ${link.url}`)
+        .join('\n');
+    }
+
     try {
       // Update first step - Saving your information
       setSubmissionSteps(steps => steps.map((step, i) =>
@@ -1542,7 +2177,7 @@ export default function OnboardingClient() {
         await supabase
           .from('company_onboarding')
           .update({
-            onboarding_data: allFormValues,
+            onboarding_data: dataToSubmit,
             completed: true,
             updated_at: new Date().toISOString()
           })
@@ -1555,7 +2190,7 @@ export default function OnboardingClient() {
           .from('company_onboarding')
           .insert({
             user_id: user.id,
-            onboarding_data: allFormValues,
+            onboarding_data: dataToSubmit,
             completed: true,
           });
         console.log('✅ Successfully created onboarding record');
@@ -1574,7 +2209,7 @@ export default function OnboardingClient() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            onboardingData: allFormValues,
+            onboardingData: dataToSubmit,
           }),
         });
 
@@ -1736,7 +2371,15 @@ export default function OnboardingClient() {
                   {currentQuestions.map((q) => {
                     const fieldName = q.name as keyof z.infer<typeof formSchema>;
                     const fieldValue = form.getValues(fieldName);
-                    const hasContent = !!fieldValue;
+                    const hasContent = q.type === 'business-owners-repeater'
+                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((owner: any) => owner.fullName && owner.role)
+                      : q.type === 'competitors-repeater'
+                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((competitor: any) => competitor.name)
+                      : q.type === 'employees-repeater'
+                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
+                      : q.type === 'sop-links-repeater'
+                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((link: any) => link.title && link.url)
+                      : !!fieldValue;
                     const IconComponent = q.icon || HelpCircle;
 
                     return (
@@ -1773,7 +2416,48 @@ export default function OnboardingClient() {
 
                         {/* Form Field */}
                         <div className="space-y-3">
-                        {q.type === 'input' ? (
+                        {q.type === 'business-owners-repeater' ? (
+                            <BusinessOwnersRepeater
+                              value={form.getValues(fieldName) as BusinessOwner[] || []}
+                              onChange={(owners) => {
+                                form.setValue(fieldName, owners, { shouldValidate: true });
+                              }}
+                              required={q.required}
+                            />
+                        ) : q.type === 'competitors-repeater' ? (
+                            <CompetitorsRepeater
+                              value={form.getValues(fieldName) as Competitor[] || []}
+                              onChange={(competitors) => {
+                                form.setValue(fieldName, competitors, { shouldValidate: true });
+                              }}
+                              required={q.required}
+                            />
+                        ) : q.type === 'employees-repeater' ? (
+                            <EmployeesRepeater
+                              value={form.getValues(fieldName) as Employee[] || []}
+                              onChange={(employees) => {
+                                form.setValue(fieldName, employees, { shouldValidate: true });
+                              }}
+                              required={q.required}
+                            />
+                        ) : q.type === 'date-picker' ? (
+                            <DatePicker
+                              value={typeof form.getValues(fieldName) === 'string' ? form.getValues(fieldName) as string : ""}
+                              onChange={(date) => {
+                                form.setValue(fieldName, date, { shouldValidate: true });
+                              }}
+                              required={q.required}
+                              placeholder={q.placeholder}
+                            />
+                        ) : q.type === 'sop-links-repeater' ? (
+                            <SOPLinksRepeater
+                              value={form.getValues(fieldName) as SOPLink[] || []}
+                              onChange={(links) => {
+                                form.setValue(fieldName, links, { shouldValidate: true });
+                              }}
+                              required={q.required}
+                            />
+                        ) : q.type === 'input' ? (
                             <Input
                               id={q.name}
                               type={q.inputType || 'text'}
