@@ -93,7 +93,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             <Link href="/chat">
               <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-blue-700 hover:to-blue-900 hover:text-white from-blue-600 to-blue-800 text-white">
                 <Sparkles className="h-4 w-4" />
-                <span>Chat Assistant</span>
+                <span>AI Assistant</span>
               </Button>
             </Link>
           )}

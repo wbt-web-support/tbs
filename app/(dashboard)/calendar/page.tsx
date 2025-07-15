@@ -52,7 +52,7 @@ export default function ChqTimelinePage() {
     <div className="flex-1 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">CHQ Timeline</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Calendar</h1>
           <p className="text-sm text-gray-500 mt-1">
             Track your Command HQ implementation progress and milestones
           </p>

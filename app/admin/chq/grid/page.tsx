@@ -737,7 +737,7 @@ export default function AdminCHQGridPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">CHQ Timeline</h1>
+          <h1 className="text-2xl font-bold">Calendar</h1>
           <p className="text-muted-foreground">
             Manage timeline events, checklist items, and benefits
           </p>

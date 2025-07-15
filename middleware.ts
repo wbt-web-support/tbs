@@ -7,7 +7,7 @@ const dashboardPages = [
   '/chain-of-command',
   '/chat',
   '/chat-v2',
-  '/chq-timeline',
+  '/calendar',
   '/company-scorecard',
   '/export',
   '/fulfillment-machine',

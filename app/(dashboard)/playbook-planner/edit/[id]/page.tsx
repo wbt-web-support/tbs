@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import TiptapEditor from '@/components/tiptap-editor';
+import ReusableTiptapEditor from '@/components/reusable-tiptap-editor';
 
 interface PlaybookData {
   id: string;
@@ -161,10 +161,15 @@ export default function PlaybookEditPage() {
 
       {/* Content Editor - Full Screen */}
       <div className="flex-1 relative">
-        <TiptapEditor
+        <ReusableTiptapEditor
           content={content}
-          onChange={handleAutoSave}
+          onChange={setContent}
+          onSave={handleAutoSave}
+          placeholder="Start writing your playbook..."
           className="h-full"
+          editorHeight="100%"
+          autoSave={true}
+          autoSaveDelay={1000}
         />
       </div>
     </div>

@@ -56,8 +56,8 @@ const navigationSections: NavigationSection[] = [
         icon: LayoutDashboard,
       },
       {
-        name: "CHQ Timeline",
-        href: "/chq-timeline",
+        name: "Calendar",
+        href: "/calendar",
         icon: Calendar,
       },
       {
@@ -111,11 +111,11 @@ const navigationSections: NavigationSection[] = [
         href: "/playbook-planner",
         icon: BookText,
       },
-      {
-        name: "Company Scorecard",
-        href: "/company-scorecard",
-        icon: Gauge,
-      },
+      // {
+      //   name: "Company Scorecard",
+      //   href: "/company-scorecard",
+      //   icon: Gauge,
+      // },
       {
         name: "Meeting Rhythm Planner",
         href: "/meeting-rhythm-planner",

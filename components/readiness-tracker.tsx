@@ -12,8 +12,8 @@ const pages = [
     progress: 100,
   },
   {
-    name: "CHQ Timeline",
-    href: "/chq-timeline",
+    name: "Calendar",
+    href: "/calendar",
     progress: 87,
   },
   {

@@ -45,7 +45,7 @@ const navigationSections = [
     title: "Management",
     items: [
       {
-        name: "CHQ Timeline",
+        name: "Calendar",
         href: "/admin/timeline",
         icon: Clock,
       },

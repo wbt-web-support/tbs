@@ -59,7 +59,7 @@ const permissionOptions = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'chat', label: 'Chat' },
   { id: 'sop', label: 'Battle Plan' },
-  { id: 'chq-timeline', label: 'CHQ Timeline' },
+  { id: 'calendar', label: 'Calendar' },
   { id: 'triage-planner', label: 'Triage Planner' },
   { id: 'business-battle-plan', label: 'Business Battle Plan' },
   { id: 'growth-machine', label: 'Growth Machine' },

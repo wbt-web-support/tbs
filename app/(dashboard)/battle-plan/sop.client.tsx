@@ -32,6 +32,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import ReactMarkdown from 'react-markdown';
+import ReusableTiptapEditor from '@/components/reusable-tiptap-editor';
 
 interface SOP {
   id: string;
@@ -143,10 +144,8 @@ export default function SopClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [isEditingContent, setIsEditingContent] = useState(false);
   const [isSavingManually, setIsSavingManually] = useState(false);
   const [showEmptyWarning, setShowEmptyWarning] = useState(false);
-  const contentEditableRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
   const router = useRouter();
@@ -379,44 +378,7 @@ export default function SopClient() {
     }
   };
 
-  // Start editing the entire content
-  const handleContentClick = (e: React.MouseEvent) => {
-    if (!currentSop || isEditingContent) return;
-    
-    e.preventDefault();
-    setIsEditingContent(true);
-    
-    // Focus the contentEditable div and set cursor position
-    setTimeout(() => {
-      if (contentEditableRef.current) {
-        contentEditableRef.current.focus();
-        
-        // Set cursor position at click location
-        const selection = window.getSelection();
-        const range = document.createRange();
-        
-        // Find the clicked position
-        if (document.caretPositionFromPoint) {
-          const caretPos = document.caretPositionFromPoint(e.clientX, e.clientY);
-          if (caretPos) {
-            range.setStart(caretPos.offsetNode, caretPos.offset);
-            range.collapse(true);
-          }
-        } else if ((document as any).caretRangeFromPoint) {
-          const caretRange = (document as any).caretRangeFromPoint(e.clientX, e.clientY);
-          if (caretRange) {
-            range.setStart(caretRange.startContainer, caretRange.startOffset);
-            range.collapse(true);
-          }
-        }
-        
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
-    }, 0);
-  };
+
 
   // Check if content is empty or just whitespace
   const isContentEmpty = (content: string): boolean => {
@@ -424,29 +386,7 @@ export default function SopClient() {
     return cleanContent.length === 0;
   };
 
-  // Save the entire content on blur
-  const handleContentBlur = async () => {
-    if (!currentSop || !contentEditableRef.current) {
-      setIsEditingContent(false);
-      return;
-    }
 
-    const htmlContent = contentEditableRef.current.innerHTML;
-    const markdownContent = htmlToMarkdown(htmlContent);
-    
-    if (markdownContent === currentSop.content) {
-      setIsEditingContent(false);
-      return;
-    }
-
-    // Check if user deleted everything
-    if (isContentEmpty(htmlContent)) {
-      setShowEmptyWarning(true);
-      return;
-    }
-
-    await saveContent(markdownContent);
-  };
 
   // Extract save logic to reuse
   const saveContent = async (markdownContent: string) => {
@@ -486,7 +426,6 @@ export default function SopClient() {
       });
     } finally {
       setIsSavingManually(false);
-      setIsEditingContent(false);
     }
   };
 
@@ -518,20 +457,8 @@ export default function SopClient() {
 
   // Handle empty content warning actions
   const handleEmptyWarningRegenerate = async () => {
-    console.log('Starting regeneration...');
-    // Don't close the dialog immediately - keep it open to show loading
-    setIsEditingContent(false);
-    
-    // Force exit edit mode and clear content
-    if (contentEditableRef.current) {
-      contentEditableRef.current.innerHTML = '';
-    }
-    
     try {
-      console.log('Calling generateInitialSop...');
       await generateInitialSop();
-      console.log('Regeneration completed successfully');
-      // Close dialog only after successful generation
       setShowEmptyWarning(false);
     } catch (error) {
       console.error('Regeneration failed:', error);
@@ -540,41 +467,17 @@ export default function SopClient() {
         description: "Could not regenerate your Battle Plan. Please try again.",
         variant: "destructive",
       });
-      // Keep dialog open on error so user can try again
     }
   };
 
   const handleEmptyWarningCancel = () => {
     setShowEmptyWarning(false);
-    // Restore original content
-    if (contentEditableRef.current && currentSop) {
-      contentEditableRef.current.innerHTML = '';
-      setIsEditingContent(false);
-      // Force re-render with original content
-      setTimeout(() => {
-        if (contentEditableRef.current) {
-          // The ReactMarkdown will re-render with the original content
-        }
-      }, 0);
-    }
-  };
-
-  // Cancel content editing
-  const handleContentCancel = () => {
-    setIsEditingContent(false);
-  };
-
-  // Handle keyboard shortcuts
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      handleContentCancel();
-    }
   };
 
   if (isLoading) {
     return (
       <div className="">
-        <div className="flex flex-col items-center justify-center min-h-screen p-6">
+        <div className="flex flex-col items-center justify-center p-6">
           <div className="relative">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
               <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
@@ -632,8 +535,8 @@ export default function SopClient() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-8">
+    <div className="">
+      <div className="w-full">
         {/* Header Section */}
         <div className="mb-8">
           <div className="">
@@ -838,18 +741,8 @@ export default function SopClient() {
 
         {/* Main Content */}
         <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 rounded sm">
-          <CardHeader className="p-10 pb-0">
-            <CardTitle className="text-lg font-semibold text-slate-700 flex items-center">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                <FileText className="h-4 w-4 text-blue-600" />
-              </div>
-              Battle Plan
-            </CardTitle>
-            <p className="text-sm text-slate-500 mt-2">
-              Click anywhere in the content below to edit directly. Changes save automatically when you click outside.
-            </p>
-          </CardHeader>
-          <CardContent className="px-8 pb-8">
+          
+          <CardContent className="p-0">
             {isUpdating ? (
               // AI-based editing loading state
               <div className="space-y-4">
@@ -899,215 +792,30 @@ export default function SopClient() {
                 </div>
               </div>
             ) : (
-              // WYSIWYG editable content
-              <div
-                className={`cursor-pointer transition-all duration-200 min-h-[400px] ${
-                  isEditingContent 
-                    ? 'px-2 py-4' 
-                    : 'px-2 py-4'
-                }`}
-                onClick={handleContentClick}
-                title={isEditingContent ? "Editing mode - click outside to save" : "Click anywhere to edit this content"}
-              >
-                {!isEditingContent && (
-                  <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition-opacity">
-                    <span className="text-xs text-blue-500 bg-white/80 px-2 py-1 rounded">Click to edit</span>
-                  </div>
-                )}
-                
-                {/* Manual saving indicator */}
-                {isSavingManually && (
-                  <div className="sticky top-0 left-0 right-0 z-50 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2 mx-auto w-fit mb-4">
-                    <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
-                    <span className="text-sm text-slate-600">Saving...</span>
-                  </div>
-                )}
-                
-                {isEditingContent && !isSavingManually && (
-                  <div className="absolute top-2 right-2 flex gap-2 z-10">
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      onClick={handleContentCancel}
-                      className="bg-white/80 hover:bg-white"
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
-                )}
-
-                {isEditingContent ? (
-                  // Edit mode: contentEditable div with HTML
-                  <div
-                    ref={contentEditableRef}
-                    contentEditable={true}
-                    onBlur={handleContentBlur}
-                    onKeyDown={handleKeyDown}
-                    suppressContentEditableWarning={true}
-                    className="prose prose-slate max-w-none outline-none focus:outline-none cursor-text"
-                    style={{
-                      minHeight: '400px',
-                      caretColor: '#3b82f6',
-                    }}
-                    dangerouslySetInnerHTML={
-                      currentSop ? { __html: convertMarkdownToHTML(currentSop.content) } : undefined
-                    }
-                  />
-                ) : (
-                  // View mode: ReactMarkdown div
-                  <div
-                    className="prose prose-slate max-w-none outline-none cursor-pointer"
-                    onClick={handleContentClick}
-                    title="Click anywhere to edit this content"
-                    style={{
-                      minHeight: '400px',
-                    }}
-                  >
-                    {currentSop && (
-                      <ReactMarkdown
-                        components={{
-                          h1: ({children}) => (
-                            <h1 className="text-3xl font-bold text-slate-800 mb-6 mt-0 pb-3 border-b border-slate-200">
-                              {children}
-                            </h1>
-                          ),
-                          h2: ({children}) => (
-                            <h2 className="text-2xl font-semibold text-slate-800 mb-4 mt-8">
-                              {children}
-                            </h2>
-                          ),
-                          h3: ({children}) => (
-                            <h3 className="text-xl font-semibold text-slate-800 mb-3 mt-6">
-                              {children}
-                            </h3>
-                          ),
-                          h4: ({children}) => (
-                            <h4 className="text-lg font-semibold text-slate-700 mb-2 mt-4">
-                              {children}
-                            </h4>
-                          ),
-                          h5: ({children}) => (
-                            <h5 className="text-base font-semibold text-slate-700 mb-2 mt-3">
-                              {children}
-                            </h5>
-                          ),
-                          h6: ({children}) => (
-                            <h6 className="text-sm font-semibold text-slate-700 mb-2 mt-3">
-                              {children}
-                            </h6>
-                          ),
-                          p: ({ children }) => (
-                            <p className="text-slate-700 leading-relaxed mb-4 last:mb-0">
-                              {children}
-                            </p>
-                          ),
-                          ul: ({children}) => (
-                            <ul className="list-disc pl-6 mb-4 space-y-2 text-slate-700">
-                              {children}
-                            </ul>
-                          ),
-                          ol: ({children}) => (
-                            <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-700">
-                              {children}
-                            </ol>
-                          ),
-                          li: ({children}) => (
-                            <li className="text-slate-700 leading-relaxed">
-                              {children}
-                            </li>
-                          ),
-                          a: ({ href, children }) => (
-                            <a 
-                              href={href} 
-                              className="text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200" 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                            >
-                              {children}
-                            </a>
-                          ),
-                          strong: ({ children }) => (
-                            <strong className="font-semibold text-slate-800">
-                              {children}
-                            </strong>
-                          ),
-                          em: ({ children }) => (
-                            <em className="italic text-slate-700">
-                              {children}
-                            </em>
-                          ),
-                          code: ({ children }) => (
-                            <code className="bg-slate-100 text-slate-800 px-2 py-1 rounded text-sm font-mono">
-                              {children}
-                            </code>
-                          ),
-                          pre: ({ children }) => (
-                            <pre className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-sm overflow-x-auto my-4 font-mono">
-                              {children}
-                            </pre>
-                          ),
-                          blockquote: ({ children }) => (
-                            <blockquote className="border-l-4 border-blue-200 bg-blue-50/50 rounded-r-lg px-4 py-3 my-4 text-slate-600 italic">
-                              {children}
-                            </blockquote>
-                          ),
-                          hr: () => (
-                            <hr className="my-8 border-t border-slate-200" />
-                          ),
-                          table: ({ children }) => (
-                            <div className="overflow-x-auto my-4">
-                              <table className="min-w-full border border-slate-200 rounded-lg">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({ children }) => (
-                            <thead className="bg-slate-50">
-                              {children}
-                            </thead>
-                          ),
-                          tbody: ({ children }) => (
-                            <tbody className="divide-y divide-slate-200">
-                              {children}
-                            </tbody>
-                          ),
-                          tr: ({ children }) => (
-                            <tr className="hover:bg-slate-50/50 transition-colors">
-                              {children}
-                            </tr>
-                          ),
-                          th: ({ children }) => (
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">
-                              {children}
-                            </th>
-                          ),
-                          td: ({ children }) => (
-                            <td className="px-4 py-3 text-sm text-slate-700">
-                              {children}
-                            </td>
-                          ),
-                          img: ({ src, alt }) => (
-                            <img 
-                              src={src} 
-                              alt={alt} 
-                              className="max-w-full h-auto rounded-lg border border-slate-200 my-4 shadow-sm"
-                            />
-                          ),
-                        }}
-                      >
-                        {currentSop.content}
-                      </ReactMarkdown>
-                    )}
-                  </div>
-                )}
-
-                {isEditingContent && !isSavingManually && (
-                  <p className="text-xs text-slate-500 mt-2">
-                    Click outside or press Escape to save your changes automatically
-                  </p>
-                )}
-              </div>
+              // TipTap Editor
+              <ReusableTiptapEditor
+                content={currentSop ? convertMarkdownToHTML(currentSop.content) : ''}
+                onChange={(html) => {
+                  // Convert HTML back to markdown and save
+                  const markdown = htmlToMarkdown(html);
+                  saveContent(markdown);
+                }}
+                onSave={async (html) => {
+                  // Convert HTML back to markdown and save
+                  const markdown = htmlToMarkdown(html);
+                  await saveContent(markdown);
+                }}
+                placeholder="Start writing your Battle Plan... Type '/' for commands"
+                className="min-h-[700px]"
+                editorHeight="700px"
+                autoSave={true}
+                autoSaveDelay={1000}
+                showToolbar={true}
+                showBubbleMenu={true}
+                showSlashCommands={true}
+                showStatusBar={true}
+                editorClassName="prose prose-slate max-w-none min-h-[500px]"
+              />
             )}
           </CardContent>
         </Card>
@@ -1158,12 +866,7 @@ export default function SopClient() {
           </DialogContent>
         </Dialog>
 
-        {/* Footer */}
-        <footer className="text-center mt-12 py-8">
-          <div className="bg-white/50 backdrop-blur-sm rounded border border-slate-200/50 py-4 px-6">
-            <p className="text-sm text-slate-500 font-medium">Powered by Trade Business School</p>
-          </div>
-        </footer>
+      
       </div>
     </div>
   );
