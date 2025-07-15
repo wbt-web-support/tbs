@@ -755,7 +755,7 @@ const questions: Question[] = [
   },
   {
     name: 'last_full_year_annual_revenue_amount',
-    label: "What was your business's annual revenue for the last fiscal year?",
+    label: "What is your companies Annual Revenue?",
     description: "This helps us tailor our recommendations to your business size",
     type: 'input',
     placeholder: "Enter annual revenue",
@@ -765,7 +765,7 @@ const questions: Question[] = [
   },
   {
     name: 'current_profit_margin_percentage',
-    label: "What is your business's current profit margin (as a percentage)?",
+    label: "What is your companies current profit margin percentage?",
     description: "Understanding your profitability helps us focus on the right areas",
     type: 'input',
     placeholder: "Enter profit margin (%)",
@@ -773,16 +773,7 @@ const questions: Question[] = [
     aiAssist: false,
     icon: TrendingUp,
   },
-  {
-    name: 'company_long_term_vision_statement',
-    label: "Describe your business's long-term vision and the impact you hope to achieve.",
-    description: "Your vision guides everything we'll build together",
-    type: 'textarea',
-    placeholder: "Describe vision and impact",
-    required: true,
-    aiAssist: true,
-    icon: Target,
-  },
+
 
   // War Machine Vision
   { name: 'ultimate_long_term_goal_for_business_owner', label: 'What is your ultimate long-term goal? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false, aiAssist: true, icon: Target, description: 'Define your ultimate business destination' },
