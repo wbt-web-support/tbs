@@ -1126,7 +1126,7 @@ export default function ReusableTiptapEditor({
           {/* AI Processing Overlay */}
           {aiLoading && (
             <div className="fixed inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-lg px-6 py-4 flex items-center gap-3 border border-gray-200">
+              <div className="px-6 py-4 flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                 <span className="text-sm font-medium text-gray-700">AI is enhancing your content...</span>
               </div>
@@ -1276,7 +1276,7 @@ export default function ReusableTiptapEditor({
                     variant="ghost"
                     onClick={handleBubbleAIClick}
                     disabled={aiLoading}
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 bg-gradient-to-r from-blue-500 to-blue-800 text-white hover:bg-blue-600 hover:text-white"
                     title="AI Enhancement"
                   >
                     {aiLoading ? (

@@ -42,7 +42,7 @@ This will create the `reviews_cache` table for storing cached review data.
 ## Features
 
 - **Automatic Review Fetching**: Fetches Google reviews for your business
-- **AI-Powered Analysis**: Uses Gemini AI to analyze sentiment and extract insights
+- **AI-Powered Analysis**: Uses Gemini AI to Analyse sentiment and extract insights
 - **Smart Caching**: Reviews are cached for 24 hours to improve performance
 - **Beautiful UI**: Modern, responsive design that matches your dashboard
 - **Real-time Updates**: Refresh button to get the latest reviews

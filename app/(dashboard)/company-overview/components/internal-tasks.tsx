@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,15 +18,24 @@ type InternalTasksProps = {
   data: Task[];
   onUpdate: () => void;
   plannerId: string | undefined;
+  generatedData?: any;
+  onGeneratedDataChange?: (data: any) => void;
 };
 
-export default function InternalTasks({ data, onUpdate, plannerId }: InternalTasksProps) {
+export default function InternalTasks({ data, onUpdate, plannerId, generatedData, onGeneratedDataChange }: InternalTasksProps) {
   const [tasks, setTasks] = useState<Task[]>(data);
   const [newTask, setNewTask] = useState<Task>({ name: "", description: "" });
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const supabase = createClient();
+
+  // Update tasks when generated data is available
+  useEffect(() => {
+    if (generatedData?.internal_tasks) {
+      setTasks(generatedData.internal_tasks);
+    }
+  }, [generatedData]);
 
   const handleAddTask = () => {
     if (!newTask.name.trim()) return;

@@ -63,8 +63,8 @@ const navigationSections: NavigationSection[] = [
         icon: Calendar,
       },
       {
-        name: "Tem",
-        href: "/tem",
+        name: "Team",
+        href: "/team",
         icon: Users,
       },
       // {
@@ -311,6 +311,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               <GraduationCap className="h-4 w-4" />
               Trades Gang Classroom
+            </a>
+           
+
+            <a 
+              href="https://id.atlassian.com/login" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] font-medium text-gray-600 hover:bg-blue-50/80 hover:text-blue-700 transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Trello
             </a>
           </div>
         </div>

@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, Save } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import CompanyInfo from "./components/company-info";
 import InternalTasks from "./components/internal-tasks";
 import HelpfulLists from "./components/helpful-lists";
 import TextSections from "./components/text-sections";
+import { toast } from "sonner";
 
 type TriagePlanner = {
   id: string;
@@ -33,6 +35,9 @@ type TriagePlanner = {
 export default function TriagePlannerPage() {
   const [plannerData, setPlannerData] = useState<TriagePlanner | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [generatedData, setGeneratedData] = useState<any>(null);
+  const [savingGenerated, setSavingGenerated] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -53,14 +58,15 @@ export default function TriagePlannerPage() {
         .from("triage_planner")
         .select("*")
         .eq("user_id", teamId)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
       
-      if (data) {
-        setPlannerData(data);
+      if (data && data.length > 0) {
+        setPlannerData(data[0]);
       } else {
         // Create a new entry if none exists
         const newPlanner = {
@@ -96,6 +102,73 @@ export default function TriagePlannerPage() {
     }
   };
 
+  const handleGenerateWithAI = async () => {
+    try {
+      setGenerating(true);
+      
+      const response = await fetch('/api/gemini/company-overview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'generate' }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error('API Error Response:', result);
+        throw new Error(result.error || result.details || 'Failed to generate content');
+      }
+
+      setGeneratedData(result.data);
+      toast.success("AI has generated your Company Overview content!");
+      
+    } catch (err: any) {
+      console.error('Error generating content:', err);
+      const errorMessage = err.message || 'Failed to generate company overview content';
+      toast.error(errorMessage);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSaveGeneratedContent = async () => {
+    if (!generatedData) return;
+    
+    try {
+      setSavingGenerated(true);
+      const response = await fetch('/api/gemini/company-overview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          action: 'save',
+          generatedData: generatedData 
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save generated content');
+      }
+
+      // Refresh the data
+      await fetchPlannerData();
+      setGeneratedData(null);
+      
+      toast.success("Generated content saved successfully!");
+      
+    } catch (err: any) {
+      console.error('Error saving generated content:', err);
+      toast.error("Failed to save generated content");
+    } finally {
+      setSavingGenerated(false);
+    }
+  };
+
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="mb-4">
@@ -103,6 +176,44 @@ export default function TriagePlannerPage() {
         <p className="text-sm text-gray-500 mt-1">
           Plan and organise your business company overview
         </p>
+      </div>
+
+      {/* Compact AI Generation Section */}
+      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg mb-5">
+        <div className="flex items-center space-x-3">
+          <div>
+            <h3 className="text-sm font-medium text-indigo-800">AI Company Overview Generator</h3>
+            <p className="text-xs text-indigo-600 mt-1">
+              Analyse company data and generate your comprehensive company overview
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          {generatedData && (
+            <Button
+              size="sm"
+              className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleSaveGeneratedContent}
+              disabled={savingGenerated}
+            >
+              {savingGenerated ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Save className="h-3 w-3 mr-1" />
+              )}
+              {savingGenerated ? 'Saving...' : 'Save'}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            className="h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+            onClick={handleGenerateWithAI}
+            disabled={generating}
+          >
+            {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+            {generatedData ? 'Regenerate' : 'Generate'}
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -119,6 +230,8 @@ export default function TriagePlannerPage() {
                 data={plannerData?.company_info} 
                 onUpdate={fetchPlannerData} 
                 plannerId={plannerData?.id}
+                generatedData={generatedData}
+                onGeneratedDataChange={setGeneratedData}
               />
             </Card>
 
@@ -130,7 +243,9 @@ export default function TriagePlannerPage() {
                 missingData={plannerData?.what_is_missing || []} 
                 confusingData={plannerData?.what_is_confusing || []} 
                 onUpdate={fetchPlannerData} 
-                plannerId={plannerData?.id} 
+                plannerId={plannerData?.id}
+                generatedData={generatedData}
+                onGeneratedDataChange={setGeneratedData}
               />
             </Card>
           </div>
@@ -143,6 +258,8 @@ export default function TriagePlannerPage() {
                 data={plannerData?.internal_tasks || []} 
                 onUpdate={fetchPlannerData} 
                 plannerId={plannerData?.id}
+                generatedData={generatedData}
+                onGeneratedDataChange={setGeneratedData}
               />
             </Card>
 
@@ -154,6 +271,8 @@ export default function TriagePlannerPage() {
                 notes={plannerData?.notes || ""}
                 onUpdate={fetchPlannerData}
                 plannerId={plannerData?.id}
+                generatedData={generatedData}
+                onGeneratedDataChange={setGeneratedData}
               />
             </Card>
           </div>

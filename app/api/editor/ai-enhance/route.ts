@@ -110,13 +110,13 @@ IMPORTANT: Return ONLY the clean HTML content without any markdown formatting, c
 
 ${content}`,
 
-      grammar: `You are an AI editor. Please fix any spelling and grammar errors in the following HTML content. Maintain the original tone and meaning, but correct any mistakes and make sure to always use UK English.${userContextString}
+      grammar: `You are an AI editor. Please fix any spelling and grammar errors in the following HTML content. Maintain the original tone and meaning, but correct any mistakes and make sure to always use UK English and if it's in a USA english, please convert it to UK English.${userContextString}
 
 IMPORTANT: Return ONLY the clean HTML content without any markdown formatting, code blocks, or backticks. Do not wrap your response in \`\`\`html or any other formatting.
 
 ${content}`,
 
-      shorter: `You are an AI editor. Please make the following HTML content shorter while preserving all the key information and main points. Be concise but comprehensive and make sure to always use UK English.${userContextString}
+        shorter: `You are an AI editor. Please make the following HTML content shorter while preserving all the key information and main points. Be concise but comprehensive and make sure to always use UK English.${userContextString}
 
 IMPORTANT: Return ONLY the clean HTML content without any markdown formatting, code blocks, or backticks. Do not wrap your response in \`\`\`html or any other formatting.
 
@@ -163,11 +163,11 @@ ${content}`
     // Add context if processing selected text
     if (selectedText && context) {
       const actionDescription = 
-        action === 'simplify' ? 'simplify' : 
-        action === 'grammar' ? 'fix spelling and grammar in' : 
-        action === 'shorter' ? 'make shorter' : 
-        action === 'longer' ? 'expand' :
-        action === 'format' ? 'improve the formatting and structure of' : 'modify';
+        action === 'simplify' ? 'simplify this text to make it clearer and easier to understand while preserving the key information' :
+        action === 'grammar' ? 'fix any spelling and grammar issues in this text and ensure it uses proper UK English conventions' :
+        action === 'shorter' ? 'make this text more concise while keeping all essential information and main points' :
+        action === 'longer' ? 'expand this text with more details, examples and explanations that enhance the content without changing its core message' :
+        action === 'format' ? 'improve the HTML structure and formatting of this text while keeping the content exactly the same' : 'modify';
         
       prompt = `You are helping edit a document. Here's the context of the full document:
 

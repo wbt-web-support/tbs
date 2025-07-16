@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
@@ -13,6 +13,8 @@ type TextSectionsProps = {
   notes: string;
   onUpdate: () => void;
   plannerId: string | undefined;
+  generatedData?: any;
+  onGeneratedDataChange?: (data: any) => void;
 };
 
 export default function TextSections({ 
@@ -20,11 +22,22 @@ export default function TextSections({
   whoYouServe, 
   notes, 
   onUpdate, 
-  plannerId
+  plannerId,
+  generatedData,
+  onGeneratedDataChange
 }: TextSectionsProps) {
   const [whatYouDoContent, setWhatYouDoContent] = useState(whatYouDo);
   const [whoYouServeContent, setWhoYouServeContent] = useState(whoYouServe);
   const [notesContent, setNotesContent] = useState(notes);
+
+  // Update content when generated data is available
+  useEffect(() => {
+    if (generatedData) {
+      if (generatedData.what_you_do) setWhatYouDoContent(generatedData.what_you_do);
+      if (generatedData.who_you_serve) setWhoYouServeContent(generatedData.who_you_serve);
+      if (generatedData.notes) setNotesContent(generatedData.notes);
+    }
+  }, [generatedData]);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const supabase = createClient();

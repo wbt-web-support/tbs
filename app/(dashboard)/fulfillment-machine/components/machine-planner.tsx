@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, ArrowRight, Pencil, X, CircleDot } from "lucide-react";
+import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DynamicInputList } from "./dynamic-input-list";
+import { toast } from "sonner";
 
 type MachineData = {
   id: string;
@@ -49,6 +50,8 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
   const [editingActivities, setEditingActivities] = useState(false);
   
   const [error, setError] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generatedData, setGeneratedData] = useState<any>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -170,6 +173,118 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     }
   };
 
+  const handleGenerateWithAI = async () => {
+    try {
+      setGenerating(true);
+      setError("");
+      
+      const response = await fetch('/api/gemini/fulfillment-machine', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'generate' }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error('API Error Response:', result);
+        throw new Error(result.error || result.details || 'Failed to generate content');
+      }
+
+      setGeneratedData(result.data);
+      
+      // Auto-fill the form with generated data
+      if (result.data) {
+        console.log("Generated data received:", result.data);
+        
+        // Validate and set the data
+        const data = result.data;
+        
+        setEngineName(data.enginename || "");
+        setDescription(data.description || "");
+        
+        // Ensure arrays are properly formatted
+        const triggeringEvents = Array.isArray(data.triggeringevents) 
+          ? data.triggeringevents.filter((item: any) => item && item.value && item.value.trim() !== '')
+          : [];
+        setTriggeringEvents(triggeringEvents);
+        
+        const endingEvents = Array.isArray(data.endingevent)
+          ? data.endingevent.filter((item: any) => item && item.value && item.value.trim() !== '')
+          : [];
+        setEndingEvent(endingEvents);
+        
+        const actionsActivities = Array.isArray(data.actionsactivities)
+          ? data.actionsactivities.filter((item: any) => item && item.value && item.value.trim() !== '')
+          : [];
+        setActionsActivities(actionsActivities);
+        
+        console.log("Processed data:", {
+          triggeringEvents: triggeringEvents.length,
+          endingEvents: endingEvents.length,
+          actionsActivities: actionsActivities.length
+        });
+      }
+      
+      toast.success("AI has mapped out your Fulfillment Machine process!");
+      
+    } catch (err: any) {
+      console.error('Error generating content:', err);
+      const errorMessage = err.message || 'Failed to map your Fulfillment Machine process';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      
+      // Log the full error response for debugging
+      if (err.response) {
+        console.error('Full error response:', err.response);
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSaveGeneratedContent = async () => {
+    if (!generatedData) return;
+    
+    try {
+      setSaving(true);
+      setError("");
+      
+      const response = await fetch('/api/gemini/fulfillment-machine', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          action: 'save',
+          generatedData: generatedData 
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save generated content');
+      }
+
+      // Refresh the data
+      await fetchMachineData();
+      onDataChange?.();
+      setGeneratedData(null);
+      
+      toast.success("Generated content saved successfully!");
+      
+    } catch (err: any) {
+      console.error('Error saving generated content:', err);
+      setError(err.message || 'Failed to save generated content');
+      toast.error("Failed to save generated content");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -185,6 +300,40 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           {error}
         </div>
       )}
+
+      {/* Compact AI Generation Section */}
+      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg">
+        <div className="flex items-center space-x-3">
+          <div>
+            <h3 className="text-sm font-medium text-purple-800">AI Fulfillment Machine Generator</h3>
+            <p className="text-xs text-purple-600 mt-1">
+              Analyse company data and map your fulfillment process
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          {generatedData && (
+            <Button
+              size="sm"
+              className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleSaveGeneratedContent}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+              Save
+            </Button>
+          )}
+          <Button
+            size="sm"
+            className="h-8 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+            onClick={handleGenerateWithAI}
+            disabled={generating}
+          >
+            {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+            {generatedData ? 'Regenerate' : 'Generate'}
+          </Button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-12 gap-6">
         {/* Column One */}

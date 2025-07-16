@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input, ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Save, X, Building2, Pencil, DollarSign, PercentCircle, Users } from "lucide-react";
@@ -18,9 +18,11 @@ type CompanyInfoProps = {
   data: CompanyInfoData | undefined;
   onUpdate: () => void;
   plannerId: string | undefined;
+  generatedData?: any;
+  onGeneratedDataChange?: (data: any) => void;
 };
 
-export default function CompanyInfo({ data, onUpdate, plannerId }: CompanyInfoProps) {
+export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, onGeneratedDataChange }: CompanyInfoProps) {
   const [formData, setFormData] = useState<CompanyInfoData>(
     data || {
       annualRevenue: { current: "", target: "" },
@@ -28,6 +30,13 @@ export default function CompanyInfo({ data, onUpdate, plannerId }: CompanyInfoPr
       teamSize: { current: "", target: "" },
     }
   );
+
+  // Update form data when generated data is available
+  useEffect(() => {
+    if (generatedData?.company_info) {
+      setFormData(generatedData.company_info);
+    }
+  }, [generatedData]);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();

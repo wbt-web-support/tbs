@@ -604,8 +604,8 @@ export default function GrowthMachinePage() {
 
             {/* Details Tab Content */}
             <div className={`absolute inset-0 ${mainActiveTab === "details" ? "block" : "hidden"}`}>
-              <div className="flex-1 overflow-auto p-4 bg-gray-50 h-full">
-                <div className="max-w-[1440px] mx-auto">
+              <div className="flex-1">
+                <div className="mx-auto">
                   <MachinePlanner onDataChange={fetchMachineData} />
                 </div>
               </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Save, X, Pencil, BookOpen, Target, Eye } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
@@ -12,19 +12,35 @@ type BattlePlanDetailsProps = {
   visionStatement: string;
   onUpdate: () => void;
   planId: string | undefined;
+  generatedData?: any;
+  onGeneratedDataChange?: (data: any) => void;
 };
 
 export default function BattlePlanDetails({ 
   missionStatement, 
   visionStatement, 
   onUpdate, 
-  planId 
+  planId,
+  generatedData,
+  onGeneratedDataChange
 }: BattlePlanDetailsProps) {
   const [mission, setMission] = useState(missionStatement);
   const [vision, setVision] = useState(visionStatement);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
+
+  // Update local state when generated data is available
+  useEffect(() => {
+    if (generatedData) {
+      if (generatedData.missionstatement) {
+        setMission(generatedData.missionstatement);
+      }
+      if (generatedData.visionstatement) {
+        setVision(generatedData.visionstatement);
+      }
+    }
+  }, [generatedData]);
 
   const handleSave = async () => {
     if (!planId) return;

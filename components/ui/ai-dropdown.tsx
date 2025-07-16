@@ -85,7 +85,7 @@ export function AIDropdown({
           size={variant === 'bubble' ? 'sm' : 'sm'}
           disabled={disabled || isLoading}
           className={cn(
-            'flex items-center gap-2',
+            'flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-800 text-white hover:bg-blue-600 hover:text-white',
             variant === 'bubble' && 'h-8 w-8 p-0',
             variant === 'toolbar' && 'h-9 px-3',
             className

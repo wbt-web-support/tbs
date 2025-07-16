@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Trash2, Pencil, Save, X, CheckCircle, XCircle, PlusCircle, HelpCircle, ListChecks } from "lucide-react";
@@ -15,6 +15,8 @@ type HelpfulListsProps = {
   confusingData: string[];
   onUpdate: () => void;
   plannerId: string | undefined;
+  generatedData?: any;
+  onGeneratedDataChange?: (data: any) => void;
 };
 
 export default function HelpfulLists({
@@ -24,11 +26,23 @@ export default function HelpfulLists({
   confusingData,
   onUpdate,
   plannerId,
+  generatedData,
+  onGeneratedDataChange,
 }: HelpfulListsProps) {
   const [right, setRight] = useState<string[]>(rightData);
   const [wrong, setWrong] = useState<string[]>(wrongData);
   const [missing, setMissing] = useState<string[]>(missingData);
   const [confusing, setConfusing] = useState<string[]>(confusingData);
+
+  // Update lists when generated data is available
+  useEffect(() => {
+    if (generatedData) {
+      if (generatedData.what_is_right) setRight(generatedData.what_is_right);
+      if (generatedData.what_is_wrong) setWrong(generatedData.what_is_wrong);
+      if (generatedData.what_is_missing) setMissing(generatedData.what_is_missing);
+      if (generatedData.what_is_confusing) setConfusing(generatedData.what_is_confusing);
+    }
+  }, [generatedData]);
   
   const [newItem, setNewItem] = useState("");
   const [addingTo, setAddingTo] = useState<string | null>(null);
@@ -289,7 +303,7 @@ export default function HelpfulLists({
               )}
             </div>
           ) : (
-            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
               {items.length === 0 ? (
                 <p className="text-sm text-gray-400 italic">No items added yet</p>
               ) : (

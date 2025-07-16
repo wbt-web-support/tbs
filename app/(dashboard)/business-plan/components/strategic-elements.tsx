@@ -21,6 +21,8 @@ type StrategicElementsProps = {
   threeYearTarget: Item[];
   onUpdate: () => void;
   planId: string | undefined;
+  generatedData?: any;
+  onGeneratedDataChange?: (data: any) => void;
 };
 
 export default function StrategicElements({ 
@@ -29,7 +31,9 @@ export default function StrategicElements({
   purposeWhy, 
   threeYearTarget, 
   onUpdate, 
-  planId 
+  planId,
+  generatedData,
+  onGeneratedDataChange
 }: StrategicElementsProps) {
   const [values, setValues] = useState<Item[]>(coreValues);
   const [anchors, setAnchors] = useState<Item[]>(strategicAnchors);
@@ -45,6 +49,24 @@ export default function StrategicElements({
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
+
+  // Update local state when generated data is available
+  useEffect(() => {
+    if (generatedData) {
+      if (generatedData.corevalues) {
+        setValues(generatedData.corevalues);
+      }
+      if (generatedData.strategicanchors) {
+        setAnchors(generatedData.strategicanchors);
+      }
+      if (generatedData.purposewhy) {
+        setPurposes(generatedData.purposewhy);
+      }
+      if (generatedData.threeyeartarget) {
+        setTargets(generatedData.threeyeartarget);
+      }
+    }
+  }, [generatedData]);
 
   const handleAddItem = (section: string) => {
     const item = newItems[section as keyof typeof newItems];
@@ -318,7 +340,7 @@ export default function StrategicElements({
               </div>
             </div>
           ) : (
-            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
               {items.length === 0 ? (
                 <p className="text-sm text-gray-400 italic">{emptyMessage}</p>
               ) : (
