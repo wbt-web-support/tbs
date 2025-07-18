@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 
 type Meeting = {
@@ -116,6 +117,9 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onDelete, onEdit, meeting, isL
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[450px] rounded-xl p-0 overflow-hidden border-none shadow-lg">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{meeting.meeting_title || getMeetingTypeName(meeting.meeting_type)}</DialogTitle>
+          </DialogHeader>
           <div 
             className="py-5 px-6" 
             style={{
@@ -296,6 +300,7 @@ export default function MeetingRhythmPlannerPage() {
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isViewOnly, setIsViewOnly] = useState<boolean>(false);
   const [currentMeeting, setCurrentMeeting] = useState<Meeting | undefined>(undefined);
+  const [showPastMeetings, setShowPastMeetings] = useState<boolean>(false);
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -443,6 +448,22 @@ export default function MeetingRhythmPlannerPage() {
   const getMeetingTypeColor = (type: string) => {
     const meetingType = MEETING_TYPES.find(t => t.id === type);
     return meetingType?.color || "#e0e0e0";
+  };
+
+  // Filter meetings based on showPastMeetings toggle
+  const getFilteredMeetings = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (showPastMeetings) {
+      return meetings;
+    } else {
+      return meetings.filter(meeting => {
+        const meetingDate = new Date(meeting.meeting_date);
+        meetingDate.setHours(0, 0, 0, 0);
+        return meetingDate >= today;
+      });
+    }
   };
 
   const renderCalendar = () => {
@@ -686,30 +707,48 @@ export default function MeetingRhythmPlannerPage() {
         <div className="lg:col-span-1">
           <Card className="border shadow-sm bg-white h-fit">
             <CardHeader className="py-3 bg-blue-50 border-b">
-              <CardTitle className="text-base font-semibold flex items-center text-gray-800">
-                <div className="bg-blue-100 p-1.5 rounded-lg mr-3">
-                  <Calendar className="h-4 w-4 text-blue-600" />
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold flex items-center text-gray-800">
+                  <div className="bg-blue-100 p-1.5 rounded-lg mr-3">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">
+                      {showPastMeetings ? "All Meetings" : "Upcoming Meetings"}
+                    </div>
+                    <div className="text-xs text-gray-500 font-normal">
+                      {getFilteredMeetings().length} scheduled
+                    </div>
+                  </div>
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600">Past</span>
+                  <Switch
+                    checked={showPastMeetings}
+                    onCheckedChange={setShowPastMeetings}
+                    className="data-[state=checked]:bg-blue-600"
+                  />
                 </div>
-                <div>
-                  <div className="text-sm font-medium">All Meetings</div>
-                  <div className="text-xs text-gray-500 font-normal">{meetings.length} scheduled</div>
-                </div>
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <ScrollArea className="h-auto">
                 <div className="p-4">
-                  {meetings.length === 0 ? (
+                  {getFilteredMeetings().length === 0 ? (
                     <div className="text-center py-12 text-gray-500">
                       <div className="bg-gray-50 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                         <Calendar className="h-8 w-8 text-gray-400" />
                       </div>
-                      <p className="text-sm font-medium text-gray-600">No meetings scheduled</p>
-                      <p className="text-xs text-gray-400 mt-1">Add your first meeting to get started</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        {showPastMeetings ? "No meetings scheduled" : "No upcoming meetings"}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {showPastMeetings ? "Add your first meeting to get started" : "All your meetings are in the past"}
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {meetings
+                      {getFilteredMeetings()
                         .sort((a, b) => new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime())
                         .map((meeting) => {
                           const meetingType = MEETING_TYPES.find(t => t.id === meeting.meeting_type);

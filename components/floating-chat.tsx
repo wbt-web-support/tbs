@@ -281,6 +281,7 @@ export function FloatingChat() {
   const getResponsivePadding = useCallback((includeSidebarWidth = false) => {
     if (pathname === '/chat' || 
         pathname === '/innovation-machine' || 
+        pathname === '/calendar' ||
         pathname.startsWith('/playbook-planner/edit/')) { // If on /chat page, force padding to 0
       return { top: 0, right: 0, bottom: 0, left: 0 };
     }

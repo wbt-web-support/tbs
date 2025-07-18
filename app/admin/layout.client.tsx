@@ -17,6 +17,7 @@ import {
   User,
   MessageSquare,
   BarChart3,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,6 +59,11 @@ const navigationSections = [
         name: "Benefits",
         href: "/admin/benefits",
         icon: Gift,
+      },
+      {
+        name: "Course Management",
+        href: "/admin/courses",
+        icon: BookOpen,
       },
       {
         name: "User Management",
