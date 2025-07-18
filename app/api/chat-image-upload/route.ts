@@ -50,4 +50,26 @@ export async function POST(req: Request) {
   } catch (error) {
     return NextResponse.json({ error: 'Server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const { path } = await req.json();
+    if (!path) {
+      return NextResponse.json({ error: 'No file path provided' }, { status: 400 });
+    }
+    const bucket = 'chat-images';
+    const { error: deleteError } = await supabase.storage.from(bucket).remove([path]);
+    if (deleteError) {
+      return NextResponse.json({ error: 'Delete failed', details: deleteError.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+  }
 } 

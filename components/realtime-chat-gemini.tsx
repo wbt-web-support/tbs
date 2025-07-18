@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
 import { Input } from "@/components/ui/input";
 import { useEffectOnce } from 'react-use';
+import { useRef as useReactRef } from 'react';
 
 interface Message {
   role: "user" | "assistant";
@@ -72,6 +73,14 @@ interface RealtimeChatGeminiProps {
   onChatModeChange?: (mode: 'general' | 'document') => void;
   onOpenDocumentManager?: () => void; // New prop to open document manager dialog
 }
+
+type ChatImage = {
+  previewUrl: string;
+  url: string | null;
+  path: string | null;
+  uploading: boolean;
+  error: string | null;
+};
 
 export function RealtimeChatGemini({
   hideDebugButton = false,
@@ -139,6 +148,14 @@ export function RealtimeChatGemini({
   const [instanceDocumentIds, setInstanceDocumentIds] = useState<string[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [allDocuments, setAllDocuments] = useState<InnovationDocument[]>([]); // cache for all docs
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null); // URL to send with next message
+  const [pendingImagePath, setPendingImagePath] = useState<string | null>(null); // For deletion
+  const [chatImages, setChatImages] = useState<ChatImage[]>([]); // Up to 5
+  const fileInputRef = useReactRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -707,9 +724,77 @@ export function RealtimeChatGemini({
     }
   };
 
-  // Handle sending message with optimistic UI updates
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || isLoading || !isDataLoaded) return;
+  // Handle multiple image file selection and upload
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    // Only allow up to 5 images
+    const availableSlots = 5 - chatImages.length;
+    const filesToUpload = files.slice(0, availableSlots);
+    const newImages: ChatImage[] = filesToUpload.map(file => ({
+      previewUrl: URL.createObjectURL(file),
+      url: null,
+      path: null,
+      uploading: true,
+      error: null
+    }));
+    setChatImages(prev => [...prev, ...newImages]);
+    // Upload each image
+    filesToUpload.forEach(async (file, idx) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await fetch('/api/chat-image-upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        setChatImages(prev => {
+          const copy = [...prev];
+          // Find the first uploading image with this previewUrl
+          const i = copy.findIndex(img => img.uploading && img.previewUrl === newImages[idx].previewUrl);
+          if (i !== -1) {
+            copy[i] = {
+              ...copy[i],
+              url: res.ok ? data.url : null,
+              path: res.ok ? data.path : null,
+              uploading: false,
+              error: res.ok ? null : (data.error || 'Upload failed')
+            };
+          }
+          return copy;
+        });
+      } catch (err) {
+        setChatImages(prev => {
+          const copy = [...prev];
+          const i = copy.findIndex(img => img.uploading && img.previewUrl === newImages[idx].previewUrl);
+          if (i !== -1) {
+            copy[i] = { ...copy[i], uploading: false, error: 'Upload failed' };
+          }
+          return copy;
+        });
+      }
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Remove a single image preview and delete from bucket
+  const removeChatImage = async (idx: number) => {
+    const img = chatImages[idx];
+    if (img.path) {
+      await fetch('/api/chat-image-upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: img.path })
+      });
+    }
+    setChatImages(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Refactored handleSendMessage to accept an override message
+  const handleSendMessage = async (overrideMessage?: string) => {
+    const messageContent = overrideMessage !== undefined ? overrideMessage : inputText;
+    if (!messageContent.trim() || isLoading || !isDataLoaded) return;
 
     // If no instance is selected, create a new one
     if (!currentInstanceId) {
@@ -733,7 +818,7 @@ export function RealtimeChatGemini({
 
     setIsLoading(true);
     setError(null);
-    const currentInput = inputText;
+    const currentInput = messageContent;
     setInputText(""); // Clear input immediately
 
     const userMessage: Message = {
@@ -978,6 +1063,37 @@ export function RealtimeChatGemini({
       setIsLoading(false);
       setShowBotTyping(false); // Ensure typing indicator is hidden in all cases
     }
+  };
+
+  // Send message with image if present
+  const handleSendMessageWithImage = async () => {
+    // Only include images that are uploaded and have no error
+    const uploadedImages = chatImages.filter(img => img.url && !img.uploading && !img.error);
+    if (!inputText.trim() && uploadedImages.length === 0) return;
+    let messageToSend = inputText;
+    if (uploadedImages.length > 0) {
+      const imageMarkdown = uploadedImages.map(img => `![uploaded image](${img.url})`).join('\n');
+      messageToSend = (messageToSend ? messageToSend + '\n' : '') + imageMarkdown;
+    }
+
+    // Instantly clear images from UI BEFORE sending
+    const imagesToDelete = [...chatImages];
+    setChatImages([]);
+    setInputText("");
+
+    // Delete images from bucket in the background
+    imagesToDelete.forEach(img => {
+      if (img.path) {
+        fetch('/api/chat-image-upload', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: img.path })
+        });
+      }
+    });
+
+    // Now send the message (AI response can take its time)
+    await handleSendMessage(messageToSend);
   };
 
   // Audio recording and sending logic
@@ -2042,48 +2158,83 @@ export function RealtimeChatGemini({
                     className={`rounded-2xl px-4 py-2 sm:px-5 sm:py-3 flex flex-col w-fit break-words ${
                       message.role === "user"
                         ? message.isVoiceMessage 
-                          ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                          : "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
-                        : "bg-white text-gray-800  border border-gray-200"
+                          ? "bg-[#e9eef6] text-gray-800 border border-gray-200 rounded-tr-none"
+                          : "bg-[#e9eef6] text-gray-800 border border-gray-200 rounded-tr-none"
+                        : "text-gray-800"
                     }`}
                   >
-                    <div className="w-full">
-                        <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
-                          <ReactMarkdown
-                            components={{
-                              h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
-                              h2: ({children}) => <h2 className="text-lg font-bold mb-2 mt-4">{children}</h2>,
-                              h3: ({children}) => <h3 className="text-base font-bold mb-1 mt-3">{children}</h3>,
-                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                              ul: ({children}) => <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>,
-                              ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>,
-                              li: ({children}) => <li className="mb-1">{children}</li>,
-                              a: ({ href, children }) => (
-                                <a href={href} className={`${message.role === "user" ? "text-blue-100" : "text-blue-500"} hover:underline`} target="_blank" rel="noopener noreferrer">
-                                  {children}
-                                </a>
-                              ),
-                              code: ({ children }) => (
-                                <code className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded px-1 py-0.5 text-sm`}>
-                                  {children}
-                                </code>
-                              ),
-                              pre: ({ children }) => (
-                                <pre className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded p-2 text-sm overflow-x-auto my-2`}>
-                                  {children}
-                                </pre>
-                              ),
-                              blockquote: ({ children }) => (
-                                <blockquote className={`border-l-2 ${message.role === "user" ? "border-blue-300" : "border-gray-300"} pl-3 italic my-2`}>
-                                  {children}
-                                </blockquote>
-                              ),
-                              hr: () => <hr className="my-3 border-t border-gray-200" />
-                            }}
-                          >
-                            {message.content}
-                          </ReactMarkdown>
-                        </div>
+                    <div className="w-full flex gap-2 mb-1 flex-col">
+                      {message.role === "assistant" && (
+                        <Sparkles className="h-10 w-10 text-blue-500 bg-blue-500/10 rounded-full p-2" />
+                      )}
+                      <div className="flex-1">
+                        {/* Extract images and text */}
+                        {(() => {
+                          const imageMarkdownRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+                          const imageUrls: string[] = [];
+                          let textOnly = message.content;
+                          let match;
+                          while ((match = imageMarkdownRegex.exec(message.content)) !== null) {
+                            imageUrls.push(match[1]);
+                          }
+                          textOnly = textOnly.replace(imageMarkdownRegex, '').trim();
+                          return (
+                            <>
+                              {/* Render text (without images) */}
+                              <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
+                                <ReactMarkdown
+                                  components={{
+                                    h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
+                                    h2: ({children}) => <h2 className="text-lg font-bold mb-2 mt-4">{children}</h2>,
+                                    h3: ({children}) => <h3 className="text-base font-bold mb-1 mt-3">{children}</h3>,
+                                    p: ({ children }) => <p className="mb-2 last:mb-0 text-gray-800">{children}</p>,
+                                    ul: ({children}) => <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>,
+                                    ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>,
+                                    li: ({children}) => <li className="mb-1">{children}</li>,
+                                    img: () => null, // Don't render images inline
+                                    a: ({ href, children }) => (
+                                      <a href={href} className={`${message.role === "user" ? "text-blue-100" : "text-blue-500"} hover:underline`} target="_blank" rel="noopener noreferrer">
+                                        {children}
+                                      </a>
+                                    ),
+                                    code: ({ children }) => (
+                                      <code className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded px-1 py-0.5 text-sm`}>
+                                        {children}
+                                      </code>
+                                    ),
+                                    pre: ({ children }) => (
+                                      <pre className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded p-2 text-sm overflow-x-auto my-2`}>
+                                        {children}
+                                      </pre>
+                                    ),
+                                    blockquote: ({ children }) => (
+                                      <blockquote className={`border-l-2 ${message.role === "user" ? "border-blue-300" : "border-gray-300"} pl-3 italic my-2`}>
+                                        {children}
+                                      </blockquote>
+                                    ),
+                                    hr: () => <hr className="my-3 border-t border-gray-200" />
+                                  }}
+                                >
+                                  {textOnly}
+                                </ReactMarkdown>
+                              </div>
+                              {/* Render images below, side by side */}
+                              {imageUrls.length > 0 && (
+                                <div className="flex flex-row gap-2 mt-2">
+                                  {imageUrls.map((url, idx) => (
+                                    <img
+                                      key={url + idx}
+                                      src={url}
+                                      alt={`uploaded image ${idx + 1}`}
+                                      className="w-auto rounded-xl object-cover max-w-[150px] aspect-square"
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                   {message.isVoiceMessage && (
@@ -2114,7 +2265,7 @@ export function RealtimeChatGemini({
             {/* Bot typing indicator placeholder with glowing lines */}
             {showBotTyping && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800  border border-gray-200">
+                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ">
                   <div className="flex flex-col gap-1.5 w-36">
                     <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
                     <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
@@ -2131,7 +2282,7 @@ export function RealtimeChatGemini({
                   className={`max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ${
                     audioPlaceholder.role === "user"
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20"
-                      : "bg-white text-gray-800  border border-gray-200"
+                      : " text-gray-800 "
                   }`}
                 >
                   <div className="w-full">
@@ -2152,18 +2303,73 @@ export function RealtimeChatGemini({
 
       {/* Input Area - Make this sticky */}
       <div className="p-4 border-t bg-white/80 backdrop-blur-sm rounded-b-xl sticky bottom-0 z-20">
+        {/* Multiple image previews */}
+        {chatImages.length > 0 && (
+          <div className="mb-2 flex items-center gap-2">
+            {chatImages.map((img, idx) => (
+              <div key={img.previewUrl} className="relative group">
+                <img
+                  src={img.previewUrl}
+                  alt="Preview"
+                  className="h-14 w-14 rounded-xl border object-cover"
+                  style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                />
+                {/* Spinner overlay while uploading */}
+                {img.uploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
+
+                    <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                  </div>
+                )}
+                {/* X overlay for removal */}
+                <button
+                  type="button"
+                  onClick={() => removeChatImage(idx)}
+                  className="absolute top-0 right-0 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ transform: 'translate(35%,-35%)' }}
+                  title="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                {img.error && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-xs rounded-b-xl px-1 py-0.5 text-center">{img.error}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         {/* ... Input area content ... */}
          {isRecording && ( <div className="mb-3"> <AudioVisualizer isRecording={isRecording} stream={audioStream} /> </div>)}
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Image upload button (slate-500 icon, visible on all backgrounds) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={chatImages.length >= 5 || isLoading || isInCallMode || !isDataLoaded}
+            title="Upload Image"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-images-icon lucide-images"><path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/></svg>
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            className="hidden"
+            onChange={handleImageChange}
+            multiple
+            disabled={chatImages.length >= 5}
+          />
           <Button variant="ghost" size="icon" onClick={toggleRecording} disabled={isLoading || isInCallMode || !isDataLoaded} className={`rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}>
             {isRecording ? ( <div className="h-4 w-4 rounded-full bg-white animate-pulse" /> ) : ( <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>)}
           </Button>
           <div className="flex-1 relative">
-            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage();}}} placeholder={isLoadingHistory ? "Loading data..." : isInCallMode ? "Call mode active - listening..." : "Type your message..."} className="w-full px-3 py-2 sm:px-4 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[15px] sm:text-base" disabled={isLoading || isInCallMode || !isDataLoaded} />
+            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessageWithImage();}}} placeholder={isLoadingHistory ? "Loading data..." : isInCallMode ? "Call mode active - listening..." : "Type your message..."} className="w-full px-3 py-2 sm:px-4 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[15px] sm:text-base" disabled={isLoading || isInCallMode || !isDataLoaded} />
             {isLoading && ( <div className="absolute right-4 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div></div>)}
             {isSilent && isInCallMode && ( <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500"> Processing... </div>)}
           </div>
-          <Button variant="ghost" size="icon" onClick={handleSendMessage} disabled={!inputText.trim() || isLoading || isInCallMode || !isDataLoaded} className="rounded-full">
+          <Button variant="ghost" size="icon" onClick={handleSendMessageWithImage} disabled={(!inputText.trim() && chatImages.length === 0) || isLoading || isInCallMode || !isDataLoaded} className="rounded-full">
             <Send className="h-5 w-5" />
           </Button>
         </div>

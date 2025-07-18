@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import serverCache from "@/utils/cache";
+import fetch from 'node-fetch';
 
 const MODEL_NAME = "gemini-2.5-flash-lite-preview-06-17";
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
@@ -1491,7 +1492,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { message, type, audio, history, generateTTS = false, useStreaming = true, instanceId, documentIds } = await req.json(); // Added documentIds
+    const { message, type, audio, history, generateTTS = false, useStreaming = true, instanceId, documentIds } = await req.json();
 
     if (type === "chat") {
       console.log('🔄 [API] Processing chat request', useStreaming ? '(streaming)' : '(non-streaming)', instanceId ? `for instance: ${instanceId}` : '');
@@ -1536,7 +1537,7 @@ export async function POST(req: Request) {
       const savedInstanceId = await saveMessageToHistory(userId, message, 'user', instanceId, documentIds);
 
       // Create content with system instructions and conversation history
-      const contents = [];
+      const contents: any[] = [];
       
       // Add system instructions as the first message
       contents.push({
@@ -1562,13 +1563,52 @@ export async function POST(req: Request) {
         }
       }
       
-      // Add the current user message
-      contents.push({
-        role: 'user',
-        parts: [{ text: message }]
-      });
+      // Detect all image markdowns in the message
+      const imageMarkdownRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+      let match;
+      let lastIndex = 0;
+      let messageParts: any[] = [];
+      while ((match = imageMarkdownRegex.exec(message)) !== null) {
+        const imageUrl = match[1];
+        // Add any text before this image
+        if (match.index > lastIndex) {
+          const text = message.slice(lastIndex, match.index).trim();
+          if (text) messageParts.push({ text });
+        }
+        // Download the image as a buffer
+        const imageRes = await fetch(imageUrl);
+        if (imageRes.ok) {
+          const imageBuffer = await imageRes.arrayBuffer();
+          const mimeType = imageRes.headers.get('content-type') || 'image/png';
+          messageParts.push({
+            inlineData: {
+              mimeType,
+              data: Buffer.from(imageBuffer).toString('base64')
+            }
+          });
+        }
+        lastIndex = imageMarkdownRegex.lastIndex;
+      }
+      // Add any remaining text after the last image
+      if (lastIndex < message.length) {
+        const text = message.slice(lastIndex).trim();
+        if (text) messageParts.push({ text });
+      }
 
-      const generationConfig = {
+      // Add the current user message, with all text and image parts
+      if (messageParts.length > 0) {
+        contents.push({
+          role: 'user',
+          parts: messageParts
+        });
+      } else {
+        contents.push({
+          role: 'user',
+          parts: [{ text: message }]
+        });
+      }
+
+      const generationConfig: any = {
         maxOutputTokens: 2048,
         temperature: 0.4,
         topK: 40,
