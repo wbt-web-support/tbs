@@ -54,6 +54,31 @@ async function getGlobalInstructions(categories?: string[]) {
   }
 }
 
+// Helper function to get Innovation Documents
+async function getInnovationDocuments(documentIds: string[]) {
+  if (!documentIds || documentIds.length === 0) return [];
+
+  try {
+    console.log(`🔄 [Supabase] Fetching innovation documents for IDs: ${documentIds.join(', ')}`);
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('innovation_documents')
+      .select('id, title, extracted_content, file_name, file_type')
+      .in('id', documentIds);
+
+    if (error) {
+      console.error('❌ [Supabase] Error fetching innovation documents:', error);
+      throw error;
+    }
+
+    console.log(`✅ [Supabase] Fetched ${data?.length || 0} innovation documents`);
+    return data || [];
+  } catch (error) {
+    console.error("❌ [Supabase] Error fetching innovation documents:", error);
+    return [];
+  }
+}
+
 // Helper function to get user data
 async function getUserData(userId: string) {
   if (!userId) {
@@ -289,7 +314,7 @@ async function getUserData(userId: string) {
 }
 
 // Helper function to save message to history for a specific instance
-async function saveMessageToHistory(userId: string, message: string, role: 'user' | 'assistant', instanceId?: string) {
+async function saveMessageToHistory(userId: string, message: string, role: 'user' | 'assistant', instanceId?: string, documentIds?: string[]) {
   if (!userId) {
     console.log('⚠️ [Supabase] No userId provided, not saving message to history');
     return null;
@@ -309,8 +334,8 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       // Update specific instance
     const { data: existingHistory, error: fetchError } = await supabase
       .from('chat_history')
-      .select('id, messages')
-        .eq('id', instanceId)
+      .select('id, messages, document_ids')
+      .eq('id', instanceId)
       .eq('user_id', userId)
       .single();
 
@@ -325,9 +350,11 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       // Limit to the last 50 messages
       const limitedMessages = messages.slice(-50);
 
+      const updatePayload: any = { messages: limitedMessages };
+      if (documentIds) updatePayload.document_ids = documentIds;
       const { error: updateError } = await supabase
         .from('chat_history')
-        .update({ messages: limitedMessages })
+        .update(updatePayload)
         .eq('id', instanceId);
       
       if (updateError) {
@@ -341,7 +368,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       // Get the user's most recent instance or create a new one
       const { data: recentInstance, error: recentError } = await supabase
         .from('chat_history')
-        .select('id, messages')
+        .select('id, messages, document_ids')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
         .limit(1)
@@ -355,13 +382,15 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       if (!recentInstance) {
         // Create new instance
         console.log('🔄 [Supabase] Creating new chat instance');
-        const { data: newInstance, error: insertError } = await supabase
-        .from('chat_history')
-        .insert({
+        const insertPayload: any = {
           user_id: userId,
-            title: 'New Chat',
+          title: 'New Chat',
           messages: [messageObj]
-          })
+        };
+        if (documentIds) insertPayload.document_ids = documentIds;
+        const { data: newInstance, error: insertError } = await supabase
+          .from('chat_history')
+          .insert(insertPayload)
           .select('id')
           .single();
       
@@ -381,10 +410,12 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
       // Limit to the last 50 messages
       const limitedMessages = messages.slice(-50);
 
+      const updatePayload: any = { messages: limitedMessages };
+      if (documentIds) updatePayload.document_ids = documentIds;
       const { error: updateError } = await supabase
         .from('chat_history')
-        .update({ messages: limitedMessages })
-          .eq('id', recentInstance.id);
+        .update(updatePayload)
+        .eq('id', recentInstance.id);
       
       if (updateError) {
           console.error('❌ [Supabase] Error updating chat instance:', updateError);
@@ -409,7 +440,7 @@ async function getChatInstances(userId: string) {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('chat_history')
-      .select('id, title, created_at, updated_at')
+      .select('id, title, created_at, updated_at, document_ids')
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
 
@@ -1432,6 +1463,26 @@ ${userContext}`);
   return parts.join('\n');
 }
 
+// Add new helper function for formatting innovation documents
+function formatInnovationDocuments(documents: any[]) {
+  if (!documents || documents.length === 0) return '';
+
+  const parts: string[] = [`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📚 INNOVATION DOCUMENT CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`];
+
+  documents.forEach((doc, index) => {
+    parts.push(`
+📄 Document #${index + 1}: ${doc.title} (File: ${doc.file_name}, Type: ${doc.file_type})
+────────────────────────────────────────────────────────
+${doc.extracted_content || 'No extracted content available.'}
+`);
+  });
+
+  return parts.join('\n');
+}
+
 // Chat endpoint
 export async function POST(req: Request) {
   const userId = await getUserId(req);
@@ -1440,7 +1491,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { message, type, audio, history, generateTTS = false, useStreaming = true, instanceId } = await req.json();
+    const { message, type, audio, history, generateTTS = false, useStreaming = true, instanceId, documentIds } = await req.json(); // Added documentIds
 
     if (type === "chat") {
       console.log('🔄 [API] Processing chat request', useStreaming ? '(streaming)' : '(non-streaming)', instanceId ? `for instance: ${instanceId}` : '');
@@ -1456,19 +1507,25 @@ export async function POST(req: Request) {
       ];
 
       // Get user context and instructions using cache - do not invalidate cache after each request
-      const [userData, globalInstructions] = await Promise.all([
+      const [userData, globalInstructions, innovationDocuments] = await Promise.all([
         serverCache.getUserData(userId, getUserData),
-        serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories))
+        serverCache.getGlobalInstructions(async () => getGlobalInstructions(regularChatCategories)),
+        documentIds && documentIds.length > 0 ? getInnovationDocuments(documentIds) : Promise.resolve([]) // Fetch innovation documents if IDs are provided
       ]);
 
       // Prepare context and instructions
       const userContext = prepareUserContext(userData);
-      const formattedInstructions = formatInstructions(globalInstructions, userContext);
+      let formattedContext = formatInstructions(globalInstructions, userContext); // Rename formattedInstructions to formattedContext
+      
+      // Add innovation documents to context if available
+      if (innovationDocuments.length > 0) {
+        formattedContext += formatInnovationDocuments(innovationDocuments);
+      }
 
       // Add server-side console log to show what's being sent to the model
       console.log('\n=== MODEL INPUT START ===');
       console.log('Instructions and context being sent to the Gemini model:');
-      console.log(formattedInstructions);
+      console.log(formattedContext); // Use formattedContext
       console.log('=== MODEL INPUT END ===\n');
 
       // Prepare the model
@@ -1476,7 +1533,7 @@ export async function POST(req: Request) {
 
       // Save user message to history but don't invalidate cache for user data
       // Only chat history is changing, which we'll handle separately
-      const savedInstanceId = await saveMessageToHistory(userId, message, 'user', instanceId);
+      const savedInstanceId = await saveMessageToHistory(userId, message, 'user', instanceId, documentIds);
 
       // Create content with system instructions and conversation history
       const contents = [];
@@ -1484,7 +1541,7 @@ export async function POST(req: Request) {
       // Add system instructions as the first message
       contents.push({
         role: 'user',
-        parts: [{ text: formattedInstructions }]
+        parts: [{ text: formattedContext }] // Use formattedContext
       });
       
       // Add model response acknowledging instructions
@@ -1544,7 +1601,7 @@ export async function POST(req: Request) {
             }
 
             // Save assistant's response to history but don't invalidate cache
-            await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId);
+            await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId, documentIds);
 
             // Send completion message in SSE format
             const doneMessage = `data: [DONE]\n\n`;
@@ -1584,7 +1641,7 @@ export async function POST(req: Request) {
           const fullText = result.response.text();
           
           // Save assistant's response to history but don't invalidate cache
-          await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId);
+          await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId, documentIds);
           
           return NextResponse.json({ 
             type: 'chat_response',
@@ -1651,7 +1708,7 @@ export async function POST(req: Request) {
       const transcription = transcriptionResult.response.text();
       
       // Save transcription as user message but don't invalidate cache
-      const savedInstanceId = await saveMessageToHistory(userId, transcription, 'user', instanceId);
+      const savedInstanceId = await saveMessageToHistory(userId, transcription, 'user', instanceId, documentIds);
 
       // Create streaming response for the chat response
       const stream = new TransformStream();
@@ -1721,7 +1778,7 @@ export async function POST(req: Request) {
           }
 
           // Save assistant's response to history but don't invalidate cache
-          await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId);
+          await saveMessageToHistory(userId, fullText, 'assistant', savedInstanceId, documentIds);
 
           // Send completion message
           await writer.write(new TextEncoder().encode(
@@ -2196,7 +2253,7 @@ export async function PUT(req: Request) {
   }
 
   try {
-    const { action, instanceId, title } = await req.json();
+    const { action, instanceId, title, documentIds } = await req.json();
 
     switch (action) {
       case 'create':
@@ -2206,15 +2263,39 @@ export async function PUT(req: Request) {
         if (newInstance) {
           console.log(`✅ [Supabase] Created new chat instance: ${newInstance.id}`);
         } else {
-          console.error(`❌ [Supabase] Failed to create new chat instance`);
+          console.error('❌ [Supabase] Failed to create new chat instance');
         }
-        
         return NextResponse.json({
           type: 'instance_created',
-          success: !!newInstance,
           instance: newInstance
         });
-
+      case 'update_documents':
+        // Update document_ids for a chat instance
+        if (!instanceId) {
+          return NextResponse.json({
+            type: 'error',
+            error: 'Instance ID is required to update documents'
+          }, { status: 400 });
+        }
+        const supabase = await createClient();
+        const { error } = await supabase
+          .from('chat_history')
+          .update({ document_ids: documentIds || [] })
+          .eq('id', instanceId)
+          .eq('user_id', userId);
+        if (error) {
+          console.error('❌ [Supabase] Error updating document_ids:', error);
+          return NextResponse.json({
+            type: 'error',
+            error: 'Failed to update document_ids',
+            details: error.message
+          }, { status: 500 });
+        }
+        return NextResponse.json({
+          type: 'documents_updated',
+          instanceId,
+          documentIds
+        });
       case 'update_title':
         // Update chat instance title
         if (!instanceId) {

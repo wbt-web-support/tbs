@@ -4,10 +4,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink, Plus, MessageSquare, Trash2, Edit2, Check, Sidebar, SidebarOpen, Menu, Bot, Sparkles } from "lucide-react";
+import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink, Plus, MessageSquare, Trash2, Edit2, Check, Sidebar, SidebarOpen, Menu, Bot, Sparkles, Paperclip } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
 import { Input } from "@/components/ui/input";
+import { useEffectOnce } from 'react-use';
 
 interface Message {
   role: "user" | "assistant";
@@ -38,6 +39,20 @@ interface ChatbotInstruction {
   extraction_metadata: any;
 }
 
+interface InnovationDocument {
+  id: string;
+  title: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  upload_status: 'uploading' | 'processing' | 'completed' | 'error';
+  created_at: string;
+  updated_at: string;
+  extracted_content?: string;
+  file_url?: string;
+  extraction_metadata?: any;
+}
+
 const MEDIUM_SCREEN_BREAKPOINT = 768; // Tailwind 'md' breakpoint
 
 // Add onReady to the props type
@@ -49,16 +64,30 @@ interface RealtimeChatGeminiProps {
   onInstanceChange?: ((instanceId: string) => void) | null;
   onReady?: () => void; // New prop
   onFirstMessage?: ((message: string, instanceId: string) => void) | null; // New prop for floating chat
+  
+  // New props for document chat integration
+  selectedDocuments?: InnovationDocument[];
+  chatMode?: 'general' | 'document';
+  onDocumentSelect?: (documents: InnovationDocument[]) => void;
+  onChatModeChange?: (mode: 'general' | 'document') => void;
+  onOpenDocumentManager?: () => void; // New prop to open document manager dialog
 }
 
-export function RealtimeChatGemini({ 
-  hideDebugButton = false, 
-  showHeader = true, 
+export function RealtimeChatGemini({
+  hideDebugButton = false,
+  showHeader = true,
   hideInstanceSidebar = false,
   selectedInstanceId = null,
   onInstanceChange = null,
   onReady, // Destructure new prop
-  onFirstMessage = null // Destructure new prop
+  onFirstMessage = null, // Destructure new prop
+
+  // Destructure new props for document chat integration
+  selectedDocuments = [],
+  chatMode = 'general',
+  onDocumentSelect = () => {},
+  onChatModeChange = () => {},
+  onOpenDocumentManager = () => {} // Default empty function
 }: RealtimeChatGeminiProps = {}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -106,6 +135,10 @@ export function RealtimeChatGemini({
   const [mobileInstancesPanelOpen, setMobileInstancesPanelOpen] = useState(false);
   
   const supabase = createClient();
+
+  const [instanceDocumentIds, setInstanceDocumentIds] = useState<string[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  const [allDocuments, setAllDocuments] = useState<InnovationDocument[]>([]); // cache for all docs
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -741,22 +774,30 @@ export function RealtimeChatGemini({
       // Update lastMessageWasVoice state - text messages are not voice
       setLastMessageWasVoice(false);
 
+      // Prepare the payload for the API call
+      const payload: any = {
+        type: 'chat',
+        message: currentInput,
+        instanceId: currentInstanceId,
+        history: messages.map(msg => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }]
+        })),
+        useStreaming: useStreaming
+      };
+
+      // Add document IDs if chat mode is document and documents are selected
+      if (chatMode === 'document' && selectedDocuments.length > 0) {
+        payload.documentIds = selectedDocuments.map(doc => doc.id);
+      }
+
       const response = await fetch('/api/gemini', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          type: 'chat',
-          message: currentInput,
-          instanceId: currentInstanceId,
-          history: messages.map(msg => ({
-            role: msg.role === "assistant" ? "model" : "user",
-            parts: [{ text: msg.content }]
-          })),
-          useStreaming: useStreaming
-        })
+        body: JSON.stringify(payload) // Use the prepared payload
       });
 
       if (!response.ok) {
@@ -1642,6 +1683,87 @@ export function RealtimeChatGemini({
     );
   };
 
+  // Fetch documents by IDs
+  const fetchDocumentsByIds = useCallback(async (docIds: string[]) => {
+    if (!docIds || docIds.length === 0) return [];
+    setIsLoadingDocuments(true);
+    try {
+      // Use the same API as InnovationDocumentManager
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return [];
+      const response = await fetch('/api/innovation-documents', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch documents');
+      const data = await response.json();
+      setAllDocuments(data.documents || []);
+      // Filter to only those in docIds
+      return (data.documents || []).filter((doc: InnovationDocument) => docIds.includes(doc.id));
+    } catch (e) {
+      return [];
+    } finally {
+      setIsLoadingDocuments(false);
+    }
+  }, [supabase]);
+
+  // When switching chat instance, auto-select documents if present
+  useEffect(() => {
+    if (!currentInstanceId) return;
+    // Fetch the instance details
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const res = await fetch(`/api/gemini?action=instance&instanceId=${currentInstanceId}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const instance = data.instance;
+      if (instance && Array.isArray(instance.document_ids) && instance.document_ids.length > 0) {
+        setInstanceDocumentIds(instance.document_ids);
+        const docs = await fetchDocumentsByIds(instance.document_ids);
+        onDocumentSelect(docs);
+        onChatModeChange('document');
+      } else {
+        setInstanceDocumentIds([]);
+        onDocumentSelect([]);
+        onChatModeChange('general');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentInstanceId]);
+
+  // When user changes selected documents, persist to backend
+  useEffect(() => {
+    if (!currentInstanceId) return;
+    // Only update if the selected docs differ from instanceDocumentIds
+    const selectedIds = selectedDocuments.map(doc => doc.id);
+    if (
+      selectedIds.length !== instanceDocumentIds.length ||
+      selectedIds.some(id => !instanceDocumentIds.includes(id))
+    ) {
+      // Persist to backend
+      (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        await fetch('/api/gemini', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'update_documents',
+            instanceId: currentInstanceId,
+            documentIds: selectedIds
+          })
+        });
+        setInstanceDocumentIds(selectedIds);
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDocuments, currentInstanceId]);
+
   return (
     <div className="flex h-[calc(100vh-70px)] overflow-hidden bg-gradient-to-br from-white to-gray-50 mx-auto w-full">
       {/* Mobile Instances Panel - Overlay */}
@@ -1783,6 +1905,28 @@ export function RealtimeChatGemini({
               </div>
             </ScrollArea>
           )}
+
+          {/* Document Management Button - Desktop */}
+          {showInstanceSidebar && (
+            <div className="p-3 border-t bg-white/90 backdrop-blur-sm sticky bottom-0 z-10">
+              <Button
+                variant="ghost"
+                className="w-full flex items-center justify-start gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={onOpenDocumentManager}
+              >
+                <Paperclip className="h-4 w-4" />
+                <span className="text-sm">Manage Documents</span>
+              </Button>
+              {chatMode === 'document' && selectedDocuments.length > 0 && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Chatting with: {selectedDocuments.map(doc => doc.title).join(', ')}
+                  <Button variant="ghost" size="sm" onClick={() => onChatModeChange('general')} className="ml-2 text-blue-500 hover:text-blue-600 p-0 h-auto">
+                    (Clear)
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1833,6 +1977,9 @@ export function RealtimeChatGemini({
                 <span className="text-xs">Debug Data</span>
               </Button>
             )}
+            
+            {/* Document Management Button - Previously here, now moved to sidebar */}
+            {/* No longer needed here as it's in the sidebar */}
             
             {/* ... (other header buttons like Clear Chat) ... */}
             <Button

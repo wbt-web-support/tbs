@@ -141,12 +141,12 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    title: "Innovation",
+    title: "AI",
     items: [
       {
-        name: "Innovations Lab",
-        href: "/innovation-machine",
-        icon: Lightbulb,
+        name: "AI Assistant",
+        href: "/ai-assistant",
+        icon: Sparkles,
         disabled: false,
       },
     ],

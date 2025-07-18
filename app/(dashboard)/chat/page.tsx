@@ -2,10 +2,41 @@
 
 import { useState } from 'react';
 import { RealtimeChatGemini } from '@/components/realtime-chat-gemini';
+import { InnovationDocumentManager } from '@/components/innovation-document-manager'; // Import InnovationDocumentManager
 import { Loader2 } from 'lucide-react';
+
+interface InnovationDocument { // Define the InnovationDocument interface here
+  id: string;
+  title: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  upload_status: 'uploading' | 'processing' | 'completed' | 'error';
+  created_at: string;
+  updated_at: string;
+  extracted_content?: string;
+  file_url?: string;
+  extraction_metadata?: any;
+}
 
 export default function ChatPage() {
   const [isChatModuleLoaded, setIsChatModuleLoaded] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<InnovationDocument[]>([]); // State for selected documents
+  const [chatMode, setChatMode] = useState<'general' | 'document'>('general'); // State for chat mode
+  const [isDocumentManagerOpen, setIsDocumentManagerOpen] = useState(false); // State for document manager dialog
+
+  const handleDocumentSelect = (documents: InnovationDocument[]) => {
+    setSelectedDocuments(documents);
+    setChatMode(documents.length > 0 ? 'document' : 'general');
+    setIsDocumentManagerOpen(false); // Close dialog after selection
+  };
+
+  const handleChatModeChange = (mode: 'general' | 'document') => {
+    setChatMode(mode);
+    if (mode === 'general') {
+      setSelectedDocuments([]); // Clear selected documents when switching to general mode
+    }
+  };
 
   return (
     <div className="relative flex items-center justify-center w-full h-full">
@@ -17,8 +48,23 @@ export default function ChatPage() {
         </div>
       )}
       <div className={`w-full h-full ${isChatModuleLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}>
-        <RealtimeChatGemini onReady={() => setIsChatModuleLoaded(true)} />
+        <RealtimeChatGemini 
+          onReady={() => setIsChatModuleLoaded(true)} 
+          selectedDocuments={selectedDocuments} // Pass selected documents
+          chatMode={chatMode} // Pass chat mode
+          onDocumentSelect={handleDocumentSelect} // Pass document select handler
+          onChatModeChange={handleChatModeChange} // Pass chat mode change handler
+          onOpenDocumentManager={() => setIsDocumentManagerOpen(true)} // Pass function to open document manager
+        />
       </div>
+
+      {/* Innovation Document Manager Dialog */}
+      <InnovationDocumentManager
+        isOpen={isDocumentManagerOpen}
+        onClose={() => setIsDocumentManagerOpen(false)}
+        onDocumentSelect={handleDocumentSelect}
+        selectedDocumentIds={selectedDocuments.map(doc => doc.id)}
+      />
     </div>
   );
 } 
