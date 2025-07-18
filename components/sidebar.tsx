@@ -145,7 +145,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       {
         name: "AI Assistant",
-        href: "/ai-assistant",
+        href: "/chat",
         icon: Sparkles,
         disabled: false,
       },
