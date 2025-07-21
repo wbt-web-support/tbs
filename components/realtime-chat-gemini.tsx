@@ -54,6 +54,19 @@ interface InnovationDocument {
   extraction_metadata?: any;
 }
 
+interface ChatIdea {
+  id: string;
+  user_id: string;
+  title: string;
+  summary: string;
+  original_chat_id: string;
+  original_messages: any[];
+  tags: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 const MEDIUM_SCREEN_BREAKPOINT = 768; // Tailwind 'md' breakpoint
 
 // Add onReady to the props type
@@ -166,6 +179,22 @@ export function RealtimeChatGemini({
   const [instanceDocumentIds, setInstanceDocumentIds] = useState<string[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [allDocuments, setAllDocuments] = useState<InnovationDocument[]>([]); // cache for all docs
+  
+  // Ideas state
+  const [ideas, setIdeas] = useState<ChatIdea[]>([]);
+  const [isLoadingIdeas, setIsLoadingIdeas] = useState(false);
+  const [showSaveIdeaModal, setShowSaveIdeaModal] = useState(false);
+  const [ideaTitle, setIdeaTitle] = useState('');
+  const [ideaTags, setIdeaTags] = useState<string[]>([]);
+  const [isSavingIdea, setIsSavingIdea] = useState(false);
+
+  // Add after ideas state
+  const [loadedIdeaId, setLoadedIdeaId] = useState<string | null>(null);
+  const [showUpdateIdeaModal, setShowUpdateIdeaModal] = useState(false);
+  const [updateIdeaTitle, setUpdateIdeaTitle] = useState('');
+  const [updateIdeaTags, setUpdateIdeaTags] = useState<string[]>([]);
+  const [updateIdeaSummary, setUpdateIdeaSummary] = useState('');
+  const [isUpdatingIdea, setIsUpdatingIdea] = useState(false);
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
@@ -367,11 +396,8 @@ export function RealtimeChatGemini({
   // Function to create a new chat instance
   const createNewInstance = async (title: string = 'New Chat') => {
     try {
-      console.log('🔄 [RealtimeChatGemini] Creating new chat instance:', title);
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) return;
-
+      if (!session?.user) return null;
       const response = await fetch('/api/gemini', {
         method: 'PUT',
         headers: {
@@ -383,42 +409,20 @@ export function RealtimeChatGemini({
           title: title
         })
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create new chat instance');
-      }
-
+      if (!response.ok) throw new Error('Failed to create new chat instance');
       const data = await response.json();
-      console.log('🔄 [RealtimeChatGemini] API response:', data);
-      
       if (data.type === 'instance_created' && data.instance) {
-        // Optimistically update the list and switch to the new instance
         setChatInstances(prev => [data.instance, ...prev]);
         setCurrentInstanceId(data.instance.id);
-        setMessages([]); // A new chat starts with no messages.
-        
-        if (onInstanceChange) {
-          onInstanceChange(data.instance.id);
-        }
-        
-        // Trigger force reload callback
-        if (onNewChatCreated) {
-          console.log('🔄 [RealtimeChatGemini] Triggering onNewChatCreated callback');
-          onNewChatCreated();
-        }
-        
-        // toast({
-        //   title: "New chat created",
-        //   description: "A new chat instance has been created.",
-        // });
+        setMessages([]);
+        if (onInstanceChange) onInstanceChange(data.instance.id);
+        if (onNewChatCreated) onNewChatCreated();
+        return data.instance;
       }
+      return null;
     } catch (error) {
       console.error('Error creating new chat instance:', error);
-      // toast({
-      //   title: "Error",
-      //   description: "Failed to create new chat instance.",
-      //   variant: "destructive"
-      // });
+      return null;
     }
   };
 
@@ -1826,6 +1830,157 @@ export function RealtimeChatGemini({
     );
   };
 
+  // Ideas functions
+  const fetchIdeas = async () => {
+    setIsLoadingIdeas(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      
+      const response = await fetch('/api/gemini/save-idea', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch ideas');
+      const data = await response.json();
+      setIdeas(data.ideas || []);
+    } catch (error) {
+      console.error('Error fetching ideas:', error);
+    } finally {
+      setIsLoadingIdeas(false);
+    }
+  };
+
+  const saveIdea = async () => {
+    if (!ideaTitle.trim() || !currentInstanceId) return;
+    
+    setIsSavingIdea(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      
+      const response = await fetch('/api/gemini/save-idea', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          chatInstanceId: currentInstanceId,
+          title: ideaTitle,
+          tags: ideaTags
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to save idea');
+      
+      const data = await response.json();
+      setIdeas(prev => [data.idea, ...prev]);
+      setShowSaveIdeaModal(false);
+      setIdeaTitle('');
+      setIdeaTags([]);
+    } catch (error) {
+      console.error('Error saving idea:', error);
+    } finally {
+      setIsSavingIdea(false);
+    }
+  };
+
+  const deleteIdea = async (ideaId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      
+      const response = await fetch('/api/gemini/save-idea', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ ideaId })
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete idea');
+      
+      setIdeas(prev => prev.filter(idea => idea.id !== ideaId));
+    } catch (error) {
+      console.error('Error deleting idea:', error);
+    }
+  };
+
+  // Update loadIdeaIntoChat
+  const loadIdeaIntoChat = async (idea: ChatIdea) => {
+    try {
+      setLoadedIdeaId(idea.id);
+      setUpdateIdeaTitle(idea.title);
+      setUpdateIdeaTags(idea.tags || []);
+      setUpdateIdeaSummary(idea.summary);
+      // Create a new chat instance with the idea title and get the instance
+      const newInstance = await createNewInstance(idea.title);
+      if (newInstance && newInstance.id) {
+        setCurrentInstanceId(newInstance.id);
+        const newMessages = [
+          { role: 'assistant', content: idea.summary, type: 'text', isComplete: true },
+          ...idea.original_messages
+        ];
+        // Save messages to backend
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          await fetch('/api/gemini/update-messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+              instanceId: newInstance.id,
+              messages: newMessages
+            })
+          });
+        }
+        setMessages(newMessages);
+      }
+    } catch (error) {
+      console.error('Error loading idea into chat:', error);
+    }
+  };
+
+  // Update idea logic
+  const updateIdea = async () => {
+    if (!loadedIdeaId || !updateIdeaTitle.trim()) return;
+    setIsUpdatingIdea(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const response = await fetch('/api/gemini/save-idea', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          ideaId: loadedIdeaId,
+          title: updateIdeaTitle,
+          tags: updateIdeaTags,
+          summary: updateIdeaSummary
+        })
+      });
+      if (!response.ok) throw new Error('Failed to update idea');
+      const data = await response.json();
+      setIdeas(prev => prev.map(idea => idea.id === loadedIdeaId ? data.idea : idea));
+      setShowUpdateIdeaModal(false);
+    } catch (error) {
+      console.error('Error updating idea:', error);
+    } finally {
+      setIsUpdatingIdea(false);
+    }
+  };
+
+  // Fetch ideas on component mount
+  useEffect(() => {
+    fetchIdeas();
+  }, []);
+
   // Fetch documents by IDs
   const fetchDocumentsByIds = useCallback(async (docIds: string[]) => {
     if (!docIds || docIds.length === 0) return [];
@@ -2035,18 +2190,106 @@ export function RealtimeChatGemini({
           {/* Instances List - Desktop */}
           {showInstanceSidebar && (
             <ScrollArea className="flex-1">
-              <div className="p-3 space-y-2">
+              <h3 className="text-sm font-medium text-gray-700 p-3 pb-0">Chats</h3>
+              <div className="p-3 space-y-0">
                  {/* ... (same instance list rendering as mobile panel, simplified here for brevity) ... */}
                  {isLoadingInstances ? ( <div className="flex items-center justify-center py-8"><div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div></div>) 
                  : chatInstances.length === 0 ? (<div className="text-center py-8 text-gray-500 text-sm"><MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" /><p>No chats yet</p></div>) 
                  : (chatInstances.map((instance) => (
-                    <div key={instance.id} className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${ currentInstanceId === instance.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'}`} onClick={() => selectInstance(instance.id)}>
+                    <div key={instance.id} className={`group relative rounded-lg p-2 px-3 cursor-pointer transition-colors ${ currentInstanceId === instance.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'}`} onClick={() => selectInstance(instance.id)}>
                       {editingInstanceId === instance.id ? ( <div className="flex items-center gap-2"><Input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} onKeyDown={(e) => {if (e.key === 'Enter') updateInstanceTitle(instance.id, editingTitle); else if (e.key === 'Escape') setEditingInstanceId(null);}} className="flex-1 h-7 text-sm" autoFocus onClick={(e) => e.stopPropagation()} /><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); updateInstanceTitle(instance.id, editingTitle);}} className="h-7 w-7 shrink-0"><Check className="h-3 w-3" /></Button></div>) 
-                      : (<div className="flex items-center justify-between"><div className="flex-1 min-w-0"><h3 className="font-medium text-sm text-gray-900 truncate">{instance.title}</h3><p className="text-xs text-gray-500 mt-1">{new Date(instance.updated_at).toLocaleDateString()}</p></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingInstanceId(instance.id); setEditingTitle(instance.title);}} className="h-7 w-7 shrink-0"><Edit2 className="h-3 w-3" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); if (confirm('Delete chat?')) deleteInstance(instance.id);}} className="h-7 w-7 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-3 w-3" /></Button></div></div>)}
+                      : (<div className="flex items-center justify-between"><div className="flex-1 min-w-0"><h3 className="font-medium text-sm text-gray-900 truncate">{instance.title}</h3><p className="text-xs text-gray-500 mt-1 hidden">{new Date(instance.updated_at).toLocaleDateString()}</p></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingInstanceId(instance.id); setEditingTitle(instance.title);}} className="h-7 w-7 shrink-0"><Edit2 className="h-3 w-3" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); if (confirm('Delete chat?')) deleteInstance(instance.id);}} className="h-7 w-7 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-3 w-3" /></Button></div></div>)}
                     </div>)))
                  } 
               </div>
             </ScrollArea>
+          )}
+
+          {/* Ideas Section - Desktop */}
+          {showInstanceSidebar && (
+            <div className="p-3 border-t bg-white/90 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-700">Saved Ideas</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSaveIdeaModal(true)}
+                  disabled={!currentInstanceId || messages.length === 0}
+                  className="text-green-600 hover:text-green-700 hover:bg-green-50 p-1 h-6"
+                  title="Save current conversation as idea"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17,21 17,13 7,13 7,21"/>
+                    <polyline points="7,3 7,8 15,8"/>
+                  </svg>
+                </Button>
+              </div>
+              
+              {isLoadingIdeas ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                </div>
+              ) : ideas.length === 0 ? (
+                <div className="text-center py-4 text-gray-500 text-xs">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-1 opacity-50">
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 17h.01"/>
+                  </svg>
+                  <p>No saved ideas yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {ideas.slice(0, 5).map((idea) => (
+                    <div
+                      key={idea.id}
+                      className="group relative rounded-lg p-2 cursor-pointer transition-colors hover:bg-gray-50 border bg-gray-50 hover:border-gray-200"
+                      onClick={() => loadIdeaIntoChat(idea)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex">
+                          <h4 className="font-medium text-xs text-gray-900 truncate">
+                            {idea.title}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 hidden">
+                            {idea.summary}
+                          </p>
+                          <div className="flex items-center gap-1 mt-1 hidden">
+                            {idea.tags.slice(0, 2).map((tag, idx) => (
+                              <span key={idx} className="inline-block bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded">
+                                {tag}
+                              </span>
+                            ))}
+                            {idea.tags.length > 2 && (
+                              <span className="text-xs text-gray-400">+{idea.tags.length - 2}</span>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Delete this idea?')) deleteIdea(idea.id);
+                          }}
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {ideas.length > 5 && (
+                    <div className="text-center py-2">
+                      <Button variant="ghost" size="sm" className="text-xs text-blue-600 hover:text-blue-700">
+                        View all {ideas.length} ideas
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Document Management Button - Desktop */}
@@ -2054,7 +2297,7 @@ export function RealtimeChatGemini({
             <div className="p-3 border-t bg-white/90 backdrop-blur-sm sticky bottom-0 z-10">
               <Button
                 variant="ghost"
-                className="w-full flex items-center justify-start gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                className="w-full flex items-center justify-start gap-2 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100"
                 onClick={onOpenDocumentManager}
               >
                 <Paperclip className="h-4 w-4" />
@@ -2120,6 +2363,25 @@ export function RealtimeChatGemini({
                 <span className="text-xs">Debug Data</span>
               </Button>
             )}
+            
+            {/* Save Idea Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSaveIdeaModal(true)}
+              disabled={!currentInstanceId || messages.length === 0 || isLoading}
+              className="text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors"
+              title="Save this conversation as an idea"
+            >
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17,21 17,13 7,13 7,21"/>
+                  <polyline points="7,3 7,8 15,8"/>
+                </svg>
+                <span>Save Idea</span>
+              </div>
+            </Button>
             
             {/* Document Management Button - Previously here, now moved to sidebar */}
             {/* No longer needed here as it's in the sidebar */}
@@ -2341,11 +2603,10 @@ export function RealtimeChatGemini({
                   className="h-14 w-14 rounded-xl border object-cover"
                   style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
                 />
-                {/* Spinner overlay while uploading */}
+                {/* Modern circular loader overlay while uploading */}
                 {img.uploading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
-
-                    <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                    <div className="h-6 w-6 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>
                   </div>
                 )}
                 {/* X overlay for removal */}
@@ -2406,6 +2667,182 @@ export function RealtimeChatGemini({
       {isLoadingHistory && ( <div className="text-center text-sm text-gray-500 mt-2"> Loading conversation and user data... Please wait. </div>)}
       <audio ref={audioRef} src={ttsAudioUrl || undefined} className="hidden" controls={false} onEnded={() => setIsAudioPlaying(false)} onPlay={() => setIsAudioPlaying(true)} onPause={() => setIsAudioPlaying(false)} onLoadedData={() => console.log("Audio data loaded")} />
       {renderDebugPopup()}
+
+      {/* Save Idea Modal */}
+      {showSaveIdeaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[90%] max-w-md bg-white rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Save as Idea</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSaveIdeaModal(false)}
+                className="rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="idea-title" className="block text-sm font-medium text-gray-700 mb-2">
+                  Idea Title *
+                </label>
+                <Input
+                  id="idea-title"
+                  value={ideaTitle}
+                  onChange={(e) => setIdeaTitle(e.target.value)}
+                  placeholder="Enter a descriptive title for this idea"
+                  className="w-full"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="idea-tags" className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags (optional)
+                </label>
+                <Input
+                  id="idea-tags"
+                  value={ideaTags.join(', ')}
+                  onChange={(e) => setIdeaTags(e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
+                  placeholder="Enter tags separated by commas (e.g., innovation, strategy, growth)"
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tags help organize and find your ideas later
+                </p>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Preview:</strong> This will save the current conversation ({messages.length} messages) as an idea with an AI-generated summary.
+                </p>
+                <p className="text-xs text-gray-500">
+                  The idea will be accessible from the sidebar and can be loaded into new chat sessions.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowSaveIdeaModal(false)}
+                disabled={isSavingIdea}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={saveIdea}
+                disabled={!ideaTitle.trim() || isSavingIdea}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSavingIdea ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                    <span>Saving...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                      <polyline points="17,21 17,13 7,13 7,21"/>
+                      <polyline points="7,3 7,8 15,8"/>
+                    </svg>
+                    <span>Save Idea</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showUpdateIdeaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[90%] max-w-md bg-white rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Update Idea</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowUpdateIdeaModal(false)}
+                className="rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="update-idea-title" className="block text-sm font-medium text-gray-700 mb-2">
+                  Idea Title *
+                </label>
+                <Input
+                  id="update-idea-title"
+                  value={updateIdeaTitle}
+                  onChange={(e) => setUpdateIdeaTitle(e.target.value)}
+                  placeholder="Enter a descriptive title for this idea"
+                  className="w-full"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label htmlFor="update-idea-tags" className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags (optional)
+                </label>
+                <Input
+                  id="update-idea-tags"
+                  value={updateIdeaTags.join(', ')}
+                  onChange={(e) => setUpdateIdeaTags(e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
+                  placeholder="Enter tags separated by commas (e.g., innovation, strategy, growth)"
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tags help organize and find your ideas later
+                </p>
+              </div>
+              <div>
+                <label htmlFor="update-idea-summary" className="block text-sm font-medium text-gray-700 mb-2">
+                  Summary
+                </label>
+                <textarea
+                  id="update-idea-summary"
+                  value={updateIdeaSummary}
+                  onChange={(e) => setUpdateIdeaSummary(e.target.value)}
+                  className="w-full border rounded p-2 text-sm"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowUpdateIdeaModal(false)}
+                disabled={isUpdatingIdea}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={updateIdea}
+                disabled={!updateIdeaTitle.trim() || isUpdatingIdea}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {isUpdatingIdea ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                    <span>Updating...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    <span>Update Idea</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

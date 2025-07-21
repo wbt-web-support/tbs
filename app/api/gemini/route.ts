@@ -2381,4 +2381,5 @@ export async function PUT(req: Request) {
       details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
-} 
+}
+
