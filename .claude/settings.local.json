@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:developer.intuit.com)",
+      "WebFetch(domain:www.getknit.dev)",
+      "Bash(mkdir:*)",
+      "Bash(npx supabase link:*)",
+      "Bash(npx supabase login)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}

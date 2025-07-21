@@ -31,6 +31,7 @@ import {
   Box,
   Building,
   ClipboardList,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -147,6 +148,17 @@ const navigationSections: NavigationSection[] = [
         name: "Innovations Lab",
         href: "/innovation-machine",
         icon: Lightbulb,
+        disabled: false,
+      },
+    ],
+  },
+  {
+    title: "Integrations",
+    items: [
+      {
+        name: "QuickBooks",
+        href: "/integrations/quickbooks",
+        icon: CreditCard,
         disabled: false,
       },
     ],
