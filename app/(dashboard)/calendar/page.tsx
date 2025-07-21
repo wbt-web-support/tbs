@@ -215,16 +215,16 @@ export default function ChqTimelinePage() {
             Timeline
           </TabsTrigger>
           <TabsTrigger 
-            value="benefits"
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
-          >
-            To Do List
-          </TabsTrigger>
-          <TabsTrigger 
             value="progress"
             className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
           >
             Progress
+          </TabsTrigger>
+          <TabsTrigger 
+            value="benefits"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
+          >
+            To Do List
           </TabsTrigger>
         </TabsList>
 

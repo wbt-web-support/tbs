@@ -303,15 +303,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <Box className="h-4 w-4" />
               Leads Hub
             </a>
-            <a 
-              href="https://www.skool.com/tradesgang" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] font-medium text-gray-600 hover:bg-blue-50/80 hover:text-blue-700 transition-colors"
-            >
-              <GraduationCap className="h-4 w-4" />
-              Trades Gang Classroom
-            </a>
            
 
             <a 

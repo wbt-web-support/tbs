@@ -321,64 +321,23 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const userId = await getUserId(req);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// Helper to fetch prompt body
+async function getPromptBody(promptKey: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('prompt_text')
+    .eq('prompt_key', promptKey)
+    .single();
+  if (error) {
+    console.error('Error loading prompt body:', error);
+    return null;
+  }
+  return data?.prompt_text || null;
+}
 
-    const teamId = await getTeamId(userId);
-    if (!teamId) {
-      return NextResponse.json({ error: "Team not found" }, { status: 404 });
-    }
-
-    // Read the request body once
-    const body = await req.json();
-    const { action, generatedData } = body;
-
-    if (action === "generate") {
-      // Generate content using Gemini
-      const companyData = await getCompanyData(userId, teamId);
-      const companyContext = formatCompanyContext(companyData);
-
-      const prompt = `
-You are an expert business process consultant helping to map out a Fulfillment Machine for a Trade Business School Bootcamp participant. Based on the comprehensive company data provided below, you will help organize their service delivery information into a structured Fulfillment Machine Planner and make sure that everything is in the UK English.
-
-A Fulfillment Machine is a systematic process that ensures consistent, high-quality service delivery and customer satisfaction. Your role is to Analyse the company's current service delivery operations and create a clear, actionable fulfillment process.
-
-${companyContext}
-
-Please Analyse the company's business information and create a comprehensive Fulfillment Machine with the following components and make sure that everything is in the UK English:
-
-1. **Engine Name**: engine name should be simple and easy to understand and related to their business, product and process.
-
-2. **Description**: A clear, concise explanation (1-2 paragraphs) that covers:
-   - What their primary service delivery process is
-   - How they ensure quality and customer satisfaction
-   - The key steps in their service delivery
-   - Why this approach works for their specific business model
-
-3. **Triggering Events** (5-8 items): The specific events that kick off their fulfillment process. Focus on:
-   - Customer purchases or service requests
-   - Project initiation
-   - Service delivery triggers
-   - Measurable starting points
-
-4. **Ending Events** (3-5 items): Clear outcomes that mark successful completion. Include:
-   - Service delivery completion
-   - Customer satisfaction achieved
-   - Payment received
-   - Review request sent
-   - Measurable service results
-
-5. **Actions/Activities** (8-12 items): The major steps involved in their fulfillment process. Structure as:
-   - Service preparation activities
-   - Delivery execution steps
-   - Quality assurance activities
-   - Customer communication and follow-up
-   - All in logical, sequential order
-
+// Fixed JSON structure and rules for fulfillment machine
+const FULFILLMENT_MACHINE_JSON_STRUCTURE = `
 CRITICAL: You must respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON. The JSON must have this exact structure:
 
 {
@@ -411,6 +370,39 @@ IMPORTANT RULES:
 - Make the process practical and implementable for their specific business
 - Ensure the fulfillment process aligns with their growth machine (if they have one)
 `;
+
+export async function POST(req: Request) {
+  try {
+    const userId = await getUserId(req);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const teamId = await getTeamId(userId);
+    if (!teamId) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    }
+
+    // Read the request body once
+    const body = await req.json();
+    const { action, generatedData } = body;
+
+    if (action === "generate") {
+      // Generate content using Gemini
+      const companyData = await getCompanyData(userId, teamId);
+      const companyContext = formatCompanyContext(companyData);
+
+      // Load prompt body (instructions) from DB using the old key
+      let promptBody = await getPromptBody('fulfillment_machine');
+      if (!promptBody) {
+        throw new Error('Prompt body not found for fulfillment_machine');
+      }
+      // Replace placeholders
+      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext)
+        .replace(/{{responseFormat}}/g, FULFILLMENT_MACHINE_JSON_STRUCTURE);
+
+      // The final prompt is the body + the fixed structure
+      const prompt = promptBody;
 
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
       const result = await model.generateContent(prompt);

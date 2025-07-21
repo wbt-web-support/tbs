@@ -235,54 +235,12 @@ function formatCompanyContext(companyData: any) {
   return parts.join('\n');
 }
 
-// Helper function to generate company overview content
-async function generateCompanyOverview(userId: string, teamId: string) {
-  try {
-    const companyData = await getCompanyData(userId, teamId);
-    const companyContext = formatCompanyContext(companyData);
-
-    const prompt = `You are an expert business analyst and strategist. Based on the provided company data, generate a comprehensive company overview that includes and make sure that everything is in the UK English:
-
-${companyContext}
-
-## 📋 TASK: Generate Company Overview Content
-
-Please Analyse the company data above and generate the following sections for a comprehensive company overview and make sure that everything is in the UK English:
-
-
-
-### 1. What You Do
-Write a clear, concise description of what the business does, including keep it small and concise in one or two sentences and easy to understand:
-- Core products/services
-- Key value propositions
-- Main business activities
-
-### 2. Who You Serve
-Describe the target audience and customer base keep it small and concise in one or two sentences and easy to understand:
-- Ideal customer profiles
-- Market segments served
-- Customer demographics/characteristics
-
-### 3. Internal Tasks
-Generate 3-5 realistic internal tasks that would be relevant for this business keep it simple small and easy to understand:
-- Task names should be clear and actionable
-- Descriptions should explain the purpose and scope
-
-### 4. Helpful Lists
-Generate 3-5 items for each category keep it small and concise in one or two sentences and easy to understand:
-- What's Right: Current strengths and things working well
-- What's Wrong: Current challenges and areas for improvement
-- What's Missing: Gaps, opportunities, or missing elements
-- What's Confusing: Unclear areas or things that need clarification
-
-### 5. Notes
-Provide strategic insights and observations about the business based on the data keep it small and concise and easy to understand.
-
+// Fixed JSON structure and rules for company overview
+const COMPANY_OVERVIEW_JSON_STRUCTURE = `
 ## 📝 RESPONSE FORMAT
 Return ONLY a valid JSON object with this exact structure:
 
 {
- 
   "what_you_do": "comprehensive description of what the business does",
   "who_you_serve": "detailed description of target audience and customers",
   "internal_tasks": [
@@ -301,9 +259,57 @@ Return ONLY a valid JSON object with this exact structure:
 IMPORTANT: 
 - Make all content realistic and actionable
 - Base recommendations on the actual company data provided
-- Ensure all financial figures are reasonable for the business type and size
 - Keep descriptions concise but comprehensive
-- Focus on practical, implementable insights`;
+- Focus on practical, implementable insights
+`;
+
+// Helper function to load prompt template from the prompts table
+async function getPromptTemplate(promptKey: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('prompt_text')
+    .eq('prompt_key', promptKey)
+    .single();
+  if (error) {
+    console.error('Error loading prompt template:', error);
+    return null;
+  }
+  return data?.prompt_text || null;
+}
+
+// Only fetch the prompt body (instructions) from DB
+async function getPromptBody(promptKey: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('prompt_text')
+    .eq('prompt_key', promptKey)
+    .single();
+  if (error) {
+    console.error('Error loading prompt body:', error);
+    return null;
+  }
+  return data?.prompt_text || null;
+}
+
+// Helper function to generate company overview content
+async function generateCompanyOverview(userId: string, teamId: string) {
+  try {
+    const companyData = await getCompanyData(userId, teamId);
+    const companyContext = formatCompanyContext(companyData);
+
+    // Load prompt body (instructions) from DB using the old key
+    let promptBody = await getPromptBody('company_overview');
+    if (!promptBody) {
+      throw new Error('Prompt body not found for company_overview');
+    }
+    // Replace placeholders
+    promptBody = promptBody.replace(/{{companyContext}}/g, companyContext)
+      .replace(/{{responseFormat}}/g, COMPANY_OVERVIEW_JSON_STRUCTURE);
+
+    // The final prompt is the body + the fixed structure
+    const prompt = promptBody;
 
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
     const result = await model.generateContent(prompt);

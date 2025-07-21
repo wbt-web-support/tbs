@@ -321,63 +321,23 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const userId = await getUserId(req);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// Helper to fetch prompt body
+async function getPromptBody(promptKey: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('prompt_text')
+    .eq('prompt_key', promptKey)
+    .single();
+  if (error) {
+    console.error('Error loading prompt body:', error);
+    return null;
+  }
+  return data?.prompt_text || null;
+}
 
-    const teamId = await getTeamId(userId);
-    if (!teamId) {
-      return NextResponse.json({ error: "Team not found" }, { status: 404 });
-    }
-
-    // Read the request body once
-    const body = await req.json();
-    const { action, generatedData } = body;
-
-    if (action === "generate") {
-      // Generate content using Gemini
-      const companyData = await getCompanyData(userId, teamId);
-      const companyContext = formatCompanyContext(companyData);
-
-      const prompt = `
-You are an expert business process consultant helping to map out a Growth Machine for a Trade Business School Bootcamp participant. Based on the comprehensive company data provided below, you will help organize their business information into a structured Value Machine Planner.
-
-A Growth Machine is a systematic process that drives business growth through repeatable, scalable activities. Your role is to Analyse the company's current operations and create a clear, actionable growth process.
-
-${companyContext}
-
-Please Analyse the company's business information and create a comprehensive Growth Machine with the following components:
-
-1. **Engine Name**: engine name should be simple and easy to understand and related to their business, product and process.
-
-2. **Description**: A clear, concise explanation (1-2 paragraphs) that covers:
-   - What their primary service/process is
-   - Who their target customers/clients are
-   - How this process drives their business growth
-   - Why this approach works for their specific business model
-
-3. **Triggering Events** (5-8 items): The specific events that kick off their growth process. Focus on:
-   - Customer actions (enquiries, clicks, calls, etc.)
-   - Market opportunities
-   - Internal triggers
-   - Measurable starting points
-
-4. **Ending Events** (3-5 items): Clear outcomes that mark successful completion. Include:
-   - Service delivery completion
-   - Payment received
-   - Client onboarding
-   - Measurable business results
-
-5. **Actions/Activities** (8-12 items): The major steps involved in their growth process. Structure as:
-   - Lead generation activities
-   - Sales process steps
-   - Service delivery activities
-   - Follow-up and retention activities
-   - All in logical, sequential order
-
+// Fixed JSON structure and rules for growth machine
+const GROWTH_MACHINE_JSON_STRUCTURE = `
 CRITICAL: You must respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON. The JSON must have this exact structure:
 
 {
@@ -409,6 +369,39 @@ IMPORTANT RULES:
 - Focus on their primary service and current business model
 - Make the process practical and implementable for their specific business
 `;
+
+export async function POST(req: Request) {
+  try {
+    const userId = await getUserId(req);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const teamId = await getTeamId(userId);
+    if (!teamId) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    }
+
+    // Read the request body once
+    const body = await req.json();
+    const { action, generatedData } = body;
+
+    if (action === "generate") {
+      // Generate content using Gemini
+      const companyData = await getCompanyData(userId, teamId);
+      const companyContext = formatCompanyContext(companyData);
+
+      // Load prompt body (instructions) from DB using the old key
+      let promptBody = await getPromptBody('growth_machine');
+      if (!promptBody) {
+        throw new Error('Prompt body not found for growth_machine');
+      }
+      // Replace placeholders
+      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext)
+        .replace(/{{responseFormat}}/g, GROWTH_MACHINE_JSON_STRUCTURE);
+
+      // The final prompt is the body + the fixed structure
+      const prompt = promptBody;
 
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
       const result = await model.generateContent(prompt);

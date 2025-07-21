@@ -300,71 +300,8 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const userId = await getUserId(req);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const teamId = await getTeamId(userId);
-    if (!teamId) {
-      return NextResponse.json({ error: "Team not found" }, { status: 404 });
-    }
-
-    // Read the request body once
-    const body = await req.json();
-    const { action, generatedData } = body;
-
-    if (action === "generate") {
-      // Generate content using Gemini
-      const companyData = await getCompanyData(userId, teamId);
-      const companyContext = formatCompanyContext(companyData);
-
-      const prompt = `
-You are an expert business strategist and consultant helping to create a comprehensive Business Plan for a Trade Business School Bootcamp participant. Based on the comprehensive company data provided below, you will help develop their strategic business foundation and make sure that everything is in the UK English.
-
-A Business Plan is the strategic foundation that guides all business decisions and operations. Your role is to Analyse the company's current situation and create clear, actionable strategic elements.
-
-${companyContext}
-
-Please Analyse the company's business information and create a comprehensive Business Plan with the following components and make sure that everything is in the UK English:
-
-1. **Mission Statement**: A clear, concise statement (1-2 sentences) that defines:
-   - What the company does
-   - Who they serve
-   - How they create value
-   - Should be inspiring and memorable
-
-2. **Vision Statement**: A compelling future-focused statement (1-2 sentences) that describes:
-   - Where the company wants to be in the future
-   - The impact they want to make
-   - Should be aspirational and motivating
-
-3. **Core Values** (5-7 items): The fundamental beliefs and principles that guide the company. Focus on:
-   - What they stand for
-   - How they operate
-   - What makes them unique
-   - Values that align with their business model
-
-4. **Strategic Anchors** (3-5 items): Key strategic decisions that define their business direction. Include:
-   - Market positioning
-   - Competitive advantages
-   - Key differentiators
-   - Strategic focus areas
-
-5. **Purpose/Why** (3-5 items): The deeper reasons why the company exists beyond profit. Consider:
-   - Their impact on customers
-   - Their contribution to society
-   - Their long-term vision
-   - What drives them beyond money
-
-6. **Three Year Targets** (3-5 items): Specific, measurable goals for the next three years. Include:
-   - Revenue targets
-   - Market expansion goals
-   - Operational improvements
-   - Team growth objectives
-
+// Fixed JSON structure and rules for business plan
+const BUSINESS_PLAN_JSON_STRUCTURE = `
 CRITICAL: You must respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON. The JSON must have this exact structure:
 
 {
@@ -403,6 +340,54 @@ IMPORTANT RULES:
 - Ensure alignment with their existing machines and business processes
 `;
 
+// Only fetch the prompt body (instructions) from DB
+async function getPromptBody(promptKey: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('prompt_text')
+    .eq('prompt_key', promptKey)
+    .single();
+  if (error) {
+    console.error('Error loading prompt body:', error);
+    return null;
+  }
+  return data?.prompt_text || null;
+}
+
+export async function POST(req: Request) {
+  try {
+    const userId = await getUserId(req);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const teamId = await getTeamId(userId);
+    if (!teamId) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    }
+
+    // Read the request body once
+    const body = await req.json();
+    const { action, generatedData } = body;
+
+    if (action === "generate") {
+      // Generate content using Gemini
+      const companyData = await getCompanyData(userId, teamId);
+      const companyContext = formatCompanyContext(companyData);
+
+      // Load prompt body (instructions) from DB using the old key
+      let promptBody = await getPromptBody('business_plan');
+      if (!promptBody) {
+        throw new Error('Prompt body not found for business_plan');
+      }
+      // Replace placeholders
+      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext)
+        .replace(/{{responseFormat}}/g, BUSINESS_PLAN_JSON_STRUCTURE);
+
+      // The final prompt is the body + the fixed structure
+      const prompt = promptBody;
+
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
       const result = await model.generateContent(prompt);
       const response = await result.response;
@@ -413,10 +398,8 @@ IMPORTANT RULES:
       try {
         // Clean the response text
         let cleanedText = text.trim();
-        
         // Remove any markdown code blocks
         cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-        
         // Extract JSON from the response (in case there's extra text)
         const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -424,7 +407,6 @@ IMPORTANT RULES:
         } else {
           throw new Error("No JSON found in response");
         }
-
         // Validate and clean the generated data
         if (!generatedData.missionstatement || generatedData.missionstatement.trim() === '') {
           throw new Error("Mission statement is empty or invalid");
