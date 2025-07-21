@@ -72,6 +72,10 @@ interface RealtimeChatGeminiProps {
   onDocumentSelect?: (documents: InnovationDocument[]) => void;
   onChatModeChange?: (mode: 'general' | 'document') => void;
   onOpenDocumentManager?: () => void; // New prop to open document manager dialog
+  
+  // Force reload when new chat is created
+  forceReloadKey?: string | number;
+  onNewChatCreated?: () => void; // Callback when new chat is created
 }
 
 type ChatImage = {
@@ -96,8 +100,22 @@ export function RealtimeChatGemini({
   chatMode = 'general',
   onDocumentSelect = () => {},
   onChatModeChange = () => {},
-  onOpenDocumentManager = () => {} // Default empty function
+  onOpenDocumentManager = () => {}, // Default empty function
+  
+  // Force reload when new chat is created
+  forceReloadKey,
+  onNewChatCreated
 }: RealtimeChatGeminiProps = {}) {
+  
+  console.log('🔄 [RealtimeChatGemini] Component mounted/remounted with forceReloadKey:', forceReloadKey);
+  
+  // Add cleanup effect to track unmounting
+  useEffect(() => {
+    return () => {
+      console.log('🔄 [RealtimeChatGemini] Component unmounting with forceReloadKey:', forceReloadKey);
+    };
+  }, [forceReloadKey]);
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -168,6 +186,7 @@ export function RealtimeChatGemini({
 
   // Load chat instances and history on mount
   useEffect(() => {
+    console.log('🔄 [RealtimeChatGemini] useEffect triggered with forceReloadKey:', forceReloadKey);
     const loadInitialData = async () => {
     if (!hideInstanceSidebar) {
         await fetchChatInstances();
@@ -183,7 +202,7 @@ export function RealtimeChatGemini({
     }
     };
     loadInitialData();
-  }, [hideInstanceSidebar, selectedInstanceId, onReady]); // Added onReady to dependency array
+  }, [hideInstanceSidebar, selectedInstanceId, onReady, forceReloadKey]); // Added forceReloadKey to dependency array
 
   // Update current instance when external prop changes
   useEffect(() => {
@@ -348,6 +367,7 @@ export function RealtimeChatGemini({
   // Function to create a new chat instance
   const createNewInstance = async (title: string = 'New Chat') => {
     try {
+      console.log('🔄 [RealtimeChatGemini] Creating new chat instance:', title);
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) return;
@@ -369,8 +389,9 @@ export function RealtimeChatGemini({
       }
 
       const data = await response.json();
+      console.log('🔄 [RealtimeChatGemini] API response:', data);
       
-      if (data.success && data.instance) {
+      if (data.type === 'instance_created' && data.instance) {
         // Optimistically update the list and switch to the new instance
         setChatInstances(prev => [data.instance, ...prev]);
         setCurrentInstanceId(data.instance.id);
@@ -378,6 +399,12 @@ export function RealtimeChatGemini({
         
         if (onInstanceChange) {
           onInstanceChange(data.instance.id);
+        }
+        
+        // Trigger force reload callback
+        if (onNewChatCreated) {
+          console.log('🔄 [RealtimeChatGemini] Triggering onNewChatCreated callback');
+          onNewChatCreated();
         }
         
         // toast({
@@ -2165,7 +2192,7 @@ export function RealtimeChatGemini({
                   >
                     <div className="w-full flex gap-2 mb-1 flex-col">
                       {message.role === "assistant" && (
-                        <Sparkles className="h-10 w-10 text-blue-500 bg-blue-500/10 rounded-full p-2" />
+                        <Sparkles className="h-5 w-5 text-blue-500" />
                       )}
                       <div className="flex-1">
                         {/* Extract images and text */}
@@ -2361,9 +2388,9 @@ export function RealtimeChatGemini({
             multiple
             disabled={chatImages.length >= 5}
           />
-          <Button variant="ghost" size="icon" onClick={toggleRecording} disabled={isLoading || isInCallMode || !isDataLoaded} className={`rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}>
-            {isRecording ? ( <div className="h-4 w-4 rounded-full bg-white animate-pulse" /> ) : ( <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>)}
-          </Button>
+          {/* <Button variant="ghost" size="icon" onClick={toggleRecording} disabled={isLoading || isInCallMode || !isDataLoaded} className={`rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white hidden' : ''}`}>
+            {isRecording ? ( <div className="h-4 w-4 rounded-full bg-white animate-pulse " /> ) : ( <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>)}
+          </Button> */}
           <div className="flex-1 relative">
             <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessageWithImage();}}} placeholder={isLoadingHistory ? "Loading data..." : isInCallMode ? "Call mode active - listening..." : "Type your message..."} className="w-full px-3 py-2 sm:px-4 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[15px] sm:text-base" disabled={isLoading || isInCallMode || !isDataLoaded} />
             {isLoading && ( <div className="absolute right-4 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div></div>)}

@@ -24,6 +24,7 @@ export default function ChatPage() {
   const [selectedDocuments, setSelectedDocuments] = useState<InnovationDocument[]>([]); // State for selected documents
   const [chatMode, setChatMode] = useState<'general' | 'document'>('general'); // State for chat mode
   const [isDocumentManagerOpen, setIsDocumentManagerOpen] = useState(false); // State for document manager dialog
+  const [forceReloadKey, setForceReloadKey] = useState<number>(0); // Force reload key for new chats
 
   const handleDocumentSelect = (documents: InnovationDocument[]) => {
     setSelectedDocuments(documents);
@@ -38,6 +39,16 @@ export default function ChatPage() {
     }
   };
 
+  const handleNewChatCreated = () => {
+    // Increment the force reload key to trigger a complete component reload
+    console.log('🔄 [ChatPage] handleNewChatCreated called, incrementing forceReloadKey');
+    setForceReloadKey(prev => {
+      const newKey = prev + 1;
+      console.log(`🔄 [ChatPage] forceReloadKey updated from ${prev} to ${newKey}`);
+      return newKey;
+    });
+  };
+
   return (
     <div className="relative flex items-center justify-center w-full h-full">
       {!isChatModuleLoaded && (
@@ -49,12 +60,15 @@ export default function ChatPage() {
       )}
       <div className={`w-full h-full ${isChatModuleLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}>
         <RealtimeChatGemini 
+          key={forceReloadKey} // Force reload when key changes
           onReady={() => setIsChatModuleLoaded(true)} 
           selectedDocuments={selectedDocuments} // Pass selected documents
           chatMode={chatMode} // Pass chat mode
           onDocumentSelect={handleDocumentSelect} // Pass document select handler
           onChatModeChange={handleChatModeChange} // Pass chat mode change handler
           onOpenDocumentManager={() => setIsDocumentManagerOpen(true)} // Pass function to open document manager
+          forceReloadKey={forceReloadKey} // Pass the reload key
+          onNewChatCreated={handleNewChatCreated} // Handle new chat creation
         />
       </div>
 

@@ -32,6 +32,16 @@ export function FloatingChat() {
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [forceReloadKey, setForceReloadKey] = useState<number>(0); // Force reload key for new chats
+  
+  console.log('🔄 [FloatingChat] Component mounted/remounted with forceReloadKey:', forceReloadKey);
+  
+  // Add cleanup effect to track unmounting
+  useEffect(() => {
+    return () => {
+      console.log('🔄 [FloatingChat] Component unmounting with forceReloadKey:', forceReloadKey);
+    };
+  }, [forceReloadKey]);
   
   const sidebarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -49,8 +59,9 @@ export function FloatingChat() {
   
   // Load chat instances on component mount
   useEffect(() => {
+    console.log('🔄 [FloatingChat] useEffect triggered with forceReloadKey:', forceReloadKey);
     fetchChatInstances();
-  }, []);
+  }, [forceReloadKey]);
 
   // Close popup when clicking outside
   useEffect(() => {
@@ -72,6 +83,7 @@ export function FloatingChat() {
   // Function to fetch all chat instances
   const fetchChatInstances = async () => {
     try {
+      console.log('🔄 [FloatingChat] Fetching chat instances');
       setIsLoadingInstances(true);
       
       const { data: { session } } = await supabase.auth.getSession();
@@ -91,15 +103,18 @@ export function FloatingChat() {
         const data = await response.json();
         
         if (data.type === 'chat_instances' && Array.isArray(data.instances)) {
+          console.log('🔄 [FloatingChat] Fetched instances:', data.instances.length);
           setChatInstances(data.instances);
           
           // If no current instance is selected, select the most recent one
           if (!currentInstanceId && data.instances.length > 0) {
             const mostRecent = data.instances[0]; // Already sorted by updated_at desc
             setCurrentInstanceId(mostRecent.id);
+            console.log('🔄 [FloatingChat] Set current instance to:', mostRecent.id);
           }
         } else if (data.instances?.length === 0) {
           // No instances exist, create a new one
+          console.log('🔄 [FloatingChat] No instances found, creating new one');
           await createNewInstance();
         }
       }
@@ -115,6 +130,7 @@ export function FloatingChat() {
   // Function to create a new chat instance
   const createNewInstance = async (title: string = 'New Chat') => {
     try {
+      console.log('🔄 [FloatingChat] Creating new chat instance:', title);
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) return;
@@ -136,13 +152,22 @@ export function FloatingChat() {
       }
 
       const data = await response.json();
+      console.log('🔄 [FloatingChat] API response:', data);
       
-      if (data.success && data.instance) {
+      if (data.type === 'instance_created' && data.instance) {
         // Optimistically update the list and switch to the new instance
         setChatInstances(prev => [data.instance, ...prev]);
         setCurrentInstanceId(data.instance.id);
         setShowInstancePopup(false);
         setIsOpen(true);
+        
+        // Trigger force reload
+        console.log('🔄 [FloatingChat] Triggering force reload after new chat creation');
+        setForceReloadKey(prev => {
+          const newKey = prev + 1;
+          console.log(`🔄 [FloatingChat] forceReloadKey updated from ${prev} to ${newKey}`);
+          return newKey;
+        });
       }
     } catch (error) {
       console.error('Error creating new chat instance:', error);
@@ -584,6 +609,7 @@ export function FloatingChat() {
               {/* Chat component */}
               <div className="flex-1 overflow-y-auto">
                 <RealtimeChatGemini 
+                  key={forceReloadKey} // Force reload when key changes
                   hideDebugButton 
                   showHeader={false} 
                   hideInstanceSidebar={true}
@@ -595,6 +621,10 @@ export function FloatingChat() {
                     if (instance?.title === 'New Chat') {
                       generateAndSetTitle(message, instanceId);
                     }
+                  }}
+                  onNewChatCreated={() => {
+                    // Increment the force reload key to trigger a complete component reload
+                    setForceReloadKey(prev => prev + 1);
                   }}
                 />
               </div>
