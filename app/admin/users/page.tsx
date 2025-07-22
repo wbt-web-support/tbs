@@ -347,47 +347,29 @@ export default function UserManagementPage() {
     try {
       setIsCreatingUser(true);
 
-      // Use signUp instead of admin.createUser
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUserForm.email,
-        password: newUserForm.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("No session token available");
+      }
+
+      // Use the admin API to create user (this won't log in as the new user)
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(newUserForm)
       });
 
-      if (authError) {
-        throw authError;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to create user');
       }
 
-      if (!authData.user) {
-        throw new Error("Failed to create user");
-      }
-
-      // Create business_info record
-      const { error: businessError } = await supabase
-        .from('business_info')
-        .insert({
-          user_id: authData.user.id,
-          team_id: authData.user.id,
-          full_name: newUserForm.full_name,
-          business_name: newUserForm.business_name,
-          email: newUserForm.email,
-          phone_number: newUserForm.phone_number,
-          payment_option: newUserForm.payment_option,
-          payment_remaining: newUserForm.payment_remaining,
-          command_hq_link: newUserForm.command_hq_link,
-          command_hq_created: newUserForm.command_hq_created,
-          gd_folder_created: newUserForm.gd_folder_created,
-          meeting_scheduled: newUserForm.meeting_scheduled,
-          role: newUserForm.role,
-        });
-
-      if (businessError) {
-        throw businessError;
-      }
-
-      toast.success("User created successfully. Email verification sent.");
+      toast.success("User created successfully. The user can now sign in with their email and password.");
       setIsCreateDialogOpen(false);
       
       // Reset form

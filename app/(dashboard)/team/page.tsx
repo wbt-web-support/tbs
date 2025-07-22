@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Users, MoreHorizontal, Trash2, Pencil, BookOpen } from "lucide-react";
+import { Loader2, Plus, Users, MoreHorizontal, Trash2, Pencil, BookOpen, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,14 @@ import { deleteTeamMember } from "./actions";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import AddUserDialog from './add-user-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // --- New Type Definitions for Relational Data ---
 
@@ -60,6 +68,9 @@ export default function ChainOfCommandPage() {
   const [loading, setLoading] = useState(true);
   const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -152,18 +163,33 @@ export default function ChainOfCommandPage() {
   };
 
   const handleDelete = async (member: TeamMember) => {
-    if (!confirm(`Are you sure you want to delete ${member.full_name}? This action cannot be undone.`)) {
-      return;
-    }
+    setMemberToDelete(member);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!memberToDelete) return;
     
-    const result = await deleteTeamMember(member.id);
+    setIsDeleting(true);
+    
+    // Show loading toast
+    const loadingToast = toast.loading(`Deleting ${memberToDelete.full_name} and all related data...`);
+    
+    const result = await deleteTeamMember(memberToDelete.id);
+
+    // Dismiss loading toast
+    toast.dismiss(loadingToast);
 
     if (result.success) {
-      toast.success("Team member deleted successfully.");
+      toast.success(`${memberToDelete.full_name} and all related data deleted successfully.`);
       fetchTeamDirectoryData(); // Refresh the data
     } else {
       toast.error(`Failed to delete team member: ${result.error}`);
     }
+
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setMemberToDelete(null);
   };
 
   return (
@@ -307,6 +333,77 @@ export default function ChainOfCommandPage() {
           window.location.href = `/invite?edit=${userId}`
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              Delete Team Member
+            </DialogTitle>
+            <DialogDescription className="space-y-3">
+              <p className="font-medium text-red-600">
+                Are you sure you want to delete {memberToDelete?.full_name}?
+              </p>
+              <p className="text-sm font-medium text-red-600">
+                This action cannot be undone and will permanently delete:
+              </p>
+              <div className="text-sm space-y-2 text-left">
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>All user data (battle plans, machines, playbooks, etc.)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>Team relationships and manager assignments</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>Analytics assignments and integrations</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>Chat history and innovation documents</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>The user's authentication account</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Note: The user will be completely removed from the system including their authentication account.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setMemberToDelete(null);
+              }} 
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete} 
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Team Member"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

@@ -19,21 +19,45 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (user) {
-    // Check if user needs onboarding
-    const { data: onboardingData } = await supabase
-      .from('company_onboarding')
-      .select('completed')
+    // Check user role first
+    const { data: userProfile } = await supabase
+      .from('business_info')
+      .select('role')
       .eq('user_id', user.id)
       .single();
 
-    // If onboarding not completed, redirect to onboarding
-    if (!onboardingData?.completed) {
-      return NextResponse.redirect(`${origin}/onboarding`);
+    // Skip onboarding check for super_admin users
+    if (userProfile?.role !== 'super_admin') {
+      // Check if user needs onboarding
+      const { data: onboardingData } = await supabase
+        .from('company_onboarding')
+        .select('completed')
+        .eq('user_id', user.id)
+        .single();
+
+      // If onboarding not completed, redirect to onboarding
+      if (!onboardingData?.completed) {
+        return NextResponse.redirect(`${origin}/onboarding`);
+      }
     }
   }
 
   if (redirectTo) {
     return NextResponse.redirect(`${origin}${redirectTo}`);
+  }
+
+  // Check user role for final redirect
+  if (user) {
+    const { data: userProfile } = await supabase
+      .from('business_info')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    // Redirect super_admin to /admin, others to /dashboard
+    if (userProfile?.role === 'super_admin') {
+      return NextResponse.redirect(`${origin}/admin`);
+    }
   }
 
   // URL to redirect to after sign up process completes

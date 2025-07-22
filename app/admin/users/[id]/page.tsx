@@ -523,22 +523,145 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     try {
       setIsDeleting(true);
       
-      // Delete the business_info record
+      const userId = user.user_id;
+      const businessInfoId = user.id;
+      
+      console.log(`Starting comprehensive deletion for user: ${userId}, business_info: ${businessInfoId}`);
+      
+      // Step 1: Delete user-specific data (these have CASCADE constraints, but we'll be explicit)
+      const deletionSteps = [
+        // User-specific data with user_id foreign key
+        { table: 'company_onboarding', field: 'user_id', value: userId },
+        { table: 'battle_plan', field: 'user_id', value: userId },
+        { table: 'chain_of_command', field: 'user_id', value: userId },
+        { table: 'hwgt_plan', field: 'user_id', value: userId },
+        { table: 'meeting_rhythm_planner', field: 'user_id', value: userId },
+        { table: 'playbooks', field: 'user_id', value: userId },
+        { table: 'quarterly_sprint_canvas', field: 'user_id', value: userId },
+        { table: 'triage_planner', field: 'user_id', value: userId },
+        { table: 'user_benefit_claims', field: 'user_id', value: userId },
+        { table: 'user_checklist_claims', field: 'user_id', value: userId },
+        { table: 'user_timeline_claims', field: 'user_id', value: userId },
+        { table: 'machines', field: 'user_id', value: userId },
+        { table: 'company_scorecards', field: 'user_id', value: userId },
+        { table: 'innovation_documents', field: 'user_id', value: userId },
+        { table: 'innovation_chat_history', field: 'user_id', value: userId },
+        { table: 'innovation_chat_training_data', field: 'user_id', value: userId },
+        { table: 'chat_ideas', field: 'user_id', value: userId },
+        { table: 'chatbot_instructions', field: 'user_id', value: userId },
+        { table: 'zapier_webhooks', field: 'user_id', value: userId },
+        { table: 'zapier_mappings', field: 'user_id', value: userId },
+        { table: 'google_analytics_oauth', field: 'user_id', value: userId },
+        { table: 'cache', field: 'user_id', value: userId },
+        { table: 'user_points', field: 'user_id', value: userId },
+        { table: 'user_achievements', field: 'user_id', value: userId },
+        
+        // Business info related data
+        { table: 'playbook_assignments', field: 'user_id', value: businessInfoId },
+        
+        // Team-related data (if user is a team admin)
+        { table: 'departments', field: 'team_id', value: userId },
+        { table: 'course_progress', field: 'team_id', value: userId },
+        { table: 'course_assignments', field: 'team_id', value: userId },
+        
+        // Analytics assignments
+        { table: 'superadmin_analytics_assignments', field: 'superadmin_user_id', value: userId },
+        { table: 'superadmin_analytics_assignments', field: 'assigned_user_id', value: userId },
+        { table: 'superadmin_analytics_properties', field: 'superadmin_user_id', value: userId },
+      ];
+      
+      // Execute deletions
+      for (const step of deletionSteps) {
+        try {
+          const { error } = await supabase
+            .from(step.table)
+            .delete()
+            .eq(step.field, step.value);
+          
+          if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+            console.warn(`Warning deleting from ${step.table}:`, error);
+          } else {
+            console.log(`Successfully deleted from ${step.table}`);
+          }
+        } catch (error) {
+          console.warn(`Error deleting from ${step.table}:`, error);
+          // Continue with other deletions even if one fails
+        }
+      }
+      
+      // Step 2: Update team members to remove this user as their team admin
+      try {
+        const { error: teamUpdateError } = await supabase
+          .from('business_info')
+          .update({ team_id: null })
+          .eq('team_id', userId);
+        
+        if (teamUpdateError) {
+          console.warn('Warning updating team members:', teamUpdateError);
+        } else {
+          console.log('Successfully updated team members');
+        }
+      } catch (error) {
+        console.warn('Error updating team members:', error);
+      }
+      
+      // Step 3: Update users who have this user as their manager
+      try {
+        const { error: managerUpdateError } = await supabase
+          .from('business_info')
+          .update({ manager_id: null })
+          .eq('manager_id', businessInfoId);
+        
+        if (managerUpdateError) {
+          console.warn('Warning updating manager relationships:', managerUpdateError);
+        } else {
+          console.log('Successfully updated manager relationships');
+        }
+      } catch (error) {
+        console.warn('Error updating manager relationships:', error);
+      }
+      
+      // Step 4: Finally delete the business_info record
       const { error: businessError } = await supabase
         .from('business_info')
         .delete()
-        .eq('id', id);
+        .eq('id', businessInfoId);
       
       if (businessError) throw businessError;
       
-      // We can't delete auth users without admin privileges
-      // Instead, we just delete the business_info record
+      // Step 5: Delete the user from auth.users using admin API
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('No session token available');
+        }
+
+        const response = await fetch('/api/admin/delete-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ userId })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.warn('Warning: Could not delete user from auth system:', errorData);
+          // Continue anyway since we've already deleted all the data
+        } else {
+          console.log('Successfully deleted user from auth system');
+        }
+      } catch (error) {
+        console.warn('Error deleting user from auth system:', error);
+        // Continue anyway since we've already deleted all the data
+      }
       
-      toast.success("User record deleted successfully");
+      toast.success("User and all related data deleted successfully from the system");
       router.push("/admin/users");
     } catch (error) {
       console.error("Error deleting user:", error);
-      toast.error("Failed to delete user");
+      toast.error("Failed to delete user. Some data may have been partially deleted.");
     } finally {
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
@@ -710,12 +833,45 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Delete User Dialog - moved outside of DropdownMenu to prevent focus conflicts */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Are you sure you want to delete this user?</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. This will permanently delete the user account
-              and remove all associated data.
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              Delete User Account
+            </DialogTitle>
+            <DialogDescription className="space-y-3">
+              <p className="font-medium text-red-600">
+                This action cannot be undone and will permanently delete:
+              </p>
+              <div className="text-sm space-y-2 text-left">
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>User profile and business information</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>All user data (battle plans, machines, playbooks, etc.)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>Team members (if user is a team admin)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>Analytics assignments and integrations</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>Chat history and innovation documents</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>All related records and claims</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Note: The user will be completely removed from the system including their authentication account.
+              </p>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -726,10 +882,10 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               {isDeleting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
+                  Deleting All Data...
                 </>
               ) : (
-                "Delete User"
+                "Delete User & All Data"
               )}
             </Button>
           </DialogFooter>

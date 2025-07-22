@@ -85,8 +85,11 @@ export async function middleware(request: NextRequest) {
       .eq('user_id', session.user.id)
       .single()
 
+    // Redirect to onboarding if not completed and not already on onboarding page
+    // Skip onboarding for super_admin users
     if (
       !onboardingData?.completed &&
+      userData?.role !== 'super_admin' &&
       !request.nextUrl.pathname.startsWith('/onboarding') &&
       !request.nextUrl.pathname.startsWith('/sign-out') &&
       !request.nextUrl.pathname.startsWith('/api') &&
@@ -94,6 +97,16 @@ export async function middleware(request: NextRequest) {
       !request.nextUrl.pathname.startsWith('/info')
     ) {
       return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+
+    // Prevent users with completed onboarding or super_admin from accessing onboarding page
+    if (
+      (onboardingData?.completed || userData?.role === 'super_admin') &&
+      request.nextUrl.pathname.startsWith('/onboarding')
+    ) {
+      // Redirect super_admin to /admin, others to /dashboard
+      const redirectUrl = userData?.role === 'super_admin' ? '/admin' : '/dashboard'
+      return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
     if (
