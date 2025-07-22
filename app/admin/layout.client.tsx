@@ -43,8 +43,18 @@ const navigationSections = [
     ]
   },
   {
-    title: "Management",
+    title: "Content",
     items: [
+      {
+        name: "Course Management", 
+        href: "/admin/courses",
+        icon: BookOpen,
+      },
+      {
+        name: "Benefits",
+        href: "/admin/benefits",
+        icon: Gift,
+      },
       {
         name: "Calendar",
         href: "/admin/timeline",
@@ -54,32 +64,27 @@ const navigationSections = [
         name: "Checklist",
         href: "/admin/checklist",
         icon: CheckSquare,
-      },
-      {
-        name: "Benefits",
-        href: "/admin/benefits",
-        icon: Gift,
-      },
-      {
-        name: "Course Management",
-        href: "/admin/courses",
-        icon: BookOpen,
-      },
+      }
+    ]
+  },
+  {
+    title: "System",
+    items: [
       {
         name: "User Management",
         href: "/admin/users",
         icon: Users,
       },
       {
+        name: "Chatbot Instructions",
+        href: "/admin/instructions", 
+        icon: MessageSquare,
+      },
+      {
         name: "Google Analytics",
         href: "/admin/analytics",
         icon: BarChart3,
-      },
-      {
-        name: "Chatbot Instructions",
-        href: "/admin/instructions",
-        icon: MessageSquare,
-      },
+      }
     ]
   }
 ];
@@ -200,14 +205,14 @@ export default function AdminLayoutClient({
                           }
                         }}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition-colors",
+                          "flex items-center gap-3 rounded-lg px-4 py-1.5 text-[14px] font-medium transition-colors",
                           "hover:bg-blue-50/80 hover:text-blue-700",
-                          isActive ? "bg-blue-50/60 text-blue-700" : "text-gray-600"
+                          isActive ? "bg-blue-50/60 text-blue-700 font-bold" : "text-gray-600"
                         )}
                       >
                         <item.icon 
                           className={cn(
-                            "h-4 w-4 transition-transform group-hover:scale-110",
+                            "h-5 w-5 transition-transform group-hover:scale-110",
                             isActive ? "text-blue-600" : "text-blue-500"
                           )}
                           strokeWidth={2}

@@ -43,6 +43,8 @@ import {
   AlertTriangle,
   Calendar,
   Gauge,
+  Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/customer-reviews-summary';
@@ -652,50 +654,51 @@ export default function AnalyticsCharts({ data, adminProfile, customerReviewsLoa
       {/* Quick Links Grid */}
       {showQuickLinks && (
         <div className='grid grid-cols-2 gap-4 animate-in fade-in duration-500'>
-        {/* Chat */}
+        {/* AI Assistant */}
         <Link href="/chat" className='block'>
           <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all cursor-pointer group'>
             <div className='flex items-center gap-3'>
               <div className='p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors'>
-                <MessageCircle className='h-5 w-5 text-blue-600' />
+                <Sparkles className='h-5 w-5 text-blue-600' />
               </div>
-              <h3 className='font-semibold text-gray-900'>Chat</h3>
+              <h3 className='font-semibold text-gray-900'>AI Assistant</h3>
             </div>
           </div>
         </Link>
 
-        {/* Innovation */}
-        <Link href="/innovation-machine" className='block'>
+        {/* Team */}
+        <Link href="/chain-of-command" className='block'>
           <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-yellow-300 transition-all cursor-pointer group'>
             <div className='flex items-center gap-3'>
               <div className='p-2 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors'>
-                <Lightbulb className='h-5 w-5 text-yellow-600' />
+                <UsersRound className='h-5 w-5 text-yellow-600' />
+
               </div>
-              <h3 className='font-semibold text-gray-900'>Innovation</h3>
+              <h3 className='font-semibold text-gray-900'>Team</h3>
             </div>
           </div>
         </Link>
 
-        {/* Business Battle Plan */}
-        <Link href="/business-battle-plan" className='block'>
+        {/* Playbook */}
+        <Link href="/playbook-planner" className='block'>
           <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-red-300 transition-all cursor-pointer group'>
             <div className='flex items-center gap-3'>
               <div className='p-2 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors'>
-                <Swords className='h-5 w-5 text-red-600' />
+                <BookOpen className='h-5 w-5 text-red-600' />
               </div>
-              <h3 className='font-semibold text-gray-900'>Battle Plan</h3>
+              <h3 className='font-semibold text-gray-900'>Playbook</h3>
             </div>
           </div>
         </Link>
 
-        {/* User Management */}
-        <Link href="/users" className='block'>
+        {/* Calendar */}
+        <Link href="/calendar" className='block'>
           <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-purple-300 transition-all cursor-pointer group'>
             <div className='flex items-center gap-3'>
               <div className='p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors'>
-                <UsersRound className='h-5 w-5 text-purple-600' />
+                <Calendar className='h-5 w-5 text-purple-600' />
               </div>
-              <h3 className='font-semibold text-gray-900'>Team</h3>
+              <h3 className='font-semibold text-gray-900'>Calendar</h3>
             </div>
           </div>
         </Link>

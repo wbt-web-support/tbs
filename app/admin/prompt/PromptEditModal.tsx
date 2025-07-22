@@ -57,7 +57,7 @@ export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-0 flex flex-col md:flex-row gap-0 relative overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl p-0 flex flex-col md:flex-row gap-0 relative overflow-hidden">
         {/* Dynamic Fields Sidebar */}
         <div className="w-full md:w-1/3 bg-neutral-50 border-r px-8 py-10 flex flex-col gap-4 min-h-[500px]">
           <div className="font-semibold mb-2 text-neutral-800 text-lg">Dynamic Fields</div>

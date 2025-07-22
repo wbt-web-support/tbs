@@ -15,7 +15,7 @@ import {
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
 interface NavbarProps {
@@ -29,6 +29,8 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [showSopNotification, setShowSopNotification] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const sopButtonRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -98,7 +100,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             </Link>
           )}
 
-          <DropdownMenu>
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
@@ -144,13 +146,38 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   </Link>
               </DropdownMenuItem> */}
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <form action={signOutAction} className="w-full">
-                  <button type="submit" className="w-full text-left flex items-center gap-2">
-                      <LogOut className="h-4 w-4" />
-                      Log out
-                  </button>
-                </form>
+              <DropdownMenuItem 
+                disabled={isSigningOut}
+                onClick={async () => {
+                  if (!isSigningOut) {
+                    setIsSigningOut(true);
+                    // Keep dropdown open during logout
+                    try {
+                      // Use Supabase client directly instead of server action
+                      const { error } = await supabase.auth.signOut();
+                      if (error) {
+                        console.error('Error signing out:', error);
+                        setIsSigningOut(false);
+                      } else {
+                        // Redirect after successful logout
+                        router.push('/sign-in');
+                      }
+                    } catch (error) {
+                      console.error('Error signing out:', error);
+                      setIsSigningOut(false);
+                    }
+                  }
+                }}
+                className="cursor-pointer"
+              >
+                <div className="w-full text-left flex items-center gap-2">
+                  {isSigningOut ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4" />
+                  )}
+                  {isSigningOut ? 'Logging out...' : 'Log out'}
+                </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

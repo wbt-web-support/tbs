@@ -10,14 +10,14 @@ export default function PromptTable({ prompts }: { prompts: any[] }) {
       {prompts.map((prompt) => (
         <div
           key={prompt.id}
-          className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow p-6 flex flex-col gap-4 relative min-h-[220px]"
+          className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow p-6 flex flex-col gap-2 relative min-h-[220px]"
         >
           {/* Prompt Key Badge */}
-          <span className="absolute top-4 right-4 text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-mono tracking-wide">
+          <span className="text-lg font-medium text-neutral-900">
             {prompt.prompt_key}
           </span>
           {/* Description */}
-          <div className="text-lg font-medium text-neutral-900 mb-1">
+          <div className="text-sm text-neutral-700 mb-1">
             {prompt.description}
           </div>
           {/* Prompt Text Preview with fade-out */}

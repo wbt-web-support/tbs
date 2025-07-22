@@ -67,25 +67,17 @@ export default async function PromptAdminPage() {
   }
 
   return (
-    <div className="max-w-8xl mx-auto py-10 px-4">
+    <div className="max-w-8xl mx-auto">
       <h1 className="text-3xl font-bold mb-2">Gemini Prompts Management</h1>
       <p className="text-muted-foreground mb-8">
         Edit the prompts used by Gemini-powered features. Changes are live immediately. Use <span className="font-mono bg-neutral-100 px-1 rounded">{'{{companyContext}}'}</span> for dynamic company data.
       </p>
-      <Card>
-        <CardHeader>
-          <CardTitle>All Prompts</CardTitle>
-          <CardDescription>
-            {prompts.length} prompts found. Click a field to edit. Save to apply changes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+     
           {error && (
             <div className="text-red-600 mb-4">Error loading prompts: {error.message}</div>
           )}
           <PromptTable prompts={prompts} />
-        </CardContent>
-      </Card>
+       
     </div>
   );
 } 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Edit, Settings } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Edit, Settings, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
@@ -213,6 +213,9 @@ export default function GrowthEngineLibraryPage() {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [activeEngineType, setActiveEngineType] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedPlaybooks, setGeneratedPlaybooks] = useState<any[]>([]);
+  const [savingPlaybookIds, setSavingPlaybookIds] = useState<string[]>([]);
   
   // Form state
   const [formData, setFormData] = useState<PlaybookFormData>({
@@ -482,7 +485,120 @@ export default function GrowthEngineLibraryPage() {
       console.error('Error assigning new owners:', insertError);
       throw insertError;
     }
-  }
+  };
+
+  const handleGeneratePlaybook = async () => {
+    try {
+      setIsGenerating(true);
+      
+      const response = await fetch('/api/gemini/playbook-planner', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'generate'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate playbook');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data && result.data.playbooks) {
+        setGeneratedPlaybooks(result.data.playbooks);
+      } else {
+        throw new Error('No playbooks data received from generation');
+      }
+    } catch (error) {
+      console.error('Error generating playbook:', error);
+      alert('Failed to generate playbook. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSaveGeneratedPlaybook = async (playbookIndex: number) => {
+    if (!generatedPlaybooks || !generatedPlaybooks[playbookIndex]) return;
+    
+    const playbook = generatedPlaybooks[playbookIndex];
+    const playbookId = `generated-${playbookIndex}`;
+    
+    try {
+      setSavingPlaybookIds(prev => [...prev, playbookId]);
+      
+      const response = await fetch('/api/gemini/playbook-planner', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'save',
+          generatedData: { playbooks: [playbook] }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save generated playbook');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Remove the saved playbook from the generated list
+        setGeneratedPlaybooks(prev => prev.filter((_, index) => index !== playbookIndex));
+        await fetchPlaybooksData();
+        alert('Playbook saved successfully!');
+      } else {
+        throw new Error('Failed to save playbook');
+      }
+    } catch (error) {
+      console.error('Error saving generated playbook:', error);
+      alert('Failed to save generated playbook. Please try again.');
+    } finally {
+      setSavingPlaybookIds(prev => prev.filter(id => id !== playbookId));
+    }
+  };
+
+  const handleSaveAllGeneratedPlaybooks = async () => {
+    if (!generatedPlaybooks || generatedPlaybooks.length === 0) return;
+    
+    try {
+      setIsSaving(true);
+      
+      const response = await fetch('/api/gemini/playbook-planner', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'save',
+          generatedData: { playbooks: generatedPlaybooks }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save generated playbooks');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setGeneratedPlaybooks([]);
+        await fetchPlaybooksData();
+        alert(`${generatedPlaybooks.length} playbooks generated and saved successfully!`);
+      } else {
+        throw new Error('Failed to save playbooks');
+      }
+    } catch (error) {
+      console.error('Error saving generated playbooks:', error);
+      alert('Failed to save generated playbooks. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const getDepartmentColor = (departmentName: string | undefined) => {
     if (!departmentName) return "bg-gray-200 text-gray-800";
@@ -534,13 +650,41 @@ export default function GrowthEngineLibraryPage() {
             Manage your business playbooks and documentation
           </p>
         </div>
-        <Button 
-          onClick={handleAddNew}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Playbook
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            onClick={handleGeneratePlaybook}
+            disabled={isGenerating}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {isGenerating ? 'Generating...' : 'AI Generate'}
+          </Button>
+          {generatedPlaybooks.length > 0 && (
+            <Button 
+              onClick={handleSaveAllGeneratedPlaybooks}
+              disabled={isSaving}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              {isSaving ? 'Saving...' : `Save All (${generatedPlaybooks.length})`}
+            </Button>
+          )}
+          <Button 
+            onClick={handleAddNew}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Playbook
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -579,7 +723,7 @@ export default function GrowthEngineLibraryPage() {
             </div>
           </div>
 
-          {playbooksData.length === 0 ? (
+          {playbooksData.length === 0 && generatedPlaybooks.length === 0 ? (
             <div className="py-12 px-4 text-center">
               <h3 className="text-lg font-medium text-gray-900 mb-2">No playbooks found</h3>
               <p className="text-gray-500 mb-6">Get started by adding your first playbook.</p>
@@ -591,7 +735,7 @@ export default function GrowthEngineLibraryPage() {
                 Add Your First Playbook
               </Button>
             </div>
-          ) : filteredData.length === 0 ? (
+          ) : filteredData.length === 0 && generatedPlaybooks.length === 0 ? (
             <div className="py-12 px-4 text-center">
               <h3 className="text-lg font-medium text-gray-900 mb-2">No matching playbooks</h3>
               <p className="text-gray-500">Try adjusting your search or filters.</p>
@@ -610,6 +754,64 @@ export default function GrowthEngineLibraryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {/* Generated Playbooks */}
+                  {generatedPlaybooks.map((playbook, index) => (
+                    <TableRow 
+                      key={`generated-${index}`} 
+                      className="border-b border-gray-100 hover:bg-purple-50/30 bg-purple-50/20"
+                    >
+                      <TableCell className="px-6 py-4">
+                        <div>
+                          <div className="font-medium text-purple-700 flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" />
+                            {playbook.playbookname}
+                          </div>
+                          {playbook.description && (
+                            <div className="text-xs text-gray-500 mt-1 line-clamp-1">{playbook.description}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
+                        <Badge variant="outline" className={`px-2.5 py-1 rounded-full text-xs font-medium ${getEngineTypeColor(playbook.enginetype)}`}>
+                          {playbook.enginetype}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
+                        <span className="text-sm text-gray-500">AI Generated</span>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 border-l">
+                        <span className="text-sm text-gray-500">AI Suggested</span>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap border-l">
+                        <Badge variant="outline" className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(playbook.status)}`}>
+                          {playbook.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-center border-l">
+                        <div className="flex justify-center items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSaveGeneratedPlaybook(index)}
+                            className="h-8 px-3 hover:bg-purple-100 rounded-full transition-colors text-purple-600"
+                            title="Save generated playbook"
+                            disabled={savingPlaybookIds.includes(`generated-${index}`)}
+                          >
+                            {savingPlaybookIds.includes(`generated-${index}`) ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4 mr-1" />
+                                Save
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  
+                  {/* Existing Playbooks */}
                   {filteredData.map((playbook) => (
                     <TableRow 
                       key={playbook.id} 
