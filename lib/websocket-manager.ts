@@ -175,7 +175,8 @@ export class WebSocketManager {
       const aiPromise = this.processAIGeneration(socket, sessionId, {
         transcription,
         partialContext: await contextPromise,
-        partialRAG: await ragPromise
+        partialRAG: await ragPromise,
+        instanceId: data.instanceId // Pass through the instance ID for title generation
       });
 
       // Stream AI output and trigger TTS immediately
@@ -300,7 +301,8 @@ export class WebSocketManager {
           data: {
             transcription: context.transcription,
             userData: context.partialContext,
-            instructions: context.partialRAG
+            instructions: context.partialRAG,
+            instanceId: context.instanceId // Pass through the instance ID
           }
         })
       });
@@ -309,6 +311,12 @@ export class WebSocketManager {
       if (!response.ok) throw new Error(result.error);
 
       const aiResponse = result.response;
+      
+      // Handle title update if provided
+      if (result.titleUpdate) {
+        console.log('🏷️ [WS] Emitting title update:', result.titleUpdate);
+        socket.emit('title-update', result.titleUpdate);
+      }
       console.error(`🔊 [WS-TTS-DEBUG] AI response received: "${aiResponse.substring(0, 50)}..."`);
       
       // Trigger complete audio file generation immediately

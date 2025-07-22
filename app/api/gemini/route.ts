@@ -35,7 +35,7 @@ type Accent = keyof typeof DEEPGRAM_VOICES;
 type Gender = keyof typeof DEEPGRAM_VOICES['US'];
 
 function getVoice(accent: Accent, gender: Gender): string {
-  return DEEPGRAM_VOICES[accent]?.[gender] || DEEPGRAM_VOICES['US']['female'];
+  return DEEPGRAM_VOICES[accent as keyof typeof DEEPGRAM_VOICES]?.[gender] || DEEPGRAM_VOICES['US']['female'];
 }
 
 // 🚀 CRITICAL FIX 3: Deepgram connection pooling for performance
@@ -126,8 +126,8 @@ async function generateTTSAudio(text: string, writer: WritableStreamDefaultWrite
     await writer.write(new TextEncoder().encode(`data: ${JSON.stringify(ttsPayload)}\n\n`));
     console.log(`✅ [TTS] Deepgram TTS success: ${totalBytes} bytes in ${processingTime}ms`);
     
-  } catch (deepgramError) {
-    console.warn(`⚠️ [TTS] Deepgram failed: ${deepgramError.message}`);
+      } catch (deepgramError) {
+      console.warn(`⚠️ [TTS] Deepgram failed: ${deepgramError instanceof Error ? deepgramError.message : String(deepgramError)}`);
     
     // Step 2: Fallback to Browser TTS
     try {
@@ -144,7 +144,7 @@ async function generateTTSAudio(text: string, writer: WritableStreamDefaultWrite
         text: cleanText,
         processingTime: Date.now() - ttsStartTime,
         fallback: true,
-        fallbackReason: deepgramError.message
+        fallbackReason: deepgramError instanceof Error ? deepgramError.message : String(deepgramError)
       };
       
       await writer.write(new TextEncoder().encode(`data: ${JSON.stringify(fallbackPayload)}\n\n`));
@@ -158,7 +158,10 @@ async function generateTTSAudio(text: string, writer: WritableStreamDefaultWrite
         type: 'tts-error',
         sessionId: sessionId,
         error: 'All TTS methods failed',
-        details: { deepgram: deepgramError.message, fallback: fallbackError.message }
+        details: { 
+          deepgram: deepgramError instanceof Error ? deepgramError.message : String(deepgramError), 
+          fallback: fallbackError instanceof Error ? fallbackError.message : String(fallbackError) 
+        }
       };
       
       await writer.write(new TextEncoder().encode(`data: ${JSON.stringify(errorPayload)}\n\n`));
@@ -258,11 +261,18 @@ async function getUserId(req: Request) {
       // Get user from JWT token
       const { data: { user }, error } = await supabase.auth.getUser(token);
       if (error) {
-        console.error("❌ [AUTH] Error getting user from token:", error);
+        console.error("❌ [AUTH] Error getting user from token:", error.message);
+        console.error("❌ [AUTH] Token validation failed - error code:", error.status);
         return null;
       }
-      console.log('✅ [AUTH] Successfully got user from token:', user?.id?.slice(-8));
-      return user?.id;
+      
+      if (user?.id) {
+        console.log('✅ [AUTH] Successfully got user from token:', user.id.slice(-8));
+        return user.id;
+      } else {
+        console.error('❌ [AUTH] Token valid but no user ID found');
+        return null;
+      }
     }
     
     // Fallback to session-based auth (for cases where no auth header is sent)
@@ -271,19 +281,19 @@ async function getUserId(req: Request) {
     const { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
-      console.error("❌ [AUTH] Error getting session:", error);
+      console.error("❌ [AUTH] Error getting session:", error.message);
       return null;
     }
     
     if (session?.user?.id) {
       console.log('✅ [AUTH] Successfully got user from session:', session.user.id.slice(-8));
+      return session.user.id;
     } else {
       console.log('⚠️ [AUTH] No user session found');
+      return null;
     }
-    
-    return session?.user?.id; 
   } catch (error) {
-    console.error("❌ [AUTH] Error in getUserId:", error);
+    console.error("❌ [AUTH] Unexpected error in getUserId:", error);
     return null;
   }
 }
@@ -943,9 +953,13 @@ async function getChatInstances(userId: string) {
 
 // Helper function to get a specific chat instance
 async function getChatInstance(userId: string, instanceId: string) {
-  if (!userId || !instanceId) return null;
+  if (!userId || !instanceId) {
+    console.error('❌ [getChatInstance] Missing parameters - userId:', !!userId, 'instanceId:', !!instanceId);
+    return null;
+  }
 
   try {
+    console.log('🔄 [getChatInstance] Querying database for instance:', instanceId, 'user:', userId?.slice(-8));
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('chat_history')
@@ -955,13 +969,20 @@ async function getChatInstance(userId: string, instanceId: string) {
       .single();
 
     if (error) {
-      console.error('❌ [Supabase] Error fetching chat instance:', error);
+      console.error('❌ [getChatInstance] Supabase error:', error.code, error.message);
+      console.error('❌ [getChatInstance] Query details - instanceId:', instanceId, 'userId:', userId?.slice(-8));
       return null;
+    }
+
+    if (data) {
+      console.log('✅ [getChatInstance] Found instance:', instanceId, 'with', data.messages?.length || 0, 'messages');
+    } else {
+      console.log('⚠️ [getChatInstance] No data returned for instance:', instanceId);
     }
 
     return data;
   } catch (error) {
-    console.error('❌ [Supabase] Error fetching chat instance:', error);
+    console.error('❌ [getChatInstance] Unexpected error:', error);
     return null;
   }
 }
@@ -2266,10 +2287,15 @@ export async function GET(req: Request) {
   const instanceId = url.searchParams.get('instanceId');
   console.log(`🔍 [GET DEBUG] action: ${action}, instanceId: ${instanceId}`);
   
-    const userId = await getUserId(req);
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+      const userId = await getUserId(req);
+  if (!userId) {
+    console.error('❌ [GET] No user ID found - unauthorized request');
+    return NextResponse.json({
+      type: 'error',
+      error: 'Unauthorized - please sign in',
+      details: 'No valid authentication found'
+    }, { status: 401 });
+  }
 
   // Handle different actions
   switch (action) {
@@ -2294,6 +2320,7 @@ export async function GET(req: Request) {
     case 'instance':
       // Get a specific chat instance
       if (!instanceId) {
+        console.error('❌ [API] Instance ID is required but not provided');
         return NextResponse.json({
           type: 'error',
           error: 'Instance ID is required'
@@ -2301,15 +2328,19 @@ export async function GET(req: Request) {
       }
 
       try {
-        console.log('🔄 [API] Fetching chat instance:', instanceId);
+        console.log('🔄 [API] Fetching chat instance:', instanceId, 'for user:', userId?.slice(-8));
         const instance = await getChatInstance(userId, instanceId);
+        
         if (!instance) {
+          console.error('❌ [API] Chat instance not found:', instanceId, 'for user:', userId?.slice(-8));
           return NextResponse.json({
             type: 'error',
-            error: 'Chat instance not found'
+            error: 'Chat instance not found',
+            details: `Instance ${instanceId} not found for user ${userId?.slice(-8)}`
           }, { status: 404 });
         }
 
+        console.log('✅ [API] Successfully fetched chat instance:', instanceId, 'with', instance.messages?.length || 0, 'messages');
         return NextResponse.json({
           type: 'chat_instance',
           instance

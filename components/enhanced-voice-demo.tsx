@@ -29,7 +29,7 @@ export function EnhancedVoiceDemo() {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [autoAudioEnabled, setAutoAudioEnabled] = useState(true);
-  const [accent, setAccent] = useState<'US' | 'UK'>('US');
+  const [accent, setAccent] = useState<'US' | 'UK'>('UK');
   const [gender, setGender] = useState<'female' | 'male'>('female');
   
   const wsClient = useRef<WebSocketVoiceClient | null>(null);

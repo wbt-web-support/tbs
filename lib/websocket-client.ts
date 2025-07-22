@@ -199,8 +199,8 @@ export class WebSocketVoiceClient {
     });
 
     // 🚀 REAL-TIME TITLE UPDATES: Handle title updates from server
-    this.socket.on('title-updated', (data) => {
-      console.log('🏷️ [WS CLIENT] Title updated received:', data);
+    this.socket.on('title-update', (data) => {
+      console.log('🏷️ [WS CLIENT] Title update received:', data);
       this.callbacks.onTitleUpdate?.(data);
     });
 

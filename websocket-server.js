@@ -304,7 +304,7 @@ async function processVoiceDirectly(data, sessionId, socket) {
             if (!updateError) {
               console.log(`✅ [AUTO-TITLE] Generated title: "${titleResult.title}"`);
               
-              socket.emit('title-updated', {
+              socket.emit('title-update', {
                 instanceId: instanceId,
                 newTitle: titleResult.title,
                 timestamp: Date.now()

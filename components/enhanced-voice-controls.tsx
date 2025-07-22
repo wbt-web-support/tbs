@@ -16,7 +16,8 @@ import {
   VolumeX, 
   RotateCcw,
   FastForward as SkipForward,
-  Rewind as SkipBack
+  Rewind as SkipBack,
+  Download
 } from 'lucide-react';
 import { enhancedAudioHandler } from '@/lib/enhanced-audio-handler';
 
@@ -41,9 +42,11 @@ interface EnhancedVoiceControlsProps {
   showProgressBar?: boolean;
   showVolumeControl?: boolean;
   showStopButton?: boolean;
+  showDownloadButton?: boolean;
   onPlayStart?: () => void;
   onPlayEnd?: () => void;
   onError?: (error: string) => void;
+  onDownload?: () => void;
   sharedAudioRef?: React.RefObject<HTMLAudioElement>;
 }
 
@@ -52,7 +55,7 @@ export function EnhancedVoiceControls({
   audioUrl,
   audioData,
   text,
-  accent = 'US',
+  accent = 'UK',
   gender = 'female',
   service = 'deepgram',
   useBrowserTTS = false,
@@ -60,9 +63,11 @@ export function EnhancedVoiceControls({
   showProgressBar = true,
   showVolumeControl = true,
   showStopButton = false,
+  showDownloadButton = true,
   onPlayStart,
   onPlayEnd,
   onError,
+  onDownload,
   sharedAudioRef
 }: EnhancedVoiceControlsProps) {
   const [controlState, setControlState] = useState<AudioControlState>({
@@ -326,8 +331,8 @@ export function EnhancedVoiceControls({
 
   // Handle volume change
   const handleVolumeChange = useCallback((value: number[]) => {
-    const newVolume = value[0];
-    console.log('🔧 [VOICE CONTROLS] handleVolumeChange called, newVolume:', newVolume);
+    const newVolume = value[0] / 100; // Convert from 0-100 to 0-1 for HTML media element
+    console.log('🔧 [VOICE CONTROLS] handleVolumeChange called, slider value:', value[0], 'converted volume:', newVolume);
     
     setControlState(prev => ({ ...prev, volume: newVolume }));
     
@@ -353,7 +358,7 @@ export function EnhancedVoiceControls({
   // Toggle mute
   const handleMuteToggle = useCallback(() => {
     if (isMuted) {
-      const newVolume = previousVolume > 0 ? previousVolume : 0.5;
+      const newVolume = previousVolume > 0 ? previousVolume * 100 : 50; // Convert to 0-100 range
       handleVolumeChange([newVolume]);
     } else {
       setPreviousVolume(controlState.volume);
@@ -377,6 +382,117 @@ export function EnhancedVoiceControls({
       console.error('❌ [VOICE CONTROLS] Progress change error:', error);
     }
   }, [controlState.duration, sharedAudioRef]);
+
+  // Handle download
+  const handleDownload = useCallback(async () => {
+    console.log('🔧 [VOICE CONTROLS] handleDownload called');
+    
+    try {
+      let downloadUrl = '';
+      let filename = '';
+      
+      if (audioUrl) {
+        // For Deepgram audio URLs
+        downloadUrl = audioUrl;
+        filename = `ai-voice-message-${messageId}-${Date.now()}.mp3`;
+      } else if (audioData) {
+        // For base64 audio data
+        downloadUrl = `data:audio/mp3;base64,${audioData}`;
+        filename = `ai-voice-message-${messageId}-${Date.now()}.mp3`;
+      } else if (text && service === 'browser') {
+        // For browser TTS, we need to generate the audio first
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+          
+          // Find the appropriate voice
+          const voices = speechSynthesis.getVoices();
+          const selectedVoice = voices.find(voice => 
+            voice.lang.startsWith(accent === 'UK' ? 'en-GB' : 'en-US') &&
+            voice.name.toLowerCase().includes(gender)
+          ) || voices.find(voice => voice.lang.startsWith('en'));
+          
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+          }
+          
+          // Note: Browser TTS doesn't provide direct audio file download
+          // We'll show a message instead
+          alert('Browser TTS audio cannot be downloaded directly. Please use the Deepgram audio service for downloadable files.');
+          return;
+        } catch (error) {
+          console.error('❌ [VOICE CONTROLS] Browser TTS download failed:', error);
+          onError?.('Browser TTS audio cannot be downloaded');
+          return;
+        }
+      } else {
+        onError?.('No audio content available for download');
+        return;
+      }
+      
+      if (downloadUrl) {
+        // For external URLs, we need to fetch and create a blob to avoid CORS issues
+        if (downloadUrl.startsWith('http')) {
+          try {
+            const response = await fetch(downloadUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch audio: ${response.status}`);
+            }
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            link.style.display = 'none';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Clean up the blob URL
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+            
+            console.log('✅ [VOICE CONTROLS] Download initiated:', filename);
+            onDownload?.();
+          } catch (fetchError) {
+            console.error('❌ [VOICE CONTROLS] Failed to fetch audio for download:', fetchError);
+            // Fallback to direct link
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            link.target = '_blank';
+            link.style.display = 'none';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            console.log('✅ [VOICE CONTROLS] Fallback download initiated:', filename);
+            onDownload?.();
+          }
+        } else {
+          // For data URLs, use direct download
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = filename;
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          console.log('✅ [VOICE CONTROLS] Download initiated:', filename);
+          onDownload?.();
+        }
+      }
+    } catch (error) {
+      console.error('❌ [VOICE CONTROLS] Download failed:', error);
+      onError?.(error instanceof Error ? error.message : String(error));
+    }
+  }, [audioUrl, audioData, text, service, accent, gender, messageId, onDownload, onError]);
 
   // Format time for display
   const formatTime = (seconds: number): string => {
@@ -432,6 +548,19 @@ export function EnhancedVoiceControls({
       >
         <RotateCcw className="h-4 w-4 text-gray-600" />
       </Button>
+
+      {/* Download Button */}
+      {showDownloadButton && (audioUrl || audioData) && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDownload}
+          className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
+          title="Download audio file"
+        >
+          <Download className="h-4 w-4 text-gray-600" />
+        </Button>
+      )}
 
       {/* Skip Controls (only show if audio is playing and has duration) */}
       {controlState.duration > 0 && (

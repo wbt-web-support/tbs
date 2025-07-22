@@ -1035,7 +1035,7 @@ What specific area would you like to focus on today? I'm ready to provide detail
               console.log('✅ [TITLE] Updated title in database');
               
               // 🚀 REAL-TIME UPDATE: Notify client of title change
-              socket.emit('title-updated', {
+              socket.emit('title-update', {
                 instanceId: instanceId,
                 newTitle: titleResult.title,
                 timestamp: Date.now()
@@ -1291,6 +1291,58 @@ What specific area would you like to focus on today? I'm ready to provide detail
   
   // Save assistant response to history
   await saveToHistory(data.userId, response, 'assistant', instanceId);
+  
+  // Handle title generation for voice conversations
+  if (data.userId && instanceId) {
+    try {
+      // Get current instance to check if we should generate title
+      const { data: currentInstance, error: fetchError } = await supabase
+        .from('chat_history')
+        .select('title')
+        .eq('id', instanceId)
+        .eq('user_id', data.userId)
+        .single();
+      
+      if (!fetchError && currentInstance && shouldGenerateTitle(currentInstance.title)) {
+        console.log('🏷️ [TITLE] Generating title for voice conversation...');
+        
+        const titleResult = await generateChatTitle(
+          getTitleGenerationOptions(transcription, response, 'voice')
+        );
+        
+        console.log('🏷️ [TITLE] Generated title:', titleResult.title);
+        
+        if (validateTitle(titleResult.title)) {
+          const { error: updateError } = await supabase
+            .from('chat_history')
+            .update({ title: titleResult.title })
+            .eq('id', instanceId)
+            .eq('user_id', data.userId);
+          
+          if (!updateError) {
+            console.log('✅ [TITLE] Title updated successfully:', titleResult.title);
+            
+            // Emit title update to client
+            const titleUpdateData = {
+              instanceId,
+              newTitle: titleResult.title,
+              timestamp: Date.now()
+            };
+            console.log('🏷️ [TITLE] Emitting title-update event:', titleUpdateData);
+            socket.emit('title-update', titleUpdateData);
+          } else {
+            console.error('❌ [TITLE] Error updating title in database:', updateError);
+          }
+        } else {
+          console.log('⚠️ [TITLE] Generated title failed validation:', titleResult.title);
+        }
+      } else {
+        console.log('🔒 [TITLE] Skipping title generation - title already exists or fetch error');
+      }
+    } catch (titleError) {
+      console.error('❌ [TITLE] Title generation failed:', titleError);
+    }
+  }
   
   // Stream AI response to client
   socket.emit('voice-stream', {

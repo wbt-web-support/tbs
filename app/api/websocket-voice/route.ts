@@ -8,16 +8,85 @@ import { wsManager } from '@/lib/websocket-manager';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/utils/supabase/server";
 import { aggressiveCache } from "@/lib/aggressive-cache";
-import { groqClient, formatMessagesForGroq } from "@/lib/groq-client";
+import { groqClient, formatMessagesForGroq, GROQ_MODELS } from "@/lib/groq-client";
 import { getRelevantInstructions } from "@/utils/embeddings";
 import { createClient as createDeepgramClient } from "@deepgram/sdk";
 import { responseQualityOptimizer } from "@/lib/response-quality-optimizer";
 import { getTitleGenerationOptions, getQualityConfig } from '@/lib/chat-pipeline-config';
+import { generateChatTitle, shouldGenerateTitle, validateTitle } from '@/lib/title-generator';
 // @ts-ignore - JavaScript module import
 const { pipelineTracker } = require("../../../lib/pipeline-tracker.js");
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
 const deepgram = createDeepgramClient(process.env.DEEPGRAM_API_KEY || "");
+
+// Helper function to save messages to chat history
+async function saveToHistory(userId: string, message: string, role: 'user' | 'assistant', instanceId?: string) {
+  try {
+    const supabase = await createClient();
+    
+    if (!instanceId) {
+      // Create new chat instance for first message
+      const { data: newInstance, error: createError } = await supabase
+        .from('chat_history')
+        .insert({
+          user_id: userId,
+          title: 'New Chat',
+          messages: [{ role, content: message, timestamp: new Date().toISOString() }],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('❌ [SAVE HISTORY] Error creating new instance:', createError);
+        return { instance: null, error: createError };
+      }
+      
+      console.log('✅ [SAVE HISTORY] Created new chat instance:', newInstance.id);
+      return { instance: newInstance, error: null };
+    } else {
+      // Update existing instance
+      const { data: existingInstance, error: fetchError } = await supabase
+        .from('chat_history')
+        .select('messages')
+        .eq('id', instanceId)
+        .eq('user_id', userId)
+        .single();
+      
+      if (fetchError) {
+        console.error('❌ [SAVE HISTORY] Error fetching existing instance:', fetchError);
+        return { instance: null, error: fetchError };
+      }
+      
+      const existingMessages = existingInstance.messages || [];
+      const updatedMessages = [...existingMessages, { role, content: message, timestamp: new Date().toISOString() }];
+      
+      const { data: updatedInstance, error: updateError } = await supabase
+        .from('chat_history')
+        .update({
+          messages: updatedMessages,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', instanceId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('❌ [SAVE HISTORY] Error updating instance:', updateError);
+        return { instance: null, error: updateError };
+      }
+      
+      console.log('✅ [SAVE HISTORY] Updated chat instance:', instanceId);
+      return { instance: updatedInstance, error: null };
+    }
+  } catch (error) {
+    console.error('❌ [SAVE HISTORY] Unexpected error:', error);
+    return { instance: null, error };
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -177,11 +246,11 @@ async function handleRAG(query: string, sessionId?: string) {
 /**
  * Handle AI generation using Groq with fallback to Gemini
  */
-async function handleAIGeneration(data: { transcription: string; userData: any; instructions: any[] }, sessionId?: string) {
+async function handleAIGeneration(data: { transcription: string; userData: any; instructions: any[]; instanceId?: string }, sessionId?: string) {
   const startTime = Date.now();
   
   try {
-    const { transcription, userData, instructions } = data;
+    const { transcription, userData, instructions, instanceId: existingInstanceId } = data;
     
     // Start pipeline tracking for AI generation
     if (sessionId) {
@@ -242,37 +311,55 @@ async function handleAIGeneration(data: { transcription: string; userData: any; 
     ], { maxTokens });
 
     // Handle title generation with standardized options
-    if (userData?.userId) {
-      const { instance, error } = await saveToHistory(userData.userId, transcription, 'user');
-      const instanceId = instance?.id;
+    const userId = userData?.id || userData?.userId;
+    let titleUpdate = null;
+    let instanceId = null;
+    
+    if (userId) {
+      console.log('🏷️ [TITLE] Starting title generation for user:', userId);
+      const { instance, error } = await saveToHistory(userId, transcription, 'user', existingInstanceId);
+      instanceId = instance?.id;
 
       if (!error && instance && shouldGenerateTitle(instance.title, 2)) {
         try {
+          console.log('🏷️ [TITLE] Generating title for instance:', instanceId);
           const titleResult = await generateChatTitle(
-            getTitleGenerationOptions(transcription, response)
+            getTitleGenerationOptions(transcription, response, 'voice')
           );
           
+          console.log('🏷️ [TITLE] Generated title:', titleResult.title);
+          
           if (validateTitle(titleResult.title)) {
+            const supabase = await createClient();
             const { error: updateError } = await supabase
               .from('chat_history')
               .update({ title: titleResult.title })
               .eq('id', instanceId)
-              .eq('user_id', userData.userId);
+              .eq('user_id', userId);
             
             if (!updateError) {
-              emitter.emit('title-updated', {
+              console.log('✅ [TITLE] Title updated successfully:', titleResult.title);
+              titleUpdate = {
                 instanceId,
                 newTitle: titleResult.title,
                 timestamp: Date.now()
-              });
+              };
+            } else {
+              console.error('❌ [TITLE] Error updating title in database:', updateError);
             }
+          } else {
+            console.log('⚠️ [TITLE] Generated title failed validation:', titleResult.title);
           }
         } catch (titleError) {
           console.error('❌ [AUTO-TITLE] Title generation failed:', titleError);
         }
+      } else {
+        console.log('🔒 [TITLE] Skipping title generation - title already exists or error occurred');
       }
 
-      await saveToHistory(userData.userId, response, 'assistant', instanceId);
+      await saveToHistory(userId, response, 'assistant', instanceId);
+    } else {
+      console.error('❌ [TITLE] No user ID found in userData:', userData);
     }
 
     const duration = Date.now() - startTime;
@@ -280,7 +367,12 @@ async function handleAIGeneration(data: { transcription: string; userData: any; 
       pipelineTracker.completeService(sessionId, 'ai');
     }
 
-    return { response, duration };
+    return { 
+      response, 
+      duration,
+      titleUpdate,
+      instanceId
+    };
   } catch (error) {
     console.error('❌ [AI] Generation failed:', error);
     throw error;

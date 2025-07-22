@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Volume2, VolumeX, Menu, Sidebar, Edit2, Trash2, Plus, X, Send,
-  MessageSquare, Cog, Lightbulb
+  MessageSquare, Cog, Lightbulb, Square, Check, Mic, Star
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { AudioVisualizer } from "./audio-visualizer";
@@ -16,7 +16,7 @@ import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
 import { WebSocketVoiceClient } from '@/lib/websocket-client';
 import type { WebSocketClientCallbacks } from '@/lib/websocket-client';
 import { startTransition } from 'react';
-import { groupChatsByTime, formatRelativeTime } from '@/utils/chat-organization';
+import { groupChatsByTime, formatRelativeTime, getTimeGroupsForDisplay, getStarredCountDisplay } from '@/utils/chat-organization';
 import type { ChatInstance as ChatInstanceType } from '@/utils/chat-organization';
 import { toast } from 'sonner';
 import { 
@@ -25,7 +25,9 @@ import {
   ChatResponse, 
   WebSocketResponse 
 } from '@/types/chat';
-import { generateChatTitle } from '../lib/title-generator.js';
+import { generateChatTitle } from '../lib/title-generator';
+import { enhancedAudioHandler } from '@/lib/enhanced-audio-handler';
+import { browserTTSService } from '@/lib/browser-tts-service';
 
 
 interface Message {
@@ -45,6 +47,7 @@ interface ChatInstance {
   title: string;
   created_at: string;
   updated_at: string;
+  is_starred?: boolean;
 }
 
 interface ChatbotInstruction {
@@ -113,7 +116,7 @@ export function RealtimeChatGemini({
   
   // Essential data loading states  
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [selectedAccent, setSelectedAccent] = useState<'US' | 'UK'>('US');
+  const [selectedAccent, setSelectedAccent] = useState<'US' | 'UK'>('UK');
   const [selectedGender, setSelectedGender] = useState<'female' | 'male'>('female');
   
   // Voice interface controls
@@ -143,6 +146,7 @@ export function RealtimeChatGemini({
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [isLoadingInstances, setIsLoadingInstances] = useState(true);
+  const [starringInstance, setStarringInstance] = useState<string | null>(null);
 
   // Responsive state
   const [isMediumScreen, setIsMediumScreen] = useState(false);
@@ -483,21 +487,29 @@ export function RealtimeChatGemini({
         // 🚀 REAL-TIME TITLE UPDATES: Handle title updates from WebSocket
         onTitleUpdate: (data) => {
           console.log('🏷️ [WS CALLBACK] Title updated:', data);
+          console.log('🏷️ [WS CALLBACK] Current instances before update:', chatInstances);
+          console.log('🏷️ [WS CALLBACK] Current instance ID:', currentInstanceId);
           
           // Update instance title in real-time
           if (data.instanceId && data.newTitle) {
-            setChatInstances(prev => 
-              prev.map(instance => 
+            console.log('🏷️ [WS CALLBACK] Updating instance', data.instanceId, 'with title:', data.newTitle);
+            setChatInstances(prev => {
+              const updated = prev.map(instance => 
                 instance.id === data.instanceId 
                   ? { ...instance, title: data.newTitle, updated_at: new Date().toISOString() }
                   : instance
-              )
-            );
+              );
+              console.log('🏷️ [WS CALLBACK] Updated instances:', updated);
+              return updated;
+            });
             
             // If this is the current instance, refresh the UI
             if (data.instanceId === currentInstanceId && onTitleUpdate) {
+              console.log('🏷️ [WS CALLBACK] This is current instance, calling onTitleUpdate');
               onTitleUpdate();
             }
+          } else {
+            console.log('🏷️ [WS CALLBACK] Missing instanceId or newTitle in data:', data);
           }
         },
         onError: (error) => {
@@ -774,47 +786,107 @@ export function RealtimeChatGemini({
   const fetchInstanceHistory = async (instanceId: string) => {
     try {
       setIsLoadingHistory(true);
-      // setIsDataLoaded(false); // Let's control isDataLoaded more carefully
+      console.log('🔄 [FETCH-HISTORY] Starting fetch for instance:', instanceId);
       
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (session?.user) {
-        const response = await fetch(`/api/gemini?action=instance&instanceId=${instanceId}`, {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
+      if (!session?.user) {
+        console.error('❌ [FETCH-HISTORY] No authenticated session found');
+        setMessages([]);
+        return;
+      }
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch instance history');
+      console.log('🔄 [FETCH-HISTORY] Making API request with user:', session.user.id?.slice(-8));
+      
+      const response = await fetch(`/api/gemini?action=instance&instanceId=${instanceId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
         }
+      });
 
-        const data = await response.json();
+      console.log('🔄 [FETCH-HISTORY] API response status:', response.status);
+
+      if (!response.ok) {
+        // Get the error details from the response
+        let errorMessage = 'Failed to fetch instance history';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.details || errorMessage;
+          console.error('❌ [FETCH-HISTORY] API error response:', errorData);
+        } catch (parseError) {
+          console.error('❌ [FETCH-HISTORY] Failed to parse error response:', parseError);
+        }
         
-        if (data.type === 'chat_instance' && data.instance) {
-          const history = data.instance.messages || [];
-          const formattedHistory = history.map((msg: any) => ({
-            role: msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user',
-            content: msg.content || '',
-            type: 'text',
-            isComplete: true
-          })) as Message[];
-          
-          setMessages(formattedHistory);
-          console.log('Instance history loaded:', formattedHistory.length, 'messages');
-        } else {
-          setMessages([]);
+        // If the instance is not found (404), try to fallback to direct database query
+        if (response.status === 404) {
+          console.log('🔄 [FETCH-HISTORY] Instance not found via API, trying direct DB query...');
+          try {
+            const { data: directInstance, error: directError } = await supabase
+              .from('chat_history')
+              .select('*')
+              .eq('id', instanceId)
+              .eq('user_id', session.user.id)
+              .single();
+
+            if (directError) {
+              console.error('❌ [FETCH-HISTORY] Direct DB query also failed:', directError);
+              throw new Error(`Instance not found: ${directError.message}`);
+            }
+
+            if (directInstance) {
+              console.log('✅ [FETCH-HISTORY] Found instance via direct DB query');
+              const history = directInstance.messages || [];
+              const formattedHistory = history.map((msg: any) => ({
+                role: msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user',
+                content: msg.content || '',
+                type: 'text',
+                isComplete: true
+              })) as Message[];
+              
+              setMessages(formattedHistory);
+              console.log('✅ [FETCH-HISTORY] Instance history loaded via direct DB:', formattedHistory.length, 'messages');
+              return;
+            }
+          } catch (directError) {
+            console.error('❌ [FETCH-HISTORY] Direct database fallback failed:', directError);
+          }
         }
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log('🔄 [FETCH-HISTORY] API response data type:', data.type);
+      
+      if (data.type === 'chat_instance' && data.instance) {
+        const history = data.instance.messages || [];
+        const formattedHistory = history.map((msg: any) => ({
+          role: msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content || '',
+          type: 'text',
+          isComplete: true
+        })) as Message[];
+        
+        setMessages(formattedHistory);
+        console.log('✅ [FETCH-HISTORY] Instance history loaded:', formattedHistory.length, 'messages');
+      } else if (data.type === 'error') {
+        console.error('❌ [FETCH-HISTORY] API returned error:', data.error);
+        throw new Error(data.error || 'Unknown API error');
+      } else {
+        console.log('⚠️ [FETCH-HISTORY] No instance data found, setting empty messages');
+        setMessages([]);
       }
       
-      // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
     } catch (error) {
-      console.error('Error fetching instance history:', error);
+      console.error('❌ [FETCH-HISTORY] Error fetching instance history:', error);
       setMessages([]);
-      // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
+      
+      // Show user-friendly error message
+      if (error instanceof Error) {
+        console.error('❌ [FETCH-HISTORY] Detailed error:', error.message);
+      }
     } finally {
       setIsLoadingHistory(false);
-      // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
     }
   };
 
@@ -952,6 +1024,32 @@ export function RealtimeChatGemini({
       }
 
       console.log('✅ [DIRECT-DB] Successfully deleted instance');
+      
+      // Stop any playing audio if this is the current instance
+      if (currentInstanceId === instanceId) {
+        console.log('🔊 [AUDIO-CLEANUP] Stopping audio for deleted chat...');
+        
+        // Stop HTML audio element
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          console.log('✅ [AUDIO-CLEANUP] Stopped HTML audio element');
+        }
+        
+        // Stop Enhanced Audio Handler (Deepgram audio)
+        enhancedAudioHandler.stop();
+        console.log('✅ [AUDIO-CLEANUP] Stopped enhanced audio handler');
+        
+        // Stop Browser TTS Service
+        browserTTSService.stop();
+        console.log('✅ [AUDIO-CLEANUP] Stopped browser TTS service');
+        
+        // Stop Web Speech Synthesis (fallback)
+        if ('speechSynthesis' in window) {
+          speechSynthesis.cancel();
+          console.log('✅ [AUDIO-CLEANUP] Cancelled speech synthesis');
+        }
+      }
       
       // Update local state
       const updatedInstances = chatInstances.filter(instance => instance.id !== instanceId);
@@ -1845,6 +1943,46 @@ export function RealtimeChatGemini({
 
   // 🧹 OPTIMIZATION 1: Removed call mode dead code functions (saved ~50 lines)
 
+  // Stop recording function (cancel recording)
+  const stopRecording = () => {
+    if (isRecording && mediaRecorder) {
+      console.log("🎤 Stopping and canceling recording");
+      setIsRecording(false);
+      
+      if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        setAudioStream(null);
+      }
+      
+      setMediaRecorder(null);
+      audioChunksRef.current = [];
+      voiceFeedback.setState('idle');
+    }
+  };
+
+  // Submit recording function (process and send recording)
+  const submitRecording = () => {
+    if (isRecording && mediaRecorder) {
+      console.log("🎤 Submitting recording");
+      
+      if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      
+      // The recording will be processed in the onstop event handler
+      // which is already set up in toggleRecording
+    }
+  };
+
+  // Helper function to check if user can star more chats
+  const canStarMoreChats = (starredChats: ChatInstance[]): boolean => {
+    return starredChats.length < 5; // Max 5 starred chats
+  };
+
   // 🎯 NEW: Star/Unstar functionality
   const handleStarToggle = async (instanceId: string, isCurrentlyStarred: boolean) => {
     try {
@@ -2146,26 +2284,7 @@ export function RealtimeChatGemini({
                   <Volume2 className="h-4 w-4" />
                   <span>Voice Settings</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 w-12">Accent:</span>
-                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                    {(['US', 'UK'] as const).map((accent) => (
-                      <Button
-                        key={accent}
-                        variant={selectedAccent === accent ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setSelectedAccent(accent)}
-                        className={`h-6 px-2 text-xs font-medium ${
-                          selectedAccent === accent 
-                            ? "bg-blue-600 text-white hover:bg-blue-700" 
-                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
-                        }`}
-                      >
-                        {accent}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 w-12">Gender:</span>
                   <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
@@ -2416,27 +2535,7 @@ export function RealtimeChatGemini({
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600 hidden sm:inline">Voice:</span>
                   
-                  {/* Accent Selection */}
-                  {isVoiceEnabled && (
-                    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                      {(['US', 'UK'] as const).map((accent) => (
-                        <Button
-                          key={accent}
-                          variant={selectedAccent === accent ? "default" : "ghost"}
-                          size="sm"
-                          onClick={() => setSelectedAccent(accent)}
-                          className={`h-7 px-2 text-xs font-medium ${
-                            selectedAccent === accent 
-                              ? "bg-blue-600 text-white hover:bg-blue-700" 
-                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
-                          }`}
-                          title={`${accent} English accent`}
-                        >
-                          {accent}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
+
 
                   {/* Gender Selection */}
                   {isVoiceEnabled && (
@@ -2570,10 +2669,12 @@ export function RealtimeChatGemini({
                             className="w-full"
                             showProgressBar={true}
                             showVolumeControl={true}
+                            showDownloadButton={true}
                             sharedAudioRef={audioRef}
                             onPlayStart={() => console.log(`🎵 Playing message ${index}`)}
                             onPlayEnd={() => console.log(`🎵 Finished playing message ${index}`)}
                             onError={(error) => console.error(`❌ Audio error for message ${index}:`, error)}
+                            onDownload={() => console.log(`📥 Downloaded audio for message ${index}`)}
                           />
                         </div>
                       )}
@@ -2591,9 +2692,11 @@ export function RealtimeChatGemini({
                             showProgressBar={false}
                             showVolumeControl={true}
                             showStopButton={true}
+                            showDownloadButton={false}
                             onPlayStart={() => console.log(`🌐 Playing Browser TTS for message ${index}`)}
                             onPlayEnd={() => console.log(`🌐 Finished Browser TTS for message ${index}`)}
                             onError={(error) => console.error(`❌ Browser TTS error for message ${index}:`, error)}
+                            onDownload={() => console.log(`📥 Browser TTS download attempted for message ${index}`)}
                           />
                         </div>
                       )}
