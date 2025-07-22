@@ -39,10 +39,7 @@ export default async function RootLayout({
     // The app will still work, but file uploads to machines bucket may fail
   });
 
-  // If user is authenticated and tries to access root, redirect to dashboard
-  if (session && typeof window !== 'undefined' && window.location.pathname === '/') {
-    redirect('/dashboard');
-  }
+  // Root route redirects are handled by middleware or page components, not in layout
 
   return (
     <html lang="en" className={geistSans.className} suppressHydrationWarning>

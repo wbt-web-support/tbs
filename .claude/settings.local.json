@@ -6,7 +6,16 @@
       "Bash(mkdir:*)",
       "Bash(npx supabase link:*)",
       "Bash(npx supabase login)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:developer.servicem8.com)",
+      "WebFetch(domain:developer.servicem8.com)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ngrok:*)",
+      "Bash(wget:*)",
+      "Bash(tar:*)",
+      "Bash(curl:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

@@ -32,6 +32,7 @@ import {
   Building,
   ClipboardList,
   CreditCard,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -159,6 +160,18 @@ const navigationSections: NavigationSection[] = [
         name: "QuickBooks",
         href: "/integrations/quickbooks",
         icon: CreditCard,
+        disabled: false,
+      },
+      {
+        name: "ServiceM8",
+        href: "/integrations/servicem8",
+        icon: Wrench,
+        disabled: false,
+      },
+      {
+        name: "Xero",
+        href: "/integrations/xero",
+        icon: FileText,
         disabled: false,
       },
     ],

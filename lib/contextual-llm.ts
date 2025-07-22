@@ -1,10 +1,20 @@
 import { OpenAI } from 'openai';
 import { searchChatHistory, searchInstructions } from './embeddings';
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI lazily
+let openai: OpenAI | null = null;
+
+function getOpenAI() {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('The OPENAI_API_KEY environment variable is missing or empty');
+    }
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -109,7 +119,7 @@ Please use these instructions to guide your response.`;
     const augmentedMessages = [...contextMessages, ...messages];
 
     // Get response from the model
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model,
       messages: augmentedMessages,
     });
