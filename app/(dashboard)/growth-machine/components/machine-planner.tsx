@@ -43,11 +43,17 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
   const [actionsActivities, setActionsActivities] = useState<{ value: string }[]>([]);
   
   // Edit mode state for each section
-  const [editingName, setEditingName] = useState(false);
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [editingTriggeringEvents, setEditingTriggeringEvents] = useState(false);
-  const [editingEndingEvents, setEditingEndingEvents] = useState(false);
-  const [editingActivities, setEditingActivities] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  // Remove: editingName, editingDescription, editingTriggeringEvents, editingEndingEvents, editingActivities
+
+  // Add a copy of the original data for cancel
+  const [originalData, setOriginalData] = useState<{
+    engineName: string;
+    description: string;
+    triggeringEvents: { value: string }[];
+    endingEvent: { value: string }[];
+    actionsActivities: { value: string }[];
+  } | null>(null);
   
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -60,13 +66,19 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
 
   useEffect(() => {
     if (machineData) {
-      console.log("Setting machine data:", machineData);
       setEngineName(machineData.enginename || "");
       setEngineType(machineData.enginetype as "GROWTH" | "FULFILLMENT" | "INNOVATION" || "GROWTH");
       setDescription(machineData.description || "");
       setTriggeringEvents(machineData.triggeringevents || []);
       setEndingEvent(machineData.endingevent || []);
       setActionsActivities(machineData.actionsactivities || []);
+      setOriginalData({
+        engineName: machineData.enginename || "",
+        description: machineData.description || "",
+        triggeringEvents: machineData.triggeringevents || [],
+        endingEvent: machineData.endingevent || [],
+        actionsActivities: machineData.actionsactivities || [],
+      });
     }
   }, [machineData]);
 
@@ -123,124 +135,73 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     }
   };
 
-  const handleSaveSection = async (section: string) => {
+  // Remove handleSaveSection and all per-section save/cancel logic
+  // Add a unified handleSaveAll and handleCancelAll
+  const handleSaveAll = async () => {
     if (!machineData?.id) return;
-    
     try {
       setSaving(true);
       setError("");
-      
-      const updateData: any = {};
-      
-      switch(section) {
-        case 'name':
-          updateData.enginename = engineName;
-          setEditingName(false);
-          break;
-        case 'description':
-          updateData.description = description;
-          setEditingDescription(false);
-          break;
-        case 'triggeringEvents':
-          updateData.triggeringevents = triggeringEvents;
-          setEditingTriggeringEvents(false);
-          break;
-        case 'endingEvents':
-          updateData.endingevent = endingEvent;
-          setEditingEndingEvents(false);
-          break;
-        case 'activities':
-          updateData.actionsactivities = actionsActivities;
-          setEditingActivities(false);
-          break;
-        default:
-          return;
-      }
-      
+      const updateData: any = {
+        enginename: engineName,
+        description,
+        triggeringevents: triggeringEvents,
+        endingevent: endingEvent,
+        actionsactivities: actionsActivities,
+      };
       const { error } = await supabase
         .from("machines")
         .update(updateData)
         .eq("id", machineData.id);
-        
       if (error) throw error;
-      
       await fetchMachineData();
-      onDataChange?.();
+      setEditMode(false);
+      toast.success("Growth Machine updated successfully!");
     } catch (err: any) {
-      console.error(`Error saving ${section}:`, err);
-      setError(err.message || `Failed to save ${section}`);
+      setError(err.message || "Failed to save changes");
+      toast.error("Failed to save changes");
     } finally {
       setSaving(false);
     }
   };
+  const handleCancelAll = () => {
+    if (!originalData) return;
+    setEngineName(originalData.engineName);
+    setDescription(originalData.description);
+    setTriggeringEvents(originalData.triggeringEvents);
+    setEndingEvent(originalData.endingEvent);
+    setActionsActivities(originalData.actionsActivities);
+    setEditMode(false);
+  };
 
+  // When AI generates content, auto-fill and enter edit mode
   const handleGenerateWithAI = async () => {
     try {
       setGenerating(true);
       setError("");
-      
       const response = await fetch('/api/gemini/growth-machine', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'generate' }),
       });
-
       const result = await response.json();
-      
       if (!response.ok) {
-        console.error('API Error Response:', result);
         throw new Error(result.error || result.details || 'Failed to generate content');
       }
-
       setGeneratedData(result.data);
-      
-      // Auto-fill the form with generated data
+      // Auto-fill and enter edit mode
       if (result.data) {
-        console.log("Generated data received:", result.data);
-        
-        // Validate and set the data
-        const data = result.data;
-        
-        setEngineName(data.enginename || "");
-        setDescription(data.description || "");
-        
-        // Ensure arrays are properly formatted
-        const triggeringEvents = Array.isArray(data.triggeringevents) 
-          ? data.triggeringevents.filter((item: any) => item && item.value && item.value.trim() !== '')
-          : [];
-        setTriggeringEvents(triggeringEvents);
-        
-        const endingEvents = Array.isArray(data.endingevent)
-          ? data.endingevent.filter((item: any) => item && item.value && item.value.trim() !== '')
-          : [];
-        setEndingEvent(endingEvents);
-        
-        const actionsActivities = Array.isArray(data.actionsactivities)
-          ? data.actionsactivities.filter((item: any) => item && item.value && item.value.trim() !== '')
-          : [];
-        setActionsActivities(actionsActivities);
-        
-        console.log("Processed data:", {
-          triggeringEvents: triggeringEvents.length,
-          endingEvents: endingEvents.length,
-          actionsActivities: actionsActivities.length
-        });
+        setEngineName(result.data.enginename || "");
+        setDescription(result.data.description || "");
+        setTriggeringEvents(Array.isArray(result.data.triggeringevents) ? result.data.triggeringevents.filter((item: any) => item && item.value && item.value.trim() !== '') : []);
+        setEndingEvent(Array.isArray(result.data.endingevent) ? result.data.endingevent.filter((item: any) => item && item.value && item.value.trim() !== '') : []);
+        setActionsActivities(Array.isArray(result.data.actionsactivities) ? result.data.actionsactivities.filter((item: any) => item && item.value && item.value.trim() !== '') : []);
+        setEditMode(true);
       }
-      
       toast.success("AI has mapped out your Growth Machine process!");
-      
     } catch (err: any) {
-      console.error('Error generating content:', err);
-      const errorMessage = err.message || 'Failed to map your Growth Machine process';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      
-      // Log the full error response for debugging
-      if (err.response) {
-        console.error('Full error response:', err.response);
-      }
+      setError(err.message || 'Failed to map your Growth Machine process');
+      toast.error(err.message || 'Failed to map your Growth Machine process');
     } finally {
       setGenerating(false);
     }
@@ -301,6 +262,26 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           {error}
         </div>
       )}
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Growth Machine</h1>
+          <p className="text-sm text-gray-500 mt-1">Define and manage your growth machine process</p>
+        </div>
+        {!editMode ? (
+          <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
+            Edit All
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={handleCancelAll} disabled={saving}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll} disabled={saving}>
+              Save All
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Compact AI Generation Section */}
       <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg">
@@ -343,41 +324,10 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           <Card className="overflow-hidden border-gray-200">
             <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
               <CardTitle className="text-sm font-medium text-blue-800 uppercase">Engine Name</CardTitle>
-              {!editingName ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingName(true)}
-                  className="h-7 mt-0 px-2 text-xs text-blue-700 hover:bg-blue-100"
-                >
-                  <Pencil className="h-3 w-3 mr-1 text-blue-600" />
-                  Edit
-                </Button>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 mt-0 px-2 text-xs"
-                    onClick={() => setEditingName(false)}
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-7 mt-0 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={() => handleSaveSection('name')}
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-                    Save
-                  </Button>
-                </div>
-              )}
+              {/* Removed per-section edit/save/cancel */}
             </CardHeader>
             <div className="p-4">
-              {editingName ? (
+              {editMode ? (
                 <Input
                   value={engineName}
                   onChange={(e) => setEngineName(e.target.value)}
@@ -394,41 +344,10 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           <Card className="overflow-hidden border-gray-200">
             <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-200">
               <CardTitle className="text-sm font-medium text-amber-800 uppercase">Description</CardTitle>
-              {!editingDescription ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingDescription(true)}
-                  className="h-7 mt-0 px-2 text-xs text-amber-700 hover:bg-amber-100"
-                >
-                  <Pencil className="h-3 w-3 mr-1 text-amber-600" />
-                  Edit
-                </Button>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 mt-0 px-2 text-xs"
-                    onClick={() => setEditingDescription(false)}
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-7 mt-0 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white"
-                    onClick={() => handleSaveSection('description')}
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-                    Save
-                  </Button>
-                </div>
-              )}
+              {/* Removed per-section edit/save/cancel */}
             </CardHeader>
             <div className="p-4">
-              {editingDescription ? (
+              {editMode ? (
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -448,45 +367,15 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
               <Card className="overflow-hidden border-gray-200 h-full">
                 <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
                   <CardTitle className="text-sm font-medium text-blue-800 uppercase">Triggering Event</CardTitle>
-                  {!editingTriggeringEvents ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingTriggeringEvents(true)}
-                      className="h-7 px-2 text-xs text-blue-700 hover:bg-blue-100"
-                    >
-                      <Pencil className="h-3 w-3 mr-1 text-blue-600" />
-                      Edit
-                    </Button>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 mt-0 px-2 text-xs"
-                        onClick={() => setEditingTriggeringEvents(false)}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-7 mt-0 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => handleSaveSection('triggeringEvents')}
-                        disabled={saving}
-                      >
-                        {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-                        Save
-                      </Button>
-                    </div>
-                  )}
+                  {/* Removed per-section edit/save/cancel */}
                 </CardHeader>
                 <div className="p-4">
-                  {editingTriggeringEvents ? (
+                  {editMode ? (
                     <DynamicInputList
                       items={triggeringEvents}
                       onChange={setTriggeringEvents}
                       placeholder="Add a triggering event"
+                      editMode={editMode}
                     />
                   ) : (
                     <div className="space-y-2">
@@ -518,45 +407,15 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
               <Card className="overflow-hidden border-gray-200 h-full">
                 <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
                   <CardTitle className="text-sm font-medium text-red-800 uppercase">Ending Event</CardTitle>
-                  {!editingEndingEvents ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingEndingEvents(true)}
-                      className="h-7 mt-0 px-2 text-xs text-red-700 hover:bg-red-100"
-                    >
-                      <Pencil className="h-3 w-3 mr-1 text-red-600" />
-                      Edit
-                    </Button>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 mt-0 px-2 text-xs"
-                        onClick={() => setEditingEndingEvents(false)}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-7 mt-0 px-3 text-xs bg-red-600 hover:bg-red-700 text-white"
-                        onClick={() => handleSaveSection('endingEvents')}
-                        disabled={saving}
-                      >
-                        {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-                        Save
-                      </Button>
-                    </div>
-                  )}
+                  {/* Removed per-section edit/save/cancel */}
                 </CardHeader>
                 <div className="p-4">
-                  {editingEndingEvents ? (
+                  {editMode ? (
                     <DynamicInputList
                       items={endingEvent}
                       onChange={setEndingEvent}
                       placeholder="Add an ending event"
+                      editMode={editMode}
                     />
                   ) : (
                     <div className="space-y-2">
@@ -598,45 +457,15 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           <Card className="overflow-hidden border-gray-200">
             <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-emerald-50 to-emerald-100 border-b border-emerald-200">
               <CardTitle className="text-sm font-medium text-emerald-800 uppercase">Actions/Activities</CardTitle>
-              {!editingActivities ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingActivities(true)}
-                  className="h-7 mt-0 px-2 text-xs text-emerald-700 hover:bg-emerald-100"
-                >
-                  <Pencil className="h-3 w-3 mr-1 text-emerald-600" />
-                  Edit
-                </Button>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 mt-0 px-2 text-xs"
-                    onClick={() => setEditingActivities(false)}
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-7 mt-0 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                    onClick={() => handleSaveSection('activities')}
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-                    Save
-                  </Button>
-                </div>
-              )}
+              {/* Removed per-section edit/save/cancel */}
             </CardHeader>
             <div className="p-4">
-              {editingActivities ? (
+              {editMode ? (
                 <DynamicInputList
                   items={actionsActivities}
                   onChange={setActionsActivities}
                   placeholder="Add an action or activity"
+                  editMode={editMode}
                 />
               ) : (
                 <div className="space-y-2">
