@@ -32,6 +32,10 @@ export default function BattlePlanPage() {
   const [savingContent, setSavingContent] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<any>(null);
+  const [editMode, setEditMode] = useState(false); // Unified edit mode
+  const [detailsData, setDetailsData] = useState<{ mission: string; vision: string } | null>(null);
+  const [strategicData, setStrategicData] = useState<any>(null);
+  const [businessPlanContent, setBusinessPlanContent] = useState<string>("");
   const supabase = createClient();
 
   useEffect(() => {
@@ -114,6 +118,47 @@ export default function BattlePlanPage() {
     }
   };
 
+  // Handlers to collect data from children
+  const handleDetailsChange = (data: { mission: string; vision: string }) => setDetailsData(data);
+  const handleStrategicChange = (data: any) => setStrategicData(data);
+  const handleBusinessPlanContentChange = (content: string) => setBusinessPlanContent(content);
+
+  // Unified save handler
+  const handleSaveAll = async () => {
+    if (!battlePlanData?.id) return;
+    try {
+      setLoading(true);
+      const updateObj: any = {};
+      if (detailsData) {
+        updateObj.missionstatement = detailsData.mission;
+        updateObj.visionstatement = detailsData.vision;
+      }
+      if (strategicData) {
+        updateObj.corevalues = strategicData.coreValues;
+        updateObj.strategicanchors = strategicData.strategicAnchors;
+        updateObj.purposewhy = strategicData.purposeWhy;
+        updateObj.threeyeartarget = strategicData.threeYearTarget;
+      }
+      if (businessPlanContent) {
+        updateObj.business_plan_content = businessPlanContent;
+      }
+      if (Object.keys(updateObj).length === 0) return;
+      const { error } = await supabase
+        .from("battle_plan")
+        .update(updateObj)
+        .eq("id", battlePlanData.id);
+      if (error) throw error;
+      await fetchBattlePlanData();
+      setEditMode(false);
+      toast.success("Business Plan updated successfully!");
+    } catch (error) {
+      toast.error("Failed to save changes");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGenerateWithAI = async () => {
     try {
       setGenerating(true);
@@ -134,6 +179,7 @@ export default function BattlePlanPage() {
       }
 
       setGeneratedData(result.data);
+      setEditMode(true); // Enter edit mode after AI generates content
       toast.success("AI has generated your Business Plan content!");
       
     } catch (err: any) {
@@ -144,6 +190,32 @@ export default function BattlePlanPage() {
       setGenerating(false);
     }
   };
+
+  // Add useEffect to sync businessPlanContent with generatedData.business_plan_document_html
+  useEffect(() => {
+    if (
+      generatedData &&
+      generatedData.business_plan_document_html &&
+      generatedData.business_plan_document_html !== businessPlanContent
+    ) {
+      setBusinessPlanContent(generatedData.business_plan_document_html);
+    }
+    // Only run when generatedData changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedData]);
+
+  // Add useEffect to initialize businessPlanContent from battlePlanData
+  useEffect(() => {
+    if (
+      battlePlanData &&
+      battlePlanData.business_plan_content &&
+      !businessPlanContent // only set if not already set by AI or user
+    ) {
+      setBusinessPlanContent(battlePlanData.business_plan_content);
+    }
+    // Only run when battlePlanData changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battlePlanData]);
 
   const handleSaveGeneratedContent = async () => {
     if (!generatedData) return;
@@ -180,11 +252,28 @@ export default function BattlePlanPage() {
 
   return (
     <div className="max-w-[1440px] mx-auto">
-      <div className="mb-5">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Business Plan</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Define and manage your business strategy and vision
-        </p>
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Business Plan</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Define and manage your business strategy and vision
+          </p>
+        </div>
+        {/* Unified Edit/Save/Cancel Buttons */}
+        {!editMode ? (
+          <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
+            Edit All
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => setEditMode(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll}>
+              Save All
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Compact AI Generation Section */}
@@ -237,6 +326,8 @@ export default function BattlePlanPage() {
                   planId={battlePlanData?.id}
                   generatedData={generatedData}
                   onGeneratedDataChange={setGeneratedData}
+                  editMode={editMode}
+                  onChange={handleDetailsChange}
                 />
               </Card>
             </div>
@@ -252,6 +343,8 @@ export default function BattlePlanPage() {
                 planId={battlePlanData?.id}
                 generatedData={generatedData}
                 onGeneratedDataChange={setGeneratedData}
+                editMode={editMode}
+                onChange={handleStrategicChange}
               />
             </div>
           </div>
@@ -274,8 +367,8 @@ export default function BattlePlanPage() {
             </div>
             <div className="bg-white">
               <ReusableTiptapEditor
-                content={battlePlanData?.business_plan_content || ""}
-                onChange={() => {}} // We handle changes through onSave
+                content={businessPlanContent}
+                onChange={handleBusinessPlanContentChange}
                 onSave={handleSaveBusinessPlanContent}
                 placeholder="Start writing your business plan... Type '/' for commands"
                 showToolbar={true}

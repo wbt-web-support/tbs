@@ -83,18 +83,18 @@ export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: 
         </div>
         {/* Edit Form */}
         <div className="flex-1 flex flex-col gap-6 px-10 py-10 min-h-[500px]">
-          <div>
+          <div >
             <label className="block text-base font-medium mb-2 text-neutral-800">Prompt Body (Instructions Only)</label>
             <Textarea
               value={text}
               onChange={e => setText(e.target.value)}
               rows={14}
-              className="w-full font-mono text-sm flex-1 min-h-[320px] h-full px-4 py-3 rounded-lg border border-neutral-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+              className="w-full font-mono text-sm flex-1 min-h-[520px] h-full px-4 py-3 rounded-lg border border-neutral-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
               disabled={loading}
             />
             <div className="text-xs text-neutral-400 mt-2">Only edit the instructions. The required JSON structure is fixed and will always be appended.</div>
           </div>
-          <div>
+          <div className="hidden">
             <label className="block text-base font-medium mb-2 text-neutral-800">Live Preview</label>
             <pre className="bg-neutral-50 rounded-lg p-3 text-xs font-mono text-neutral-700 max-h-48 overflow-auto whitespace-pre-line border border-neutral-100">
               {preview}

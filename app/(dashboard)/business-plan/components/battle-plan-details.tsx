@@ -14,6 +14,8 @@ type BattlePlanDetailsProps = {
   planId: string | undefined;
   generatedData?: any;
   onGeneratedDataChange?: (data: any) => void;
+  editMode: boolean;
+  onChange: (data: { mission: string; vision: string }) => void;
 };
 
 export default function BattlePlanDetails({ 
@@ -22,15 +24,15 @@ export default function BattlePlanDetails({
   onUpdate, 
   planId,
   generatedData,
-  onGeneratedDataChange
+  onGeneratedDataChange,
+  editMode,
+  onChange
 }: BattlePlanDetailsProps) {
   const [mission, setMission] = useState(missionStatement);
   const [vision, setVision] = useState(visionStatement);
-  const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
 
-  // Update local state when generated data is available
   useEffect(() => {
     if (generatedData) {
       if (generatedData.missionstatement) {
@@ -41,6 +43,10 @@ export default function BattlePlanDetails({
       }
     }
   }, [generatedData]);
+
+  useEffect(() => {
+    onChange({ mission, vision });
+  }, [mission, vision, onChange]);
 
   const handleSave = async () => {
     if (!planId) return;
@@ -59,7 +65,6 @@ export default function BattlePlanDetails({
       if (error) throw error;
       
       onUpdate();
-      setEditMode(false);
     } catch (error) {
       console.error("Error saving statements:", error);
     } finally {
@@ -74,47 +79,7 @@ export default function BattlePlanDetails({
           <BookOpen className="h-5 w-5 text-indigo-600 mr-2" />
           <CardTitle className="text-lg font-semibold text-indigo-800">Mission & Vision</CardTitle>
         </div>
-        {!editMode ? (
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="h-8 px-3 text-xs border-gray-300" 
-            onClick={() => setEditMode(true)}
-          >
-            <Pencil className="h-3 w-3 mr-2 text-gray-600" />
-            Edit
-          </Button>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-3 text-xs border-gray-300"
-              onClick={() => setEditMode(false)}
-            >
-              <X className="h-3 w-3 mr-2" />
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-3 w-3" />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        {/* Remove Edit/Save/Cancel buttons, use editMode prop */}
       </CardHeader>
       <div className="px-4 py-4 space-y-5">
         {/* Mission Statement */}

@@ -15,6 +15,8 @@ type TextSectionsProps = {
   plannerId: string | undefined;
   generatedData?: any;
   onGeneratedDataChange?: (data: any) => void;
+  editMode: boolean;
+  onChange: (data: { whatYouDo: string; whoYouServe: string; notes: string }) => void;
 };
 
 export default function TextSections({ 
@@ -24,13 +26,14 @@ export default function TextSections({
   onUpdate, 
   plannerId,
   generatedData,
-  onGeneratedDataChange
+  onGeneratedDataChange,
+  editMode,
+  onChange
 }: TextSectionsProps) {
   const [whatYouDoContent, setWhatYouDoContent] = useState(whatYouDo);
   const [whoYouServeContent, setWhoYouServeContent] = useState(whoYouServe);
   const [notesContent, setNotesContent] = useState(notes);
 
-  // Update content when generated data is available
   useEffect(() => {
     if (generatedData) {
       if (generatedData.what_you_do) setWhatYouDoContent(generatedData.what_you_do);
@@ -38,8 +41,12 @@ export default function TextSections({
       if (generatedData.notes) setNotesContent(generatedData.notes);
     }
   }, [generatedData]);
+
+  useEffect(() => {
+    onChange({ whatYouDo: whatYouDoContent, whoYouServe: whoYouServeContent, notes: notesContent });
+  }, [whatYouDoContent, whoYouServeContent, notesContent, onChange]);
+
   const [saving, setSaving] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const supabase = createClient();
 
   const handleSave = async () => {
@@ -60,7 +67,6 @@ export default function TextSections({
       if (error) throw error;
       
       onUpdate();
-      setEditMode(false);
     } catch (error) {
       console.error("Error saving text sections:", error);
     } finally {
@@ -75,47 +81,7 @@ export default function TextSections({
           <FileText className="h-5 w-5 text-blue-600 mr-2" />
           <CardTitle className="text-lg font-semibold text-gray-800">Additional Info</CardTitle>
         </div>
-        {!editMode ? (
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="h-7 px-2 text-xs" 
-            onClick={() => setEditMode(true)}
-          >
-            <Pencil className="h-3 w-3 mr-1 text-gray-500" />
-            Edit
-          </Button>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs"
-              onClick={() => setEditMode(false)}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-3 w-3" />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        {/* No Save/Cancel buttons here */}
       </CardHeader>
 
       <div className="px-5 pb-5 space-y-5">
@@ -165,7 +131,7 @@ export default function TextSections({
               lined={true}
             />
           ) : (
-            <div className="text-sm text-gray-700 rounded-md ">
+            <div className="text-sm text-gray-700 rounded-md">
               {whoYouServeContent ? (
                 <p className="whitespace-pre-wrap">{whoYouServeContent}</p>
               ) : (
@@ -194,7 +160,7 @@ export default function TextSections({
               lined={true}
             />
           ) : (
-            <div className="text-sm text-gray-700 rounded-md ">
+            <div className="text-sm text-gray-700 rounded-md">
               {notesContent ? (
                 <p className="whitespace-pre-wrap">{notesContent}</p>
               ) : (

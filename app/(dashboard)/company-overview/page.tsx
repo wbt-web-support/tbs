@@ -38,6 +38,11 @@ export default function TriagePlannerPage() {
   const [generating, setGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<any>(null);
   const [savingGenerated, setSavingGenerated] = useState(false);
+  const [editMode, setEditMode] = useState(false); // Unified edit mode
+  const [companyInfoData, setCompanyInfoData] = useState<any>(null);
+  const [helpfulListsData, setHelpfulListsData] = useState<any>(null);
+  const [internalTasksData, setInternalTasksData] = useState<any>(null);
+  const [textSectionsData, setTextSectionsData] = useState<any>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -122,6 +127,7 @@ export default function TriagePlannerPage() {
       }
 
       setGeneratedData(result.data);
+      setEditMode(true); // Enter edit mode after AI generates content
       toast.success("AI has generated your Company Overview content!");
       
     } catch (err: any) {
@@ -158,7 +164,7 @@ export default function TriagePlannerPage() {
       // Refresh the data
       await fetchPlannerData();
       setGeneratedData(null);
-      
+      setEditMode(false); // Exit edit mode after saving generated content
       toast.success("Generated content saved successfully!");
       
     } catch (err: any) {
@@ -169,13 +175,73 @@ export default function TriagePlannerPage() {
     }
   };
 
+  // Add handlers to collect data from children
+  const handleCompanyInfoChange = (data: any) => setCompanyInfoData(data);
+  const handleHelpfulListsChange = (data: any) => setHelpfulListsData(data);
+  const handleInternalTasksChange = (data: any) => setInternalTasksData(data);
+  const handleTextSectionsChange = (data: any) => setTextSectionsData(data);
+
+  // Unified save handler
+  const handleSaveAll = async () => {
+    if (!plannerData?.id) return;
+    try {
+      setLoading(true);
+      // Prepare update object
+      const updateObj: any = {};
+      if (companyInfoData) updateObj.company_info = companyInfoData;
+      if (helpfulListsData) {
+        updateObj.what_is_right = helpfulListsData.right;
+        updateObj.what_is_wrong = helpfulListsData.wrong;
+        updateObj.what_is_missing = helpfulListsData.missing;
+        updateObj.what_is_confusing = helpfulListsData.confusing;
+      }
+      if (internalTasksData) updateObj.internal_tasks = internalTasksData;
+      if (textSectionsData) {
+        updateObj.what_you_do = textSectionsData.whatYouDo;
+        updateObj.who_you_serve = textSectionsData.whoYouServe;
+        updateObj.notes = textSectionsData.notes;
+      }
+      if (Object.keys(updateObj).length === 0) return;
+      const { error } = await supabase
+        .from("triage_planner")
+        .update(updateObj)
+        .eq("id", plannerData.id);
+      if (error) throw error;
+      await fetchPlannerData();
+      setEditMode(false);
+      toast.success("Company Overview updated successfully!");
+    } catch (error) {
+      toast.error("Failed to save changes");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-[1440px] mx-auto">
-      <div className="mb-4">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Company Overview</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Plan and organise your business company overview
-        </p>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Company Overview</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Plan and organise your business company overview
+          </p>
+        </div>
+        {/* Unified Edit/Save/Cancel Buttons */}
+        {!editMode ? (
+          <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
+            Edit
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => setEditMode(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll}>
+              Save
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Compact AI Generation Section */}
@@ -232,9 +298,10 @@ export default function TriagePlannerPage() {
                 plannerId={plannerData?.id}
                 generatedData={generatedData}
                 onGeneratedDataChange={setGeneratedData}
+                editMode={editMode}
+                onChange={handleCompanyInfoChange}
               />
             </Card>
-
             {/* Helpful Lists */}
             <Card className="overflow-hidden border-gray-200">
               <HelpfulLists 
@@ -246,10 +313,11 @@ export default function TriagePlannerPage() {
                 plannerId={plannerData?.id}
                 generatedData={generatedData}
                 onGeneratedDataChange={setGeneratedData}
+                editMode={editMode}
+                onChange={handleHelpfulListsChange}
               />
             </Card>
           </div>
-
           {/* Right Column */}
           <div className="lg:col-span-4 space-y-4">
             {/* Internal Tasks */}
@@ -260,9 +328,10 @@ export default function TriagePlannerPage() {
                 plannerId={plannerData?.id}
                 generatedData={generatedData}
                 onGeneratedDataChange={setGeneratedData}
+                editMode={editMode}
+                onChange={handleInternalTasksChange}
               />
             </Card>
-
             {/* Text Sections */}
             <Card className="overflow-hidden border-gray-200">
               <TextSections 
@@ -273,6 +342,8 @@ export default function TriagePlannerPage() {
                 plannerId={plannerData?.id}
                 generatedData={generatedData}
                 onGeneratedDataChange={setGeneratedData}
+                editMode={editMode}
+                onChange={handleTextSectionsChange}
               />
             </Card>
           </div>

@@ -269,6 +269,7 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       strategicanchors: generatedData.strategicanchors,
       purposewhy: generatedData.purposewhy,
       threeyeartarget: generatedData.threeyeartarget,
+      business_plan_document_html: generatedData.business_plan_document_html,
     };
 
     let result;
@@ -300,7 +301,7 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
   }
 }
 
-// Fixed JSON structure and rules for business plan
+// Update the JSON structure to include business_plan_document_html
 const BUSINESS_PLAN_JSON_STRUCTURE = `
 CRITICAL: You must respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON. The JSON must have this exact structure:
 
@@ -326,7 +327,8 @@ CRITICAL: You must respond with ONLY a valid JSON object. Do not include any exp
     {"value": "First three year target"},
     {"value": "Second three year target"},
     {"value": "Third three year target"}
-  ]
+  ],
+  "business_plan_document_html": "<h2>Business Plan</h2>...full HTML document here..."
 }
 
 IMPORTANT RULES:
@@ -338,6 +340,9 @@ IMPORTANT RULES:
 - Focus on their specific industry, business model, and current situation
 - Make all statements practical and implementable for their specific business
 - Ensure alignment with their existing machines and business processes
+- The business_plan_document_html must be a comprehensive, actionable business plan for the company, formatted in HTML (use <h2>, <h3>, <p>, <ul>, <li>, <strong> etc). It should synthesize the structured data and company context into a readable, professional document ready to share with stakeholders.
+- The HTML must be well-structured, readable, and include all major sections of a business plan (executive summary, mission, vision, core values, strategic anchors, purpose/why, 3-year targets, and any other relevant sections based on the context).
+- Do NOT include markdown or any non-HTML formatting.
 `;
 
 // Only fetch the prompt body (instructions) from DB
@@ -431,6 +436,10 @@ export async function POST(req: Request) {
 
         if (!Array.isArray(generatedData.threeyeartarget) || generatedData.threeyeartarget.length === 0) {
           throw new Error("Three year targets array is empty or invalid");
+        }
+
+        if (!generatedData.business_plan_document_html || generatedData.business_plan_document_html.trim() === '') {
+          throw new Error("Business plan document HTML is empty or invalid");
         }
 
         // Clean up array items - remove any empty values

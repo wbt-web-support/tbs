@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ExpandableInput } from "@/components/ui/input";
 import { 
@@ -23,6 +23,8 @@ type StrategicElementsProps = {
   planId: string | undefined;
   generatedData?: any;
   onGeneratedDataChange?: (data: any) => void;
+  editMode: boolean;
+  onChange: (data: any) => void;
 };
 
 export default function StrategicElements({ 
@@ -33,7 +35,9 @@ export default function StrategicElements({
   onUpdate, 
   planId,
   generatedData,
-  onGeneratedDataChange
+  onGeneratedDataChange,
+  editMode,
+  onChange
 }: StrategicElementsProps) {
   const [values, setValues] = useState<Item[]>(coreValues);
   const [anchors, setAnchors] = useState<Item[]>(strategicAnchors);
@@ -46,11 +50,9 @@ export default function StrategicElements({
     purposeWhy: "",
     threeYearTarget: ""
   });
-  const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
 
-  // Update local state when generated data is available
   useEffect(() => {
     if (generatedData) {
       if (generatedData.corevalues) {
@@ -67,6 +69,15 @@ export default function StrategicElements({
       }
     }
   }, [generatedData]);
+
+  useEffect(() => {
+    onChange({
+      coreValues: values,
+      strategicAnchors: anchors,
+      purposeWhy: purposes,
+      threeYearTarget: targets
+    });
+  }, [values, anchors, purposes, targets, onChange]);
 
   const handleAddItem = (section: string) => {
     const item = newItems[section as keyof typeof newItems];
@@ -161,7 +172,7 @@ export default function StrategicElements({
       if (error) throw error;
       
       onUpdate();
-      setEditMode(false);
+      // setEditMode(false); // This line is removed as per the edit hint
     } catch (error) {
       console.error("Error saving strategic elements:", error);
     } finally {
@@ -298,27 +309,41 @@ export default function StrategicElements({
           {editMode ? (
             <div className="space-y-3">
               <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
-                {items.map((item, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <ExpandableInput
-                      value={item.value}
-                      onChange={(e) => handleChangeItem(section, index, e.target.value)}
-                      className="flex-1 text-sm"
-                      expandAfter={40}
-                      lined={true}
-                    />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-gray-500 hover:text-red-600"
-                      onClick={() => handleRemoveItem(section, index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                {items.map((item, index) => {
+                  // Remove useRef from inside the map to fix hook order error
+                  const setTextareaRef = (el: HTMLTextAreaElement | null) => {
+                    if (el) {
+                      el.style.height = "auto";
+                      el.style.height = `${el.scrollHeight}px`;
+                    }
+                  };
+                  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  };
+                  return (
+                    <div key={index} className="flex items-center space-x-2">
+                      <textarea
+                        ref={setTextareaRef}
+                        className="flex-1 text-sm border rounded-md px-2 py-1 min-h-[32px] w-full resize-none overflow-hidden"
+                        value={item.value}
+                        onChange={e => handleChangeItem(section, index, e.target.value)}
+                        onInput={handleInput}
+                        rows={1}
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-gray-500 hover:text-red-600"
+                        onClick={() => handleRemoveItem(section, index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
-              
               <div className="flex items-center space-x-2 pt-2">
                 <ExpandableInput
                   value={newItems[section as keyof typeof newItems]}
@@ -367,47 +392,7 @@ export default function StrategicElements({
     <div className="space-y-4">
       <div className="flex justify-between items-center border-b pb-2">
         <h2 className="text-lg font-semibold text-gray-800">Strategic Elements</h2>
-        {!editMode ? (
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="h-8 px-3 text-xs border-gray-300" 
-            onClick={() => setEditMode(true)}
-          >
-            <Pencil className="h-3 w-3 mr-2 text-gray-600" />
-            Edit All
-          </Button>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-3 text-xs border-gray-300"
-              onClick={() => setEditMode(false)}
-            >
-              <X className="h-3 w-3 mr-2" />
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-3 w-3" />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        {/* Remove Edit/Save/Cancel buttons */}
       </div>
     
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

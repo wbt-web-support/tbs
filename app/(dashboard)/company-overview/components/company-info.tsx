@@ -20,9 +20,11 @@ type CompanyInfoProps = {
   plannerId: string | undefined;
   generatedData?: any;
   onGeneratedDataChange?: (data: any) => void;
+  editMode: boolean;
+  onChange: (data: CompanyInfoData) => void;
 };
 
-export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, onGeneratedDataChange }: CompanyInfoProps) {
+export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, onGeneratedDataChange, editMode, onChange }: CompanyInfoProps) {
   const [formData, setFormData] = useState<CompanyInfoData>(
     data || {
       annualRevenue: { current: "", target: "" },
@@ -31,15 +33,17 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
     }
   );
 
-  // Update form data when generated data is available
   useEffect(() => {
     if (generatedData?.company_info) {
       setFormData(generatedData.company_info);
     }
   }, [generatedData]);
-  const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
+
+  useEffect(() => {
+    onChange(formData);
+  }, [formData, onChange]);
 
   const handleChange = (
     section: "annualRevenue" | "profitMargin" | "teamSize",
@@ -69,7 +73,7 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
       if (error) throw error;
       
       onUpdate();
-      setEditMode(false);
+      // setEditMode(false); // This line is removed as per the edit hint
     } catch (error) {
       console.error("Error saving company info:", error);
     } finally {
@@ -84,47 +88,7 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
           <Building2 className="h-5 w-5 text-blue-600 mr-2" />
           <CardTitle className="text-lg font-semibold text-gray-800">Company Info</CardTitle>
         </div>
-        {!editMode ? (
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="h-7 px-2 text-xs" 
-            onClick={() => setEditMode(true)}
-          >
-            <Pencil className="h-3 w-3 mr-1 text-gray-500" />
-            Edit
-          </Button>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs"
-              onClick={() => setEditMode(false)}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-3 w-3" />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        {/* No Save/Cancel buttons here */}
       </CardHeader>
       <div className="px-4 pb-4">
         {editMode ? (
@@ -168,7 +132,6 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
                 </div>
               </div>
             </div>
-
             {/* Profit Margin */}
             <div className="border rounded-md p-3">
               <div className="flex items-center mb-2 text-gray-800">
@@ -187,7 +150,7 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
                     }
                     placeholder="e.g. 10%"
                     className="w-full text-sm"
-                    expandAfter={20}
+                    expandAfter={10}
                     lined={true}
                   />
                 </div>
@@ -202,13 +165,12 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
                     }
                     placeholder="e.g. 25%"
                     className="w-full text-sm"
-                    expandAfter={20}
+                    expandAfter={10}
                     lined={true}
                   />
                 </div>
               </div>
             </div>
-
             {/* Team Size */}
             <div className="border rounded-md p-3">
               <div className="flex items-center mb-2 text-gray-800">
@@ -222,10 +184,12 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
                   </label>
                   <ExpandableInput
                     value={formData.teamSize.current}
-                    onChange={(e) => handleChange("teamSize", "current", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("teamSize", "current", e.target.value)
+                    }
                     placeholder="e.g. 5"
                     className="w-full text-sm"
-                    expandAfter={20}
+                    expandAfter={10}
                     lined={true}
                   />
                 </div>
@@ -235,10 +199,12 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
                   </label>
                   <ExpandableInput
                     value={formData.teamSize.target}
-                    onChange={(e) => handleChange("teamSize", "target", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("teamSize", "target", e.target.value)
+                    }
                     placeholder="e.g. 15"
                     className="w-full text-sm"
-                    expandAfter={20}
+                    expandAfter={10}
                     lined={true}
                   />
                 </div>

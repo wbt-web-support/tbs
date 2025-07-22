@@ -334,6 +334,13 @@ export default function ReusableTiptapEditor({
     },
   });
 
+  // Update editor content when the prop changes
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content, false);
+    }
+  }, [content, editor]);
+
   const addImage = useCallback(() => {
     if (editor) {
       const { from, to } = editor.state.selection;

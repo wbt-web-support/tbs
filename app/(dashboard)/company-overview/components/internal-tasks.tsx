@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,14 +20,15 @@ type InternalTasksProps = {
   plannerId: string | undefined;
   generatedData?: any;
   onGeneratedDataChange?: (data: any) => void;
+  editMode: boolean;
+  onChange: (data: Task[]) => void;
 };
 
-export default function InternalTasks({ data, onUpdate, plannerId, generatedData, onGeneratedDataChange }: InternalTasksProps) {
+export default function InternalTasks({ data, onUpdate, plannerId, generatedData, onGeneratedDataChange, editMode, onChange }: InternalTasksProps) {
   const [tasks, setTasks] = useState<Task[]>(data);
   const [newTask, setNewTask] = useState<Task>({ name: "", description: "" });
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const supabase = createClient();
 
   // Update tasks when generated data is available
@@ -36,6 +37,10 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
       setTasks(generatedData.internal_tasks);
     }
   }, [generatedData]);
+
+  useEffect(() => {
+    onChange(tasks);
+  }, [tasks, onChange]);
 
   const handleAddTask = () => {
     if (!newTask.name.trim()) return;
@@ -65,7 +70,6 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
       if (error) throw error;
       
       onUpdate();
-      setEditMode(false);
     } catch (error) {
       console.error("Error saving internal tasks:", error);
     } finally {
@@ -81,57 +85,14 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
           <ListTodo className="h-5 w-5 text-blue-600 mr-2" />
           <CardTitle className="text-lg font-semibold text-gray-800">Internal Tasks</CardTitle>
         </div>
-        {!editMode ? (
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="h-7 px-2 text-xs" 
-            onClick={() => setEditMode(true)}
-          >
-            <Pencil className="h-3 w-3 mr-1 text-gray-500" />
-            Edit
-          </Button>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs"
-              onClick={() => {
-                setEditMode(false);
-                setShowAddForm(false);
-              }}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-3 w-3" />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        {/* No Save/Cancel buttons here */}
       </CardHeader>
 
       <div className="px-4 pb-4 space-y-3">
         {editMode ? (
           <>
             {tasks.length > 0 && (
-              <div className="overflow-auto max-h-[200px] border rounded-md">
+              <div className="overflow-auto border rounded-md">
                 <Table>
                   <TableHeader className="bg-gray-50 sticky top-0">
                     <TableRow>
@@ -143,8 +104,52 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
                   <TableBody>
                     {tasks.map((task, index) => (
                       <TableRow key={index}>
-                        <TableCell className="font-medium text-xs py-1.5">{task.name}</TableCell>
-                        <TableCell className="text-xs py-1.5">{task.description}</TableCell>
+                        <TableCell className="font-medium text-xs py-1.5">
+                          <textarea
+                            ref={el => {
+                              if (el) {
+                                el.style.height = "auto";
+                                el.style.height = `${el.scrollHeight}px`;
+                              }
+                            }}
+                            className="w-full border rounded-md px-2 py-1 text-xs resize-none overflow-hidden min-h-[32px]"
+                            value={task.name}
+                            onChange={e => {
+                              const newTasks = [...tasks];
+                              newTasks[index].name = e.target.value;
+                              setTasks(newTasks);
+                            }}
+                            onInput={e => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = "auto";
+                              target.style.height = `${target.scrollHeight}px`;
+                            }}
+                            rows={1}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs py-1.5">
+                          <textarea
+                            ref={el => {
+                              if (el) {
+                                el.style.height = "auto";
+                                el.style.height = `${el.scrollHeight}px`;
+                              }
+                            }}
+                            className="w-full border rounded-md px-2 py-1 text-xs resize-none overflow-hidden min-h-[40px]"
+                            value={task.description}
+                            onChange={e => {
+                              const newTasks = [...tasks];
+                              newTasks[index].description = e.target.value;
+                              setTasks(newTasks);
+                            }}
+                            onInput={e => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = "auto";
+                              target.style.height = `${target.scrollHeight}px`;
+                            }}
+                            rows={1}
+                          />
+                        </TableCell>
                         <TableCell className="py-1.5">
                           <Button
                             variant="ghost"
@@ -161,7 +166,6 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
                 </Table>
               </div>
             )}
-
             {showAddForm ? (
               <div className="border rounded-md p-3 space-y-2 bg-gray-50">
                 <div className="grid grid-cols-1 gap-2">

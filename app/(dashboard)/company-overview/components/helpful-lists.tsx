@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Trash2, Pencil, Save, X, CheckCircle, XCircle, PlusCircle, HelpCircle, ListChecks } from "lucide-react";
@@ -17,6 +17,8 @@ type HelpfulListsProps = {
   plannerId: string | undefined;
   generatedData?: any;
   onGeneratedDataChange?: (data: any) => void;
+  editMode: boolean;
+  onChange: (data: { right: string[]; wrong: string[]; missing: string[]; confusing: string[] }) => void;
 };
 
 export default function HelpfulLists({
@@ -28,13 +30,14 @@ export default function HelpfulLists({
   plannerId,
   generatedData,
   onGeneratedDataChange,
+  editMode,
+  onChange
 }: HelpfulListsProps) {
   const [right, setRight] = useState<string[]>(rightData);
   const [wrong, setWrong] = useState<string[]>(wrongData);
   const [missing, setMissing] = useState<string[]>(missingData);
   const [confusing, setConfusing] = useState<string[]>(confusingData);
 
-  // Update lists when generated data is available
   useEffect(() => {
     if (generatedData) {
       if (generatedData.what_is_right) setRight(generatedData.what_is_right);
@@ -43,11 +46,14 @@ export default function HelpfulLists({
       if (generatedData.what_is_confusing) setConfusing(generatedData.what_is_confusing);
     }
   }, [generatedData]);
+
+  useEffect(() => {
+    onChange({ right, wrong, missing, confusing });
+  }, [right, wrong, missing, confusing, onChange]);
   
   const [newItem, setNewItem] = useState("");
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [editSection, setEditSection] = useState<string | null>(null);
   
   const supabase = createClient();
@@ -118,7 +124,6 @@ export default function HelpfulLists({
       
       onUpdate();
       setAddingTo(null);
-      setEditMode(false);
       setEditSection(null);
     } catch (error) {
       console.error("Error saving helpful lists:", error);
@@ -133,12 +138,10 @@ export default function HelpfulLists({
       setAddingTo(null);
     } else {
       setEditSection(section);
-      setEditMode(true);
     }
   };
 
   const exitEditMode = () => {
-    setEditMode(false);
     setEditSection(null);
     setAddingTo(null);
   };
@@ -241,121 +244,95 @@ export default function HelpfulLists({
               {style.icon}
               <h3 className={`text-sm font-semibold ${style.titleClass}`}>{title}</h3>
             </div>
-            {!editMode && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 w-6 p-0"
-                onClick={() => toggleEditSection(section)}
-              >
-                <Pencil className="h-3 w-3 text-gray-500" />
-              </Button>
-            )}
           </div>
         </CardHeader>
         <div className="px-4 py-3">
-          {editSection === section ? (
-            <div className="space-y-3">
-              <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
-                {items.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 text-sm border border-gray-100">
-                    <span className="mr-2">{item}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveItem(section, index)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <Trash2 className="h-3 w-3 text-red-500" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              
-              {addingTo === section ? (
-                <div className="flex items-center space-x-2 pt-2">
-                  <ExpandableInput
-                    value={newItem}
-                    onChange={(e) => setNewItem(e.target.value)}
-                    placeholder="Add new item..."
-                    className="flex-1"
-                    expandAfter={40}
-                    lined={true}
-                  />
-                  <Button 
-                    size="sm"
-                    className={`h-8 px-3 text-xs ${style.actionBtnClass}`}
-                    onClick={handleAddItem}
-                    disabled={!newItem.trim()}
-                  >
-                    <Plus className="mr-1 h-3 w-3" /> Add
-                  </Button>
-                </div>
-              ) : (
-                <Button 
-                  onClick={() => setAddingTo(section)} 
-                  variant="outline"
-                  className={`w-full mt-2 h-8 text-xs ${style.buttonClass}`}
-                  size="sm"
-                >
-                  <Plus className="mr-1 h-3 w-3" /> Add Item
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-              {items.length === 0 ? (
-                <p className="text-sm text-gray-400 italic">No items added yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {items.map((item, index) => (
-                    <div 
-                      key={index} 
-                      className="flex items-start text-sm text-gray-700 rounded-md p-2 bg-gray-50 border border-gray-100"
-                    >
-                      {style.itemIcon}
-                      <span className="flex-1">{item}</span>
+          {/* Always show items in editMode */}
+          <div className="space-y-2 overflow-y-auto pr-1">
+            {items.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">No items added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {items.map((item, index) => {
+                  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+                  const setTextareaRef = (el: HTMLTextAreaElement | null) => {
+                    textareaRef.current = el;
+                    if (el) {
+                      el.style.height = "auto";
+                      el.style.height = `${el.scrollHeight}px`;
+                    }
+                  };
+                  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  };
+                  return (
+                    <div key={index} className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 text-sm border border-gray-100">
+                      {editMode ? (
+                        <>
+                          <textarea
+                            ref={setTextareaRef}
+                            className="flex-1 text-sm border rounded-md px-2 py-1 mr-2 min-h-[40px] w-full resize-none overflow-hidden"
+                            value={item}
+                            onChange={e => {
+                              const newItems = [...items];
+                              newItems[index] = e.target.value;
+                              switch (section) {
+                                case "right": setRight(newItems); break;
+                                case "wrong": setWrong(newItems); break;
+                                case "missing": setMissing(newItems); break;
+                                case "confusing": setConfusing(newItems); break;
+                              }
+                            }}
+                            onInput={handleInput}
+                            rows={1}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveItem(section, index)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="mr-2 flex-1">{item}</span>
+                        </>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {/* Add new item UI */}
+          {editMode && (
+            <div className="flex items-center space-x-2 pt-2">
+              <ExpandableInput
+                value={addingTo === section ? newItem : ""}
+                onChange={(e) => setNewItem(e.target.value)}
+                placeholder="Add new item..."
+                className="flex-1"
+                expandAfter={40}
+                lined={true}
+              />
+              <Button 
+                size="sm"
+                className={`h-8 px-3 text-xs ${style.actionBtnClass}`}
+                onClick={() => { setAddingTo(section); handleAddItem(); }}
+                disabled={!newItem.trim()}
+              >
+                <Plus className="mr-1 h-3 w-3" /> Add
+              </Button>
             </div>
           )}
         </div>
       </Card>
     );
   };
-
-  if (!editMode) {
-    return (
-      <>
-        <CardHeader className="flex flex-row items-center justify-between py-3">
-          <div className="flex items-center">
-            <ListChecks className="h-5 w-5 text-blue-600 mr-2" />
-            <CardTitle className="text-lg font-semibold text-gray-800">Helpful Lists</CardTitle>
-          </div>
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="h-7 px-2 text-xs" 
-            onClick={() => setEditMode(true)}
-          >
-            <Pencil className="h-3 w-3 mr-1 text-gray-500" />
-            Edit
-          </Button>
-        </CardHeader>
-
-        <div className="px-4 py-4 pt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {renderSection("right")}
-            {renderSection("wrong")}
-            {renderSection("missing")}
-            {renderSection("confusing")}
-          </div>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>
@@ -364,82 +341,13 @@ export default function HelpfulLists({
           <ListChecks className="h-5 w-5 text-blue-600 mr-2" />
           <CardTitle className="text-lg font-semibold text-gray-800">Helpful Lists</CardTitle>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            onClick={exitEditMode}
-          >
-            <X className="h-3 w-3 mr-1" />
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-1 h-3 w-3" />
-                Save
-              </>
-            )}
-          </Button>
-        </div>
       </CardHeader>
-
-      <div className="px-4 py-4">
-        <div className="space-y-4">
-          {editSection ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {renderSection("right")}
-              {renderSection("wrong")}
-              {renderSection("missing")}
-              {renderSection("confusing")}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Button 
-                onClick={() => toggleEditSection("right")} 
-                variant="outline" 
-                className="h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-              >
-                <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> 
-                <span className="font-medium">What Is Right?</span>
-              </Button>
-              <Button 
-                onClick={() => toggleEditSection("wrong")} 
-                variant="outline" 
-                className="h-10 border-red-200 text-red-700 hover:bg-red-50"
-              >
-                <XCircle className="mr-2 h-4 w-4 text-red-600" /> 
-                <span className="font-medium">What Is Wrong?</span>
-              </Button>
-              <Button 
-                onClick={() => toggleEditSection("missing")} 
-                variant="outline" 
-                className="h-10 border-blue-200 text-blue-700 hover:bg-blue-50"
-              >
-                <PlusCircle className="mr-2 h-4 w-4 text-blue-600" /> 
-                <span className="font-medium">What Is Missing?</span>
-              </Button>
-              <Button 
-                onClick={() => toggleEditSection("confusing")} 
-                variant="outline" 
-                className="h-10 border-amber-200 text-amber-700 hover:bg-amber-50"
-              >
-                <HelpCircle className="mr-2 h-4 w-4 text-amber-600" /> 
-                <span className="font-medium">What Is Confusing?</span>
-              </Button>
-            </div>
-          )}
+      <div className="px-4 py-4 pt-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {renderSection("right")}
+          {renderSection("wrong")}
+          {renderSection("missing")}
+          {renderSection("confusing")}
         </div>
       </div>
     </>
