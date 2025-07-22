@@ -24,7 +24,7 @@ export default async function EditInstructionPage({ params }: Props) {
   }
   
   return (
-    <div className="container max-w-4xl py-6">
+    <div className="container max-w-7xl py-6">
       <h1 className="text-2xl font-semibold mb-6">Edit Instruction</h1>
       <InstructionForm instruction={instruction} />
     </div>

@@ -928,129 +928,6 @@ function formatTableData(table: string, data: any) {
     return parts.join('\n');
   }
 
-  // Special handling for HWGT Plan
-  if (table === 'hwgt_plan') {
-    if (data.howwegetthereplan) {
-      parts.push(`- How We Get There Plan:`);
-      
-      // Try to parse it if it's a string
-      let planData = data.howwegetthereplan;
-      if (typeof planData === 'string') {
-        try {
-          planData = JSON.parse(planData);
-        } catch (e) {
-          // Keep as string if parsing fails
-        }
-      }
-      
-      if (typeof planData === 'object' && planData !== null && !Array.isArray(planData)) {
-        // Format each section
-        Object.entries(planData).forEach(([section, quarters]) => {
-          // Format section name nicely
-          const sectionName = section
-            .replace(/([A-Z])/g, ' $1')
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-          
-          parts.push(`  ${sectionName}:`);
-          
-          if (quarters !== null && typeof quarters === 'object' && !Array.isArray(quarters)) {
-            Object.entries(quarters as Record<string, any>).forEach(([quarter, value]) => {
-              parts.push(`    ${quarter}: ${formatValue(value, 2)}`);
-            });
-          } else {
-            parts.push(`    ${formatValue(quarters, 2)}`);
-          }
-        });
-      } else {
-        // Fallback for unexpected format
-        parts.push(`  ${formatValue(planData)}`);
-      }
-    }
-    
-    // Add any other fields
-    Object.entries(data)
-      .filter(([key]) => key !== 'howwegetthereplan' && !['id', 'user_id', 'created_at', 'updated_at'].includes(key))
-      .forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
-        }
-      });
-    
-    return parts.join('\n');
-  }
-
-  // Special handling for Quarterly Sprint Canvas
-  if (table === 'quarterly_sprint_canvas') {
-    // Handle revenue goals
-    if (data.revenuegoals) {
-      parts.push(`- Revenue Goals:`);
-      let revenueData = tryParseJSON(data.revenuegoals);
-      
-      if (typeof revenueData === 'object' && revenueData !== null) {
-        Object.entries(revenueData).forEach(([level, value]) => {
-          parts.push(`  ${formatFieldName(level)}: ${formatValue(value, 2)}`);
-        });
-      } else {
-        parts.push(`  ${formatValue(revenueData)}`);
-      }
-    }
-    
-    // Handle revenue by month
-    if (data.revenuebymonth) {
-      parts.push(`- Revenue By Month:`);
-      let revenueByMonth = tryParseJSON(data.revenuebymonth);
-      
-      if (typeof revenueByMonth === 'object' && revenueByMonth !== null) {
-        Object.entries(revenueByMonth).forEach(([month, value]) => {
-          parts.push(`  ${formatFieldName(month)}: ${formatValue(value, 2)}`);
-        });
-      } else {
-        parts.push(`  ${formatValue(revenueByMonth)}`);
-      }
-    }
-    
-    // Handle lists
-    const listFields = ['strategicpillars', 'northstarmetrics', 'keyinitiatives', 'unitgoals'];
-    listFields.forEach(field => {
-      if (data[field]) {
-        const fieldValue = tryParseJSON(data[field]);
-        
-        parts.push(`- ${formatFieldName(field)}:`);
-        
-        if (Array.isArray(fieldValue)) {
-          fieldValue.forEach((item, index) => {
-            parts.push(`  ${index + 1}. ${formatValue(item, 2)}`);
-          });
-        } else if (typeof fieldValue === 'object' && fieldValue !== null) {
-          Object.entries(fieldValue).forEach(([key, value]) => {
-            parts.push(`  ${formatFieldName(key)}: ${formatValue(value, 2)}`);
-          });
-        } else if (typeof data[field] === 'string') {
-          // Handle comma-separated values
-          const items = data[field].split(',').map((item: string) => item.trim()).filter(Boolean);
-          items.forEach((item: string, index: number) => {
-            parts.push(`  ${index + 1}. ${item}`);
-          });
-        } else {
-          parts.push(`  ${formatValue(data[field])}`);
-        }
-      }
-    });
-    
-    // Add any other fields
-    Object.entries(data)
-      .filter(([key]) => ![...listFields, 'revenuegoals', 'revenuebymonth', 'id', 'user_id', 'created_at', 'updated_at'].includes(key))
-      .forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
-        }
-      });
-    
-    return parts.join('\n');
-  }
-
   // Special handling for company_onboarding
   if (table === 'company_onboarding') {
     parts.push(`- Completed: ${data.completed ? 'Yes' : 'No'}`);
@@ -1078,10 +955,11 @@ function formatTableData(table: string, data: any) {
     if (data.owner) parts.push(`- Owner: ${formatValue(data.owner)}`);
     if (data.department_id) parts.push(`- Department ID: ${formatValue(data.department_id)}`);
     if (data.link) parts.push(`- Link: ${formatValue(data.link)}`);
+    if (data.content) parts.push(`- Content: ${formatValue(data.content)}`);
     
     // Handle any remaining fields
     Object.entries(data)
-      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'playbookname', 'enginetype', 'description', 'status', 'owner', 'department_id', 'link'].includes(key))
+      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'playbookname', 'enginetype', 'description', 'status', 'owner', 'department_id', 'link', 'content'].includes(key))
       .forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
           parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
@@ -1320,11 +1198,8 @@ ${formatTableData('user_timeline_claims', claim)}`
     'meeting_rhythm_planner',
     'playbooks',
     'playbook_assignments',
-    'quarterly_sprint_canvas',
     'quarter_planning',
     'triage_planner',
-    'key_initiative_departments',
-    'key_initiatives',
     'departments'
   ];
   
@@ -2382,4 +2257,3 @@ export async function PUT(req: Request) {
     }, { status: 500 });
   }
 }
-

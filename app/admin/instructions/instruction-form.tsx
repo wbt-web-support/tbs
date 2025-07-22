@@ -395,17 +395,14 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
   const needsUrl = contentType !== "text";
   
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <Card className="shadow-sm border-neutral-200">
-        <CardHeader className="pb-1">
-          {/* <CardTitle className="text-2xl font-semibold">
-            {instruction ? 'Edit Instruction' : 'Create New Instruction'}
-          </CardTitle> */}
-        </CardHeader>
+        <CardHeader className="pb-1" />
         <CardContent className="space-y-8">
-          {/* Basic Information */}
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Responsive Two-Column Layout */}
+          <div className="bg-white rounded-2xl w-full flex flex-col md:flex-row gap-0 relative overflow-hidden bg-neutral-50">
+            {/* Left Column: Meta Fields */}
+            <div className="w-full md:w-1/3 border-r pr-8 flex flex-col gap-4">
               <div className="space-y-2">
                 <Label htmlFor="title" className="text-sm font-medium">Title</Label>
                 <Input
@@ -416,7 +413,6 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                   className="h-10"
                 />
               </div>
-              
               <div className="space-y-2">
                 <Label htmlFor="content-type" className="text-sm font-medium">Content Type</Label>
                 <Select value={contentType} onValueChange={setContentType}>
@@ -432,296 +428,283 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="category" className="text-sm font-medium">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="uncategorized">Uncategorized</SelectItem>
-                  <SelectItem value="innovation_instruction">Innovation Instructions</SelectItem>
-                  <SelectItem value="course_videos">Course Videos</SelectItem>
-                  <SelectItem value="main_chat_instructions">Main Chat Instructions</SelectItem>
-                  <SelectItem value="global_instructions">Global Instructions</SelectItem>
-                  <SelectItem value="product_features">Product Features</SelectItem>
-                  <SelectItem value="faq_content">FAQ Content</SelectItem>
-                  <SelectItem value="internal_knowledge_base">Internal Knowledge Base</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Priority Level</Label>
-              <div className="pt-2">
-                <RadioGroup
-                  value={priority.toString()}
-                  onValueChange={(value) => setPriority(parseInt(value))}
-                  className="flex space-x-2"
-                >
-                  <div className="flex-1">
-                    <RadioGroupItem value="0" id="priority-0" className="peer sr-only" />
-                    <Label
-                      htmlFor="priority-0"
-                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-gray-50 peer-data-[state=checked]:border-gray-400 peer-data-[state=checked]:bg-gray-50 cursor-pointer transition-all h-full"
-                    >
-                      <span className="font-medium">Normal</span>
-                      <span className="text-xs text-muted-foreground">Priority 0</span>
-                    </Label>
-                  </div>
-                  <div className="flex-1">
-                    <RadioGroupItem value="1" id="priority-1" className="peer sr-only" />
-                    <Label
-                      htmlFor="priority-1"
-                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-blue-50 peer-data-[state=checked]:border-blue-400 peer-data-[state=checked]:bg-blue-50 cursor-pointer transition-all h-full"
-                    >
-                      <span className="font-medium">High</span>
-                      <span className="text-xs text-muted-foreground">Priority 1</span>
-                    </Label>
-                  </div>
-                  <div className="flex-1">
-                    <RadioGroupItem value="2" id="priority-2" className="peer sr-only" />
-                    <Label
-                      htmlFor="priority-2"
-                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-orange-50 peer-data-[state=checked]:border-orange-400 peer-data-[state=checked]:bg-orange-50 cursor-pointer transition-all h-full"
-                    >
-                      <span className="font-medium">Very High</span>
-                      <span className="text-xs text-muted-foreground">Priority 2</span>
-                    </Label>
-                  </div>
-                  <div className="flex-1">
-                    <RadioGroupItem value="3" id="priority-3" className="peer sr-only" />
-                    <Label
-                      htmlFor="priority-3"
-                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-red-50 peer-data-[state=checked]:border-red-400 peer-data-[state=checked]:bg-red-50 cursor-pointer transition-all h-full"
-                    >
-                      <span className="font-medium">Critical</span>
-                      <span className="text-xs text-muted-foreground">Priority 3</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="is-active"
-                checked={isActive}
-                onCheckedChange={setIsActive}
-                className="bg-blue-600"
-              />
-              <Label htmlFor="is-active" className="font-medium">Active</Label>
-            </div>
-          </div>
-
-          {/* Source Section */}
-          {contentType !== "text" && (
-            <div className="space-y-4 rounded-lg border p-4 bg-gray-50">
-              <h3 className="text-sm font-medium">Source Information</h3>
-              
               <div className="space-y-2">
-                <Label htmlFor="url" className="text-sm">URL</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="Enter resource URL"
-                    className="h-10"
-                  />
-                  <Button 
-                    variant="outline" 
-                    onClick={() => handleExtractContent(url)}
-                    disabled={!url || isProcessing}
-                    className="whitespace-nowrap"
+                <Label htmlFor="category" className="text-sm font-medium">Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                    <SelectItem value="innovation_instruction">Innovation Instructions</SelectItem>
+                    <SelectItem value="course_videos">Course Videos</SelectItem>
+                    <SelectItem value="main_chat_instructions">Main Chat Instructions</SelectItem>
+                    <SelectItem value="global_instructions">Global Instructions</SelectItem>
+                    <SelectItem value="product_features">Product Features</SelectItem>
+                    <SelectItem value="faq_content">FAQ Content</SelectItem>
+                    <SelectItem value="internal_knowledge_base">Internal Knowledge Base</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Priority Level</Label>
+                <div className="pt-2">
+                  <RadioGroup
+                    value={priority.toString()}
+                    onValueChange={(value) => setPriority(parseInt(value))}
+                    className="flex flex-wrap"
                   >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Extracting
-                      </>
-                    ) : (
-                      <>
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Extract
-                      </>
-                    )}
-                  </Button>
+                    <div className="flex-1 w-1/3">
+                      <RadioGroupItem value="0" id="priority-0" className="peer sr-only" />
+                      <Label
+                        htmlFor="priority-0"
+                        className="flex flex-col items-start justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-gray-50 peer-data-[state=checked]:border-gray-400 peer-data-[state=checked]:bg-gray-50 cursor-pointer transition-all h-full"
+                      >
+                        <span className="font-medium">Normal</span>
+                        <span className="text-xs text-muted-foreground">Priority 0</span>
+                      </Label>
+                    </div>
+                    <div className="flex-1 w-1/3">
+                      <RadioGroupItem value="1" id="priority-1" className="peer sr-only" />
+                      <Label
+                        htmlFor="priority-1"
+                        className="flex flex-col items-start justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-blue-50 peer-data-[state=checked]:border-blue-400 peer-data-[state=checked]:bg-blue-50 cursor-pointer transition-all h-full"
+                      >
+                        <span className="font-medium">High</span>
+                        <span className="text-xs text-muted-foreground">Priority 1</span>
+                      </Label>
+                    </div>
+                    <div className="flex-1 w-1/3">
+                      <RadioGroupItem value="2" id="priority-2" className="peer sr-only" />
+                      <Label
+                        htmlFor="priority-2"
+                        className="flex flex-col items-start justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-orange-50 peer-data-[state=checked]:border-orange-400 peer-data-[state=checked]:bg-orange-50 cursor-pointer transition-all h-full"
+                      >
+                        <span className="font-medium">Very High</span>
+                        <span className="text-xs text-muted-foreground">Priority 2</span>
+                      </Label>
+                    </div>
+                    <div className="flex-1 w-1/3">
+                      <RadioGroupItem value="3" id="priority-3" className="peer sr-only" />
+                      <Label
+                        htmlFor="priority-3"
+                        className="flex flex-col items-start justify-center rounded-md border-2 border-muted bg-background p-3 hover:bg-red-50 peer-data-[state=checked]:border-red-400 peer-data-[state=checked]:bg-red-50 cursor-pointer transition-all h-full"
+                      >
+                        <span className="font-medium">Critical</span>
+                        <span className="text-xs text-muted-foreground">Priority 3</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                {contentType === 'pdf' && !extractedContent && (
-                  <p className="text-xs text-muted-foreground">
-                    Content will be automatically extracted when saving
-                  </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is-active"
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                  className="bg-blue-600"
+                />
+                <Label htmlFor="is-active" className="font-medium">Active</Label>
+              </div>
+              {/* Source Section */}
+              {contentType !== "text" && (
+                <div className="space-y-4 rounded-lg border p-4 bg-gray-50">
+                  <h3 className="text-sm font-medium">Source Information</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="url" className="text-sm">URL</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="url"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="Enter resource URL"
+                        className="h-10"
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleExtractContent(url)}
+                        disabled={!url || isProcessing}
+                        className="whitespace-nowrap"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Extracting
+                          </>
+                        ) : (
+                          <>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Extract
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {contentType === 'pdf' && !extractedContent && (
+                      <p className="text-xs text-muted-foreground">
+                        Content will be automatically extracted when saving
+                      </p>
+                    )}
+                  </div>
+                  {(contentType === 'pdf' || contentType === 'doc') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="file" className="text-sm">Upload File</Label>
+                      <Input
+                        id="file"
+                        type="file"
+                        accept={contentType === 'pdf' ? '.pdf' : '.doc,.docx,.odt'}
+                        onChange={handleFileChange}
+                        className="h-10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Upload a file to extract content automatically
+                      </p>
+                    </div>
+                  )}
+                  {contentType === 'loom' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Enter a Loom video URL and click Extract to retrieve the video transcription
+                      </p>
+                      <p className="text-xs font-medium text-blue-600">
+                        Example: https://www.loom.com/share/12345abcde
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Right Column: Main Content */}
+            <div className="flex-1 flex flex-col gap-6 pl-8">
+              <div className="flex-1 flex flex-col min-h-[400px]">
+                <Label htmlFor="content" className="text-base font-semibold mb-2">Instruction Content</Label>
+                <Textarea
+                  id="content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Enter instruction content"
+                  rows={16}
+                  className="w-full font-mono text-sm flex-1 min-h-[520px] h-full px-4 py-3 rounded-lg border border-neutral-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                />
+                {/* Extracted Content Section (below textarea) */}
+                {extractedContent && (
+                  <div className="space-y-2 rounded-lg border p-4 bg-gray-50 mt-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium">Extracted Content</h3>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8">
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Full Content
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                          <DialogHeader>
+                            <div className="flex items-center justify-between">
+                              <DialogTitle>Extracted Content</DialogTitle>
+                              {!isEditingExtractedContent ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditedExtractedContent(extractedContent.extracted_text);
+                                    setIsEditingExtractedContent(true);
+                                  }}
+                                >
+                                  <Edit2 className="h-4 w-4 mr-2" />
+                                  Edit Content
+                                </Button>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditedExtractedContent(extractedContent.extracted_text);
+                                      setIsEditingExtractedContent(false);
+                                    }}
+                                  >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        setIsSubmitting(true);
+                                        const updatedExtractedContent = {
+                                          ...extractedContent,
+                                          extracted_text: editedExtractedContent
+                                        };
+                                        const { error } = await supabase
+                                          .from("chatbot_instructions")
+                                          .update({
+                                            extraction_metadata: updatedExtractedContent
+                                          })
+                                          .eq("id", instruction?.id);
+                                        if (error) throw error;
+                                        setExtractedContent(updatedExtractedContent);
+                                        setIsEditingExtractedContent(false);
+                                        toast.success("Extracted content updated successfully");
+                                        router.refresh();
+                                      } catch (error) {
+                                        console.error("Error updating extracted content:", error);
+                                        toast.error("Failed to update extracted content");
+                                      } finally {
+                                        setIsSubmitting(false);
+                                      }
+                                    }}
+                                    disabled={isSubmitting}
+                                  >
+                                    {isSubmitting ? (
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Save className="h-4 w-4 mr-2 bg-blue-600 text-white hover:bg-blue-700" />
+                                    )}
+                                    Save Changes
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                              Extracted from: {extractedContent.file_name}
+                            </p>
+                            <ScrollArea className="h-[60vh]">
+                              {isEditingExtractedContent ? (
+                                <Textarea
+                                  value={editedExtractedContent}
+                                  onChange={(e) => setEditedExtractedContent(e.target.value)}
+                                  className="min-h-[60vh] font-mono text-sm"
+                                />
+                              ) : (
+                                <pre className="text-sm whitespace-pre-wrap p-4">
+                                  {extractedContent.extracted_text}
+                                </pre>
+                              )}
+                            </ScrollArea>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      Source: {extractedContent.file_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {extractedContent.extracted_text.substring(0, 150)}...
+                    </p>
+                  </div>
                 )}
               </div>
-
-              {(contentType === 'pdf' || contentType === 'doc') && (
-                <div className="space-y-2">
-                  <Label htmlFor="file" className="text-sm">Upload File</Label>
-                  <Input
-                    id="file"
-                    type="file"
-                    accept={contentType === 'pdf' ? '.pdf' : '.doc,.docx,.odt'}
-                    onChange={handleFileChange}
-                    className="h-10"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Upload a file to extract content automatically
-                  </p>
-                </div>
-              )}
-
-              {contentType === 'loom' && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Enter a Loom video URL and click Extract to retrieve the video transcription
-                  </p>
-                  <p className="text-xs font-medium text-blue-600">
-                    Example: https://www.loom.com/share/12345abcde
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Content Section */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="content" className="text-sm font-medium">Content</Label>
-              <Textarea
-                id="content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Enter instruction content"
-                rows={4}
-                className="font-mono text-sm"
-              />
             </div>
           </div>
-
-          {/* Extracted Content Section */}
-          {extractedContent && (
-            <div className="space-y-2 rounded-lg border p-4 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Extracted Content</h3>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8">
-                      <FileText className="h-4 w-4 mr-2" />
-                      View Full Content
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-3xl">
-                    <DialogHeader>
-                      <div className="flex items-center justify-between">
-                        <DialogTitle>Extracted Content</DialogTitle>
-                        {!isEditingExtractedContent ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditedExtractedContent(extractedContent.extracted_text);
-                              setIsEditingExtractedContent(true);
-                            }}
-                          >
-                            <Edit2 className="h-4 w-4 mr-2" />
-                            Edit Content
-                          </Button>
-                        ) : (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditedExtractedContent(extractedContent.extracted_text);
-                                setIsEditingExtractedContent(false);
-                              }}
-                            >
-                              <X className="h-4 w-4 mr-2" />
-                              Cancel
-                            </Button>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  setIsSubmitting(true);
-                                  const updatedExtractedContent = {
-                                    ...extractedContent,
-                                    extracted_text: editedExtractedContent
-                                  };
-
-                                  const { error } = await supabase
-                                    .from("chatbot_instructions")
-                                    .update({
-                                      extraction_metadata: updatedExtractedContent
-                                    })
-                                    .eq("id", instruction?.id);
-
-                                  if (error) throw error;
-
-                                  setExtractedContent(updatedExtractedContent);
-                                  setIsEditingExtractedContent(false);
-                                  toast.success("Extracted content updated successfully");
-                                  router.refresh();
-                                } catch (error) {
-                                  console.error("Error updating extracted content:", error);
-                                  toast.error("Failed to update extracted content");
-                                } finally {
-                                  setIsSubmitting(false);
-                                }
-                              }}
-                              disabled={isSubmitting}
-                            >
-                              {isSubmitting ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <Save className="h-4 w-4 mr-2 bg-blue-600 text-white hover:bg-blue-700" />
-                              )}
-                              Save Changes
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Extracted from: {extractedContent.file_name}
-                      </p>
-                      <ScrollArea className="h-[60vh]">
-                        {isEditingExtractedContent ? (
-                          <Textarea
-                            value={editedExtractedContent}
-                            onChange={(e) => setEditedExtractedContent(e.target.value)}
-                            className="min-h-[60vh] font-mono text-sm"
-                          />
-                        ) : (
-                          <pre className="text-sm whitespace-pre-wrap p-4">
-                            {extractedContent.extracted_text}
-                          </pre>
-                        )}
-                      </ScrollArea>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-              <p className="text-sm text-muted-foreground truncate">
-                Source: {extractedContent.file_name}
-              </p>
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {extractedContent.extracted_text.substring(0, 150)}...
-              </p>
-            </div>
-          )}
-
           {/* Actions */}
-          <div className="flex justify-between pt-4 border-t">
+          <div className="flex flex-col md:flex-row justify-between pt-8 border-t mt-8 gap-4">
             {instruction && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="h-9">
+                  <Button variant="destructive" size="sm" className="h-9 bg-red-100 text-red-700 hover:bg-red-700 hover:text-white">
                     <Trash className="h-4 w-4 mr-2" />
                     Delete Instruction
                   </Button>
