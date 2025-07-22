@@ -492,7 +492,7 @@ export default function CourseManagementPage() {
   };
 
   const getAddButtonText = () => {
-    if (currentView === 'courses') return 'Add Course';
+    // if (currentView === 'courses') return 'Add Course';
     if (currentView === 'modules') return 'Add Module';
     if (currentView === 'lessons') return 'Add Lesson';
     return 'Add';
@@ -540,13 +540,15 @@ export default function CourseManagementPage() {
           </div>
           <p className="text-gray-500">{getBreadcrumb()}</p>
         </div>
-        <Button 
-          onClick={() => openDialog(getAddButtonType(), 'create')} 
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {getAddButtonText()}
-        </Button>
+        {currentView !== 'courses' && (
+          <Button 
+            onClick={() => openDialog(getAddButtonType(), 'create')} 
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {getAddButtonText()}
+          </Button>
+        )}
       </div>
 
       {/* Content */}
@@ -609,10 +611,7 @@ export default function CourseManagementPage() {
               <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No courses yet</h3>
               <p className="text-gray-500 mb-4">Create your first course to get started</p>
-              <Button onClick={() => openDialog('course', 'create')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Course
-              </Button>
+              {/* Removed Add Course button here */}
             </div>
           )}
         </div>

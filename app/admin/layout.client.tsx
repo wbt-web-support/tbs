@@ -60,11 +60,6 @@ const navigationSections = [
         href: "/admin/timeline",
         icon: Clock,
       },
-      {
-        name: "Checklist",
-        href: "/admin/checklist",
-        icon: CheckSquare,
-      }
     ]
   },
   {
@@ -84,6 +79,11 @@ const navigationSections = [
         name: "Google Analytics",
         href: "/admin/analytics",
         icon: BarChart3,
+      },
+      {
+        name: "Prompts",
+        href: "/admin/prompt",
+        icon: BookOpen,
       }
     ]
   }

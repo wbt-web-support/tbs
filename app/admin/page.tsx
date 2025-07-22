@@ -75,8 +75,8 @@ export default function AdminDashboard() {
           .order("created_at", { ascending: false })
           .limit(5),
         supabase
-          .from("auth.users")
-          .select("*")
+          .from("business_info")
+          .select("id, role")
       ]);
 
       if (timelineRes.error) throw timelineRes.error;
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
       // Calculate user statistics
       if (usersRes.data) {
         const users = usersRes.data;
-        const adminCount = users.filter(u => u.role === 'admin').length;
+        const adminCount = users.filter(u => u.role === 'admin' || u.role === 'super_admin').length;
         setUserStats({
           total: users.length,
           admins: adminCount,
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
-        <p className="text-slate-500 mt-1">Manage your timeline, checklist, benefits, and users</p>
+        <p className="text-slate-500 mt-1">Manage your timeline, benefits, and users</p>
       </div>
 
       {/* Stats Cards */}
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        <Card className="overflow-hidden border-blue-100">
+        <Card className="overflow-hidden border-blue-100 hidden">
           <div className="p-5 bg-blue-50 border-b border-blue-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
