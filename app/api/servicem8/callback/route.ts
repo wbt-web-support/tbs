@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       console.error('ServiceM8 OAuth error:', error, errorDescription);
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       return NextResponse.redirect(
-        new URL('/integrations/servicem8?error=oauth_error&message=' + encodeURIComponent(errorDescription || error), 
+        new URL('/integrations?error=servicem8_oauth_error&message=' + encodeURIComponent(errorDescription || error), 
         baseUrl)
       );
     }
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (!code || !state) {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       return NextResponse.redirect(
-        new URL('/integrations/servicem8?error=missing_params&message=Missing authorization code or state', 
+        new URL('/integrations?error=servicem8_missing_params&message=Missing authorization code or state', 
         baseUrl)
       );
     }
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     if (stateParts.length < 3) {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       return NextResponse.redirect(
-        new URL('/integrations/servicem8?error=invalid_state&message=Invalid state format', 
+        new URL('/integrations?error=servicem8_invalid_state&message=Invalid state format', 
         baseUrl)
       );
     }
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     if (!userId || userId.length < 36) { // UUID should be 36 characters
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       return NextResponse.redirect(
-        new URL('/integrations/servicem8?error=invalid_state&message=Invalid user ID in state parameter', 
+        new URL('/integrations?error=servicem8_invalid_state&message=Invalid user ID in state parameter', 
         baseUrl)
       );
     }
@@ -78,10 +78,57 @@ export async function GET(request: NextRequest) {
 
       console.log('✓ ServiceM8 connection established successfully');
 
-      // Redirect to integration page with success
+      // Auto-trigger sync after successful connection
+      try {
+        console.log('Auto-triggering sync for new ServiceM8 connection...');
+        
+        // Update sync status to syncing
+        await supabase
+          .from('servicem8_data')
+          .update({
+            sync_status: 'syncing',
+            last_sync_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        // Get all data from ServiceM8
+        const data = await serviceM8API.getAllData(userId);
+
+        // Update database with synced data
+        await supabase
+          .from('servicem8_data')
+          .update({
+            jobs: data.jobs,
+            staff: data.staff,
+            companies: data.companies,
+            job_activities: data.job_activities,
+            job_materials: data.job_materials,
+            sync_status: 'completed',
+            last_sync_at: new Date().toISOString(),
+            error_message: null,
+          })
+          .eq('user_id', userId);
+
+        console.log('ServiceM8 auto-sync completed successfully');
+      } catch (syncError) {
+        console.error('Auto-sync failed, but connection was successful:', syncError);
+        
+        // Update sync status with error
+        await supabase
+          .from('servicem8_data')
+          .update({
+            sync_status: 'error',
+            error_message: syncError instanceof Error ? syncError.message : 'Unknown sync error',
+          })
+          .eq('user_id', userId);
+        
+        // Don't fail the connection if sync fails - user can manually sync later
+      }
+
+      // Redirect to main integrations page with success
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       return NextResponse.redirect(
-        new URL('/integrations/servicem8?connected=true&tenant=' + encodeURIComponent(organizationName), 
+        new URL('/integrations?success=servicem8_connected&tenant=' + encodeURIComponent(organizationName), 
         baseUrl)
       );
 
@@ -91,7 +138,7 @@ export async function GET(request: NextRequest) {
       
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       return NextResponse.redirect(
-        new URL('/integrations/servicem8?error=api_error&message=' + encodeURIComponent(errorMessage), 
+        new URL('/integrations?error=servicem8_api_error&message=' + encodeURIComponent(errorMessage), 
         baseUrl)
       );
     }
@@ -102,7 +149,7 @@ export async function GET(request: NextRequest) {
     
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     return NextResponse.redirect(
-      new URL('/integrations/servicem8?error=callback_error&message=' + encodeURIComponent(errorMessage), 
+      new URL('/integrations?error=servicem8_callback_error&message=' + encodeURIComponent(errorMessage), 
       baseUrl)
     );
   }

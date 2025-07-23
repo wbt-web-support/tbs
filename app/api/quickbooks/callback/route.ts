@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
     // Check for OAuth errors
     if (error) {
       console.error('QuickBooks OAuth error:', error);
-      const errorUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
-      errorUrl.searchParams.set('error', 'oauth_error');
+      const errorUrl = new URL('/integrations', request.nextUrl.origin);
+      errorUrl.searchParams.set('error', 'quickbooks_oauth_error');
       errorUrl.searchParams.set('message', 'QuickBooks authorization was denied or failed');
       return NextResponse.redirect(errorUrl);
     }
@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
     // Validate required parameters
     if (!code || !realmId || !state) {
       console.error('Missing required OAuth parameters');
-      const errorUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
-      errorUrl.searchParams.set('error', 'invalid_parameters');
+      const errorUrl = new URL('/integrations', request.nextUrl.origin);
+      errorUrl.searchParams.set('error', 'quickbooks_invalid_parameters');
       errorUrl.searchParams.set('message', 'Invalid authorization response from QuickBooks');
       return NextResponse.redirect(errorUrl);
     }
@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
     // Verify user is authenticated
     const userId = await getUserId();
     if (!userId) {
-      const errorUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
-      errorUrl.searchParams.set('error', 'unauthorized');
+      const errorUrl = new URL('/integrations', request.nextUrl.origin);
+      errorUrl.searchParams.set('error', 'quickbooks_unauthorized');
       errorUrl.searchParams.set('message', 'Please log in to complete QuickBooks integration');
       return NextResponse.redirect(errorUrl);
     }
@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
         stateUserId,
         match: stateUserId === userId 
       });
-      const errorUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
-      errorUrl.searchParams.set('error', 'invalid_state');
+      const errorUrl = new URL('/integrations', request.nextUrl.origin);
+      errorUrl.searchParams.set('error', 'quickbooks_invalid_state');
       errorUrl.searchParams.set('message', 'Security validation failed');
       return NextResponse.redirect(errorUrl);
     }
@@ -130,9 +130,9 @@ export async function GET(request: NextRequest) {
         // Don't fail the connection if sync fails - user can manually sync later
       }
 
-      // Redirect to success page
-      const successUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
-      successUrl.searchParams.set('success', 'connected');
+      // Redirect to main integrations page with success
+      const successUrl = new URL('/integrations', request.nextUrl.origin);
+      successUrl.searchParams.set('success', 'quickbooks_connected');
       successUrl.searchParams.set('company', tokenData.companyName);
       return NextResponse.redirect(successUrl);
 
@@ -143,16 +143,16 @@ export async function GET(request: NextRequest) {
         stack: apiError.stack,
         name: apiError.name
       });
-      const errorUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
-      errorUrl.searchParams.set('error', 'api_error');
+      const errorUrl = new URL('/integrations', request.nextUrl.origin);
+      errorUrl.searchParams.set('error', 'quickbooks_api_error');
       errorUrl.searchParams.set('message', 'Failed to complete QuickBooks connection');
       return NextResponse.redirect(errorUrl);
     }
 
   } catch (error) {
     console.error("Error in QuickBooks OAuth callback:", error);
-    const errorUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
-    errorUrl.searchParams.set('error', 'server_error');
+    const errorUrl = new URL('/integrations', request.nextUrl.origin);
+    errorUrl.searchParams.set('error', 'quickbooks_server_error');
     errorUrl.searchParams.set('message', 'Internal server error during authorization');
     return NextResponse.redirect(errorUrl);
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,11 +66,42 @@ export default function IntegrationsPage() {
   const [connectingGoogleAnalytics, setConnectingGoogleAnalytics] = useState(false);
   const [refreshingGoogleAnalytics, setRefreshingGoogleAnalytics] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Handle URL parameters for success/error messages
+    const success = searchParams.get('success');
+    const company = searchParams.get('company');
+    const tenant = searchParams.get('tenant');
+    const errorParam = searchParams.get('error');
+    const message = searchParams.get('message');
+
+    if (success === 'quickbooks_connected' && company) {
+      setSuccessMessage(`Successfully connected to QuickBooks (${company})! Initial data sync is in progress.`);
+      // Clear URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+      // Auto-clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+
+    if (success === 'servicem8_connected' && tenant) {
+      setSuccessMessage(`Successfully connected to ServiceM8 (${tenant})! Initial data sync is in progress.`);
+      // Clear URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+      // Auto-clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+
+    if (errorParam) {
+      setError(message || 'An error occurred during integration connection');
+      // Clear URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     fetchConnectionStatus();
-  }, []);
+  }, [searchParams]);
 
   const fetchConnectionStatus = async () => {
     try {
@@ -388,6 +420,37 @@ export default function IntegrationsPage() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMessage && (
+        <Alert variant="default" className="bg-green-50 border-green-200 text-green-800">
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{successMessage}</span>
+            <div className="flex gap-2 ml-4">
+              <Button
+                onClick={handleSyncQuickBooks}
+                variant="outline"
+                size="sm"
+                className="bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                disabled={!quickbooksConnection}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sync QuickBooks
+              </Button>
+              <Button
+                onClick={handleSyncServiceM8}
+                variant="outline"
+                size="sm"
+                className="bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                disabled={!servicem8Connection}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sync ServiceM8
+              </Button>
+            </div>
+          </AlertDescription>
         </Alert>
       )}
 
