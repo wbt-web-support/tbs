@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<!-- saved from url=(0051)https://developer.servicem8.com/docs/authentication -->
+<html lang="en" style="" data-color-mode="system" class=" useReactApp  userLoggedIn"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="readme-deploy" content="5.422.0"><meta name="readme-subdomain" content="servicem8"><meta name="readme-repo" content="servicem8-47f1460d7e61"><meta name="readme-version" content="1.0"><title>Authentication</title><meta property="og:site_name" content="ServiceM8"><meta name="twitter:card" content="summary_large_image"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="twitter:image" content="https://files.readme.io/45b3ee4-small-ServiceM8_Logo_Horizontal.png"><link id="favicon" rel="shortcut icon" href="https://developer.servicem8.com/favicon.ico" type="image/x-icon"><link rel="canonical" href="https://developer.servicem8.com/docs/getting-started"><script type="text/javascript" async="" src="./Authentication_files/js"></script><script async="" src="./Authentication_files/analytics.js.download"></script><script src="./Authentication_files/cash-dom.min.js.download"></script><link data-chunk="Footer" rel="preload" as="style" href="./Authentication_files/Footer.7ca87f1efe735da787ba.css">
+<link data-chunk="RMDX" rel="preload" as="style" href="./Authentication_files/7133.d52f829026956c97cc68.css">
+<link data-chunk="Doc" rel="preload" as="style" href="./Authentication_files/Doc.1a9a40646eca54f64dc1.css">
+<link data-chunk="SuperHubSearch" rel="preload" as="style" href="./Authentication_files/SuperHubSearch.6a1ff81afa1809036d22.css">
+<link data-chunk="Header" rel="preload" as="style" href="./Authentication_files/Header.b7889330c00aeb77d1c4.css">
+<link data-chunk="ViewContainer" rel="preload" as="style" href="./Authentication_files/ViewContainer.cedfa3eb360742db6efa.css">
+<link data-chunk="main" rel="preload" as="style" href="./Authentication_files/main.088aa24a1cfbc89e5f31.css">
+<link data-chunk="main" rel="preload" as="style" href="./Authentication_files/ui-styles.414683c2c3cff5a43e80.css">
+<link data-chunk="main" rel="preload" as="script" href="./Authentication_files/main.cca60119c3f81f7b9110.js.download">
+<link data-chunk="routes-SuperHub" rel="preload" as="script" href="./Authentication_files/routes-SuperHub.e7201ec660d930b365c0.js.download">
+<link data-chunk="ViewContainer" rel="preload" as="script" href="./Authentication_files/ViewContainer.5ac502abd005f7d4eb3d.js.download">
+<link data-chunk="Header" rel="preload" as="script" href="./Authentication_files/47783.0f7c56c62fc10878ce5e.js.download">
+<link data-chunk="Header" rel="preload" as="script" href="./Authentication_files/Header.413fc99eb4b7942c7bce.js.download">
+<link data-chunk="core-icons-chevron-down-svg" rel="preload" as="script" href="./Authentication_files/core-icons-chevron-down-svg.b37ee8d002dd6fea2dba.js.download">
+<link data-chunk="core-icons-chevron-up-down-svg" rel="preload" as="script" href="./Authentication_files/core-icons-chevron-up-down-svg.2c9b648549c0893e8de2.js.download">
+<link data-chunk="SuperHubSearch" rel="preload" as="script" href="./Authentication_files/13766.d772ba54efb1db56d529.js.download">
+<link data-chunk="SuperHubSearch" rel="preload" as="script" href="./Authentication_files/6146.f99bcbc8d654cc36d7c8.js.download">
+<link data-chunk="SuperHubSearch" rel="preload" as="script" href="./Authentication_files/46123.46633d26b7849f653406.js.download">
+<link data-chunk="SuperHubSearch" rel="preload" as="script" href="./Authentication_files/88836.466db83f0dbc8536e6f1.js.download">
+<link data-chunk="SuperHubSearch" rel="preload" as="script" href="./Authentication_files/SuperHubSearch.94d27d614400b7a82c08.js.download">
+<link data-chunk="core-icons-search-svg" rel="preload" as="script" href="./Authentication_files/core-icons-search-svg.9522d3b19e12528c84ee.js.download">
+<link data-chunk="core-icons-custom-pages-svg" rel="preload" as="script" href="./Authentication_files/core-icons-custom-pages-svg.4f3969d33dddd2c22bb8.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/90441.7bad24d6a8cd0ef6f53c.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/25420.2a9bf013c9a9f3ab2a2f.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/66233.35c2c9a2409d4345ebe7.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/27449.8f05501196c10ee6f862.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/30076.62be91016e7795fe6011.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/6094.c405a2f09cbadc9e00c1.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/86471.7195cb9b316d7a2bf4e6.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/18032.79db439693732b7000bc.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/93536.0bb94a650b15ab0c538e.js.download">
+<link data-chunk="Doc" rel="preload" as="script" href="./Authentication_files/Doc.79b9628e6ccbf0ad31a9.js.download">
+<link data-chunk="ConnectMetadata" rel="preload" as="script" href="./Authentication_files/ConnectMetadata.9ef97cde9449ebeb0a52.js.download">
+<link data-chunk="RMDX" rel="preload" as="script" href="./Authentication_files/48424.bb37c5885520ec98c35d.js.download">
+<link data-chunk="RMDX" rel="preload" as="script" href="./Authentication_files/76099.12d0b66c229e6904d9da.js.download">
+<link data-chunk="RMDX" rel="preload" as="script" href="./Authentication_files/22916.2128d8c0a6b97f1d2910.js.download">
+<link data-chunk="RMDX" rel="preload" as="script" href="./Authentication_files/27775.50ecf3dd2e85dc4552f0.js.download">
+<link data-chunk="RMDX" rel="preload" as="script" href="./Authentication_files/7133.e5893646db789b45bdf4.js.download">
+<link data-chunk="RMDX" rel="preload" as="script" href="./Authentication_files/RMDX.27e434c7c45c48ac0088.js.download">
+<link data-chunk="core-icons-sparkles-svg" rel="preload" as="script" href="./Authentication_files/core-icons-sparkles-svg.206fb8be485598ad4981.js.download">
+<link data-chunk="Footer" rel="preload" as="script" href="./Authentication_files/Footer.decd52d8e0c7e075b206.js.download">
+<link data-chunk="main" rel="stylesheet" href="./Authentication_files/ui-styles.414683c2c3cff5a43e80.css">
+<link data-chunk="main" rel="stylesheet" href="./Authentication_files/main.088aa24a1cfbc89e5f31.css">
+<link data-chunk="ViewContainer" rel="stylesheet" href="./Authentication_files/ViewContainer.cedfa3eb360742db6efa.css">
+<link data-chunk="Header" rel="stylesheet" href="./Authentication_files/Header.b7889330c00aeb77d1c4.css">
+<link data-chunk="SuperHubSearch" rel="stylesheet" href="./Authentication_files/SuperHubSearch.6a1ff81afa1809036d22.css">
+<link data-chunk="Doc" rel="stylesheet" href="./Authentication_files/Doc.1a9a40646eca54f64dc1.css">
+<link data-chunk="RMDX" rel="stylesheet" href="./Authentication_files/7133.d52f829026956c97cc68.css">
+<link data-chunk="Footer" rel="stylesheet" href="./Authentication_files/Footer.7ca87f1efe735da787ba.css"><!-- CUSTOM CSS--><style title="rm-custom-css">:root{--project-color-primary:#7dc836;--project-color-inverse:#222;--recipe-button-color:#7dc836;--recipe-button-color-hover:#4b7820;--recipe-button-color-active:#325015;--recipe-button-color-focus:rgba(125, 200, 54, 0.25);--recipe-button-color-disabled:#e5f4d6}[id=enterprise] .ReadMeUI[is=AlgoliaSearch]{--project-color-primary:#7dc836;--project-color-inverse:#222}a{color:var(--color-link-primary,#7dc836)}a:hover{color:var(--color-link-primary-darken-5,#4b7820)}a.text-muted:hover{color:var(--color-link-primary,#7dc836)}.btn.btn-primary{background-color:#7dc836}.btn.btn-primary:hover{background-color:#4b7820}.theme-line #hub-landing-top h2{color:#7dc836}#hub-landing-top .btn:hover{color:#7dc836}.theme-line #hub-landing-top .btn:hover{color:#fff}.theme-solid header#hub-header #header-top{background-color:#7dc836}.theme-solid.header-gradient header#hub-header #header-top{background:linear-gradient(to bottom,#7dc836,#579918)}.theme-solid.header-custom header#hub-header #header-top{background-image:url(undefined)}.theme-line header#hub-header #header-top{border-bottom-color:#7dc836}.theme-line header#hub-header #header-top .btn{background-color:#7dc836}header#hub-header #header-top #header-logo{width:202px;height:40px;margin-top:0;background-image:url(https://files.readme.io/45b3ee4-small-ServiceM8_Logo_Horizontal.png)}#hub-subheader-parent #hub-subheader .hub-subheader-breadcrumbs .dropdown-menu a:hover{background-color:#7dc836}#subheader-links a.active{color:#7dc836!important;box-shadow:inset 0 -2px 0 #7dc836}#subheader-links a:hover{color:#7dc836!important;box-shadow:inset 0 -2px 0 #7dc836;opacity:.7}.discussion .submit-vote.submit-vote-parent.voted a.submit-vote-button{background-color:#7dc836}section#hub-discuss .discussion a .discuss-body h4{color:#7dc836}section#hub-discuss .discussion a:hover .discuss-body h4{color:#4b7820}#hub-subheader-parent #hub-subheader.sticky-header.sticky{border-bottom-color:#7dc836}#hub-subheader-parent #hub-subheader.sticky-header.sticky .search-box{border-bottom-color:#7dc836}#hub-search-results h3 em{color:#7dc836}.main_background,.tag-item{background:#7dc836!important}.main_background:hover{background:#4b7820!important}.main_color{color:#7dc836!important}.border_bottom_main_color{border-bottom:2px solid #7dc836}.main_color_hover:hover{color:#7dc836!important}section#hub-discuss h1{color:#7dc836}#hub-reference .hub-api .api-definition .api-try-it-out.active{border-color:#7dc836;background-color:#7dc836}#hub-reference .hub-api .api-definition .api-try-it-out.active:hover{background-color:#4b7820;border-color:#4b7820}#hub-reference .hub-api .api-definition .api-try-it-out:hover{border-color:#7dc836;color:#7dc836}#hub-reference .hub-reference .logs .logs-empty .logs-login-button,#hub-reference .hub-reference .logs .logs-login .logs-login-button{background-color:var(--project-color-primary,#7dc836);border-color:var(--project-color-primary,#7dc836)}#hub-reference .hub-reference .logs .logs-empty .logs-login-button:hover,#hub-reference .hub-reference .logs .logs-login .logs-login-button:hover{background-color:#4b7820;border-color:#4b7820}#hub-reference .hub-reference .logs .logs-empty>svg>path,#hub-reference .hub-reference .logs .logs-login>svg>path{fill:#7dc836;fill:var(--project-color-primary,#7dc836)}#hub-reference .hub-reference .logs:last-child .logs-empty,#hub-reference .hub-reference .logs:last-child .logs-login{margin-bottom:35px}#hub-reference .hub-reference .hub-reference-section .hub-reference-left header .hub-reference-edit:hover{color:#7dc836}.main-color-accent{border-bottom:3px solid #7dc836;padding-bottom:8px}/*! BEGIN HUB_CUSTOM_STYLES *//*! END HUB_CUSTOM_STYLES */</style><meta name="google-site-verification" content="6Oza7ZixtfB0jnVqdlhp5-VtJyRP_fyyblg_1X87B8I"><meta name="loadedProject" content="servicem8"><script>var storedColorMode = `system` === 'system' ? window.localStorage.getItem('color-scheme') : `system`
+document.querySelector('[data-color-mode]').setAttribute('data-color-mode', storedColorMode)</script><script id="config" type="application/json" data-json="{&quot;algoliaIndex&quot;:&quot;readme_search_v2&quot;,&quot;amplitude&quot;:{&quot;apiKey&quot;:&quot;dc8065a65ef83d6ad23e37aaf014fc84&quot;,&quot;enabled&quot;:true},&quot;asset_url&quot;:&quot;https://cdn.readme.io&quot;,&quot;domain&quot;:&quot;readme.io&quot;,&quot;domainFull&quot;:&quot;https://dash.readme.com&quot;,&quot;encryptedLocalStorageKey&quot;:&quot;ekfls-2025-03-27&quot;,&quot;fullstory&quot;:{&quot;enabled&quot;:true,&quot;orgId&quot;:&quot;FSV9A&quot;},&quot;liveblocks&quot;:{&quot;copilotId&quot;:&quot;co_11Q0l0JJlkcBhhAYUFh8s&quot;},&quot;metrics&quot;:{&quot;billingCronEnabled&quot;:&quot;true&quot;,&quot;dashUrl&quot;:&quot;https://m.readme.io&quot;,&quot;defaultUrl&quot;:&quot;https://m.readme.io&quot;,&quot;exportMaxRetries&quot;:12,&quot;wsUrl&quot;:&quot;wss://m.readme.io&quot;},&quot;proxyUrl&quot;:&quot;https://try.readme.io&quot;,&quot;readmeRecaptchaSiteKey&quot;:&quot;6LesVBYpAAAAAESOCHOyo2kF9SZXPVb54Nwf3i2x&quot;,&quot;releaseVersion&quot;:&quot;5.422.0&quot;,&quot;sentry&quot;:{&quot;dsn&quot;:&quot;https://3bbe57a973254129bcb93e47dc0cc46f@o343074.ingest.sentry.io/2052166&quot;,&quot;enabled&quot;:true},&quot;shMigration&quot;:{&quot;promoVideo&quot;:&quot;&quot;,&quot;forceWaitlist&quot;:false,&quot;migrationPreview&quot;:false},&quot;sslBaseDomain&quot;:&quot;readmessl.com&quot;,&quot;sslGenerationService&quot;:&quot;ssl.readmessl.com&quot;,&quot;stripePk&quot;:&quot;pk_live_5103PML2qXbDukVh7GDAkQoR4NSuLqy8idd5xtdm9407XdPR6o3bo663C1ruEGhXJjpnb2YCpj8EU1UvQYanuCjtr00t1DRCf2a&quot;,&quot;superHub&quot;:{&quot;newProjectsEnabled&quot;:true},&quot;wootric&quot;:{&quot;accountToken&quot;:&quot;NPS-122b75a4&quot;,&quot;enabled&quot;:true}}"></script><style>/* BASICS */
+
+.CodeMirror {
+  /* Set height, width, borders, and global font properties here */
+  font-family: monospace;
+  height: 300px;
+  color: black;
+  direction: ltr;
+}
+
+/* PADDING */
+
+.CodeMirror-lines {
+  padding: 4px 0; /* Vertical padding around content */
+}
+.CodeMirror pre.CodeMirror-line,
+.CodeMirror pre.CodeMirror-line-like {
+  padding: 0 4px; /* Horizontal padding of content */
+}
+
+.CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler {
+  background-color: white; /* The little square between H and V scrollbars */
+}
+
+/* GUTTER */
+
+.CodeMirror-gutters {
+  border-right: 1px solid #ddd;
+  background-color: #f7f7f7;
+  white-space: nowrap;
+}
+.CodeMirror-linenumbers {}
+.CodeMirror-linenumber {
+  padding: 0 3px 0 5px;
+  min-width: 20px;
+  text-align: right;
+  color: #999;
+  white-space: nowrap;
+}
+
+.CodeMirror-guttermarker { color: black; }
+.CodeMirror-guttermarker-subtle { color: #999; }
+
+/* CURSOR */
+
+.CodeMirror-cursor {
+  border-left: 1px solid black;
+  border-right: none;
+  width: 0;
+}
+/* Shown when moving in bi-directional text */
+.CodeMirror div.CodeMirror-secondarycursor {
+  border-left: 1px solid silver;
+}
+.cm-fat-cursor .CodeMirror-cursor {
+  width: auto;
+  border: 0 !important;
+  background: #7e7;
+}
+.cm-fat-cursor div.CodeMirror-cursors {
+  z-index: 1;
+}
+.cm-fat-cursor .CodeMirror-line::selection,
+.cm-fat-cursor .CodeMirror-line > span::selection, 
+.cm-fat-cursor .CodeMirror-line > span > span::selection { background: transparent; }
+.cm-fat-cursor .CodeMirror-line::-moz-selection,
+.cm-fat-cursor .CodeMirror-line > span::-moz-selection,
+.cm-fat-cursor .CodeMirror-line > span > span::-moz-selection { background: transparent; }
+.cm-fat-cursor { caret-color: transparent; }
+@-moz-keyframes blink {
+  0% {}
+  50% { background-color: transparent; }
+  100% {}
+}
+@-webkit-keyframes blink {
+  0% {}
+  50% { background-color: transparent; }
+  100% {}
+}
+@keyframes blink {
+  0% {}
+  50% { background-color: transparent; }
+  100% {}
+}
+
+/* Can style cursor different in overwrite (non-insert) mode */
+.CodeMirror-overwrite .CodeMirror-cursor {}
+
+.cm-tab { display: inline-block; text-decoration: inherit; }
+
+.CodeMirror-rulers {
+  position: absolute;
+  left: 0; right: 0; top: -50px; bottom: 0;
+  overflow: hidden;
+}
+.CodeMirror-ruler {
+  border-left: 1px solid #ccc;
+  top: 0; bottom: 0;
+  position: absolute;
+}
+
+/* DEFAULT THEME */
+
+.cm-s-default .cm-header {color: blue;}
+.cm-s-default .cm-quote {color: #090;}
+.cm-negative {color: #d44;}
+.cm-positive {color: #292;}
+.cm-header, .cm-strong {font-weight: bold;}
+.cm-em {font-style: italic;}
+.cm-link {text-decoration: underline;}
+.cm-strikethrough {text-decoration: line-through;}
+
+.cm-s-default .cm-keyword {color: #708;}
+.cm-s-default .cm-atom {color: #219;}
+.cm-s-default .cm-number {color: #164;}
+.cm-s-default .cm-def {color: #00f;}
+.cm-s-default .cm-variable,
+.cm-s-default .cm-punctuation,
+.cm-s-default .cm-property,
+.cm-s-default .cm-operator {}
+.cm-s-default .cm-variable-2 {color: #05a;}
+.cm-s-default .cm-variable-3, .cm-s-default .cm-type {color: #085;}
+.cm-s-default .cm-comment {color: #a50;}
+.cm-s-default .cm-string {color: #a11;}
+.cm-s-default .cm-string-2 {color: #f50;}
+.cm-s-default .cm-meta {color: #555;}
+.cm-s-default .cm-qualifier {color: #555;}
+.cm-s-default .cm-builtin {color: #30a;}
+.cm-s-default .cm-bracket {color: #997;}
+.cm-s-default .cm-tag {color: #170;}
+.cm-s-default .cm-attribute {color: #00c;}
+.cm-s-default .cm-hr {color: #999;}
+.cm-s-default .cm-link {color: #00c;}
+
+.cm-s-default .cm-error {color: #f00;}
+.cm-invalidchar {color: #f00;}
+
+.CodeMirror-composing { border-bottom: 2px solid; }
+
+/* Default styles for common addons */
+
+div.CodeMirror span.CodeMirror-matchingbracket {color: #0b0;}
+div.CodeMirror span.CodeMirror-nonmatchingbracket {color: #a22;}
+.CodeMirror-matchingtag { background: rgba(255, 150, 0, .3); }
+.CodeMirror-activeline-background {background: #e8f2ff;}
+
+/* STOP */
+
+/* The rest of this file contains styles related to the mechanics of
+   the editor. You probably shouldn't touch them. */
+
+.CodeMirror {
+  position: relative;
+  overflow: hidden;
+  background: white;
+}
+
+.CodeMirror-scroll {
+  overflow: scroll !important; /* Things will break if this is overridden */
+  /* 50px is the magic margin used to hide the element's real scrollbars */
+  /* See overflow: hidden in .CodeMirror */
+  margin-bottom: -50px; margin-right: -50px;
+  padding-bottom: 50px;
+  height: 100%;
+  outline: none; /* Prevent dragging from highlighting the element */
+  position: relative;
+  z-index: 0;
+}
+.CodeMirror-sizer {
+  position: relative;
+  border-right: 50px solid transparent;
+}
+
+/* The fake, visible scrollbars. Used to force redraw during scrolling
+   before actual scrolling happens, thus preventing shaking and
+   flickering artifacts. */
+.CodeMirror-vscrollbar, .CodeMirror-hscrollbar, .CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler {
+  position: absolute;
+  z-index: 6;
+  display: none;
+  outline: none;
+}
+.CodeMirror-vscrollbar {
+  right: 0; top: 0;
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+.CodeMirror-hscrollbar {
+  bottom: 0; left: 0;
+  overflow-y: hidden;
+  overflow-x: scroll;
+}
+.CodeMirror-scrollbar-filler {
+  right: 0; bottom: 0;
+}
+.CodeMirror-gutter-filler {
+  left: 0; bottom: 0;
+}
+
+.CodeMirror-gutters {
+  position: absolute; left: 0; top: 0;
+  min-height: 100%;
+  z-index: 3;
+}
+.CodeMirror-gutter {
+  white-space: normal;
+  height: 100%;
+  display: inline-block;
+  vertical-align: top;
+  margin-bottom: -50px;
+}
+.CodeMirror-gutter-wrapper {
+  position: absolute;
+  z-index: 4;
+  background: none !important;
+  border: none !important;
+}
+.CodeMirror-gutter-background {
+  position: absolute;
+  top: 0; bottom: 0;
+  z-index: 4;
+}
+.CodeMirror-gutter-elt {
+  position: absolute;
+  cursor: default;
+  z-index: 4;
+}
+.CodeMirror-gutter-wrapper ::selection { background-color: transparent }
+.CodeMirror-gutter-wrapper ::-moz-selection { background-color: transparent }
+
+.CodeMirror-lines {
+  cursor: text;
+  min-height: 1px; /* prevents collapsing before first draw */
+}
+.CodeMirror pre.CodeMirror-line,
+.CodeMirror pre.CodeMirror-line-like {
+  /* Reset some styles that the rest of the page might have set */
+  -moz-border-radius: 0; -webkit-border-radius: 0; border-radius: 0;
+  border-width: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  margin: 0;
+  white-space: pre;
+  word-wrap: normal;
+  line-height: inherit;
+  color: inherit;
+  z-index: 2;
+  position: relative;
+  overflow: visible;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-variant-ligatures: contextual;
+  font-variant-ligatures: contextual;
+}
+.CodeMirror-wrap pre.CodeMirror-line,
+.CodeMirror-wrap pre.CodeMirror-line-like {
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  word-break: normal;
+}
+
+.CodeMirror-linebackground {
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  z-index: 0;
+}
+
+.CodeMirror-linewidget {
+  position: relative;
+  z-index: 2;
+  padding: 0.1px; /* Force widget margins to stay inside of the container */
+}
+
+.CodeMirror-widget {}
+
+.CodeMirror-rtl pre { direction: rtl; }
+
+.CodeMirror-code {
+  outline: none;
+}
+
+/* Force content-box sizing for the elements where we expect it */
+.CodeMirror-scroll,
+.CodeMirror-sizer,
+.CodeMirror-gutter,
+.CodeMirror-gutters,
+.CodeMirror-linenumber {
+  -moz-box-sizing: content-box;
+  box-sizing: content-box;
+}
+
+.CodeMirror-measure {
+  position: absolute;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.CodeMirror-cursor {
+  position: absolute;
+  pointer-events: none;
+}
+.CodeMirror-measure pre { position: static; }
+
+div.CodeMirror-cursors {
+  visibility: hidden;
+  position: relative;
+  z-index: 3;
+}
+div.CodeMirror-dragcursors {
+  visibility: visible;
+}
+
+.CodeMirror-focused div.CodeMirror-cursors {
+  visibility: visible;
+}
+
+.CodeMirror-selected { background: #d9d9d9; }
+.CodeMirror-focused .CodeMirror-selected { background: #d7d4f0; }
+.CodeMirror-crosshair { cursor: crosshair; }
+.CodeMirror-line::selection, .CodeMirror-line > span::selection, .CodeMirror-line > span > span::selection { background: #d7d4f0; }
+.CodeMirror-line::-moz-selection, .CodeMirror-line > span::-moz-selection, .CodeMirror-line > span > span::-moz-selection { background: #d7d4f0; }
+
+.cm-searching {
+  background-color: #ffa;
+  background-color: rgba(255, 255, 0, .4);
+}
+
+/* Used to force a border model for a node */
+.cm-force-border { padding-right: .1px; }
+
+@media print {
+  /* Hide the cursor when printing */
+  .CodeMirror div.CodeMirror-cursors {
+    visibility: hidden;
+  }
+}
+
+/* See issue #2901 */
+.cm-tab-wrap-hack:after { content: ''; }
+
+/* Help users use markselection to safely style text background */
+span.CodeMirror-selectedtext { background: none; }
+</style><style>/*
+  Name:       material
+  Author:     Mattia Astorino (http://github.com/equinusocio)
+  Website:    https://material-theme.site/
+*/
+
+.cm-s-material-palenight.CodeMirror {
+  background-color: #292D3E;
+  color: #A6ACCD;
+}
+
+.cm-s-material-palenight .CodeMirror-gutters {
+  background: #292D3E;
+  color: #676E95;
+  border: none;
+}
+
+.cm-s-material-palenight .CodeMirror-guttermarker,
+.cm-s-material-palenight .CodeMirror-guttermarker-subtle,
+.cm-s-material-palenight .CodeMirror-linenumber {
+  color: #676E95;
+}
+
+.cm-s-material-palenight .CodeMirror-cursor {
+  border-left: 1px solid #FFCC00;
+}
+.cm-s-material-palenight.cm-fat-cursor .CodeMirror-cursor {
+  background-color: #607c8b80 !important;
+}
+.cm-s-material-palenight .cm-animate-fat-cursor {
+  background-color: #607c8b80 !important;
+}
+
+.cm-s-material-palenight div.CodeMirror-selected {
+  background: rgba(113, 124, 180, 0.2);
+}
+
+.cm-s-material-palenight.CodeMirror-focused div.CodeMirror-selected {
+  background: rgba(113, 124, 180, 0.2);
+}
+
+.cm-s-material-palenight .CodeMirror-line::selection,
+.cm-s-material-palenight .CodeMirror-line>span::selection,
+.cm-s-material-palenight .CodeMirror-line>span>span::selection {
+  background: rgba(128, 203, 196, 0.2);
+}
+
+.cm-s-material-palenight .CodeMirror-line::-moz-selection,
+.cm-s-material-palenight .CodeMirror-line>span::-moz-selection,
+.cm-s-material-palenight .CodeMirror-line>span>span::-moz-selection {
+  background: rgba(128, 203, 196, 0.2);
+}
+
+.cm-s-material-palenight .CodeMirror-activeline-background {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.cm-s-material-palenight .cm-keyword {
+  color: #C792EA;
+}
+
+.cm-s-material-palenight .cm-operator {
+  color: #89DDFF;
+}
+
+.cm-s-material-palenight .cm-variable-2 {
+  color: #EEFFFF;
+}
+
+.cm-s-material-palenight .cm-variable-3,
+.cm-s-material-palenight .cm-type {
+  color: #f07178;
+}
+
+.cm-s-material-palenight .cm-builtin {
+  color: #FFCB6B;
+}
+
+.cm-s-material-palenight .cm-atom {
+  color: #F78C6C;
+}
+
+.cm-s-material-palenight .cm-number {
+  color: #FF5370;
+}
+
+.cm-s-material-palenight .cm-def {
+  color: #82AAFF;
+}
+
+.cm-s-material-palenight .cm-string {
+  color: #C3E88D;
+}
+
+.cm-s-material-palenight .cm-string-2 {
+  color: #f07178;
+}
+
+.cm-s-material-palenight .cm-comment {
+  color: #676E95;
+}
+
+.cm-s-material-palenight .cm-variable {
+  color: #f07178;
+}
+
+.cm-s-material-palenight .cm-tag {
+  color: #FF5370;
+}
+
+.cm-s-material-palenight .cm-meta {
+  color: #FFCB6B;
+}
+
+.cm-s-material-palenight .cm-attribute {
+  color: #C792EA;
+}
+
+.cm-s-material-palenight .cm-property {
+  color: #C792EA;
+}
+
+.cm-s-material-palenight .cm-qualifier {
+  color: #DECB6B;
+}
+
+.cm-s-material-palenight .cm-variable-3,
+.cm-s-material-palenight .cm-type {
+  color: #DECB6B;
+}
+
+
+.cm-s-material-palenight .cm-error {
+  color: rgba(255, 255, 255, 1.0);
+  background-color: #FF5370;
+}
+
+.cm-s-material-palenight .CodeMirror-matchingbracket {
+  text-decoration: underline;
+  color: white !important;
+}
+</style><style>/* neo theme for codemirror */
+
+/* Color scheme */
+
+.cm-s-neo.CodeMirror {
+  background-color:#ffffff;
+  color:#2e383c;
+  line-height:1.4375;
+}
+.cm-s-neo .cm-comment { color:#75787b; }
+.cm-s-neo .cm-keyword, .cm-s-neo .cm-property { color:#1d75b3; }
+.cm-s-neo .cm-atom,.cm-s-neo .cm-number { color:#75438a; }
+.cm-s-neo .cm-node,.cm-s-neo .cm-tag { color:#9c3328; }
+.cm-s-neo .cm-string { color:#b35e14; }
+.cm-s-neo .cm-variable,.cm-s-neo .cm-qualifier { color:#047d65; }
+
+
+/* Editor styling */
+
+.cm-s-neo pre {
+  padding:0;
+}
+
+.cm-s-neo .CodeMirror-gutters {
+  border:none;
+  border-right:10px solid transparent;
+  background-color:transparent;
+}
+
+.cm-s-neo .CodeMirror-linenumber {
+  padding:0;
+  color:#e0e2e5;
+}
+
+.cm-s-neo .CodeMirror-guttermarker { color: #1d75b3; }
+.cm-s-neo .CodeMirror-guttermarker-subtle { color: #e0e2e5; }
+
+.cm-s-neo .CodeMirror-cursor {
+  width: auto;
+  border: 0;
+  background: rgba(155,157,162,0.37);
+  z-index: 1;
+}
+</style><style>.CodeMirror-foldmarker {
+  color: blue;
+  text-shadow: #b9f 1px 1px 2px, #b9f -1px -1px 2px, #b9f 1px -1px 2px, #b9f -1px 1px 2px;
+  font-family: arial;
+  line-height: .3;
+  cursor: pointer;
+}
+.CodeMirror-foldgutter {
+  width: .7em;
+}
+.CodeMirror-foldgutter-open,
+.CodeMirror-foldgutter-folded {
+  cursor: pointer;
+}
+.CodeMirror-foldgutter-open:after {
+  content: "\25BE";
+}
+.CodeMirror-foldgutter-folded:after {
+  content: "\25B8";
+}
+</style><style>.CodeEditor{}
+</style><style>.CodeMirror-simplescroll-horizontal div,.CodeMirror-simplescroll-vertical div{position:absolute;background:#ccc;-moz-box-sizing:border-box;box-sizing:border-box;border:1px solid #bbb;border-radius:2px}.CodeMirror-simplescroll-horizontal,.CodeMirror-simplescroll-vertical{position:absolute;z-index:6;background:#eee}.CodeMirror-simplescroll-horizontal{bottom:0;left:0;height:8px}.CodeMirror-simplescroll-horizontal div{bottom:0;height:100%}.CodeMirror-simplescroll-vertical{right:0;top:0;width:8px}.CodeMirror-simplescroll-vertical div{right:0;width:100%}.CodeMirror-overlayscroll .CodeMirror-scrollbar-filler,.CodeMirror-overlayscroll .CodeMirror-gutter-filler{display:none}.CodeMirror-overlayscroll-horizontal div,.CodeMirror-overlayscroll-vertical div{position:absolute;background:#bcd;border-radius:3px}.CodeMirror-overlayscroll-horizontal,.CodeMirror-overlayscroll-vertical{position:absolute;z-index:6}.CodeMirror-overlayscroll-horizontal{bottom:0;left:0;height:6px}.CodeMirror-overlayscroll-horizontal div{bottom:0;height:100%}.CodeMirror-overlayscroll-vertical{right:0;top:0;width:6px}.CodeMirror-overlayscroll-vertical div{right:0;width:100%}
+</style><style>.CodeEditor.cm-s-material-palenight:not(.CodeEditor-Input_highlight) .cm-linerow.cm-overlay,.CodeEditor.cm-s-material-palenight:not(.CodeEditor-Input_highlight) .cm-linerow.cm-overlay>span,.CodeEditor.cm-s-material-palenight:not(.CodeEditor-Input_highlight) .cm-linerow.cm-overlay>p{color:rgba(255,255,255,0.5)}.CodeEditor.cm-s-material-palenight .cm-highlight{background:rgba(0,0,0,0.25)}.CodeEditor.cm-s-material-palenight .CodeMirror{background:#242e34;color:#fff}.CodeEditor.cm-s-neo:not(.CodeEditor-Input_highlight) .cm-linerow.cm-overlay,.CodeEditor.cm-s-neo:not(.CodeEditor-Input_highlight) .cm-linerow.cm-overlay>span,.CodeEditor.cm-s-neo:not(.CodeEditor-Input_highlight) .cm-linerow.cm-overlay>p{color:rgba(0,0,0,0.5)}.CodeEditor.cm-s-neo .cm-highlight{background:rgba(0,0,0,0.1)}.CodeEditor.cm-s-neo .CodeMirror{background:#fff;color:#000}.CodeEditor .cm-linerow.cm-overlay,.CodeEditor .cm-linerow.cm-overlay .cm-lineNumber{opacity:0.75}.CodeMirror-scrollbar-filler{display:none !important}.CodeMirror-overlayscroll-horizontal div,.CodeMirror-overlayscroll-vertical div{background:rgba(202,202,202,0.5) !important}.cm-linerow{position:relative;text-indent:47px;transition:background 0.5s cubic-bezier(0.16, 1, 0.3, 1),color 0.5s cubic-bezier(0.16, 1, 0.3, 1),opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1)}.cm-linerow>span,.cm-linerow>p{transition:color 0.5s cubic-bezier(0.16, 1, 0.3, 1)}.cm-lineNumber{color:#676e95;display:inline-block;left:0;margin:0;min-width:43px;padding:0 6px 0 10px;position:absolute;right:auto;text-align:right;text-indent:0;top:0;transition:opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}
+</style><style id="_goober"> @keyframes go2264125279{from{transform:scale(0) rotate(45deg);opacity:0;}to{transform:scale(1) rotate(45deg);opacity:1;}}@keyframes go3020080000{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}@keyframes go463499852{from{transform:scale(0) rotate(90deg);opacity:0;}to{transform:scale(1) rotate(90deg);opacity:1;}}@keyframes go1268368563{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}@keyframes go1310225428{from{transform:scale(0) rotate(45deg);opacity:0;}to{transform:scale(1) rotate(45deg);opacity:1;}}@keyframes go651618207{0%{height:0;width:0;opacity:0;}40%{height:0;width:6px;opacity:1;}100%{opacity:1;height:10px;}}@keyframes go901347462{from{transform:scale(0.6);opacity:0.4;}to{transform:scale(1);opacity:1;}}.go4109123758{z-index:9999;}.go4109123758 > *{pointer-events:auto;}</style><style data-description="memex-satoshi-font-faces">
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Variable.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Variable.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-VariableItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-VariableItalic.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Light.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Light.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-LightItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-LightItalic.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Regular.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Regular.ttf) format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Italic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Italic.ttf) format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Medium.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Medium.ttf) format('truetype');
+    font-weight: 500;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-MediumItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-MediumItalic.ttf) format('truetype');
+    font-weight: 500;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Bold.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Bold.ttf) format('truetype');
+    font-weight: 700;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BoldItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BoldItalic.ttf) format('truetype');
+    font-weight: 700;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Black.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Black.ttf) format('truetype');
+    font-weight: 900;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BlackItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BlackItalic.ttf) format('truetype');
+    font-weight: 900;
+    font-display: swap;
+    font-style: italic;
+}
+
+</style><style data-description="memex-satoshi-font-faces">
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Variable.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Variable.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-VariableItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-VariableItalic.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Light.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Light.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-LightItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-LightItalic.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Regular.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Regular.ttf) format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Italic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Italic.ttf) format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Medium.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Medium.ttf) format('truetype');
+    font-weight: 500;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-MediumItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-MediumItalic.ttf) format('truetype');
+    font-weight: 500;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Bold.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Bold.ttf) format('truetype');
+    font-weight: 700;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BoldItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BoldItalic.ttf) format('truetype');
+    font-weight: 700;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Black.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Black.ttf) format('truetype');
+    font-weight: 900;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BlackItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BlackItalic.ttf) format('truetype');
+    font-weight: 900;
+    font-display: swap;
+    font-style: italic;
+}
+
+</style><style data-description="memex-satoshi-font-faces">
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Variable.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Variable.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-VariableItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-VariableItalic.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Light.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Light.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-LightItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-LightItalic.ttf) format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Regular.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Regular.ttf) format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Italic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Italic.ttf) format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Medium.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Medium.ttf) format('truetype');
+    font-weight: 500;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-MediumItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-MediumItalic.ttf) format('truetype');
+    font-weight: 500;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Bold.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Bold.ttf) format('truetype');
+    font-weight: 700;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BoldItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BoldItalic.ttf) format('truetype');
+    font-weight: 700;
+    font-display: swap;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Black.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-Black.ttf) format('truetype');
+    font-weight: 900;
+    font-display: swap;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src:
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BlackItalic.woff) format('woff'),
+        url(chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/Satoshi-BlackItalic.ttf) format('truetype');
+    font-weight: 900;
+    font-display: swap;
+    font-style: italic;
+}
+
+</style><style data-tiptap-style="">.ProseMirror {
+  position: relative;
+}
+
+.ProseMirror {
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  white-space: break-spaces;
+  -webkit-font-variant-ligatures: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0; /* the above doesn't seem to work in Edge */
+}
+
+.ProseMirror [contenteditable="false"] {
+  white-space: normal;
+}
+
+.ProseMirror [contenteditable="false"] [contenteditable="true"] {
+  white-space: pre-wrap;
+}
+
+.ProseMirror pre {
+  white-space: pre-wrap;
+}
+
+img.ProseMirror-separator {
+  display: inline !important;
+  border: none !important;
+  margin: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+}
+
+.ProseMirror-gapcursor {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+  margin: 0;
+}
+
+.ProseMirror-gapcursor:after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid black;
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes ProseMirror-cursor-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+
+.ProseMirror-hideselection *::-moz-selection {
+  background: transparent;
+}
+
+.ProseMirror-hideselection * {
+  caret-color: transparent;
+}
+
+.ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+.tippy-box[data-animation=fade][data-state=hidden] {
+  opacity: 0
+}</style><meta content="Private Applications (API Key)
+Private applications are designed for use cases where you are connecting to your own ServiceM8 account, or to one specific customer&#39;s account, and do not intend to promote/list your add-on on the ServiceM8 Add-ons Directory or promote it to a wider audience.
+ServiceM8 …" name="description" data-rh="true"><meta content="Authentication" property="og:title" data-rh="true"><meta content="Private Applications (API Key)
+Private applications are designed for use cases where you are connecting to your own ServiceM8 account, or to one specific customer&#39;s account, and do not intend to promote/list your add-on on the ServiceM8 Add-ons Directory or promote it to a wider audience.
+ServiceM8 …" property="og:description" data-rh="true"><meta content="Authentication" name="twitter:title" data-rh="true"><meta content="Private Applications (API Key)
+Private applications are designed for use cases where you are connecting to your own ServiceM8 account, or to one specific customer&#39;s account, and do not intend to promote/list your add-on on the ServiceM8 Add-ons Directory or promote it to a wider audience.
+ServiceM8 …" name="twitter:description" data-rh="true"></head><body class="body-none theme-line header-solid header-bg-size-auto header-bg-pos-tl header-overlay-triangles reference-layout-row lumosity-normal "><div id="ssr-top"></div><div id="ssr-main"><div class="App ThemeContext ThemeContext_light ThemeContext_modern ThemeContext_line" style="--color-primary:#7dc836;--color-primary-inverse:#384248;--color-primary-alt:#579918;--color-primary-darken-10:#64a02b;--color-primary-darken-20:#4b7820;--color-primary-alpha-25:rgba(125, 200, 54, 0.25);--color-link-primary:#384248;--color-link-primary-darken-5:#2d353a;--color-link-primary-darken-10:#22282b;--color-link-primary-darken-20:#0b0d0f;--color-link-primary-alpha-50:rgba(56, 66, 72, 0.5);--color-link-primary-alpha-25:rgba(56, 66, 72, 0.25);--color-link-background:rgba(56, 66, 72, 0.09);--color-link-text:#fff;--color-login-link:#018ef5;--color-login-link-text:#fff;--color-login-link-darken-10:#0171c2;--color-login-link-primary-alpha-50:rgba(1, 142, 245, 0.5)"><div class="SuperHub2RNxzk6HzHiJ"><header class="Header3zzata9F_ZPQ Header_modern rm-Header"><div class="rm-Header-top Header-topuTMpygDG4e1V Header-top_modern"><div class="rm-Container rm-Container_flex rm-ContainerFull"><div style="outline:none" tabindex="-1"><a href="https://developer.servicem8.com/docs/authentication#content" target="_self" class="Button Button_md rm-JumpTo Header-jumpTo3IWKQXmhSI5D Button_primary">Jump to Content</a></div><div class="rm-Header-left Header-leftADQdGVqx1wqU Header-left_expand3vTvdg25OQQO"><a class="rm-Logo Header-logo1Xy41PtkzbdG" href="https://www.servicem8.com/" target="_self"><img alt="ServiceM8" class="rm-Logo-img rm-Logo-img_lg Header-logo-img3YvV4lcGKkeb" src="./Authentication_files/e3d9a50b6eb9d2ae0a9d676b90430d84f9431e38d4dec4575182321a7ddecf06-ServiceM8_Dark.png"></a><a aria-current="page" class="Button Button_md rm-Header-link rm-Header-top-link Button_slate_text rm-Header-top-link_active Header-link2tXYTgXq85zW active" href="https://developer.servicem8.com/docs" target="_self">Guides</a><a class="Button Button_md rm-Header-link rm-Header-top-link Button_slate_text Header-link2tXYTgXq85zW" href="https://developer.servicem8.com/reference" target="_self">API Reference</a><a class="Button Button_md rm-Header-link rm-Header-top-link Button_slate_text Header-link2tXYTgXq85zW" href="https://developer.servicem8.com/discuss" target="_self">Discussions</a></div><div class="rm-Header-left Header-leftADQdGVqx1wqU Header-left_mobile1RG-X93lx6PF"><div><button aria-label="Toggle navigation menu" class="icon-menu menu3d6DYNDa3tk5" type="button"></button><div class=""><div class="Flyout95xhYIIoTKtc undefined rm-Flyout" data-testid="flyout"><div class="MobileFlyout1hHJpUd-nYkd"><a class="rm-MobileFlyout-item NavItem-item1gDDTqaXGhm1 NavItem-item_mobile1qG3gd-Mkck- " href="https://developer.servicem8.com/" target="_self"><i class="icon-landing-page-2 NavItem-badge1qOxpfTiALoz rm-Header-bottom-link-icon"></i><span class="NavItem-textSlZuuL489uiw">Home</span></a><a aria-current="page" class="rm-MobileFlyout-item NavItem-item1gDDTqaXGhm1 NavItem-item_mobile1qG3gd-Mkck-  active" href="https://developer.servicem8.com/docs" target="_self"><i class="icon-guides NavItem-badge1qOxpfTiALoz rm-Header-bottom-link-icon"></i><span class="NavItem-textSlZuuL489uiw">Guides</span></a><a class="rm-MobileFlyout-item NavItem-item1gDDTqaXGhm1 NavItem-item_mobile1qG3gd-Mkck- " href="https://developer.servicem8.com/reference" target="_self"><i class="icon-references NavItem-badge1qOxpfTiALoz rm-Header-bottom-link-icon"></i><span class="NavItem-textSlZuuL489uiw">API Reference</span></a><a class="rm-MobileFlyout-item NavItem-item1gDDTqaXGhm1 NavItem-item_mobile1qG3gd-Mkck- " href="https://developer.servicem8.com/discuss" target="_self"><i class="icon-discussions NavItem-badge1qOxpfTiALoz rm-Header-bottom-link-icon"></i><span class="NavItem-textSlZuuL489uiw">Discussions</span></a><hr class="MobileFlyout-divider10xf7R2X1MeW"><a aria-current="page" class="rm-MobileFlyout-item NavItem-item1gDDTqaXGhm1 NavItem-item_mobile1qG3gd-Mkck- NavItem_dropdown-muted1xJVuczwGc74 active" href="https://developer.servicem8.com/docs" target="_self">Guides</a><a class="rm-MobileFlyout-item NavItem-item1gDDTqaXGhm1 NavItem-item_mobile1qG3gd-Mkck- NavItem_dropdown-muted1xJVuczwGc74" href="https://developer.servicem8.com/reference" target="_self">API Reference</a><a class="rm-MobileFlyout-item NavItem-item1gDDTqaXGhm1 NavItem-item_mobile1qG3gd-Mkck- NavItem_dropdown-muted1xJVuczwGc74" href="https://developer.servicem8.com/discuss" target="_self">Discussions</a><select class="Select Select_md NavItem-item1gDDTqaXGhm1 NavItem-item_select3UEfLN-oSjxp NavItem-item_mobile1qG3gd-Mkck-"><option data-url="" disabled="" value="Account" selected="">Akhil</option><option data-url="/suggested-edits" value="Suggested Edits">Suggested Edits</option><option data-url="/logout?redirect_uri=/docs/authentication" value="Log Out">Log Out</option></select><a class="MobileFlyout-logo3Lq1eTlk1K76 Header-logo1Xy41PtkzbdG rm-Logo" href="https://www.servicem8.com/" target="_self"><img alt="ServiceM8" class="Header-logo-img3YvV4lcGKkeb rm-Logo-img" src="./Authentication_files/e3d9a50b6eb9d2ae0a9d676b90430d84f9431e38d4dec4575182321a7ddecf06-ServiceM8_Dark.png"></a></div></div></div></div><div class="Header-left-nav2xWPWMNHOGf_"><i class="icon-guides Header-left-nav-icon10glJKFwewOv"></i>Guides</div></div><div class="rm-Header-center Header-center1qzK4IhEY8gD"><div class="rm-Header-search Header-searchtb6Foi0-D9Vx Header-search_modern rm-Header-search_feather Header-search_featherYsmQBn55F3d9 Header-search_primaryPDVaowmLgNWe"><button aria-label="Search CTRL-k" class="rm-SearchToggle rm-SearchToggle_primary" data-symbol="CTRL-"><div class="rm-SearchToggle-icon icon-search1"></div><div class="Header-search-placeholder3Vx4OmMPcjAi rm-SearchToggle-placeholder">Search</div><kbd class="rm-SearchToggle-shortcut">CTRL-K</kbd></button></div></div><div class="rm-Header-right Header-right21PC2XTT6aMg Header-right_expand22uxPrkK8fvx"><span class="Header-right_desktop14ja01RUQ7HE"><div class="rm-Header-top-link_login Dropdown Dropdown_closed" data-testid="dropdown-container"><button aria-haspopup="dialog" class="Button Button_slate_text Button_md Header-link2tXYTgXq85zW NavItem2xSfFaVqfRjy NavItem_mdrYO3ChA2kYvP rm-Header-top-link Dropdown-toggle Button_primary" type="button" aria-expanded="false"><span>Akhil</span><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a NavItem-chevron3ZtU4bd1q5sy" data-name="chevron-down" role="img" style="--icon-color:inherit;--icon-size:var(--icon-md);--icon-stroke-width:2px" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" class="icon-stroke-width"></path></svg></span></button></div></span><div class="Header-searchtb6Foi0-D9Vx"><button aria-label="Search ⌘k" class="rm-SearchToggle" data-symbol="⌘"><div class="rm-SearchToggle-icon icon-search1"></div></button></div><div class="ThemeToggle-wrapper1M_iJESXCpGR Dropdown Dropdown_closed" data-testid="dropdown-container"><button aria-label="Toggle to light mode" id="ThemeToggle-button-c7c816fc-e1f7-4560-af61-485548288ed5" aria-haspopup="dialog" class="Button Button_sm rm-ThemeToggle ThemeToggle2tVPbUyQbWDo ThemeToggle_active3jPkR2CMm1JP Dropdown-toggle Button_primary_ghost Button_primary" type="button" aria-expanded="false"><svg aria-labelledby="ThemeToggle-button-c7c816fc-e1f7-4560-af61-485548288ed5" class="Icon ThemeToggle-Icon3g9ZT7pRMwCv ThemeToggle-Icon_dark2HfxEtEOn1YH ThemeToggle-Icon_active18I2-19CkbgD" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Moon (Dark Mode)</title><path d="M19 14.79C18.8427 16.4922 18.2039 18.1144 17.1582 19.4668C16.1126 20.8192 14.7035 21.8458 13.0957 22.4265C11.4879 23.0073 9.74798 23.1181 8.0795 22.7461C6.41102 22.3741 4.88299 21.5345 3.67423 20.3258C2.46546 19.117 1.62594 17.589 1.25391 15.9205C0.881876 14.252 0.992717 12.5121 1.57346 10.9043C2.1542 9.29651 3.18083 7.88737 4.53321 6.84175C5.8856 5.79614 7.5078 5.15731 9.21 5C8.21341 6.34827 7.73385 8.00945 7.85853 9.68141C7.98322 11.3534 8.70386 12.9251 9.8894 14.1106C11.0749 15.2961 12.6466 16.0168 14.3186 16.1415C15.9906 16.2662 17.6517 15.7866 19 14.79Z"></path><path class="ThemeToggle-Icon-star3wweJby1gM4w" d="M18.3707 1C18.3707 3.22825 16.2282 5.37069 14 5.37069C16.2282 5.37069 18.3707 7.51313 18.3707 9.74138C18.3707 7.51313 20.5132 5.37069 22.7414 5.37069C20.5132 5.37069 18.3707 3.22825 18.3707 1Z"></path></svg><svg aria-labelledby="ThemeToggle-button-c7c816fc-e1f7-4560-af61-485548288ed5" class="Icon ThemeToggle-Icon3g9ZT7pRMwCv" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Sun (Light Mode)</title><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M12 1V3"></path><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M18.36 5.64L19.78 4.22"></path><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M21 12H23"></path><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M18.36 18.36L19.78 19.78"></path><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M12 21V23"></path><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M4.22 19.78L5.64 18.36"></path><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M1 12H3"></path><path class="ThemeToggle-Icon-ray2ab8_BwBkrTx" d="M4.22 4.22L5.64 5.64"></path><path d="M12 17C14.7614 17 17 14.7614 17 12C17 9.23858 14.7614 7 12 7C9.23858 7 7 9.23858 7 12C7 14.7614 9.23858 17 12 17Z"></path></svg></button></div></div></div></div><div class="Header-bottom2eLKOFXMEmh5 Header-bottom_modern rm-Header-bottom"><div class="rm-Container rm-Container_flex rm-ContainerFull"><nav aria-label="Primary navigation" class="Header-leftADQdGVqx1wqU Header-subnavnVH8URdkgvEl" role="navigation"><div class="rm-NavLinksDropdown Dropdown Dropdown_closed" data-testid="dropdown-container"><div class="Dropdown-toggle" aria-haspopup="dialog" aria-expanded="false"><button class="rm-Header-link rm-Header-bottom-link NavItem2xSfFaVqfRjy Button Button_slate_text Button_md" type="button"><span>Guides</span><i class="NavItem-chevron3ZtU4bd1q5sy icon-chevron-down"></i></button></div></div><span class="rm-Header-link rm-Header-bottom-link NavItem2xSfFaVqfRjy NavItem_inactive1YE6SGanIJp5">Authentication</span></nav><button align="center" justify="between" style="--flex-gap:var(--xs)" class="Button Button_sm Flex Flex_row MobileSubnav1DsTfasXloM2 Button_contrast Button_contrast_outline" type="button"><span class="Button-label">Authentication</span><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a" data-name="chevron-up-down" role="img" style="--icon-color:inherit;--icon-size:inherit;--icon-stroke-width:2px"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m6 16 6 6 6-6M18 8l-6-6-6 6" class="icon-stroke-width"></path></svg></span></button></div></div><div class="hub-search-results--reactApp " id="hub-search-results"><div class="hub-container"><div class="modal-backdrop show-modal rm-SearchModal" role="button" tabindex="0"><div class="SuperHubSearchI_obvfvvQi4g" id="AppSearch" role="tabpanel" tabindex="0"><div data-focus-guard="true" tabindex="-1" style="width:1px;height:0px;padding:0;overflow:hidden;position:fixed;top:1px;left:1px"></div><div data-focus-lock-disabled="disabled" class="SuperHubSearch-container2BhYey2XE-Ij"><div class="SuperHubSearch-col1km8vLFgOaYj"><div class="SearchBoxnZBxftziZGcz"><input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" tabindex="0" aria-required="false" class="Input Input_md SearchBox-inputR4jffU8l10iF" type="search" value=""></div><div class="SearchTabs3rNhUK3HjrRJ"><div class="Tabs Tabs-list" role="tablist"><div aria-label="All" aria-selected="true" class="SearchTabs-tab1TrpmhQv840T Tabs-listItem Tabs-listItem_active" role="tab" tabindex="1"><span class="SearchTabs-tab1TrpmhQv840T"><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a icon" data-name="search" role="img" style="--icon-color:inherit;--icon-size:inherit;--icon-stroke-width:2px"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35" class="icon-stroke-width"></path></svg></span>All</span></div><div aria-label="Guides" aria-selected="false" class="SearchTabs-tab1TrpmhQv840T Tabs-listItem" role="tab" tabindex="1"><span class="SearchTabs-tab1TrpmhQv840T"><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a icon" data-name="book-open" role="img" style="--icon-color: inherit; --icon-size: inherit; --icon-stroke-width: 2px;"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2V3ZM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7V3Z" class="icon-stroke-width"></path></svg></span>Guides</span></div><div aria-label="Reference" aria-selected="false" class="SearchTabs-tab1TrpmhQv840T Tabs-listItem" role="tab" tabindex="1"><span class="SearchTabs-tab1TrpmhQv840T"><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a icon" data-name="code" role="img" style="--icon-color: inherit; --icon-size: inherit; --icon-stroke-width: 2px;"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m16 18 6-6-6-6M8 6l-6 6 6 6" class="icon-stroke-width"></path></svg></span>Reference</span></div><div aria-label="Discussions" aria-selected="false" class="SearchTabs-tab1TrpmhQv840T Tabs-listItem" role="tab" tabindex="1"><span class="SearchTabs-tab1TrpmhQv840T"><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a icon" data-name="message-circle" role="img" style="--icon-color: inherit; --icon-size: inherit; --icon-stroke-width: 2px;"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" class="icon-stroke-width"></path></svg></span>Discussions</span></div><div aria-label="Pages" aria-selected="false" class="SearchTabs-tab1TrpmhQv840T Tabs-listItem" role="tab" tabindex="1"><span class="SearchTabs-tab1TrpmhQv840T"><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a icon" data-name="custom-pages" role="img" style="--icon-color:inherit;--icon-size:inherit;--icon-stroke-width:2px"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-7-7Z" class="icon-stroke-width"></path><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M13 2v7h7M12 11.333V12M12 18v.667M9.407 12.407l.473.473M14.12 17.12l.473.473M8.333 15H9M15 15h.667M9.407 17.593l.473-.473M14.12 12.88l.473-.473" class="icon-stroke-width"></path></svg></span>Pages</span></div></div></div><div class="rm-SearchModal-empty SearchResults35_kFOb1zvxX SearchResults_emptyiWzyXErtNcQJ"><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a rm-SearchModal-empty-icon icon icon-search" data-name="search" role="img" style="--icon-color:inherit;--icon-size:var(--icon-md);--icon-stroke-width:2px"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35" class="icon-stroke-width"></path></svg></span><h6 class="Title Title6 rm-SearchModal-empty-text">Start<!-- --> typing to search…</h6></div></div></div><div data-focus-guard="true" tabindex="-1" style="width:1px;height:0px;padding:0;overflow:hidden;position:fixed;top:1px;left:1px"></div></div></div></div></div></header><main class="SuperHubDoc3Z-1XSVTg-Q1 rm-Guides" id="content"><div class="SuperHubDoc-container2RY1FPE4Ewze rm-Container rm-Container_flex rm-ContainerFull"><nav aria-label="Secondary navigation" class="rm-Sidebar hub-sidebar reference-redesign Nav3C5f8FcjkaHj rm-Sidebar_guides" id="hub-sidebar" role="navigation"><div class="Sidebar1t2G1ZJq-vU1 rm-Sidebar hub-sidebar-content"><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">Documentation</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list" style=""><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/getting-started"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Getting Started</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link active" target="_self" href="https://developer.servicem8.com/docs/authentication" aria-current="page"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Authentication</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/http-response-codes"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">HTTP Response Codes</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/add-on-types"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Add-on Types</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 Sidebar-link_parent text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/servicem8-add-on-store"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">ServiceM8 Add-on Store</span></span><button aria-expanded="false" aria-label="Show subpages for ServiceM8 Add-on Store" class="Sidebar-link-buttonWrapper3hnFHNku8_BJ" type="button"><i aria-hidden="true" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-expandIcon2yVH6SarI6NW icon-chevron-rightward"></i></button></a><ul class="subpages Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless subpage text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/addon-store-requirements"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Add-on Store Requirements</span></span></a></li></ul></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">Add-on SDK</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 Sidebar-link_parent text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/getting-started-1"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Getting Started</span></span><button aria-expanded="false" aria-label="Show subpages for Getting Started" class="Sidebar-link-buttonWrapper3hnFHNku8_BJ" type="button"><i aria-hidden="true" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-expandIcon2yVH6SarI6NW icon-chevron-rightward"></i></button></a><ul class="subpages Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless subpage text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/add-on-capabilities"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Add-on Capabilities</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless subpage text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/add-on-structure"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Add-on Structure</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless subpage text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/your-first-add-on"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Your First Add-on</span></span></a></li></ul></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/serverless-add-ons"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Serverless Add-ons</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/web-service-hosted-add-ons"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Web Service Hosted Add-ons</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/sample-event-data"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Event Data</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/manifest-reference"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Manifest Reference</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/client-api"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Client JS SDK</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/frequently-asked-questions"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Frequently Asked Questions</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/add-on-style"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Add-on Style &amp; Guidelines</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/examples"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Examples</span></span></a></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">REST API</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/rest-overview"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Overview</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/filtering"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-pageIcon2sQE9C4g_faB">🆕</span><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Filtering</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/pagination"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-pageIcon2sQE9C4g_faB">🆕</span><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Pagination</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/field-types"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Field Types</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 Sidebar-link_parent text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/how-to-guides"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">How-to Guides</span></span><button aria-expanded="false" aria-label="Show subpages for How-to Guides" class="Sidebar-link-buttonWrapper3hnFHNku8_BJ" type="button"><i aria-hidden="true" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-expandIcon2yVH6SarI6NW icon-chevron-rightward"></i></button></a><ul class="subpages Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless subpage text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/attaching-files-to-a-job-diary"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Attaching files to a Job Diary</span></span></a></li></ul></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" data-active="" href="https://developer.servicem8.com/reference"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Reference</span><i aria-label="Link opens in a new tab" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-externalIcon1RcnjKm-3Ft8 icon-arrow-up-right"></i></span></a></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">Webhooks API</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/webhooks-overview"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Overview</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" data-active="" href="https://developer.servicem8.com/reference#webhook-subscription"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Reference</span><i aria-label="Link opens in a new tab" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-externalIcon1RcnjKm-3Ft8 icon-arrow-up-right"></i></span></a></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">Messaging API</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/messaging-overview"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Overview</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" data-active="" href="https://developer.servicem8.com/reference#email"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Reference</span><i aria-label="Link opens in a new tab" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-externalIcon1RcnjKm-3Ft8 icon-arrow-up-right"></i></span></a></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">Document Templates API</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/document-templates-overview"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Overview</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" data-active="" href="https://developer.servicem8.com/reference#document-templates"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Reference</span><i aria-label="Link opens in a new tab" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-externalIcon1RcnjKm-3Ft8 icon-arrow-up-right"></i></span></a></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">Custom Fields API</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/custom-fields-overview"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Overview</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" data-active="" href="https://developer.servicem8.com/reference#custom-fields-1"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Reference</span><i aria-label="Link opens in a new tab" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-externalIcon1RcnjKm-3Ft8 icon-arrow-up-right"></i></span></a></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">Feed API</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/feed-overview"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Overview</span></span></a></li><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" data-active="" href="https://developer.servicem8.com/v1.0/reference#postplatformfeedpost-1"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">Reference</span><i aria-label="Link opens in a new tab" class="Sidebar-link-iconnjiqEiZlPn0W Sidebar-link-externalIcon1RcnjKm-3Ft8 icon-arrow-up-right"></i></span></a></li></ul></section><section class="Sidebar-listWrapper6Q9_yUrG906C rm-Sidebar-section"><h2 class="Sidebar-headingTRQyOa2pk0gh rm-Sidebar-heading">MCP Server</h2><ul class="Sidebar-list_sidebarLayout3RaX72iQNOEI Sidebar-list3cZWQLaBf9k8 rm-Sidebar-list"><li class="Sidebar-item23D-2Kd61_k3"><a class="Sidebar-link2Dsha-r-GKh2 childless text-wrap rm-Sidebar-link" target="_self" href="https://developer.servicem8.com/docs/mcp"><span class="Sidebar-link-textLuTE1ySm4Kqn"><span class="Sidebar-link-text_label1gCT_uPnx7Gu">MCP</span></span></a></li></ul></section><div class="readme-logo" id="readmeLogo">Powered by&nbsp;<a aria-label="ReadMe" href="https://readme.com/?ref_src=hub&amp;project=servicem8" style="color:unset"><i class="icon icon-readme" style="display:inline-block;min-width:71px"></i></a></div></div><button aria-label="Hide sidebar navigation" class="Nav-toggle-collapse39KxgTH727KL" type="button"></button></nav><article class="SuperHubDoc-article3ArTrEavUTKg rm-Article rm-Guides-SuperHub"><header id="content-head"><div class="row clearfix"><div class="col-xs-9"><h1>Authentication</h1></div></div></header><div class="grid-container-fluid" id="content-container"><section class="content-body grid-75"><div class="rm-Markdown markdown-body rm-Markdown markdown-body ng-non-bindable" data-testid="RDMD" style="margin-left: 31px;"><style data-tailwind-stylesheet="true"></style><h1 class="heading heading-1 header-scroll"><div class="heading-anchor anchor waypoint" id="private-applications-api-key"></div><div class="heading-text">Private Applications (API Key)</div><a aria-label="Skip link to Private Applications (API Key)" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#private-applications-api-key"></a></h1>
+<p>Private applications are designed for use cases where you are connecting to your own ServiceM8 account, or to one specific customer's account, and do not intend to promote/list your add-on on the ServiceM8 Add-ons Directory or promote it to a wider audience.</p>
+<p>ServiceM8 uses API keys to authenticate integration requests. You or your developer will generate this key from your ServiceM8 account to establish a secure connection.</p>
+<blockquote class="callout callout_info" theme="📘"><h3 class="callout-heading empty"><span class="callout-icon">📘</span></h3><p>You do not need a ServiceM8 Developer account to use API keys</p><p>To create an API Key, go to Settings -&gt; API Keys</p></blockquote>
+<h3 class="heading heading-3 header-scroll"><div class="heading-anchor anchor waypoint" id="using-your-api-key"></div><div class="heading-text">Using Your API Key</div><a aria-label="Skip link to Using Your API Key" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#using-your-api-key"></a></h3>
+<p>Once you have generated your API key, you must include it in all API requests by setting it in the X-API-Key header.</p>
+<h4 class="heading heading-4 header-scroll"><div class="heading-anchor anchor waypoint" id="example-request"></div><div class="heading-text">Example Request</div><a aria-label="Skip link to Example Request" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#example-request"></a></h4>
+<div class="CodeTabs CodeTabs_initial theme-dark"><div class="CodeTabs-toolbar"><button type="button" value="Text">bash</button></div><div class="CodeTabs-inner"><pre><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-Text theme-dark" data-lang="Text"><div class="cm-s-material-palenight" data-testid="SyntaxHighlighter">curl -X GET "https://api.servicem8.com/api_1.0/company.json" \
+-H "X-API-Key: your_api_key_here"
+-H "Content-Type: application/json"</div></code></pre></div></div>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="getting-started-with-a-private-application"></div><div class="heading-text">Getting Started with a Private Application</div><a aria-label="Skip link to Getting Started with a Private Application" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#getting-started-with-a-private-application"></a></h2>
+<ol>
+<li>Private applications can connect directly to the ServiceM8 API using your ServiceM8 API Key.</li>
+<li>Read up on the <a target="_self" href="https://developer.servicem8.com/docs/rest-overview">REST API</a> for information on how to access and update your data</li>
+</ol>
+<h1 class="heading heading-1 header-scroll"><div class="heading-anchor anchor waypoint" id="public-applications-oauth-20"></div><div class="heading-text">Public Applications (OAuth 2.0)</div><a aria-label="Skip link to Public Applications (OAuth 2.0)" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#public-applications-oauth-20"></a></h1>
+<p>Public applications are designed for external apps or add-ons targeted at all ServiceM8 users. Public applications have additional benefits over private applications such as:</p>
+<ul>
+<li>Potential to be listed in the <a target="_self" href="https://servicem8.com/addons">ServiceM8 Add-ons Directory</a></li>
+<li>Can send SMS and Email messages via the ServiceM8 Platform</li>
+<li>Web-hooks provide real-time data updates</li>
+<li>Seamless integration with the ServiceM8 Platform UI – including preferences, custom fields, badges and other functionality</li>
+</ul>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="getting-started-with-a-public-application"></div><div class="heading-text">Getting Started with a Public Application</div><a aria-label="Skip link to Getting Started with a Public Application" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#getting-started-with-a-public-application"></a></h2>
+<ol>
+<li>Register as a <a target="_self" href="https://www.servicem8.com/developer-registration">Development Partner</a></li>
+<li>Login to your account, then click the Developer link in the main menu</li>
+<li>Click “Add Item” to create your add-on</li>
+<li>After you save your add-on, you’ll be issued with an App Id and App Secret</li>
+<li>Implement <strong>OAuth 2.0 Authentication</strong> in order to allow your add-on to access customer’s ServiceM8 accounts</li>
+</ol>
+<blockquote class="callout callout_info" theme="📘"><h3 class="callout-heading empty"><span class="callout-icon">📘</span></h3><p>Signing up as a Development Partner, creating a Public Application, and implementing OAuth 2.0 is required in order to take advantage of some ServiceM8 APIs. This does not mean you have to make your add-on publicly available. You can create a Public Application and choose not to list it on the ServiceM8 Add-on Store.</p></blockquote>
+<h1 class="heading heading-1 header-scroll"><div class="heading-anchor anchor waypoint" id="implementing-oauth-20"></div><div class="heading-text">Implementing OAuth 2.0</div><a aria-label="Skip link to Implementing OAuth 2.0" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#implementing-oauth-20"></a></h1>
+<p>If you are already familiar with OAuth 2.0, the information you'll need to know is listed here:</p>
+<div class="rdmd-table"><div class="rdmd-table-inner"><table><thead><tr><th style="text-align: left;"></th><th style="text-align: left;"></th></tr></thead><tbody><tr><td style="text-align: left;">Authorize URL</td><td style="text-align: left;"><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">&lt;https://go.servicem8.com/oauth/authorize&gt;</span></code></td></tr><tr><td style="text-align: left;">Access Token URL</td><td style="text-align: left;"><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">&lt;https://go.servicem8.com/oauth/access_token&gt;</span></code></td></tr><tr><td style="text-align: left;">Supported grant types</td><td style="text-align: left;">authorization_code, refresh_token</td></tr><tr><td style="text-align: left;">Access Token Lifetime</td><td style="text-align: left;">3600 seconds</td></tr><tr><td style="text-align: left;">Supported Scopes</td><td style="text-align: left;">Refer to table at the bottom of this page.</td></tr></tbody></table></div></div>
+<p>If you haven't implemented OAuth 2.0 before, read on for more detailed guidance.</p>
+<p>Every app is issued an App ID and App Secret. These are shown on your app’s Store Connect page inside your partner account. Your App ID uniquely identifies your app to ServiceM8, and your App Secret serves a similar purpose to a password, allowing your app to prove its identity when required.</p>
+<blockquote class="callout callout_error" theme="❗️"><h3 class="callout-heading"><span class="callout-icon">❗️</span><p>Keep it secret, keep it safe</p></h3><p>Your App Secret (as its name suggests) must be kept secret. If a third party gets access to it, they’ll be able to impersonate your app and get access to any ServiceM8 account that your app is connected with.</p></blockquote>
+<p>There are several steps that an app must complete in sequence to authenticate against an account. At the end of the authentication process, a token is generated that allows the app to make calls to the API on behalf of an account.</p>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="initiating-authentication"></div><div class="heading-text">Initiating Authentication</div><a aria-label="Skip link to Initiating Authentication" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#initiating-authentication"></a></h2>
+<p>To initiate authentication, redirect the user to the following URL:</p>
+<pre><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">https://go.servicem8.com/oauth/authorize</span></code></pre>
+<p>with the following parameters encoded in the query string:</p>
+<div class="rdmd-table"><div class="rdmd-table-inner"><table><thead><tr><th style="text-align: left;">Parameter</th><th style="text-align: left;"></th><th style="text-align: left;">Description</th></tr></thead><tbody><tr><td style="text-align: left;">response_type</td><td style="text-align: left;">required</td><td style="text-align: left;">OAuth type. Use “code” when requesting a new access token</td></tr><tr><td style="text-align: left;">client_id</td><td style="text-align: left;">required</td><td style="text-align: left;">The App ID of your app</td></tr><tr><td style="text-align: left;">scope</td><td style="text-align: left;">required</td><td style="text-align: left;">The list of required scopes (explained below). If requesting multiple scopes, separate them with a space.</td></tr><tr><td style="text-align: left;">redirect_uri</td><td style="text-align: left;">optional</td><td style="text-align: left;">The URL that the user will be sent to once authentication is complete. This URL must be the same host as the Return URL specified in the Store Connect settings.</td></tr></tbody></table></div></div>
+<p>For example, if your App ID is 0314159, you would like to request the <button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">read_customers</span></code> and <button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">read_jobs</span></code> scopes, and your OAuth redirect url is <button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">https://myapp.example.com/HandleOAuth</span></code>, then send your user to the following URL:</p>
+<pre><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">https://go.servicem8.com/oauth/authorize?response_type=code&amp;client_id=0314159&amp;scope=read_customers%20read_jobs&amp;redirect_uri=https%3A%2F%2Fmyapp.example.com%2FHandleOAuth</span></code></pre>
+<span aria-label="Expand image" class="img lightbox closed" role="button" tabindex="0"><span class="lightbox-inner"><img alt="" class="img  " height="auto" loading="lazy" src="./Authentication_files/0b650fd-Screen_Shot_2017-03-27_at_5.54.37_PM.png" title="Screen Shot 2017-03-27 at 5.54.37 PM.png" width="auto"></span></span>
+<p>Once here, the user will be asked to grant the requested permissions.</p>
+<p>Assuming that the user grants access, ServiceM8 redirects them to the redirect_uri specified by the app with a temporary access token code as a parameter. Given the redirect URL <button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">https://myapp.example.com/HandleOAuth</span></code> the call will look like this: <button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">GET https://myapp.example.com/HandleOAuth?code=TEMP_TOKEN</span></code></p>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="exchanging-the-temporary-token"></div><div class="heading-text">Exchanging the Temporary Token</div><a aria-label="Skip link to Exchanging the Temporary Token" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#exchanging-the-temporary-token"></a></h2>
+<p>Exchange the temporary token for a permanent access token by making a HTTP POST request to the token endpoint:</p>
+<pre><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">https://go.servicem8.com/oauth/access_token</span></code></pre>
+<p>with the following POST parameters:</p>
+<div class="rdmd-table"><div class="rdmd-table-inner"><table><thead><tr><th style="text-align: left;">Parameter</th><th style="text-align: left;"></th><th style="text-align: left;">Description</th></tr></thead><tbody><tr><td style="text-align: left;">grant_type</td><td style="text-align: left;">required</td><td style="text-align: left;">OAuth grant type. Use "authorization_code"</td></tr><tr><td style="text-align: left;">client_id</td><td style="text-align: left;">required</td><td style="text-align: left;">The App ID for your app.</td></tr><tr><td style="text-align: left;">client_secret</td><td style="text-align: left;">required</td><td style="text-align: left;">The App Secret for your app.</td></tr><tr><td style="text-align: left;">code</td><td style="text-align: left;">required</td><td style="text-align: left;">The temporary token you received in the prior step.</td></tr><tr><td style="text-align: left;">redirect_uri</td><td style="text-align: left;">required</td><td style="text-align: left;">Must be identical to the redirect URI provided previously</td></tr></tbody></table></div></div>
+<p>The response will contain your Access Token as well as a Refresh Token.</p>
+<pre><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">{
+"access_token": "your_access_token_here",
+"expires_in": 3600,
+"token_type": "bearer",
+"scope": "read_customers read_jobs",
+"refresh_token": "your_refresh_token_here"
+}</span></code></pre>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="using-the-access-token"></div><div class="heading-text">Using the Access Token</div><a aria-label="Skip link to Using the Access Token" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#using-the-access-token"></a></h2>
+<p>Use the token to access the API. To do this, include the variable <button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">access_token</span></code> as a POST parameter on all requests to the API, or supply the access token, prefixed with "Bearer " on the HTTP "Authorization" header. Access Tokens have a limited lifespan (currently one hour). To continue accessing the account after the token has expired, you need to obtain a new Access Token using the Refresh Token.</p>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="using-the-refresh-token"></div><div class="heading-text">Using the Refresh Token</div><a aria-label="Skip link to Using the Refresh Token" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#using-the-refresh-token"></a></h2>
+<p>To obtain a new Access Token, make a HTTP POST request to the token endpoint</p>
+<pre><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">https://go.servicem8.com/oauth/access_token</span></code></pre>
+<p>with the following POST parameters</p>
+<div class="rdmd-table"><div class="rdmd-table-inner"><table><thead><tr><th style="text-align: left;"></th><th style="text-align: left;"></th><th style="text-align: left;"></th></tr></thead><tbody><tr><td style="text-align: left;">grant_type</td><td style="text-align: left;">required</td><td style="text-align: left;">OAuth grant type. Use "refresh_token"</td></tr><tr><td style="text-align: left;">client_id</td><td style="text-align: left;">required</td><td style="text-align: left;">The App ID for your app.</td></tr><tr><td style="text-align: left;">client_secret</td><td style="text-align: left;">required</td><td style="text-align: left;">The App Secret for your app.</td></tr><tr><td style="text-align: left;">refresh_token</td><td style="text-align: left;">required</td><td style="text-align: left;">The Refresh Token provided when you obtained the Access Token.</td></tr></tbody></table></div></div>
+<p>The response will contain your Access Token as well as a new Refresh Token.</p>
+<pre><button aria-label="Copy Code" class="rdmd-code-copy fa"></button><code class="rdmd-code lang-undefined theme-dark"><span class="cm-s-material-palenight" data-testid="SyntaxHighlighter">{
+"access_token": "your_new_access_token_here",
+"expires_in": 3600,
+"token_type": "bearer",
+"scope": "read_customers read_jobs",
+"refresh_token": "your_new_refresh_token_here"
+}</span></code></pre>
+<h1 class="heading heading-1 header-scroll"><div class="heading-anchor anchor waypoint" id="scopes"></div><div class="heading-text">Scopes</div><a aria-label="Skip link to Scopes" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#scopes"></a></h1>
+<p>Scopes are strings that enable access to particular resources, such as user data. You include a scope in certain authorization requests, which then displays appropriate permissions text in a consent dialog that is presented to a user. Once the user consents to the permissions, ServiceM8 sends your app tokens, which identify the specific authorisation grant. In other words, the scopes and tokens determine what user data the user gives your app permission to access.</p>
+<p>ServiceM8 supports incremental authorisation. This feature enables your app to request initial permissions at sign-in and additional permissions at a later time, typically just before they are needed. For example, if your app allows users to create jobs, you can ask for basic user information at sign-in, and later ask just for job creation permissions when the user is ready to create their first job. At this point, the consent dialog box asks the user only for the new permissions, which gives them a simpler, in-context decision to make. You might use this technique if you suspect users are not signing in because your consent screen is overwhelming, or are confused as to why they are being asked for certain permissions. This feature can improve your sign-in conversion rate if you configure your initial scopes to be only the minimum that your app requires to get the user started.</p>
+<p>The following scopes, with user consent, provide access to otherwise restricted user data.</p>
+<div class="rdmd-table"><div class="rdmd-table-inner"><table><thead><tr><th style="text-align: left;">Scope</th><th style="text-align: left;">Description</th></tr></thead><tbody><tr><td style="text-align: left;">staff_locations</td><td style="text-align: left;">Access to real-time GPS information about staff</td></tr><tr><td style="text-align: left;">staff_activity</td><td style="text-align: left;">Access to clock on, lunch break and clock off information about staff</td></tr><tr><td style="text-align: left;">publish_sms</td><td style="text-align: left;">Access to send SMS messages to customers and/or staff on your behalf. <strong>Note: sending SMS messages will incur account charges.</strong></td></tr><tr><td style="text-align: left;">publish_email</td><td style="text-align: left;">Access to send Email messages to customers and/or staff on your behalf</td></tr><tr><td style="text-align: left;">vendor</td><td style="text-align: left;">Access to basic account information</td></tr><tr><td style="text-align: left;">vendor_logo</td><td style="text-align: left;">Access to account logo</td></tr><tr><td style="text-align: left;">vendor_email</td><td style="text-align: left;">Access to account holder email address</td></tr><tr><td style="text-align: left;">read_locations</td><td style="text-align: left;">Read-only access to Location Endpoint</td></tr><tr><td style="text-align: left;">manage_locations</td><td style="text-align: left;">Full access to Location Endpoint</td></tr><tr><td style="text-align: left;">read_staff</td><td style="text-align: left;">Read-only access to Staff Endpoint</td></tr><tr><td style="text-align: left;">manage_staff</td><td style="text-align: left;">Full access to Staff Endpoint</td></tr><tr><td style="text-align: left;">read_customers</td><td style="text-align: left;">Read-only access to Company Endpoint</td></tr><tr><td style="text-align: left;">manage_customers</td><td style="text-align: left;">Full access to Company Endpoint</td></tr><tr><td style="text-align: left;">read_customer_contacts</td><td style="text-align: left;">Read-only access to CompanyContact Endpoint</td></tr><tr><td style="text-align: left;">manage_customer_contacts</td><td style="text-align: left;">Full access to CompanyContact Endpoint</td></tr><tr><td style="text-align: left;">read_jobs</td><td style="text-align: left;">Read-only access to Job Endpoint</td></tr><tr><td style="text-align: left;">manage_jobs</td><td style="text-align: left;">Full access to Job Endpoint</td></tr><tr><td style="text-align: left;">create_jobs</td><td style="text-align: left;">Ability to create jobs on behalf of account. <strong>Note: creating jobs may incur account charges.</strong></td></tr><tr><td style="text-align: left;">read_job_contacts</td><td style="text-align: left;">Read-only access to JobContact Endpoint</td></tr><tr><td style="text-align: left;">manage_job_contacts</td><td style="text-align: left;">Full access to JobContact Endpoint</td></tr><tr><td style="text-align: left;">read_job_materials</td><td style="text-align: left;">Read-only access to JobMaterials Endpoint</td></tr><tr><td style="text-align: left;">manage_job_materials</td><td style="text-align: left;">Full access to JobMaterials Endpoint</td></tr><tr><td style="text-align: left;">read_job_categories</td><td style="text-align: left;">Read-only access to Categories Endpoint</td></tr><tr><td style="text-align: left;">manage_job_categories</td><td style="text-align: left;">Full access to Categories Endpoint</td></tr><tr><td style="text-align: left;">read_job_queues</td><td style="text-align: left;">Read-only access to Job Queues Endpoint</td></tr><tr><td style="text-align: left;">manage_job_queues</td><td style="text-align: left;">Full access to Job Queues Endpoint</td></tr><tr><td style="text-align: left;">read_tasks</td><td style="text-align: left;">Read-only access to Tasks Endpoint</td></tr><tr><td style="text-align: left;">manage_tasks</td><td style="text-align: left;">Full access to Tasks Endpoint</td></tr><tr><td style="text-align: left;">read_schedule</td><td style="text-align: left;">Read-only access to JobActivity Endpoint</td></tr><tr><td style="text-align: left;">manage_schedule</td><td style="text-align: left;">Full access to JobActivity Endpoint</td></tr><tr><td style="text-align: left;">read_inventory</td><td style="text-align: left;">Read-only access to Materials Endpoint</td></tr><tr><td style="text-align: left;">manage_inventory</td><td style="text-align: left;">Full access to Materials Endpoint</td></tr><tr><td style="text-align: left;">read_job_notes</td><td style="text-align: left;">Read-only access to job notes</td></tr><tr><td style="text-align: left;">publish_job_notes</td><td style="text-align: left;">Ability to add new job notes</td></tr><tr><td style="text-align: left;">read_job_photos</td><td style="text-align: left;">Read-only access to job photos</td></tr><tr><td style="text-align: left;">publish_job_photos</td><td style="text-align: left;">Ability to add new job photos</td></tr><tr><td style="text-align: left;">read_job_attachments</td><td style="text-align: left;">Read-only access to existing job attachments, quotes and invoices</td></tr><tr><td style="text-align: left;">publish_job_attachments</td><td style="text-align: left;">Ability to add new file attachments to jobs</td></tr><tr><td style="text-align: left;">read_inbox</td><td style="text-align: left;">Read-only access to inbox messages</td></tr><tr><td style="text-align: left;">read_messages</td><td style="text-align: left;">Read-only access to staff messages</td></tr><tr><td style="text-align: left;">manage_notifications</td><td style="text-align: left;">Ability to read notifications and mark as read</td></tr><tr><td style="text-align: left;">manage_templates</td><td style="text-align: left;">Full access to email, sms and document templates</td></tr><tr><td style="text-align: left;">manage_badges</td><td style="text-align: left;">Full access to create/modify job badges</td></tr><tr><td style="text-align: left;">read_assets</td><td style="text-align: left;">Read-only access to Assets, AssetType and AssetTypeField endpoints</td></tr><tr><td style="text-align: left;">manage_assets</td><td style="text-align: left;">Full access to Asset, AssetType and AssetTypeField endpoints</td></tr></tbody></table></div></div>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="user-impersonation"></div><div class="heading-text">User Impersonation</div><a aria-label="Skip link to User Impersonation" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#user-impersonation"></a></h2>
+<p>By default your app will receive the full privileges you have been granted by the user. For some requests it is desirable to POST data as a given account user rather than as your app itself. Eg. If you are a staff messaging app, you would post messages to other staff on behalf of the current user authenticated with your app. User impersonation automatically implements security for a given user, for example querying the jobs endpoint for all jobs as a restricted staff member will result in only records being returned that specific staff member is authorised to view.</p>
+<p>To impersonate an account user, you must set the header “x-impersonate-uuid” in your API GET/POST/PUT/DELETE request.  ‘x-impersonate-uuid’ must be an active, valid staff uuid for the current account.</p>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="connecting-your-app-from-the-servicem8-add-on-store"></div><div class="heading-text">Connecting your App from the ServiceM8 Add-on Store</div><a aria-label="Skip link to Connecting your App from the ServiceM8 Add-on Store" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#connecting-your-app-from-the-servicem8-add-on-store"></a></h2>
+<p>If your app is installed from the ServiceM8 Add-on Store then the user will be redirected to your default app URL as defined in the app’s store connect settings. You will then have to start the auth process as described above.</p>
+<h2 class="heading heading-2 header-scroll"><div class="heading-anchor anchor waypoint" id="revoking-access-to-a-token-or-application"></div><div class="heading-text">Revoking access to a token or application</div><a aria-label="Skip link to Revoking access to a token or application" class="heading-anchor-icon fa fa-regular fa-anchor" href="https://developer.servicem8.com/docs/authentication#revoking-access-to-a-token-or-application"></a></h2>
+<p>At any time, a user can revoke access to any connected application by disabling the Add-on from within the ServiceM8 Add-on Store.</p></div><div class="UpdatedAt"><p class="DateLine "><i class="icon icon-watch"></i>Updated about 1 month ago </p></div><hr class="NextStepsDivider"><nav aria-label="Pagination Controls" class="PaginationControlsjDYuqu8pBMUy rm-Pagination"><a class="PaginationControls-link254uPEbaP92i PaginationControls-link_left1G58BmNHDbVm" aria-label="Previous Page: Getting Started" href="https://developer.servicem8.com/docs/getting-started"><span class="PaginationControls-iconZbaZ3tgyhNmI icon-arrow-left2"></span><div class="PaginationControls-text3qEXHZU00znD PaginationControls-text_left3wBkn4C9R0W_">Getting Started</div></a><a class="PaginationControls-link254uPEbaP92i PaginationControls-link_right5lsfuICZqXYk" aria-label="Next Page: HTTP Response Codes" href="https://developer.servicem8.com/docs/http-response-codes"><div class="PaginationControls-text3qEXHZU00znD PaginationControls-text_right3EIfWubgRVVP">HTTP Response Codes</div><span class="PaginationControls-iconZbaZ3tgyhNmI icon-arrow-right2"></span></a></nav><div class="rm-PageThumbs PageThumbs"><div class="PageThumbs-helpful">Did this page help you?<div class="PageThumbs-cta"><div class="Dropdown Dropdown_closed" data-testid="dropdown-container"><button aria-haspopup="dialog" class="Button Button_sm PageThumbs-button Dropdown-toggle Button_secondary Button_secondary_text" type="button" aria-expanded="false"><i class="icon icon-thumbs-up-2"></i><span>Yes</span></button></div><div class="Dropdown Dropdown_closed" data-testid="dropdown-container"><button aria-haspopup="dialog" class="Button Button_sm PageThumbs-button Dropdown-toggle Button_secondary Button_secondary_text" type="button" aria-expanded="false"><i class="icon icon-thumbs-down1"></i><span>No</span></button></div></div></div></div></section><section class="content-toc grid-25"><div class="AIDropdowngihKW2xXVnay " style="display:flex;justify-content:flex-start;width:100%;margin-bottom:1rem;z-index:50"><div class="Dropdown Dropdown_closed" data-testid="dropdown-container"><button aria-haspopup="dialog" class="Button Button_sm Dropdown-toggle Button_secondary Button_secondary_outline" type="button" aria-expanded="false"><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a" data-name="sparkles" role="img" style="--icon-color:inherit;--icon-size:inherit;--icon-stroke-width:2px"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M15.784 2c0 3.714-2.001 7.06-5.715 7.06 3.714 0 5.715 3.347 5.715 7.06 0-3.713 2.002-7.06 5.716-7.06-3.714 0-5.716-3.346-5.716-7.06Z" class="sparkles_svg__no-merge icon-stroke-width"></path><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M6.37 12.759c0 2.228-2.142 4.37-4.37 4.37 2.228 0 4.37 2.143 4.37 4.371 0-2.228 2.143-4.37 4.371-4.37-2.228 0-4.37-2.143-4.37-4.371Z" class="icon-stroke-width"></path></svg></span><span>Ask AI</span><span class="IconWrapper Icon-wrapper2z2wVIeGsiUy"><svg fill="none" viewBox="0 0 24 24" class="Icon Icon3_D2ysxFZ_ll Icon-svg2Lm7f6G9Ly5a" data-name="chevron-down" role="img" style="--icon-color:inherit;--icon-size:inherit;--icon-stroke-width:2px"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" class="icon-stroke-width"></path></svg></span></button></div></div><nav aria-label="Table of contents" role="navigation"><ul class="toc-list"><li><a class="tocHeader" href="https://developer.servicem8.com/docs/authentication#"><i class="icon icon-text-align-left"></i>Table of Contents</a></li><li class="toc-children"><ul>
+<li>
+<a href="https://developer.servicem8.com/docs/authentication#private-applications-api-key">Private Applications (API Key)</a>
+</li>
+<li>
+<ul>
+<li><a href="https://developer.servicem8.com/docs/authentication#getting-started-with-a-private-application">Getting Started with a Private Application</a></li>
+</ul>
+</li>
+<li>
+<a href="https://developer.servicem8.com/docs/authentication#public-applications-oauth-20">Public Applications (OAuth 2.0)</a>
+</li>
+<li>
+<ul>
+<li><a href="https://developer.servicem8.com/docs/authentication#getting-started-with-a-public-application">Getting Started with a Public Application</a></li>
+</ul>
+</li>
+<li>
+<a href="https://developer.servicem8.com/docs/authentication#implementing-oauth-20">Implementing OAuth 2.0</a>
+</li>
+<li>
+<ul>
+<li><a href="https://developer.servicem8.com/docs/authentication#initiating-authentication">Initiating Authentication</a></li>
+<li><a href="https://developer.servicem8.com/docs/authentication#exchanging-the-temporary-token">Exchanging the Temporary Token</a></li>
+<li><a href="https://developer.servicem8.com/docs/authentication#using-the-access-token">Using the Access Token</a></li>
+<li><a href="https://developer.servicem8.com/docs/authentication#using-the-refresh-token">Using the Refresh Token</a></li>
+</ul>
+</li>
+<li>
+<a href="https://developer.servicem8.com/docs/authentication#scopes">Scopes</a>
+</li>
+<li>
+<ul>
+<li><a href="https://developer.servicem8.com/docs/authentication#user-impersonation">User Impersonation</a></li>
+<li><a href="https://developer.servicem8.com/docs/authentication#connecting-your-app-from-the-servicem8-add-on-store">Connecting your App from the ServiceM8 Add-on Store</a></li>
+<li><a href="https://developer.servicem8.com/docs/authentication#revoking-access-to-a-token-or-application">Revoking access to a token or application</a></li>
+</ul>
+</li>
+</ul></li></ul></nav></section></div><div class="ModalWrapper" id="tutorialmodal-root"></div></article></div></main><footer aria-label="Status banner" class="Footer2U8XAPoGhlgO AppFooter rm-Banners"></footer><div class="ModalWrapper" id="ChatGPT-modal"></div></div></div></div><div class="ng-non-bindable"></div><div id="hub-container"><div class="hub-container"><div state-container="" ng-attr-id="{{state.current().root !== &#39;docs&#39; &amp;&amp; &#39;react-app-content-container&#39;}}"><div id="replace-view" ng-non-bindable=""></div></div></div></div><script>var is_hub = true;
+var is_hub2 = true;
+var is_hub_edit = true;
+</script><div id="ssr-end"><script id="__LOADABLE_REQUIRED_CHUNKS__" type="application/json">[32852,32461,47783,21456,63859,74935,13766,6146,46123,88836,58577,13221,87327,90441,25420,66233,27449,30076,6094,86471,18032,93536,38719,61924,48424,76099,22916,27775,7133,97356,20968,45798]</script><script id="__LOADABLE_REQUIRED_CHUNKS___ext" type="application/json">{"namedChunks":["routes-SuperHub","ViewContainer","Header","core-icons-chevron-down-svg","core-icons-chevron-up-down-svg","SuperHubSearch","core-icons-search-svg","core-icons-custom-pages-svg","Doc","ConnectMetadata","RMDX","core-icons-sparkles-svg","Footer"]}</script>
+<script async="" data-chunk="main" src="./Authentication_files/main.cca60119c3f81f7b9110.js.download"></script>
+<script async="" data-chunk="routes-SuperHub" src="./Authentication_files/routes-SuperHub.e7201ec660d930b365c0.js.download"></script>
+<script async="" data-chunk="ViewContainer" src="./Authentication_files/ViewContainer.5ac502abd005f7d4eb3d.js.download"></script>
+<script async="" data-chunk="Header" src="./Authentication_files/47783.0f7c56c62fc10878ce5e.js.download"></script>
+<script async="" data-chunk="Header" src="./Authentication_files/Header.413fc99eb4b7942c7bce.js.download"></script>
+<script async="" data-chunk="core-icons-chevron-down-svg" src="./Authentication_files/core-icons-chevron-down-svg.b37ee8d002dd6fea2dba.js.download"></script>
+<script async="" data-chunk="core-icons-chevron-up-down-svg" src="./Authentication_files/core-icons-chevron-up-down-svg.2c9b648549c0893e8de2.js.download"></script>
+<script async="" data-chunk="SuperHubSearch" src="./Authentication_files/13766.d772ba54efb1db56d529.js.download"></script>
+<script async="" data-chunk="SuperHubSearch" src="./Authentication_files/6146.f99bcbc8d654cc36d7c8.js.download"></script>
+<script async="" data-chunk="SuperHubSearch" src="./Authentication_files/46123.46633d26b7849f653406.js.download"></script>
+<script async="" data-chunk="SuperHubSearch" src="./Authentication_files/88836.466db83f0dbc8536e6f1.js.download"></script>
+<script async="" data-chunk="SuperHubSearch" src="./Authentication_files/SuperHubSearch.94d27d614400b7a82c08.js.download"></script>
+<script async="" data-chunk="core-icons-search-svg" src="./Authentication_files/core-icons-search-svg.9522d3b19e12528c84ee.js.download"></script>
+<script async="" data-chunk="core-icons-custom-pages-svg" src="./Authentication_files/core-icons-custom-pages-svg.4f3969d33dddd2c22bb8.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/90441.7bad24d6a8cd0ef6f53c.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/25420.2a9bf013c9a9f3ab2a2f.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/66233.35c2c9a2409d4345ebe7.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/27449.8f05501196c10ee6f862.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/30076.62be91016e7795fe6011.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/6094.c405a2f09cbadc9e00c1.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/86471.7195cb9b316d7a2bf4e6.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/18032.79db439693732b7000bc.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/93536.0bb94a650b15ab0c538e.js.download"></script>
+<script async="" data-chunk="Doc" src="./Authentication_files/Doc.79b9628e6ccbf0ad31a9.js.download"></script>
+<script async="" data-chunk="ConnectMetadata" src="./Authentication_files/ConnectMetadata.9ef97cde9449ebeb0a52.js.download"></script>
+<script async="" data-chunk="RMDX" src="./Authentication_files/48424.bb37c5885520ec98c35d.js.download"></script>
+<script async="" data-chunk="RMDX" src="./Authentication_files/76099.12d0b66c229e6904d9da.js.download"></script>
+<script async="" data-chunk="RMDX" src="./Authentication_files/22916.2128d8c0a6b97f1d2910.js.download"></script>
+<script async="" data-chunk="RMDX" src="./Authentication_files/27775.50ecf3dd2e85dc4552f0.js.download"></script>
+<script async="" data-chunk="RMDX" src="./Authentication_files/7133.e5893646db789b45bdf4.js.download"></script>
+<script async="" data-chunk="RMDX" src="./Authentication_files/RMDX.27e434c7c45c48ac0088.js.download"></script>
+<script async="" data-chunk="core-icons-sparkles-svg" src="./Authentication_files/core-icons-sparkles-svg.206fb8be485598ad4981.js.download"></script>
+<script async="" data-chunk="Footer" src="./Authentication_files/Footer.decd52d8e0c7e075b206.js.download"></script></div><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+</script><script>ga('create', 'UA-238195-28', 'auto', {'name': 'custom'});
+$(window).on('pageLoad', function(e, state){
+  ga('custom.send', 'pageview', window.location.pathname);
+});
+</script><script id="hub-me" type="application/json" data-json="{&quot;loggedIn&quot;:true,&quot;search&quot;:{&quot;app&quot;:&quot;T28YKFATPY&quot;,&quot;token&quot;:&quot;MDE0ODJjZWFjOTIyY2NiMDUzNWE2NzAyZjE1NmNmNTkzNWNkMzNlYTMzOWU0NzU0ZWUwYjdiYTZjMjdkYjU1NXRhZ0ZpbHRlcnM9KHByb2plY3Q6NThkOGE1MDg4NTI4ZDEwZjAwMGJlMTY1KSwodmVyc2lvbjpub25lLHZlcnNpb246NThkOGE1MDg4NTI4ZDEwZjAwMGJlMTY4KSwoaGlkZGVuOm5vbmUsaGlkZGVuOmZhbHNlKSwoaW5kZXg6Q3VzdG9tUGFnZSxpbmRleDpQYWdlLGluZGV4OkRpc2N1c3Mp&quot;,&quot;filters&quot;:&quot;tagFilters=(project:58d8a5088528d10f000be165),(version:none,version:58d8a5088528d10f000be168),(hidden:none,hidden:false),(index:CustomPage,index:Page,index:Discuss)&quot;,&quot;metaData&quot;:[{&quot;modules&quot;:{&quot;landing&quot;:true,&quot;docs&quot;:true,&quot;examples&quot;:true,&quot;reference&quot;:true,&quot;changelog&quot;:false,&quot;discuss&quot;:true,&quot;suggested_edits&quot;:true,&quot;logs&quot;:true,&quot;custompages&quot;:true,&quot;tutorials&quot;:false,&quot;graphql&quot;:false},&quot;id&quot;:&quot;58d8a5088528d10f000be165&quot;,&quot;name&quot;:&quot;ServiceM8&quot;,&quot;subdomain&quot;:&quot;servicem8&quot;,&quot;subpath&quot;:&quot;&quot;,&quot;nav_names&quot;:{&quot;discuss&quot;:&quot;&quot;,&quot;reference&quot;:&quot;&quot;,&quot;docs&quot;:&quot;&quot;,&quot;changelog&quot;:&quot;&quot;,&quot;tutorials&quot;:&quot;&quot;,&quot;recipes&quot;:&quot;&quot;}}]},&quot;isAdmin&quot;:false,&quot;isEditor&quot;:false,&quot;user&quot;:{&quot;jti&quot;:&quot;8ae9bfed8046a5e3186c9b77cf4cf8ba&quot;,&quot;iat&quot;:1753162093,&quot;name&quot;:&quot;Akhil&quot;,&quot;email&quot;:&quot;akhilpalla@webuildtrades.co&quot;,&quot;version&quot;:1,&quot;user&quot;:&quot;akhilpalla@webuildtrades.co&quot;,&quot;pass&quot;:null,&quot;keys&quot;:[{&quot;apiKey&quot;:&quot;smk-b871b6-a2da60baa52622d6-e797ab6d16bb61d4&quot;,&quot;key&quot;:&quot;a2da60baa52622d6&quot;,&quot;name&quot;:&quot;tbs&quot;}]},&quot;_id&quot;:&quot;687e2ffe7c770f24a1dd3227&quot;}"></script><script id="readme-data-baseUrl" type="application/json"></script><div id="__memex-ext-installed-detection-element" style="display: none !important;"></div><div id="memex-ribbon-container" class="ignore-react-onclickoutside"><template shadowrootmode="open"><link type="text/css" rel="stylesheet" href="chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/content_script_ribbon.css"><style>:host {all: initial, font-family: "Satoshi"} :host * {font-family: "Satoshi"; line-height: initial}</style> <link rel="stylesheet" href="chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/satoshi.css"><div id="memex-ribbon" class="memex-ribbon"><div id="memex-ribbon-holder" class="RibbonHolderBox-sc-1uvmk86-0 fGmpWi"><div class="IconContainer-ora2bj-9 fkbug"><span color="greyScale7" class="sc-eCssSg cQsSvp MemexIcons"><div color="greyScale7" class="sc-hKgILt gZfbwo"></div></span></div></div></div><style data-styled="active" data-styled-version="5.2.1"></style></template></div><div id="memex-tooltip-container" class="ignore-react-onclickoutside"><template shadowrootmode="open"><style>:host {all: initial, font-family: "Satoshi"} :host * {font-family: "Satoshi"; line-height: initial}</style> <link rel="stylesheet" href="chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/satoshi.css"><div id="memex-tooltip" class="memex-tooltip"><div id="memex-tooltip-host" class="sc-jmhFOf bJhWCx"></div></div><style data-styled="active" data-styled-version="5.2.1"></style></template></div><div class="Toaster29sH7yT1IQRM" style="position: fixed; inset: 16px; pointer-events: none;"></div><div id="memex-sidebar-container" class="ignore-react-onclickoutside"><template shadowrootmode="open"><link type="text/css" rel="stylesheet" href="chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/content_script_sidebar.css"><style>:host {all: initial, font-family: "Satoshi"} :host * {font-family: "Satoshi"; line-height: initial}</style> <link rel="stylesheet" href="chrome-extension://abkfbakhjpmblaafnpgjppbmioombali/fonts/Satoshi/satoshi.css"><div id="memex-sidebar" class="memex-sidebar"><div id="annotationSidebarContainer" class="ContainerStyled-sc-17yu5om-4 cZvlJO"><div class="sidebar-draggable react-draggable" style="position: relative; user-select: auto; width: 430px; height: auto; display: inline-block; top: 0px; left: unset; cursor: auto; right: 0px; z-index: 3; transform: translate(0px, 0px); max-width: 1000px; max-height: 9.0072e+15px; min-width: 390px; box-sizing: border-box; flex-shrink: 0;"><div class="ResultBodyContainer-sc-1ahuxps-124 jcgzWP"><div class="TopBar-sc-1ahuxps-96 bjionV"><div class="TopBarContainer-sc-1ahuxps-99 iryunH"><div class="TopBarTabsContainer-sc-1ahuxps-100 bLPtXm"><div class="TopBarButtonContainer-sc-1ahuxps-129 hDJREH"><div height="30px" type="menuBar" class="sc-ljRboo lozGJR PrimaryAction"><div class="sc-jmhFOf eqXZZZ"><span class="sc-jSgupP hjOcQh MemexIcons"><div class="sc-eCssSg fNjJyK"></div></span><span type="menuBar" class="sc-httYMd bhPret">Notes</span></div></div> </div><div class="TopBarButtonContainer-sc-1ahuxps-129 hDJREH"><div height="30px" type="menuBar" class="sc-ljRboo kdPuwH PrimaryAction"><div class="sc-jmhFOf eqXZZZ"><span class="sc-jSgupP hjOcQh MemexIcons"><div class="sc-eCssSg LkbJs"></div></span><span type="menuBar" class="sc-httYMd bhPret">Ask</span></div></div></div><div class="TopBarButtonContainer-sc-1ahuxps-129 hDJREH"><div height="30px" type="menuBar" class="sc-ljRboo kBPdva PrimaryAction"><div class="sc-jmhFOf eqXZZZ"><span color="prime1" class="sc-jSgupP hjOcQh MemexIcons"><div color="prime1" class="sc-eCssSg kldJNs"></div></span><span type="menuBar" class="sc-httYMd jWAxfx">Cite</span></div></div></div></div></div></div><div class="AnnotationsSectionStyled-sc-1ahuxps-122 cdxfmY"><div class="SuggestionsListSwitcher-sc-1ahuxps-18 fwUHLi"><div class="SuggestionsSwitcherButton-sc-1ahuxps-19 buCRUy">All Notes </div><div class="SuggestionsSwitcherButton-sc-1ahuxps-19 jOdyje">By Spaces </div></div><div id="AnnotationSectionScrollContainer" class="AnnotationSectionScrollContainer-sc-1ahuxps-121 hIfUrI"><div class="MarginDiv-iqczrq-0 bknXAb FollowedListNotesContainer-sc-1ahuxps-104 kMQiQq"><div class="TopAreaContainer-sc-1ahuxps-89 hKrmkO"><div class="NewAnnotationBoxMyAnnotations-sc-1ahuxps-85 hRGKFp"><section class="NewAnnotationSection-sc-1ahuxps-120 epVczL"><div class="TextBoxContainerStyled-sc-1ka3njf-10 fvrQbX"><div class="MarginDiv-iqczrq-0 grnmKh EditorContainer-sc-1ka3njf-0 fXmXuc"><div height="auto" class="sc-GqfZa ishkkQ"><div lang="en" class="ProseMirrorContainer"><div class="tiptap ProseMirror" contenteditable="true" tabindex="0" translate="no"><p data-placeholder="Write your note. Use #hashtags or [[WikiLinks]] to add Spaces. ( ? ) for formatting help." class="is-empty placeholder-empty"><br class="ProseMirror-trailingBreak"></p></div></div><div class="sc-gGmIRh gygBic"><div class="sc-fbkhIv jsBTxA"><div class="sc-dlfnbm eHBfOX"><span disabled="" class="sc-jSgupP bTqnOD MemexIcons"><div disabled="" class="sc-eCssSg seqS"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg eQIvmQ"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg kjTWBl"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg iTLwze"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg dkjPrx"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg gDbWrK"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg gxJGWM"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg eVtNWY"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg gqtXcZ"></div></span></div><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg dOEWQD"></div></span></div></div><div class="sc-clsHhM dcyGMh"><div class="sc-dlfnbm eHBfOX"><span class="sc-jSgupP bTqnOD MemexIcons"><div class="sc-eCssSg cpyruy"></div></span></div></div></div></div></div></div></section></div></div><div class="EmptyMessageContainer-sc-1ahuxps-102 ksYwvU"><div class="sc-eWVKcp gNvvWG"><div class="sc-iGctRS iFYpTZ"><span color="prime1" class="sc-jSgupP hjOcQh MemexIcons"><div color="prime1" class="sc-eCssSg VuXHI"></div></span></div></div><div class="InfoText-sc-1ahuxps-103 jJxdzX">Add a note or highlight sections of the page</div></div></div><div height="120" class="Spacer-sc-1ahuxps-140 iwugOz"></div></div></div></div><div class="sidebarResizeHandle"><div class="" style="position: absolute; user-select: none; width: 10px; height: 100%; top: 0px; left: -5px; cursor: col-resize;"></div></div></div></div></div><style data-styled="active" data-styled-version="5.2.1"></style></template></div></body></html>
