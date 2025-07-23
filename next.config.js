@@ -8,6 +8,7 @@ const nextConfig = {
     domains: ['npeajhtemjbcpnhsqknf.supabase.co', 'tradebusinessschool.com']
   },
   reactStrictMode: true,
+  swcMinify: false, // Disable SWC minification
   compiler: {
     removeConsole: {
       exclude: ['error'],

@@ -97,10 +97,10 @@ const serverCache = {
           .eq('user_id', userId);
       }
 
-      // Store fresh data in cache
-      const { error: insertError } = await supabase
+      // Store fresh data in cache using upsert to handle duplicates
+      const { error: upsertError } = await supabase
         .from('app_cache')
-        .insert({
+        .upsert({
           cache_key: cacheKey,
           user_id: userId,
           cache_type: 'user_data',
@@ -108,18 +108,8 @@ const serverCache = {
           expires_at: expiresAt.toISOString()
         });
 
-      if (insertError) {
-        console.error('❌ [Cache] Error inserting user data cache:', insertError);
-        // If insert fails, try upsert as fallback
-        await supabase
-          .from('app_cache')
-          .upsert({
-            cache_key: cacheKey,
-            user_id: userId,
-            cache_type: 'user_data',
-            data: freshData,
-            expires_at: expiresAt.toISOString()
-          });
+      if (upsertError) {
+        console.error('❌ [Cache] Error upserting user data cache:', upsertError);
       }
 
       console.log('✅ [Cache] User data cached successfully');
