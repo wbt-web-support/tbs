@@ -1,7 +1,7 @@
 import { QuickBooksAPISimplified } from './quickbooks-api';
 
 export type PeriodType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
-export type KPIType = 'revenue' | 'gross_profit' | 'job_completion_rate' | 'quote_conversion_rate' | 'average_job_value' | 'customer_satisfaction';
+export type KPIType = 'revenue' | 'gross_profit' | 'average_job_value';
 
 export interface KPIResult {
   kpi_type: KPIType;
@@ -45,14 +45,11 @@ export class QuickBooksKPICalculator {
     const { startDate, endDate } = this.getPeriodRange(periodType, customStart, customEnd);
     const { startDate: prevStartDate, endDate: prevEndDate } = this.getPreviousPeriodRange(periodType, startDate, endDate);
 
-    // Calculate each KPI
+    // Calculate only accurate KPIs
     const kpis: KPIType[] = [
       'revenue',
       'gross_profit', 
-      'job_completion_rate',
-      'quote_conversion_rate',
-      'average_job_value',
-      'customer_satisfaction'
+      'average_job_value'
     ];
 
     for (const kpiType of kpis) {
@@ -121,32 +118,11 @@ export class QuickBooksKPICalculator {
         metadata = profitResult.metadata;
         break;
 
-      case 'job_completion_rate':
-        const completionResult = this.calculateJobCompletionRate(data, startDate, endDate, prevStartDate, prevEndDate);
-        currentValue = completionResult.current;
-        previousValue = completionResult.previous;
-        dataPoints = completionResult.dataPoints;
-        break;
-
-      case 'quote_conversion_rate':
-        const conversionResult = this.calculateQuoteConversionRate(data, startDate, endDate, prevStartDate, prevEndDate);
-        currentValue = conversionResult.current;
-        previousValue = conversionResult.previous;
-        dataPoints = conversionResult.dataPoints;
-        break;
-
       case 'average_job_value':
         const avgValueResult = this.calculateAverageJobValue(data, startDate, endDate, prevStartDate, prevEndDate);
         currentValue = avgValueResult.current;
         previousValue = avgValueResult.previous;
         dataPoints = avgValueResult.dataPoints;
-        break;
-
-      case 'customer_satisfaction':
-        const satisfactionResult = this.calculateCustomerSatisfaction(data, startDate, endDate, prevStartDate, prevEndDate);
-        currentValue = satisfactionResult.current;
-        previousValue = satisfactionResult.previous;
-        dataPoints = satisfactionResult.dataPoints;
         break;
     }
 

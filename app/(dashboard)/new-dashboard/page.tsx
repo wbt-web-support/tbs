@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import EnvironmentChecker from '@/components/env-checker';
-import AccountPropertyModal from '@/components/account-property-modal';
-import RealAnalyticsViewer from '@/components/real-analytics-viewer';
+import AccountPropertyModal from '@/app/(dashboard)/dashboard/components/account-property-modal';
+import RealAnalyticsViewer from '@/app/(dashboard)/dashboard/components/real-analytics-viewer';
 import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

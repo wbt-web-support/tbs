@@ -2,6 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { QuickBooksKPICalculator, PeriodType, KPIType } from "@/lib/quickbooks-kpi";
 
+// Helper function to generate historical data for charts
+async function generateHistoricalData(userId: string, periodType: PeriodType, customStart?: Date, customEnd?: Date) {
+  const kpiCalculator = new QuickBooksKPICalculator();
+  const history = [];
+  
+  // Generate data for the last 12 periods
+  const endDate = customEnd || new Date();
+  const startDate = customStart || new Date(endDate.getTime() - (12 * 30 * 24 * 60 * 60 * 1000)); // 12 months back
+  
+  // Create data points for each period
+  for (let i = 0; i < 12; i++) {
+    const periodEnd = new Date(endDate.getTime() - (i * 30 * 24 * 60 * 60 * 1000));
+    const periodStart = new Date(periodEnd.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    try {
+      const kpis = await kpiCalculator.getAllKPIs(userId, periodType, periodStart, periodEnd);
+      
+      const dataPoint = {
+        date: periodEnd.toISOString().split('T')[0],
+        revenue: kpis.find(k => k.kpi_type === 'revenue')?.current_value || 0,
+        gross_profit: kpis.find(k => k.kpi_type === 'gross_profit')?.current_value || 0,
+        average_job_value: kpis.find(k => k.kpi_type === 'average_job_value')?.current_value || 0,
+      };
+      
+      history.push(dataPoint);
+    } catch (error) {
+      console.error(`Error generating historical data for period ${i}:`, error);
+    }
+  }
+  
+  return history.reverse(); // Return in chronological order
+}
+
 // Helper function to get user ID from request
 async function getUserId() {
   try {
@@ -27,6 +60,7 @@ export async function GET(request: NextRequest) {
     const kpiType = searchParams.get('kpi') as KPIType;
     const startDate = searchParams.get('start');
     const endDate = searchParams.get('end');
+    const includeHistory = searchParams.get('include_history') === 'true';
 
     const kpiCalculator = new QuickBooksKPICalculator();
 
@@ -35,41 +69,28 @@ export async function GET(request: NextRequest) {
     const customEnd = endDate ? new Date(endDate) : undefined;
 
     if (kpiType) {
-      // Get specific KPI
-      let result;
-      switch (kpiType) {
-        case 'revenue':
-          result = await kpiCalculator.calculateRevenue(userId, periodType, customStart, customEnd);
-          break;
-        case 'gross_profit':
-          result = await kpiCalculator.calculateGrossProfit(userId, periodType, customStart, customEnd);
-          break;
-        case 'job_completion_rate':
-          result = await kpiCalculator.calculateJobCompletionRate(userId, periodType, customStart, customEnd);
-          break;
-        case 'quote_conversion_rate':
-          result = await kpiCalculator.calculateQuoteConversionRate(userId, periodType, customStart, customEnd);
-          break;
-        case 'average_job_value':
-          result = await kpiCalculator.calculateAverageJobValue(userId, periodType, customStart, customEnd);
-          break;
-        case 'customer_satisfaction':
-          result = await kpiCalculator.calculateCustomerSatisfaction(userId, periodType, customStart, customEnd);
-          break;
-        default:
-          return NextResponse.json({ error: "Invalid KPI type" }, { status: 400 });
+      // Get specific KPI - use getAllKPIs and filter
+      const results = await kpiCalculator.getAllKPIs(userId, periodType, customStart, customEnd);
+      const result = results.find(kpi => kpi.kpi_type === kpiType);
+      
+      if (!result) {
+        return NextResponse.json({ error: "Invalid KPI type" }, { status: 400 });
       }
-
-      // Save the snapshot
-      await kpiCalculator.saveKPISnapshot(userId, result);
 
       return NextResponse.json({ kpi: result });
     } else {
       // Get all KPIs
       const results = await kpiCalculator.getAllKPIs(userId, periodType, customStart, customEnd);
       
+      // If history is requested, generate historical data
+      let history = null;
+      if (includeHistory) {
+        history = await generateHistoricalData(userId, periodType, customStart, customEnd);
+      }
+      
       return NextResponse.json({ 
         kpis: results,
+        history,
         period: periodType,
         calculatedAt: new Date().toISOString()
       });
@@ -106,39 +127,9 @@ export async function POST(request: NextRequest) {
 
     if (kpiTypes && Array.isArray(kpiTypes)) {
       // Calculate specific KPIs
-      const results = [];
+      const allResults = await kpiCalculator.getAllKPIs(userId, periodType, customStart, customEnd);
+      const results = allResults.filter(kpi => kpiTypes.includes(kpi.kpi_type));
       
-      for (const kpiType of kpiTypes) {
-        let result;
-        switch (kpiType) {
-          case 'revenue':
-            result = await kpiCalculator.calculateRevenue(userId, periodType, customStart, customEnd);
-            break;
-          case 'gross_profit':
-            result = await kpiCalculator.calculateGrossProfit(userId, periodType, customStart, customEnd);
-            break;
-          case 'job_completion_rate':
-            result = await kpiCalculator.calculateJobCompletionRate(userId, periodType, customStart, customEnd);
-            break;
-          case 'quote_conversion_rate':
-            result = await kpiCalculator.calculateQuoteConversionRate(userId, periodType, customStart, customEnd);
-            break;
-          case 'average_job_value':
-            result = await kpiCalculator.calculateAverageJobValue(userId, periodType, customStart, customEnd);
-            break;
-          case 'customer_satisfaction':
-            result = await kpiCalculator.calculateCustomerSatisfaction(userId, periodType, customStart, customEnd);
-            break;
-          default:
-            continue;
-        }
-        
-        if (result) {
-          await kpiCalculator.saveKPISnapshot(userId, result);
-          results.push(result);
-        }
-      }
-
       return NextResponse.json({ 
         kpis: results,
         recalculatedAt: new Date().toISOString()

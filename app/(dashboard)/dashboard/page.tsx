@@ -3,16 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import EnvironmentChecker from '@/components/env-checker';
-import AccountPropertyModal from '@/components/account-property-modal';
-import RealAnalyticsViewer from '@/components/real-analytics-viewer';
+import AccountPropertyModal from '@/app/(dashboard)/dashboard/components/account-property-modal';
+import RealAnalyticsViewer from '@/app/(dashboard)/dashboard/components/real-analytics-viewer';
+import DashboardSidebar from '@/app/(dashboard)/dashboard/components/dashboard-sidebar';
 import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
-import { AnalyticsDashboardSkeleton, CustomerReviewsSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
-import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/customer-reviews-summary';
-import ZapierMappingsDisplay from '@/app/(dashboard)/dashboard/components/zapier-mappings-display';
+import IntegrationsDashboard from '@/app/(dashboard)/dashboard/components/integrations-dashboard';
 import { trackActivity } from '@/utils/points';
 import {
   BarChart3,
@@ -406,8 +405,6 @@ export default function NewDashboard() {
               </CardContent>
             </Card>
 
-            {/* Analytics Dashboard Skeleton */}
-            <AnalyticsDashboardSkeleton />
           </div>
         )}
 
@@ -537,23 +534,31 @@ export default function NewDashboard() {
                 </CardContent>
               </Card>
             )}
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div className="lg:col-span-2">
+    <IntegrationsDashboard 
+      isConnected={isConnected}
+      connectedProperty={connectedProperty}
+      onConnect={handleConnect}
+      onDisconnect={handleDisconnect}
+      onChangeProperty={handleChangeProperty}
+      onRefresh={handleRefreshAnalytics}
+      refreshing={refreshing}
+      adminProfile={adminProfile}
+      customerReviewsLoading={customerReviewsLoading}
+    />
+  </div>
+  <div>
+    <DashboardSidebar
+      adminProfile={adminProfile}
+      customerReviewsLoading={customerReviewsLoading}
+    />
+  </div>
+</div>
 
-            {/* Analytics Dashboard with Staggered Loading */}
-            {!showAnalytics ? (
-              <AnalyticsDashboardSkeleton />
-            ) : (
-              <RealAnalyticsViewer 
-                isConnected={isConnected}
-                connectedProperty={connectedProperty}
-                onConnect={handleConnect}
-                onDisconnect={handleDisconnect}
-                onChangeProperty={handleChangeProperty}
-                onRefresh={handleRefreshAnalytics}
-                refreshing={refreshing}
-                adminProfile={adminProfile}
-                customerReviewsLoading={customerReviewsLoading}
-              />
-            )}
+
+
+         
 
          
           </div>

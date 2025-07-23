@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; 
 import { Label } from "@/components/ui/label";
 import { 
   CreditCard, 
@@ -18,8 +18,6 @@ import {
   ExternalLink,
   AlertTriangle,
   Database,
-  Calendar,
-  Users,
   FileText,
   DollarSign,
   TrendingUp,
@@ -57,10 +55,7 @@ interface KPIValue {
 interface KPIValues {
   revenue?: KPIValue;
   gross_profit?: KPIValue;
-  job_completion_rate?: KPIValue;
-  quote_conversion_rate?: KPIValue;
   average_job_value?: KPIValue;
-  customer_satisfaction?: KPIValue;
 }
 
 export default function QuickBooksIntegrationPage() {
@@ -617,47 +612,7 @@ export default function QuickBooksIntegrationPage() {
               </Card>
             )}
 
-            {/* Job Completion Rate KPI */}
-            {kpiValues.job_completion_rate && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Job Completion Rate</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{kpiValues.job_completion_rate.value.toFixed(1)}%</div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    {kpiValues.job_completion_rate.change >= 0 ? (
-                      <TrendingUp className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 text-red-500" />
-                    )}
-                    {Math.abs(kpiValues.job_completion_rate.change).toFixed(1)}% from last period
-                  </p>
-                </CardContent>
-              </Card>
-            )}
 
-            {/* Quote Conversion Rate KPI */}
-            {kpiValues.quote_conversion_rate && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Quote Conversion Rate</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{kpiValues.quote_conversion_rate.value.toFixed(1)}%</div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    {kpiValues.quote_conversion_rate.change >= 0 ? (
-                      <TrendingUp className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 text-red-500" />
-                    )}
-                    {Math.abs(kpiValues.quote_conversion_rate.change).toFixed(1)}% from last period
-                  </p>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Average Job Value KPI */}
             {kpiValues.average_job_value && (
@@ -680,26 +635,7 @@ export default function QuickBooksIntegrationPage() {
               </Card>
             )}
 
-            {/* Customer Satisfaction KPI */}
-            {kpiValues.customer_satisfaction && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Customer Satisfaction</CardTitle>
-                  <Award className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{kpiValues.customer_satisfaction.value.toFixed(1)}%</div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    {kpiValues.customer_satisfaction.change >= 0 ? (
-                      <TrendingUp className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 text-red-500" />
-                    )}
-                    {Math.abs(kpiValues.customer_satisfaction.change).toFixed(1)}% from last period
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+
               </div>
             </>
           ) : (
@@ -728,13 +664,13 @@ export default function QuickBooksIntegrationPage() {
         <CardContent className="space-y-3">
           <div className="grid md:grid-cols-2 gap-4 text-sm">
             <div>
-              <h4 className="font-medium mb-2">KPI Data Sources</h4>
+              <h4 className="font-medium mb-2">Accurate KPI Data Sources</h4>
               <ul className="space-y-1 text-muted-foreground">
                 <li>• Revenue from invoices and sales receipts</li>
                 <li>• Costs from bills and expenses</li>
-                <li>• Job completion tracking</li>
-                <li>• Quote conversion analysis</li>
-                <li>• Customer payment behavior</li>
+                <li>• Gross profit calculation (Revenue - Costs)</li>
+                <li>• Average job value from invoice amounts</li>
+                <li>• Real-time data from QuickBooks API</li>
               </ul>
             </div>
             <div>

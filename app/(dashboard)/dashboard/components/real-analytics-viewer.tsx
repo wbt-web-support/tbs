@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner } from '@/components/loading-spinner';
 import DateFilterPopup from '@/components/date-filter-popup';
 import ConnectionPopup from '@/components/connection-popup';
-import AnalyticsCharts from '@/components/analytics-charts';
-import { AnalyticsDashboardSkeleton, DateFilterSkeleton, RawDataSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
+import AnalyticsCharts from '@/app/(dashboard)/dashboard/components/analytics-charts';
 import {
   BarChart3,
+  Loader2,
 } from 'lucide-react';
 
 interface DateRange {
@@ -54,7 +51,6 @@ export default function RealAnalyticsViewer({
   // Staggered loading states for different sections
   const [showHeader, setShowHeader] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
-  const [showRawData, setShowRawData] = useState(false);
 
   const fetchAnalyticsData = async (startDate?: string, endDate?: string) => {
     try {
@@ -64,7 +60,6 @@ export default function RealAnalyticsViewer({
       // Reset staggered states when fetching new data
       setShowHeader(false);
       setShowCharts(false);
-      setShowRawData(false);
       
       const params = new URLSearchParams({
         startDate: startDate || dateRange.startDate,
@@ -102,10 +97,7 @@ export default function RealAnalyticsViewer({
       setShowCharts(true);
     }, 300);
     
-    // Show raw data last
-    setTimeout(() => {
-      setShowRawData(true);
-    }, 800);
+   
   };
 
   const handleDateChange = (startDate: string, endDate: string, label: string) => {
@@ -131,46 +123,22 @@ export default function RealAnalyticsViewer({
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        {/* Header with Skeleton Buttons */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DateFilterSkeleton />
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="h-6 w-6 animate-spin" /> 
 
-        {/* Analytics Dashboard Skeleton */}
-        <AnalyticsDashboardSkeleton />
-
-        {/* Raw Data Skeleton */}
-        <RawDataSkeleton />
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <Card className="border-red-200 bg-red-50">
-        <CardContent className="p-6">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-red-900 mb-2">Error Loading Analytics</h3>
-            <p className="text-red-700">{error}</p>
-            <p className="text-sm text-red-600 mt-2">Please use the refresh button in the connection popup above.</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data) return null;
+  if (!data && !error) return null;
 
   // Calculate totals from daily rows data
-  const metricHeaders = data.mainReport?.metricHeaders || [];
-  const rows = data.mainReport?.rows || [];
+  const metricHeaders = data?.mainReport?.metricHeaders || [];
+  const rows = data?.mainReport?.rows || [];
 
   // Calculate totals by summing/averaging across all rows
   const calculateTotals = () => {
-    if (rows.length === 0) return {};
+    if (!rows || rows.length === 0) return {};
 
     const totals: { [key: string]: number } = {};
     const averageMetrics = ['bounceRate', 'averageSessionDuration', 'sessionsPerUser'];
@@ -207,13 +175,14 @@ export default function RealAnalyticsViewer({
   const avgSessionDuration = totals.averageSessionDuration || 0;
   const sessionsPerUser = totals.sessionsPerUser || 0;
 
+  // --- Always show the top bar (header) ---
   return (
     <div className="space-y-6">
       {/* Header with Popup Buttons - Staggered */}
       {!showHeader ? (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <DateFilterSkeleton />
+            {/* DateFilterSkeleton */}
           </div>
         </div>
       ) : (
@@ -255,7 +224,6 @@ export default function RealAnalyticsViewer({
               )}
             </div>
           )}
-          
           <div className="flex items-center gap-2">
             <DateFilterPopup 
               onDateChange={handleDateChange}
@@ -276,9 +244,31 @@ export default function RealAnalyticsViewer({
         </div>
       )}
 
-      {/* Analytics Charts - Staggered */}
-      {!showCharts ? (
-        <AnalyticsDashboardSkeleton />
+      {/* Error message, if any */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-red-900 mb-2">Error Loading Analytics</h3>
+              <p className="text-red-700">{error}</p>
+              <p className="text-sm text-red-600 mt-2">
+                There was a problem loading your analytics data. Please check your Google Analytics connection or try reconnecting your account using the connection options above.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Analytics Charts - Staggered, only if no error and data exists */}
+      {!error && (!showCharts ? (
+        // AnalyticsDashboardSkeleton
+        <div className="animate-in fade-in duration-500">
+          <AnalyticsCharts 
+            data={data} 
+            adminProfile={adminProfile}
+            customerReviewsLoading={customerReviewsLoading}
+          />
+        </div>
       ) : (
         <div className="animate-in fade-in duration-500">
           <AnalyticsCharts 
@@ -287,31 +277,7 @@ export default function RealAnalyticsViewer({
             customerReviewsLoading={customerReviewsLoading}
           />
         </div>
-      )}
-
-      {/* Raw Data - Staggered */}
-      {!showRawData ? (
-        <RawDataSkeleton />
-      ) : (
-        <Card className="hidden animate-in fade-in duration-500">
-          <CardHeader>
-            <CardTitle>Raw API Response</CardTitle>
-            <CardDescription>Complete data from Google Analytics API (collapsed for performance)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <details className="cursor-pointer">
-              <summary className="font-medium text-gray-700 hover:text-gray-900">
-                Click to expand raw JSON data ({Object.keys(data).length} sections)
-              </summary>
-              <div className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-96 mt-3">
-                <pre className="text-xs">
-                  {JSON.stringify(data, null, 2)}
-                </pre>
-              </div>
-            </details>
-          </CardContent>
-        </Card>
-      )}
+      ))}
     </div>
   );
 } 

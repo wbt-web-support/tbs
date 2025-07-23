@@ -102,7 +102,7 @@ export default function ServiceM8Integration() {
     } catch (error) {
       console.error('Failed to load data:', error)
       // If it's a cookie parsing error, try clearing corrupted cookies
-      if (error.message?.includes('Failed to parse cookie')) {
+      if (error instanceof Error && error.message?.includes('Failed to parse cookie')) {
         clearCorruptedSupabaseCookies()
       }
     }
@@ -393,8 +393,8 @@ export default function ServiceM8Integration() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Key Performance Indicators</CardTitle>
-                <CardDescription>Track your field service performance</CardDescription>
+                <CardTitle>Accurate Field Service KPIs</CardTitle>
+                <CardDescription>Track your field service performance with verified metrics</CardDescription>
               </div>
               <Select value={period} onValueChange={setPeriod}>
                 <SelectTrigger className="w-[180px]">
@@ -415,14 +415,16 @@ export default function ServiceM8Integration() {
                   <p>Loading KPIs...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {kpis.map((kpi, index) => (
                     <Card key={index} className="border-l-4 border-l-blue-500">
                       <CardContent className="pt-6">
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-muted-foreground">{kpi.label}</p>
                           <div className="flex items-baseline space-x-2">
-                            <p className="text-2xl font-bold">{kpi.value}{kpi.unit}</p>
+                            <p className="text-2xl font-bold">
+                              {kpi.unit === '$' ? '$' : ''}{kpi.value.toLocaleString()}{kpi.unit === '%' ? '%' : ''}
+                            </p>
                             <span className="text-sm">{getTrendIcon(kpi.trend)}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">{kpi.period}</p>
@@ -430,14 +432,25 @@ export default function ServiceM8Integration() {
                         <div className="mt-2">
                           {kpi.label.includes('Rate') && <TrendingUp className="h-4 w-4 text-gray-400" />}
                           {kpi.label.includes('Duration') && <Clock className="h-4 w-4 text-gray-400" />}
+                          {kpi.label.includes('Utilization') && <Users className="h-4 w-4 text-gray-400" />}
                           {kpi.label.includes('Value') && <DollarSign className="h-4 w-4 text-gray-400" />}
-                          {kpi.label.includes('Satisfaction') && <Star className="h-4 w-4 text-gray-400" />}
                         </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               )}
+              
+              {/* Accuracy Notice */}
+              <div className="mt-6 p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-blue-700">
+                    <p className="font-medium mb-1">Accurate Metrics Only:</p>
+                    <p>Only KPIs calculated from real ServiceM8 data are displayed. Proxy metrics like customer satisfaction (based on repeat customers) and first-time fix rate (requiring historical analysis) have been removed for accuracy.</p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

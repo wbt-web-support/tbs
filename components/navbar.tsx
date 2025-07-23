@@ -15,7 +15,7 @@ import {
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2 } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2, Database } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
 interface NavbarProps {
@@ -137,6 +137,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   <Link href="/export" className="w-full text-left flex items-center gap-2">
                       <Download className="h-4 w-4" />
                       Export Data
+                  </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                  <Link href="/integrations" className="w-full text-left flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Integrations
                   </Link>
               </DropdownMenuItem>
               {/* <DropdownMenuItem>

@@ -302,9 +302,7 @@ export class ServiceM8KPI {
       this.calculateJobCompletionRate(),
       this.calculateAverageJobDuration(),
       this.calculateTechnicianUtilization(),
-      this.calculateCustomerSatisfaction(),
       this.calculateAverageJobValue(),
-      this.calculateFirstTimeFixRate(),
     ];
   }
 }

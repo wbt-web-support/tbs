@@ -153,29 +153,7 @@ const navigationSections: NavigationSection[] = [
       },
     ],
   },
-  {
-    title: "Integrations",
-    items: [
-      {
-        name: "QuickBooks",
-        href: "/integrations/quickbooks",
-        icon: CreditCard,
-        disabled: false,
-      },
-      {
-        name: "ServiceM8",
-        href: "/integrations/servicem8",
-        icon: Wrench,
-        disabled: false,
-      },
-      {
-        name: "Xero",
-        href: "/integrations/xero",
-        icon: FileText,
-        disabled: false,
-      },
-    ],
-  },
+
 ];
 
 interface SidebarProps {
