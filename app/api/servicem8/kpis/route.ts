@@ -5,19 +5,21 @@ import { ServiceM8KPI } from '@/lib/servicem8-kpi'
 // Helper function to generate historical data for charts
 function generateHistoricalData(serviceData: any, period: string) {
   const history = [];
-  
-  // Generate mock historical data for the last 12 periods
-  // In a real implementation, this would query historical data from the database
+  // Determine interval in days based on period
+  const intervalDays =
+    period === 'daily' ? 1 :
+    period === 'weekly' ? 7 :
+    period === 'quarterly' ? 90 :
+    30; // default monthly
+
   for (let i = 11; i >= 0; i--) {
     const date = new Date();
-    date.setDate(date.getDate() - (i * 30)); // 30 days back for each period
-    
+    date.setDate(date.getDate() - (i * intervalDays));
     // Generate realistic mock data based on current data
     const baseJobCompletionRate = 85 + (Math.random() - 0.5) * 20; // 75-95%
     const baseJobDuration = 120 + (Math.random() - 0.5) * 60; // 90-150 minutes
     const baseUtilization = 70 + (Math.random() - 0.5) * 20; // 60-80%
     const baseJobValue = 300 + (Math.random() - 0.5) * 200; // $200-400
-    
     const dataPoint = {
       date: date.toISOString().split('T')[0],
       job_completion_rate: Math.max(0, Math.min(100, baseJobCompletionRate)),
@@ -25,10 +27,8 @@ function generateHistoricalData(serviceData: any, period: string) {
       technician_utilization: Math.max(0, Math.min(100, baseUtilization)),
       average_job_value: Math.max(50, baseJobValue),
     };
-    
     history.push(dataPoint);
   }
-  
   return history;
 }
 

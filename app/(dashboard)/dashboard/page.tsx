@@ -58,6 +58,7 @@ export default function NewDashboard() {
   // Staggered loading states
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const supabase = createClient();
   const searchParams = useSearchParams();
@@ -340,6 +341,8 @@ export default function NewDashboard() {
       setHasPropertySelected(false);
       setConnectedProperty(undefined);
       setShowAccountModal(false);
+      // Increment refresh key to trigger IntegrationsDashboard refresh
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error disconnecting:', error);
     }
@@ -546,6 +549,7 @@ export default function NewDashboard() {
       refreshing={refreshing}
       adminProfile={adminProfile}
       customerReviewsLoading={customerReviewsLoading}
+      refreshKey={refreshKey}
     />
   </div>
   <div>

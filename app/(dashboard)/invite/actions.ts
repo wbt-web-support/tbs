@@ -346,11 +346,11 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
           html: emailHtml,
         });
 
-        revalidatePath('/chain-of-command');
+        revalidatePath('/team');
         return { success: true, userId: newBusinessInfo.id, userName: full_name }
       }
     }
-    revalidatePath('/chain-of-command');
+    revalidatePath('/team');
     return { success: true }
   } catch (error: any) {
     console.error('Server Action Error:', error.message);

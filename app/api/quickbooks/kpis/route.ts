@@ -6,33 +6,35 @@ import { QuickBooksKPICalculator, PeriodType, KPIType } from "@/lib/quickbooks-k
 async function generateHistoricalData(userId: string, periodType: PeriodType, customStart?: Date, customEnd?: Date) {
   const kpiCalculator = new QuickBooksKPICalculator();
   const history = [];
-  
-  // Generate data for the last 12 periods
+
+  // Determine interval in days based on periodType
+  const intervalDays =
+    periodType === 'daily' ? 1 :
+    periodType === 'weekly' ? 7 :
+    periodType === 'quarterly' ? 90 :
+    30; // default monthly
+
   const endDate = customEnd || new Date();
-  const startDate = customStart || new Date(endDate.getTime() - (12 * 30 * 24 * 60 * 60 * 1000)); // 12 months back
-  
-  // Create data points for each period
+  // Calculate the start date based on interval
+  const startDate = customStart || new Date(endDate.getTime() - (12 * intervalDays * 24 * 60 * 60 * 1000));
+
   for (let i = 0; i < 12; i++) {
-    const periodEnd = new Date(endDate.getTime() - (i * 30 * 24 * 60 * 60 * 1000));
-    const periodStart = new Date(periodEnd.getTime() - (30 * 24 * 60 * 60 * 1000));
-    
+    const periodEnd = new Date(endDate.getTime() - (i * intervalDays * 24 * 60 * 60 * 1000));
+    const periodStart = new Date(periodEnd.getTime() - (intervalDays * 24 * 60 * 60 * 1000));
     try {
       const kpis = await kpiCalculator.getAllKPIs(userId, periodType, periodStart, periodEnd);
-      
       const dataPoint = {
         date: periodEnd.toISOString().split('T')[0],
         revenue: kpis.find(k => k.kpi_type === 'revenue')?.current_value || 0,
         gross_profit: kpis.find(k => k.kpi_type === 'gross_profit')?.current_value || 0,
         average_job_value: kpis.find(k => k.kpi_type === 'average_job_value')?.current_value || 0,
       };
-      
       history.push(dataPoint);
     } catch (error) {
       console.error(`Error generating historical data for period ${i}:`, error);
     }
   }
-  
-  return history.reverse(); // Return in chronological order
+  return history.reverse();
 }
 
 // Helper function to get user ID from request
@@ -82,10 +84,29 @@ export async function GET(request: NextRequest) {
       // Get all KPIs
       const results = await kpiCalculator.getAllKPIs(userId, periodType, customStart, customEnd);
       
-      // If history is requested, generate historical data
+      // If history is requested, try to load cached history for this periodType first
       let history = null;
       if (includeHistory) {
-        history = await generateHistoricalData(userId, periodType, customStart, customEnd);
+        const supabase = await createClient();
+        const { data: kpiRow } = await supabase
+          .from('quickbooks_data')
+          .select('kpi_history')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .single();
+        let kpiHistory = kpiRow?.kpi_history || {};
+        if (kpiHistory && kpiHistory[periodType] && Array.isArray(kpiHistory[periodType])) {
+          history = kpiHistory[periodType];
+        } else {
+          history = await generateHistoricalData(userId, periodType, customStart, customEnd);
+          // Store the new history in the correct periodType key
+          kpiHistory = { ...kpiHistory, [periodType]: history };
+          await supabase
+            .from('quickbooks_data')
+            .update({ kpi_history: kpiHistory })
+            .eq('user_id', userId)
+            .eq('status', 'active');
+        }
       }
       
       return NextResponse.json({ 

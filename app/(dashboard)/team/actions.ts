@@ -153,7 +153,7 @@ export async function deleteTeamMember(businessInfoId: string) {
     }
 
     revalidatePath('/team')
-    revalidatePath('/chain-of-command')
+    revalidatePath('/team')
     return { success: true }
 
   } catch (error) {

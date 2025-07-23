@@ -105,6 +105,36 @@ export async function POST(request: Request) {
       // Calculate and save current KPIs
       const kpiCalculator = new QuickBooksKPICalculator();
       const kpiResults = await kpiCalculator.getAllKPIs(userId, 'monthly'); // Default to monthly
+
+      // Calculate and store KPI history (last 12 months, monthly)
+      const generateHistoricalData = async (userId: string, periodType: import("@/lib/quickbooks-kpi").PeriodType) => {
+        const history = [];
+        const endDate = new Date();
+        for (let i = 0; i < 12; i++) {
+          const periodEnd = new Date(endDate.getTime() - (i * 30 * 24 * 60 * 60 * 1000));
+          const periodStart = new Date(periodEnd.getTime() - (30 * 24 * 60 * 60 * 1000));
+          try {
+            const kpis = await kpiCalculator.getAllKPIs(userId, periodType, periodStart, periodEnd);
+            history.push({
+              date: periodEnd.toISOString().split('T')[0],
+              revenue: kpis.find(k => k.kpi_type === 'revenue')?.current_value || 0,
+              gross_profit: kpis.find(k => k.kpi_type === 'gross_profit')?.current_value || 0,
+              average_job_value: kpis.find(k => k.kpi_type === 'average_job_value')?.current_value || 0,
+            });
+          } catch (err) {
+            console.error('Error generating KPI history for period', i, err);
+          }
+        }
+        return history.reverse();
+      };
+      const kpiHistory = await generateHistoricalData(userId, 'monthly');
+      // Store in DB
+      const supabase = await createClient();
+      await supabase
+        .from('quickbooks_data')
+        .update({ kpi_history: kpiHistory })
+        .eq('user_id', userId)
+        .eq('status', 'active');
       
       console.log('KPI calculation results:', {
         kpiCount: kpiResults?.length || 0,

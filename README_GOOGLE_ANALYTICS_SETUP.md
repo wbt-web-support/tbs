@@ -76,7 +76,7 @@ NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
    npm run dev
    ```
 
-2. Navigate to `/new-dashboard` in your browser
+2. Navigate to `/dashboard` in your browser
 
 3. Click "Connect Google Analytics" to test the OAuth flow
 

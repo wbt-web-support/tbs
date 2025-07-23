@@ -29,7 +29,7 @@ export default function DashboardSidebar({ adminProfile, customerReviewsLoading 
               </div>
             </Link>
             {/* Team */}
-            <Link href="/chain-of-command" className='block'>
+            <Link href="/team" className='block'>
               <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-yellow-300 transition-all cursor-pointer group'>
                 <div className='flex items-center gap-3'>
                   <div className='p-2 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors'>

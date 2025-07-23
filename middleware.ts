@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 const dashboardPages = [
   '/dashboard',
   '/battle-plan',
-  '/chain-of-command',
+  '/team',
   '/chat',
   '/chat-v2',
   '/calendar',

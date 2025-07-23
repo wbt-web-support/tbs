@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get('error');
 
     // Parse state parameter first to get redirect info (for error handling)
-    let redirectPath = '/new-dashboard';
+    let redirectPath = '/dashboard';
     if (state) {
       if (state === 'google_analytics_connection') {
-        redirectPath = '/new-dashboard';
+        redirectPath = '/dashboard';
       } else if (state.startsWith('new_dashboard_redirect=')) {
         const encodedPath = state.split('new_dashboard_redirect=')[1];
         redirectPath = decodeURIComponent(encodedPath);
@@ -106,6 +106,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('OAuth callback error:', error);
     // Fallback redirect path in case of unexpected errors
-    return NextResponse.redirect(`${request.nextUrl.origin}/new-dashboard?error=unknown_error`);
+    return NextResponse.redirect(`${request.nextUrl.origin}/dashboard?error=unknown_error`);
   }
 } 

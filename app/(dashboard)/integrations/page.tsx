@@ -20,7 +20,9 @@ import {
   DollarSign,
   Clock,
   Users,
-  TrendingUp
+  TrendingUp,
+  RefreshCw,
+  BarChart3
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -44,12 +46,24 @@ interface ServiceM8Connection {
   companies: any[];
 }
 
+interface GoogleAnalyticsConnection {
+  connected: boolean;
+  dataSource: 'user' | 'superadmin' | 'team_admin' | null;
+  propertyName?: string;
+  accountName?: string;
+  expiresAt?: string;
+  assignmentDetails?: { property_name?: string; account_name?: string; company_name?: string };
+}
+
 export default function IntegrationsPage() {
   const [quickbooksConnection, setQuickbooksConnection] = useState<QuickBooksConnection | null>(null);
   const [servicem8Connection, setServicem8Connection] = useState<ServiceM8Connection | null>(null);
+  const [googleAnalyticsConnection, setGoogleAnalyticsConnection] = useState<GoogleAnalyticsConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectingQuickBooks, setConnectingQuickBooks] = useState(false);
   const [connectingServiceM8, setConnectingServiceM8] = useState(false);
+  const [connectingGoogleAnalytics, setConnectingGoogleAnalytics] = useState(false);
+  const [refreshingGoogleAnalytics, setRefreshingGoogleAnalytics] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
@@ -75,8 +89,27 @@ export default function IntegrationsPage() {
         .eq('status', 'active')
         .single();
 
+      let updatedConnection = qbConnection;
       if (qbConnection) {
-        setQuickbooksConnection(qbConnection);
+        // Proactively refresh token if needed
+        try {
+          const refreshRes = await fetch('/api/quickbooks/refresh-token', { method: 'POST' });
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            if (refreshData.refreshed) {
+              // Update expiry and status in local state
+              updatedConnection = {
+                ...qbConnection,
+                expires_at: refreshData.expires_at,
+                status: refreshData.status || 'active',
+              };
+            }
+          }
+        } catch (refreshErr) {
+          // Ignore refresh errors here, will be handled on next user action
+          console.error('QuickBooks token proactive refresh failed:', refreshErr);
+        }
+        setQuickbooksConnection(updatedConnection);
       }
 
       // Fetch ServiceM8 connection status
@@ -88,6 +121,26 @@ export default function IntegrationsPage() {
         }
       } catch (err) {
         console.error('ServiceM8 connection check failed:', err);
+      }
+
+      // Fetch Google Analytics connection status
+      try {
+        const gaRes = await fetch('/api/analytics-data');
+        if (gaRes.ok) {
+          const gaData = await gaRes.json();
+          setGoogleAnalyticsConnection({
+            connected: true,
+            dataSource: gaData.metadata?.dataSource || null,
+            propertyName: gaData.metadata?.assignmentDetails?.property_name || undefined,
+            accountName: gaData.metadata?.assignmentDetails?.account_name || undefined,
+            expiresAt: undefined, // Not exposed by API, could be added if needed
+            assignmentDetails: gaData.metadata?.assignmentDetails || undefined,
+          });
+        } else {
+          setGoogleAnalyticsConnection({ connected: false, dataSource: null });
+        }
+      } catch (err) {
+        setGoogleAnalyticsConnection({ connected: false, dataSource: null });
       }
 
     } catch (err) {
@@ -141,6 +194,12 @@ export default function IntegrationsPage() {
 
       const data = await response.json();
 
+      if (!response.ok) {
+        console.error('ServiceM8 connect failed:', data);
+        setError(data.error || data.details || 'Failed to initiate ServiceM8 connection');
+        return;
+      }
+
       if (data.error) {
         setError(data.error);
         return;
@@ -166,6 +225,7 @@ export default function IntegrationsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ keepData: false }),
       });
 
       const data = await response.json();
@@ -199,6 +259,12 @@ export default function IntegrationsPage() {
 
       const data = await response.json();
 
+      if (!response.ok) {
+        console.error('ServiceM8 disconnect failed:', data);
+        setError(data.error || data.details || 'Failed to disconnect ServiceM8');
+        return;
+      }
+
       if (data.error) {
         setError(data.error);
         return;
@@ -212,6 +278,63 @@ export default function IntegrationsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Google Analytics handlers
+  const handleConnectGoogleAnalytics = async () => {
+    setConnectingGoogleAnalytics(true);
+    setError(null);
+    try {
+      // Redirect to Google OAuth (assume /api/auth/google/callback is set up)
+      window.location.href = `/api/auth/google/callback?state=google_analytics_connection`;
+    } catch (err) {
+      setError('Failed to initiate Google Analytics connection');
+    } finally {
+      setConnectingGoogleAnalytics(false);
+    }
+  };
+
+  const handleDisconnectGoogleAnalytics = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Remove user's own connection (not assignment)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const { error: deleteError } = await supabase
+        .from('google_analytics_tokens')
+        .delete()
+        .eq('user_id', user.id);
+      if (deleteError) throw deleteError;
+      setGoogleAnalyticsConnection({ connected: false, dataSource: null });
+    } catch (err) {
+      setError('Failed to disconnect Google Analytics');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshGoogleAnalytics = async () => {
+    setRefreshingGoogleAnalytics(true);
+    setError(null);
+    try {
+      // Just re-fetch analytics data, which will trigger token refresh if needed
+      await fetchConnectionStatus();
+    } catch (err) {
+      setError('Failed to refresh Google Analytics token');
+    } finally {
+      setRefreshingGoogleAnalytics(false);
+    }
+  };
+
+  // Add sync handlers (stubbed for now)
+  const handleSyncQuickBooks = async () => {
+    // TODO: Implement sync logic
+    alert('Syncing QuickBooks...');
+  };
+  const handleSyncServiceM8 = async () => {
+    // TODO: Implement sync logic
+    alert('Syncing ServiceM8...');
   };
 
   const getStatusBadge = (status: string, isQuickBooks: boolean = true) => {
@@ -268,14 +391,14 @@ export default function IntegrationsPage() {
         </Alert>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         {/* QuickBooks Integration Card */}
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CreditCard className="h-6 w-6 text-green-600" />
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://cdn.worldvectorlogo.com/logos/quickbooks-2.svg" alt="QuickBooks Logo" className="h-8 w-8 object-contain" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">QuickBooks</CardTitle>
@@ -313,19 +436,19 @@ export default function IntegrationsPage() {
 
                 <div className="flex gap-2">
                   <Button 
-                    onClick={() => window.location.href = '/integrations/quickbooks'}
+                    onClick={handleSyncQuickBooks}
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
                   >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Manage
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Sync
                   </Button>
                   <Button 
                     onClick={handleDisconnectQuickBooks}
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900 "
                   >
                     <XCircle className="h-4 w-4 mr-2" />
                     Disconnect
@@ -370,12 +493,12 @@ export default function IntegrationsPage() {
         </Card>
 
         {/* ServiceM8 Integration Card */}
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Wrench className="h-6 w-6 text-blue-600" />
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkHIyMlOrJ3yd1XNSsuO8K4eBPUSWxhhAobQ&s" alt="ServiceM8 Logo" className="h-8 w-8 object-contain" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">ServiceM8</CardTitle>
@@ -415,19 +538,19 @@ export default function IntegrationsPage() {
 
                 <div className="flex gap-2">
                   <Button 
-                    onClick={() => window.location.href = '/integrations/servicem8'}
+                    onClick={handleSyncServiceM8}
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
                   >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Manage
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Sync
                   </Button>
                   <Button 
                     onClick={handleDisconnectServiceM8}
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900"
                   >
                     <XCircle className="h-4 w-4 mr-2" />
                     Disconnect
@@ -474,41 +597,123 @@ export default function IntegrationsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Google Analytics Integration Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://images.icon-icons.com/2699/PNG/512/google_analytics_logo_icon_171061.png" alt="Google Analytics Logo" className="h-8 w-8 object-contain" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Google Analytics</CardTitle>
+                  <CardDescription>Website & traffic analytics</CardDescription>
+                </div>
+              </div>
+              {googleAnalyticsConnection?.connected ? (
+                <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Not Connected</Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {googleAnalyticsConnection?.connected ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">
+                    {googleAnalyticsConnection.dataSource === 'user' && 'Your Account'}
+                    {googleAnalyticsConnection.dataSource === 'superadmin' && 'Assigned by Superadmin'}
+                    {googleAnalyticsConnection.dataSource === 'team_admin' && 'Team Admin Assignment'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {googleAnalyticsConnection.propertyName && (
+                      <>Property: <span className="font-semibold">{googleAnalyticsConnection.propertyName}</span></>
+                    )}
+                    {googleAnalyticsConnection.accountName && (
+                      <><br />Account: <span className="font-semibold">{googleAnalyticsConnection.accountName}</span></>
+                    )}
+                  </p>
+                </div>
+                <Separator />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleRefreshGoogleAnalytics}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
+                    disabled={refreshingGoogleAnalytics}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    {refreshingGoogleAnalytics ? 'Refreshing...' : 'Refresh'}
+                  </Button>
+                  {googleAnalyticsConnection.dataSource === 'user' && (
+                    <Button
+                      onClick={handleDisconnectGoogleAnalytics}
+                      variant="outline"
+                      size="sm"
+                      className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Disconnect
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Available Metrics:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <BarChart3 className="h-3 w-3 mr-1" />
+                      Users
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Sessions
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <Database className="h-3 w-3 mr-1" />
+                      Page Views
+                    </Badge>
+                  </div>
+                </div>
+                <div
+                  className="w-full"
+                >
+                  {connectingGoogleAnalytics ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                  )}
+                  {connectingGoogleAnalytics ? 'Connecting...' : 'Connect Google Analytics'}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Coming Soon Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-white border">
+                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9f/Xero_software_logo.svg/1200px-Xero_software_logo.svg.png" alt="Xero Logo" className="h-8 w-8 object-contain" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Xero</CardTitle>
+                <CardDescription>Accounting (Coming Soon)</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-muted-foreground">Connect your Xero account to view business KPIs and sync data. This integration is coming soon!</div>
+          </CardContent>
+        </Card>
       </div>
 
-
-
-      {/* Information Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>About Integrations</CardTitle>
-          <CardDescription>
-            Learn more about our business integrations
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <h4 className="font-medium mb-2">Data Accuracy</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>• Only verified, real-time data sources</li>
-                <li>• No proxy metrics or estimates</li>
-                <li>• Direct API connections</li>
-                <li>• Secure OAuth authentication</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">Available Actions</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>• <strong>Connect:</strong> Link your accounts</li>
-                <li>• <strong>Manage:</strong> Configure settings</li>
-                <li>• <strong>View KPIs:</strong> See business metrics</li>
-                <li>• <strong>Sync:</strong> Update data manually</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 } 

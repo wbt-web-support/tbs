@@ -495,7 +495,7 @@ Available app pages to reference:
 - /innovation-machine - Innovation and idea management
 - /meeting-rhythm-planner - Meeting scheduling and rhythm
 - /playbook-planner - Process documentation
-- /chain-of-command - Team hierarchy and roles
+- /team - Team hierarchy and roles
 - /calendar - Company timeline and milestones
 - /chat - AI assistant for guidance
 - /users - Team management

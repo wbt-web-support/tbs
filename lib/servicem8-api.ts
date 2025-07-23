@@ -71,7 +71,18 @@ export class ServiceM8API {
     scope: process.env.SERVICEM8_SCOPE || 'read_jobs read_staff read_customers read_schedule read_inventory',
   };
 
-  constructor(private supabase?: any) {}
+  constructor(private supabase?: any) {
+    // Validate required environment variables
+    if (!this.config.clientId) {
+      throw new Error('SERVICEM8_CLIENT_ID environment variable is required');
+    }
+    if (!this.config.clientSecret) {
+      throw new Error('SERVICEM8_CLIENT_SECRET environment variable is required');
+    }
+    if (!this.config.redirectUri) {
+      throw new Error('SERVICEM8_REDIRECT_URI environment variable is required');
+    }
+  }
 
   private async getSupabaseClient() {
     if (!this.supabase) {
@@ -408,13 +419,25 @@ export class ServiceM8API {
 
   // Disconnect ServiceM8 for a specific user
   async disconnect(userId: string): Promise<void> {
-    const supabase = await this.getSupabaseClient();
+    try {
+      const supabase = await this.getSupabaseClient();
 
-    await supabase
-      .from('servicem8_data')
-      .delete()
-      .eq('user_id', userId);
+      console.log(`Attempting to disconnect ServiceM8 for user: ${userId}`);
 
-    console.log(`✓ ServiceM8 connection disconnected for user: ${userId}`);
+      const { error } = await supabase
+        .from('servicem8_data')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('ServiceM8 disconnect database error:', error);
+        throw new Error(`Failed to delete ServiceM8 connection: ${error.message}`);
+      }
+
+      console.log(`✓ ServiceM8 connection disconnected for user: ${userId}`);
+    } catch (error) {
+      console.error('ServiceM8 disconnect error:', error);
+      throw error;
+    }
   }
 }

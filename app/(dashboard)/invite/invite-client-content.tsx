@@ -144,7 +144,7 @@ export default function InviteClientContent() {
 
         if (error || !userData) {
           toast.error('Failed to load user data.')
-          router.push('/chain-of-command')
+          router.push('/team')
           return
         }
         
@@ -586,7 +586,7 @@ export default function InviteClientContent() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push('/chain-of-command')}
+                  onClick={() => router.push('/team')}
                   disabled={form.formState.isSubmitting}
                   className="border-gray-200 hover:bg-gray-50 hover:text-gray-900"
                 >

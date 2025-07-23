@@ -76,7 +76,8 @@ export default function ServiceM8KPIs() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [period, setPeriod] = useState('monthly');
   const [loading, setLoading] = useState(true);
-  const [calculatingKPIs, setCalculatingKPIs] = useState(false);
+  // Remove calculatingKPIs
+  // const [calculatingKPIs, setCalculatingKPIs] = useState(false);
   const [error, setError] = useState('');
   const [activeMetric, setActiveMetric] = useState<'job_completion_rate' | 'average_job_duration' | 'technician_utilization' | 'average_job_value'>('job_completion_rate');
   const supabase = createClient();
@@ -115,7 +116,7 @@ export default function ServiceM8KPIs() {
 
   const loadKpis = async () => {
     try {
-      setCalculatingKPIs(true);
+      // setCalculatingKPIs(true); // Remove
       setError('');
       
       const response = await fetch(`/api/servicem8/kpis?period=${period}`);
@@ -133,9 +134,33 @@ export default function ServiceM8KPIs() {
       console.error('Failed to load KPIs:', error);
       setError('Failed to load KPIs');
     } finally {
-      setCalculatingKPIs(false);
+      // setCalculatingKPIs(false); // Remove
     }
   };
+
+  // Helper to format date label for chart based on period
+  function getWeekNumber(date: Date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((Number(d) - Number(yearStart)) / 86400000) + 1)/7);
+  }
+  function formatChartDate(dateStr: string) {
+    const date = new Date(dateStr);
+    if (period === 'daily') {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else if (period === 'weekly') {
+      const week = getWeekNumber(date);
+      return `Wk ${week}`;
+    } else if (period === 'monthly') {
+      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    } else if (period === 'quarterly') {
+      const quarter = Math.floor(date.getMonth() / 3) + 1;
+      return `Q${quarter} '${String(date.getFullYear()).slice(-2)}`;
+    }
+    return date.toLocaleDateString();
+  }
 
   const loadChartData = async () => {
     try {
@@ -145,10 +170,7 @@ export default function ServiceM8KPIs() {
         if (data.history && data.history.length > 0) {
           // Transform history data for charts
           const transformedData = data.history.map((item: any) => ({
-            date: new Date(item.date).toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric' 
-            }),
+            date: formatChartDate(item.date),
             job_completion_rate: item.job_completion_rate || 0,
             average_job_duration: item.average_job_duration || 0,
             technician_utilization: item.technician_utilization || 0,
@@ -339,19 +361,17 @@ export default function ServiceM8KPIs() {
             </SelectContent>
           </Select>
           <Button 
-            onClick={() => {
-              loadKpis();
-              loadChartData();
+            onClick={async () => {
+              setLoading(true);
+              await Promise.all([loadKpis(), loadChartData()]);
+              setLoading(false);
             }}
-            disabled={calculatingKPIs}
+            // disabled={calculatingKPIs} // Remove
             size="sm"
           >
-            {calculatingKPIs ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            {calculatingKPIs ? 'Calculating...' : 'Refresh'}
+            {/* Remove spinner and Calculating... */}
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
         </div>
       </div>

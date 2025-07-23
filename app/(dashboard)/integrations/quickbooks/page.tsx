@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,15 +67,37 @@ export default function QuickBooksIntegrationPage() {
   const [syncing, setSyncing] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'>('monthly');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [calculatingKPIs, setCalculatingKPIs] = useState(false);
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Handle URL parameters for success/error messages
+    const success = searchParams.get('success');
+    const company = searchParams.get('company');
+    const errorParam = searchParams.get('error');
+    const message = searchParams.get('message');
+
+    if (success === 'connected' && company) {
+      setSuccessMessage(`Successfully connected to ${company}! Initial data sync is in progress.`);
+      // Clear URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+      // Auto-clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+
+    if (errorParam) {
+      setError(message || 'An error occurred during QuickBooks connection');
+      // Clear URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     fetchConnectionStatus();
-  }, []);
+  }, [searchParams]);
 
   // Auto-fetch KPIs when connection is established
   useEffect(() => {
@@ -251,6 +274,7 @@ export default function QuickBooksIntegrationPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ keepData: false }),
       });
 
       const data = await response.json();
@@ -310,6 +334,24 @@ export default function QuickBooksIntegrationPage() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMessage && (
+        <Alert variant="default" className="bg-green-50 border-green-200 text-green-800">
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{successMessage}</span>
+            <Button
+              onClick={() => handleSync(true)}
+              variant="outline"
+              size="sm"
+              className="ml-4 bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sync Again
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 

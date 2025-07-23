@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { QuickBooksAPI } from "@/lib/quickbooks-api";
+import { QuickBooksKPICalculator } from "@/lib/quickbooks-kpi";
 
 // Helper function to get user ID from request
 async function getUserId() {
@@ -100,13 +101,42 @@ export async function GET(request: NextRequest) {
 
       console.log('QuickBooks connection saved successfully to database');
 
+      // Auto-trigger full sync after successful connection
+      try {
+        console.log('Auto-triggering full sync for new QuickBooks connection...');
+        
+        // Sync KPI-relevant data with full sync
+        await qbAPI.syncKPIData(userId, true); // forceFullSync = true
+        
+        // Check what data was synced
+        const storedData = await qbAPI.getStoredData(userId);
+        console.log('Auto-sync completed. Stored data counts:', {
+          revenueRecords: storedData.revenue_data?.length || 0,
+          costRecords: storedData.cost_data?.length || 0,
+          estimates: storedData.estimates?.length || 0
+        });
+
+        // Update last_sync timestamp directly in database
+        const supabase = await createClient();
+        await supabase
+          .from('quickbooks_data')
+          .update({ last_sync: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('company_id', tokenData.realmId);
+        
+        console.log('QuickBooks auto-sync completed successfully');
+      } catch (syncError) {
+        console.error('Auto-sync failed, but connection was successful:', syncError);
+        // Don't fail the connection if sync fails - user can manually sync later
+      }
+
       // Redirect to success page
       const successUrl = new URL('/integrations/quickbooks', request.nextUrl.origin);
       successUrl.searchParams.set('success', 'connected');
       successUrl.searchParams.set('company', tokenData.companyName);
       return NextResponse.redirect(successUrl);
 
-    } catch (apiError) {
+    } catch (apiError: any) {
       console.error('Error during QuickBooks API operations:', apiError);
       console.error('API Error details:', {
         message: apiError.message,
