@@ -16,6 +16,7 @@ import { createClient } from "@/utils/supabase/client";
 
 interface IntegrationsDashboardProps {
   isConnected: boolean;
+  hasPropertySelected: boolean; // <-- add this prop
   connectedProperty?: string;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -105,7 +106,7 @@ export default function IntegrationsDashboard(props: IntegrationsDashboardProps)
       {availableTabs.some(tab => tab.key === 'google') && (
         <TabsContent value="google" className="mt-6">
           <div className="space-y-4">
-            <RealAnalyticsViewer {...props} />
+            <RealAnalyticsViewer {...props} hasPropertySelected={props.hasPropertySelected} />
           </div>
         </TabsContent>
       )}

@@ -128,6 +128,8 @@ export default function AccountPropertyModal({ isOpen, onClose, onPropertySelect
 
       onPropertySelected();
       onClose();
+      // Reload the page to refresh all dashboard data with the new property
+      window.location.reload();
     } catch (error) {
       console.error('Error saving selection:', error);
     } finally {

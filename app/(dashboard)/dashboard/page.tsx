@@ -246,11 +246,12 @@ export default function NewDashboard() {
       }
 
       // Check if user just came back from OAuth (connected but no property)
-      const fromOAuth = searchParams.get('connected') === 'true';
-      if (connectionSource === 'user' && connected && !propertySelected && fromOAuth) {
+      if (connectionSource === 'user' && connected && !propertySelected) {
         setShowAccountModal(true);
-        // Clean up URL
-        window.history.replaceState({}, '', window.location.pathname);
+        // Optionally clean up URL if just came from OAuth
+        if (searchParams.get('connected') === 'true') {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
       }
     } catch (error) {
       console.error('Error checking connection status:', error);
@@ -452,6 +453,7 @@ export default function NewDashboard() {
             <div className="lg:col-span-2">
               <IntegrationsDashboard 
                 isConnected={isConnected}
+                hasPropertySelected={hasPropertySelected}
                 connectedProperty={connectedProperty}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}

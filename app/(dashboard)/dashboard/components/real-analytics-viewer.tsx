@@ -19,6 +19,7 @@ interface DateRange {
 
 interface RealAnalyticsViewerProps {
   isConnected: boolean;
+  hasPropertySelected: boolean; // <-- add this prop
   connectedProperty?: string;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -31,6 +32,7 @@ interface RealAnalyticsViewerProps {
 
 export default function RealAnalyticsViewer({
   isConnected,
+  hasPropertySelected, // <-- accept as prop
   connectedProperty,
   onConnect,
   onDisconnect,
@@ -255,27 +257,42 @@ export default function RealAnalyticsViewer({
               </div>
               <h3 className="text-xl font-semibold text-blue-900">Google Analytics Not Connected</h3>
               <p className="text-blue-800 text-base max-w-xl mx-auto">
-                To view your website analytics, please connect your Google Analytics account. If you don't have access, your account manager can also connect it for you. If you need help, contact our support team!
+                {isConnected && !hasPropertySelected
+                  ? 'Your Google Analytics account is connected, but you need to select a property to view analytics.'
+                  : 'To view your website analytics, please connect your Google Analytics account. If you don\'t have access, your account manager can also connect it for you. If you need help, contact our support team!'}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center mt-2">
-                <Button
-                  onClick={onConnect}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  size="lg"
-                >
-                  <BarChart3 className="h-5 w-5 mr-2" />
-                  Connect Google Analytics
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="border-blue-300 text-blue-800"
-                  size="lg"
-                >
-                  <a href="mailto:support@yourdomain.com?subject=Google Analytics Connection Help" target="_blank" rel="noopener noreferrer">
-                    Contact Support
-                  </a>
-                </Button>
+                {isConnected && !hasPropertySelected ? (
+                  <Button
+                    onClick={onChangeProperty}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    size="lg"
+                  >
+                    <BarChart3 className="h-5 w-5 mr-2" />
+                    Select Property
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={onConnect}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      size="lg"
+                    >
+                      <BarChart3 className="h-5 w-5 mr-2" />
+                      Connect Google Analytics
+                    </Button>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="border-blue-300 text-blue-800"
+                      size="lg"
+                    >
+                      <a href="mailto:support@yourdomain.com?subject=Google Analytics Connection Help" target="_blank" rel="noopener noreferrer">
+                        Contact Support
+                      </a>
+                    </Button>
+                  </>
+                )}
               </div>
               <div className="text-xs text-blue-600 mt-2">
                 Only read-only permissions are requested. A superadmin can also connect analytics for your company.
