@@ -411,162 +411,66 @@ export default function NewDashboard() {
           </div>
         )}
 
-        {/* Not Connected State - Show Connect Button */}
-        {!loading && !isConnected && (
-          <div className="max-w-2xl mx-auto">
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-blue-900">
-                  <LinkIcon className="h-5 w-5" />
-                  Connect Google Analytics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="">
-                {/* Benefits */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-blue-900">What you'll get:</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <span className="text-sm text-blue-800">Real-time analytics data</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-green-500" />
-                      <span className="text-sm text-blue-800">User behavior insights</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                      <span className="text-sm text-blue-800">Traffic source analysis</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-green-500" />
-                      <span className="text-sm text-blue-800">Custom date filtering</span>
-                    </div>
+        {/* Always show the dashboard grid and sidebar */}
+        <div className="">
+          {/* Greeting Section */}
+          {isGreetingLoading ? (
+            <Card className="bg-transparent border-none">
+              <CardContent className="p-0">
+                <div className="flex justify-between items-start flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-3">
+                    <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-80"></div>
+                    <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-96"></div>
+                    <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-32"></div>
                   </div>
-                </div>
-
-                {/* Connect Button */}
-                <Button
-                  onClick={handleConnect}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  size="lg"
-                  disabled={connecting}
-                >
-                  {connecting ? (
-                    <>
-                      <LoadingSpinner />
-                      <span className="ml-2">Connecting to Google...</span>
-                    </>
-                  ) : (
-                    <>
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      Connect Google Analytics
-                      <ExternalLink className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
-
-                <p className="text-xs text-blue-600 text-center">
-                  You'll be redirected to Google to authorize access. We only request read-only permissions.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Connected but No Property Selected */}
-        {!loading && isConnected && !hasPropertySelected && (
-          <div className="max-w-2xl mx-auto">
-            <Card className="border-orange-200 bg-orange-50">
-              <CardContent className="p-6 text-center">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-orange-900">Google Account Connected!</span>
-                  </div>
-                  <p className="text-orange-700">
-                    Please select your Google Analytics account and property to continue.
-                  </p>
-                  <Button
-                    onClick={() => setShowAccountModal(true)}
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    Select Analytics Property
-                  </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
-
-        {/* Connected and Property Selected - Show Analytics Dashboard */}
-        {isConnected && hasPropertySelected && (
-          <div className="">
-            {/* Greeting Section */}
-            {isGreetingLoading ? (
-              <Card className="bg-transparent border-none">
-                <CardContent className="p-0">
-                  <div className="flex justify-between items-start flex-col md:flex-row gap-4">
-                    <div className="flex-1 space-y-3">
-                      <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-80"></div>
-                      <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-96"></div>
-                      <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-32"></div>
-                    </div>
+          ) : (
+            <Card className="bg-transparent border-none shadow-none">
+              <CardContent className="p-0">
+                <div className="flex justify-between items-start flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                      {getGreetingMessage()}, {greetingName.split(' ')[0]} 👋
+                    </h1>
+                    <p className="text-gray-600 mb-4">
+                      {currentUserRole === 'admin'
+                        ? "Here's your Google Analytics overview to help you understand your website performance and make data-driven decisions for your business growth."
+                        : `Welcome to ${companyName || "the analytics dashboard"}. View real-time insights and track your website's performance.`
+                      }
+                    </p>
+                    {/* <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span>Analytics Overview</span>
+                    </div> */}
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="bg-transparent border-none shadow-none">
-                <CardContent className="p-0">
-                  <div className="flex justify-between items-start flex-col md:flex-row gap-4">
-                    <div className="flex-1">
-                      <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                        {getGreetingMessage()}, {greetingName.split(' ')[0]} 👋
-                      </h1>
-                      <p className="text-gray-600 mb-4">
-                        {currentUserRole === 'admin'
-                          ? "Here's your Google Analytics overview to help you understand your website performance and make data-driven decisions for your business growth."
-                          : `Welcome to ${companyName || "the analytics dashboard"}. View real-time insights and track your website's performance.`
-                        }
-                      </p>
-                      {/* <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>Analytics Overview</span>
-                      </div> */}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  <div className="lg:col-span-2">
-    <IntegrationsDashboard 
-      isConnected={isConnected}
-      connectedProperty={connectedProperty}
-      onConnect={handleConnect}
-      onDisconnect={handleDisconnect}
-      onChangeProperty={handleChangeProperty}
-      onRefresh={handleRefreshAnalytics}
-      refreshing={refreshing}
-      adminProfile={adminProfile}
-      customerReviewsLoading={customerReviewsLoading}
-      refreshKey={refreshKey}
-    />
-  </div>
-  <div>
-    <DashboardSidebar
-      adminProfile={adminProfile}
-      customerReviewsLoading={customerReviewsLoading}
-    />
-  </div>
-</div>
-
-
-
-         
-
-         
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <IntegrationsDashboard 
+                isConnected={isConnected}
+                connectedProperty={connectedProperty}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+                onChangeProperty={handleChangeProperty}
+                onRefresh={handleRefreshAnalytics}
+                refreshing={refreshing}
+                adminProfile={adminProfile}
+                customerReviewsLoading={customerReviewsLoading}
+                refreshKey={refreshKey}
+              />
+            </div>
+            <div>
+              <DashboardSidebar
+                adminProfile={adminProfile}
+                customerReviewsLoading={customerReviewsLoading}
+              />
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -46,12 +46,7 @@ import {
   Sparkles,
   BookOpen,
 } from 'lucide-react';
-import Link from 'next/link';
-import CustomerReviewsSummary from '@/app/(dashboard)/dashboard/components/customer-reviews-summary';
-import { CustomerReviewsSkeleton } from '@/app/(dashboard)/dashboard/components/analytics-skeleton';
-import Leaderboard from '@/components/leaderboard';
-import ZapierMappingsDisplay from '@/app/(dashboard)/dashboard/components/zapier-mappings-display';
-import AIInsights from '@/app/(dashboard)/dashboard/components/ai-insights';
+
 
 interface AnalyticsChartsProps {
   data: any;

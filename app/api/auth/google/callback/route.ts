@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
       : null;
 
+    // Always upsert a row for the user, even if property_id is null
     const { error: insertError } = await supabase
       .from('google_analytics_tokens')
       .upsert({
@@ -92,7 +93,8 @@ export async function GET(request: NextRequest) {
         scope: tokens.scope,
         token_type: tokens.token_type || 'Bearer',
         account_name: userInfo.email,
-      });
+        property_id: null, // Explicitly set property_id to null if not present
+      }, { onConflict: 'user_id' });
 
     if (insertError) {
       console.error('Failed to store tokens:', insertError);
