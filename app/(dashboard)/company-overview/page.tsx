@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Loader2, Sparkles, Save } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
@@ -176,10 +176,10 @@ export default function TriagePlannerPage() {
   };
 
   // Add handlers to collect data from children
-  const handleCompanyInfoChange = (data: any) => setCompanyInfoData(data);
-  const handleHelpfulListsChange = (data: any) => setHelpfulListsData(data);
-  const handleInternalTasksChange = (data: any) => setInternalTasksData(data);
-  const handleTextSectionsChange = (data: any) => setTextSectionsData(data);
+  const handleCompanyInfoChange = useCallback((data: any) => setCompanyInfoData(data), []);
+  const handleHelpfulListsChange = useCallback((data: any) => setHelpfulListsData(data), []);
+  const handleInternalTasksChange = useCallback((data: any) => setInternalTasksData(data), []);
+  const handleTextSectionsChange = useCallback((data: any) => setTextSectionsData(data), []);
 
   // Unified save handler
   const handleSaveAll = async () => {
@@ -287,7 +287,7 @@ export default function TriagePlannerPage() {
           <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10">
           {/* Left Column */}
           <div className="lg:col-span-8 space-y-4">
             {/* Company Info */}

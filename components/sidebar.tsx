@@ -36,6 +36,20 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Trello Icon Component
+const TrelloIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    viewBox="0 0 512 512" 
+    fill="currentColor"
+  >
+    <path d="M448,0H64C28.672,0,0,28.672,0,64v384c0,35.328,28.672,64,64,64h384c35.328,0,64-28.672,64-64V64
+      C512,28.64,483.328,0,448,0z M224,384c0,17.664-14.336,32-32,32H96c-17.664,0-32-14.336-32-32V96c0-17.696,14.336-32,32-32h96
+      c17.664,0,32,14.304,32,32V384z M448,256c0,17.664-14.336,32-32,32h-96c-17.664,0-32-14.336-32-32V96c0-17.696,14.336-32,32-32h96
+      c17.664,0,32,14.304,32,32V256z"/>
+  </svg>
+);
+
 type NavigationItem = {
   name: string;
   href: string;
@@ -303,7 +317,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               rel="noopener noreferrer"
               className="flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] font-medium text-gray-600 hover:bg-blue-50/80 hover:text-blue-700 transition-colors"
             >
-              <Box className="h-4 w-4" />
+              <img 
+                src="https://theleadshub.ai/wp-content/uploads/2025/02/Mask-group-42-min-300x300.png" 
+                alt="Leads Hub" 
+                className="h-4 w-4 object-contain"
+              />
               Leads Hub
             </a>
            
@@ -314,7 +332,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               rel="noopener noreferrer"
               className="flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] font-medium text-gray-600 hover:bg-blue-50/80 hover:text-blue-700 transition-colors"
             >
-              <ExternalLink className="h-4 w-4" />
+              <TrelloIcon className="h-4 w-4" />
               Trello
             </a>
           </div>

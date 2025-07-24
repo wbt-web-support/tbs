@@ -33,6 +33,8 @@ export default function TextSections({
   const [whatYouDoContent, setWhatYouDoContent] = useState(whatYouDo);
   const [whoYouServeContent, setWhoYouServeContent] = useState(whoYouServe);
   const [notesContent, setNotesContent] = useState(notes);
+  const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     if (generatedData) {
@@ -44,10 +46,7 @@ export default function TextSections({
 
   useEffect(() => {
     onChange({ whatYouDo: whatYouDoContent, whoYouServe: whoYouServeContent, notes: notesContent });
-  }, [whatYouDoContent, whoYouServeContent, notesContent, onChange]);
-
-  const [saving, setSaving] = useState(false);
-  const supabase = createClient();
+  }, [whatYouDoContent, whoYouServeContent, notesContent]);
 
   const handleSave = async () => {
     if (!plannerId) return;
@@ -154,15 +153,15 @@ export default function TextSections({
               value={notesContent}
               onChange={(e) => setNotesContent(e.target.value)}
               placeholder="Add your notes here..."
-              rows={3}
-              className="min-h-[80px] text-sm"
+              rows={5}
+              className="min-h-[120px] text-sm"
               autoExpand={true}
               lined={true}
             />
           ) : (
             <div className="text-sm text-gray-700 rounded-md">
               {notesContent ? (
-                <p className="whitespace-pre-wrap">{notesContent}</p>
+                <div className="whitespace-pre-wrap leading-relaxed">{notesContent}</div>
               ) : (
                 <p className="text-gray-400 italic">
                   Add additional notes, thoughts, or reminders.

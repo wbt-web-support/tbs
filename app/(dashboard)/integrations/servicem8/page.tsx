@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, RefreshCw, CheckCircle, XCircle, Wrench, Users, Calendar, DollarSign, Clock, TrendingUp, Star } from 'lucide-react'
+import { Loader2, RefreshCw, CheckCircle, XCircle, Wrench, Users, Calendar, PoundSterling, Clock, TrendingUp, Star } from 'lucide-react'
 
 interface ServiceM8Data {
   connected: boolean
@@ -433,7 +433,7 @@ export default function ServiceM8Integration() {
                           {kpi.label.includes('Rate') && <TrendingUp className="h-4 w-4 text-gray-400" />}
                           {kpi.label.includes('Duration') && <Clock className="h-4 w-4 text-gray-400" />}
                           {kpi.label.includes('Utilization') && <Users className="h-4 w-4 text-gray-400" />}
-                          {kpi.label.includes('Value') && <DollarSign className="h-4 w-4 text-gray-400" />}
+                          {kpi.label.includes('Value') && <PoundSterling className="h-4 w-4 text-gray-400" />}
                         </div>
                       </CardContent>
                     </Card>

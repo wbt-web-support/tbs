@@ -18,7 +18,7 @@ import {
   Database,
   Settings,
   ArrowRight,
-  DollarSign,
+  PoundSterling,
   Clock,
   Users,
   TrendingUp,
@@ -524,7 +524,7 @@ export default function IntegrationsPage() {
                   <h4 className="font-medium">Available KPIs:</h4>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary" className="text-xs">
-                      <DollarSign className="h-3 w-3 mr-1" />
+                      <PoundSterling className="h-3 w-3 mr-1" />
                       Revenue
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
@@ -638,7 +638,7 @@ export default function IntegrationsPage() {
                       Technician Utilization
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
-                      <DollarSign className="h-3 w-3 mr-1" />
+                      <PoundSterling className="h-3 w-3 mr-1" />
                       Avg Job Value
                     </Badge>
                   </div>

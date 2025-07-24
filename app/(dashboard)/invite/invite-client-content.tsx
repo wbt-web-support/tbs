@@ -126,10 +126,10 @@ export default function InviteClientContent() {
       else setDepartments(departmentsRes.data || []);
 
       if (teamMembersRes.error) console.error('Error fetching team members:', teamMembersRes.error);
-      else setTeamMembers(teamMembersRes.data.map(tm => ({ id: tm.id, name: tm.full_name })) || []);
+      else setTeamMembers(teamMembersRes.data.map((tm: { id: any; full_name: any }) => ({ id: tm.id, name: tm.full_name })) || []);
 
       if (playbooksRes.error) console.error('Error fetching playbooks:', playbooksRes.error);
-      else setPlaybooks(playbooksRes.data.map(p => ({ id: p.id, name: p.playbookname })) || []);
+      else setPlaybooks(playbooksRes.data.map((p: { id: any; playbookname: any }) => ({ id: p.id, name: p.playbookname })) || []);
 
       // Now, if editing, fetch the specific user's data and reset the form
       if (isEditing) {
@@ -213,7 +213,7 @@ export default function InviteClientContent() {
     const result = await inviteUser(finalValues, editUserId || undefined)
     if (result.success) {
       toast.success(isEditing ? 'User updated successfully' : 'User invited successfully')
-      router.push('/chain-of-command')
+      router.push('/team')
     } else {
       toast.error(result.error)
     }

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Input, ExpandableInput } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Loader2, Save, X, Building2, Pencil, DollarSign, PercentCircle, Users } from "lucide-react";
+import { ExpandableInput } from "@/components/ui/input";
+import { Building2, PercentCircle, PoundSterling, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,18 +31,18 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
       teamSize: { current: "", target: "" },
     }
   );
+  const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     if (generatedData?.company_info) {
       setFormData(generatedData.company_info);
     }
   }, [generatedData]);
-  const [saving, setSaving] = useState(false);
-  const supabase = createClient();
 
   useEffect(() => {
     onChange(formData);
-  }, [formData, onChange]);
+  }, [formData]);
 
   const handleChange = (
     section: "annualRevenue" | "profitMargin" | "teamSize",
@@ -96,7 +95,7 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
             {/* Annual Revenue */}
             <div className="border rounded-md p-3">
               <div className="flex items-center mb-2 text-gray-800">
-                <DollarSign className="h-4 w-4 text-blue-600 mr-1.5" />
+                <PoundSterling className="h-4 w-4 text-blue-600 mr-1.5" />
                 <div className="font-medium text-sm">Annual Revenue:</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -225,7 +224,7 @@ export default function CompanyInfo({ data, onUpdate, plannerId, generatedData, 
                 <TableRow>
                   <TableCell className="py-3">
                     <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 text-blue-600 mr-1.5" />
+                      <PoundSterling className="h-4 w-4 text-blue-600 mr-1.5" />
                       <span className="font-medium text-sm">Annual Revenue:</span>
                     </div>
                   </TableCell>

@@ -43,22 +43,22 @@ const navigationSections = [
     ]
   },
   {
-    title: "Content",
+    title: "Calendar",
     items: [
+      {
+        name: "Timeline",
+        href: "/admin/timeline",
+        icon: Clock,
+      },
       {
         name: "Course Management", 
         href: "/admin/courses",
         icon: BookOpen,
       },
       {
-        name: "Benefits",
+        name: "To Do List",
         href: "/admin/benefits",
-        icon: Gift,
-      },
-      {
-        name: "Calendar",
-        href: "/admin/timeline",
-        icon: Clock,
+        icon: CheckSquare,
       },
     ]
   },

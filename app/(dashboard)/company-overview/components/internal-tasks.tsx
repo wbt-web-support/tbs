@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Trash2, Save, X, ListTodo, Pencil, CheckSquare } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 import { CardHeader, CardTitle } from "@/components/ui/card";
 
 type Task = {
@@ -40,7 +40,7 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
 
   useEffect(() => {
     onChange(tasks);
-  }, [tasks, onChange]);
+  }, [tasks]);
 
   const handleAddTask = () => {
     if (!newTask.name.trim()) return;
@@ -92,100 +92,99 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
         {editMode ? (
           <>
             {tasks.length > 0 && (
-              <div className="overflow-auto border rounded-md">
-                <Table>
-                  <TableHeader className="bg-gray-50 sticky top-0">
-                    <TableRow>
-                      <TableHead className="w-1/3 text-xs">Name</TableHead>
-                      <TableHead className="w-2/3 text-xs">Description</TableHead>
-                      <TableHead className="w-[40px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tasks.map((task, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium text-xs py-1.5">
-                          <textarea
-                            ref={el => {
-                              if (el) {
-                                el.style.height = "auto";
-                                el.style.height = `${el.scrollHeight}px`;
-                              }
-                            }}
-                            className="w-full border rounded-md px-2 py-1 text-xs resize-none overflow-hidden min-h-[32px]"
-                            value={task.name}
-                            onChange={e => {
-                              const newTasks = [...tasks];
-                              newTasks[index].name = e.target.value;
-                              setTasks(newTasks);
-                            }}
-                            onInput={e => {
-                              const target = e.target as HTMLTextAreaElement;
-                              target.style.height = "auto";
-                              target.style.height = `${target.scrollHeight}px`;
-                            }}
-                            rows={1}
-                          />
-                        </TableCell>
-                        <TableCell className="text-xs py-1.5">
-                          <textarea
-                            ref={el => {
-                              if (el) {
-                                el.style.height = "auto";
-                                el.style.height = `${el.scrollHeight}px`;
-                              }
-                            }}
-                            className="w-full border rounded-md px-2 py-1 text-xs resize-none overflow-hidden min-h-[40px]"
-                            value={task.description}
-                            onChange={e => {
-                              const newTasks = [...tasks];
-                              newTasks[index].description = e.target.value;
-                              setTasks(newTasks);
-                            }}
-                            onInput={e => {
-                              const target = e.target as HTMLTextAreaElement;
-                              target.style.height = "auto";
-                              target.style.height = `${target.scrollHeight}px`;
-                            }}
-                            rows={1}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveTask(index)}
-                            className="h-6 w-6"
-                          >
-                            <Trash2 className="h-3 w-3 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="space-y-3">
+                {tasks.map((task, index) => (
+                  <div key={index} className="border rounded-md p-3 bg-gray-50">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <CheckSquare className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0" />
+                          <label className="text-xs font-medium text-gray-700">Task Name:</label>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveTask(index)}
+                          className="h-6 w-6"
+                        >
+                          <Trash2 className="h-3 w-3 text-red-500" />
+                        </Button>
+                      </div>
+                      <textarea
+                        ref={el => {
+                          if (el) {
+                            el.style.height = "auto";
+                            el.style.height = `${el.scrollHeight}px`;
+                          }
+                        }}
+                        className="w-full border rounded-md px-3 py-2 text-sm resize-none overflow-hidden min-h-[40px] bg-white"
+                        value={task.name}
+                        onChange={e => {
+                          const newTasks = [...tasks];
+                          newTasks[index].name = e.target.value;
+                          setTasks(newTasks);
+                        }}
+                        onInput={e => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = "auto";
+                          target.style.height = `${target.scrollHeight}px`;
+                        }}
+                        placeholder="Enter task name..."
+                        rows={1}
+                      />
+                      <div>
+                        <label className="text-xs font-medium text-gray-700">Description:</label>
+                        <textarea
+                          ref={el => {
+                            if (el) {
+                              el.style.height = "auto";
+                              el.style.height = `${el.scrollHeight}px`;
+                            }
+                          }}
+                          className="w-full border rounded-md px-3 py-2 text-sm resize-none overflow-hidden min-h-[60px] bg-white mt-1"
+                          value={task.description}
+                          onChange={e => {
+                            const newTasks = [...tasks];
+                            newTasks[index].description = e.target.value;
+                            setTasks(newTasks);
+                          }}
+                          onInput={e => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = "auto";
+                            target.style.height = `${target.scrollHeight}px`;
+                          }}
+                          placeholder="Enter task description..."
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
             {showAddForm ? (
-              <div className="border rounded-md p-3 space-y-2 bg-gray-50">
-                <div className="grid grid-cols-1 gap-2">
-                  <div>
-                    <ExpandableInput
-                      value={newTask.name}
-                      onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
-                      placeholder="Task name"
-                      className="text-xs"
-                      expandAfter={30}
-                      lined={true}
-                    />
+              <div className="border rounded-md p-3 space-y-3 bg-gray-50">
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <CheckSquare className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0" />
+                    <label className="text-xs font-medium text-gray-700">Task Name:</label>
                   </div>
+                  <ExpandableInput
+                    value={newTask.name}
+                    onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
+                    placeholder="Enter task name..."
+                    className="text-sm"
+                    expandAfter={30}
+                    lined={true}
+                  />
                   <div>
+                    <label className="text-xs font-medium text-gray-700">Description:</label>
                     <Textarea
                       value={newTask.description}
                       onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                      placeholder="Task description"
+                      placeholder="Enter task description..."
                       rows={2}
-                      className="text-xs min-h-[50px]"
+                      className="text-sm min-h-[60px] mt-1"
                       autoExpand={true}
                       lined={true}
                     />
@@ -221,20 +220,24 @@ export default function InternalTasks({ data, onUpdate, plannerId, generatedData
             )}
           </>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {tasks.length === 0 ? (
               <p className="text-center text-gray-400 italic py-2 text-sm">No tasks added yet</p>
             ) : (
               tasks.map((task, index) => (
-                <div key={index} className="border rounded-md p-3">
-                  <div className="flex items-start">
-                    <CheckSquare className="h-4 w-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium text-sm">{task.name}</div>
-                      {task.description && (
-                        <div className="text-xs text-gray-600 mt-1">{task.description}</div>
-                      )}
+                <div key={index} className="border rounded-md p-4 bg-white">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        <CheckSquare className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0" />
+                        <h4 className="font-semibold text-sm text-gray-900">{task.name}</h4>
+                      </div>
                     </div>
+                    {task.description && (
+                      <div className="ml-6">
+                        <p className="text-xs text-gray-600 leading-relaxed">{task.description}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))

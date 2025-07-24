@@ -215,7 +215,7 @@ export default function CourseManagementPage() {
 
       // Also fetch all lessons for these modules
       if (data && data.length > 0) {
-        const moduleIds = data.map(m => m.id);
+        const moduleIds = data.map((m: { id: any; }) => m.id);
         const { data: lessonsData, error: lessonsError } = await supabase
           .from('course_lessons')
           .select('*')
@@ -540,15 +540,13 @@ export default function CourseManagementPage() {
           </div>
           <p className="text-gray-500">{getBreadcrumb()}</p>
         </div>
-        {currentView !== 'courses' && (
-          <Button 
-            onClick={() => openDialog(getAddButtonType(), 'create')} 
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {getAddButtonText()}
-          </Button>
-        )}
+        <Button 
+          onClick={() => openDialog(getAddButtonType(), 'create')} 
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {getAddButtonText()}
+        </Button>
       </div>
 
       {/* Content */}
@@ -955,17 +953,7 @@ export default function CourseManagementPage() {
                 />
               </div>
 
-              {dialog.type === 'course' && (
-                <div>
-                  <Label htmlFor="thumbnail_url">Thumbnail URL</Label>
-                  <Input
-                    id="thumbnail_url"
-                    value={formData.thumbnail_url || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
-                    placeholder="Enter thumbnail URL"
-                  />
-                </div>
-              )}
+            
 
               <div className="flex items-center gap-2">
                 <input
@@ -1100,17 +1088,32 @@ export default function CourseManagementPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="lesson_is_active"
-                    checked={formData.is_active !== false}
-                    onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                    className="rounded h-4 w-4"
-                  />
-                  <Label htmlFor="lesson_is_active" className="text-sm font-medium">
-                    Publish this lesson (make it visible to students)
-                  </Label>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <Label className="text-sm font-medium">Lesson Status</Label>
+                    
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-medium ${formData.is_active !== false ? 'text-gray-500' : 'text-blue-600'}`}>
+                      Draft
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, is_active: !prev.is_active }))}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                        formData.is_active !== false ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          formData.is_active !== false ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm font-medium ${formData.is_active !== false ? 'text-blue-600' : 'text-gray-500'}`}>
+                      Published
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

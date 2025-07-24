@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  DollarSign, 
+  PoundSterling, 
   TrendingUp,
   TrendingDown,
   BarChart3,
@@ -235,7 +235,7 @@ export default function QuickBooksKPIs() {
         return {
           label: 'Revenue',
           color: '#10b981',
-          icon: <DollarSign className="h-4 w-4" />,
+          icon: <PoundSterling className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
       case 'gross_profit':
@@ -285,7 +285,7 @@ export default function QuickBooksKPIs() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
+            <PoundSterling className="h-5 w-5" />
             QuickBooks Financial KPIs
           </CardTitle>
           <CardDescription>
@@ -295,7 +295,7 @@ export default function QuickBooksKPIs() {
         <CardContent>
           <div className="text-center space-y-4">
             <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-muted-foreground" />
+              <PoundSterling className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
               <p className="font-medium">No QuickBooks Connection</p>
@@ -329,7 +329,7 @@ export default function QuickBooksKPIs() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div className="flex items-center gap-2">
           {getStatusBadge(connection.status)}
-          <span className="font-semibold text-lg flex items-center gap-2"><DollarSign className="h-5 w-5" /> QuickBooks</span>
+          <span className="font-semibold text-lg flex items-center gap-2"><PoundSterling className="h-5 w-5" /> QuickBooks</span>
         </div>
         <div className="flex items-center gap-2">
           <Select value={period} onValueChange={setPeriod}>

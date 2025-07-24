@@ -47,12 +47,12 @@ export default async function PromptAdminPage() {
     return (
       <div className="max-w-2xl mx-auto mt-20 text-center">
         <Card>
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              You must be a super admin to manage Gemini prompts.
-            </CardDescription>
-          </CardHeader>
+                  <CardHeader>
+          <CardTitle>Access Denied</CardTitle>
+          <CardDescription>
+            You must be a super admin to manage prompts.
+          </CardDescription>
+        </CardHeader>
         </Card>
       </div>
     );
@@ -68,9 +68,9 @@ export default async function PromptAdminPage() {
 
   return (
     <div className="max-w-8xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">Gemini Prompts Management</h1>
+      <h1 className="text-3xl font-bold mb-2">Prompts Management</h1>
       <p className="text-muted-foreground mb-8">
-        Edit the prompts used by Gemini-powered features. Changes are live immediately. Use <span className="font-mono bg-neutral-100 px-1 rounded">{'{{companyContext}}'}</span> for dynamic company data.
+        Edit the prompts used by system features. Changes are live immediately. Use <span className="font-mono bg-neutral-100 px-1 rounded">{'{{companyContext}}'}</span> for dynamic company data.
       </p>
      
           {error && (

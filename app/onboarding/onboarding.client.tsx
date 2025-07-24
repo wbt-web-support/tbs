@@ -16,10 +16,11 @@ import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, DollarSign, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SubmissionLoader } from "./components/submission-loader";
 
 // Animated AI Blob Component
 function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className?: string; isActive?: boolean }) {
@@ -136,7 +137,6 @@ function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className
     </div>
   );
 }
-import { SubmissionLoader } from "./components/submission-loader";
 
 // Question interface for type safety
 interface Question {
@@ -563,12 +563,14 @@ function DatePicker({
   value,
   onChange,
   required,
-  placeholder = "Pick a date"
+  placeholder = "Pick a date",
+  captionLayout = "dropdown"
 }: {
   value: string;
   onChange: (date: string) => void;
   required: boolean;
   placeholder?: string;
+  captionLayout?: 'dropdown' | 'label' | 'dropdown-months' | 'dropdown-years';
 }) {
   const [date, setDate] = React.useState<Date | undefined>(
     value ? new Date(value) : undefined
@@ -614,11 +616,88 @@ function DatePicker({
           onSelect={handleDateSelect}
           disabled={(date) => date > today} // Disable future dates
           initialFocus
+          captionLayout={captionLayout}
+          toMonth={today}
         />
       </PopoverContent>
     </Popover>
   );
 }
+
+// Revenue Input with formatting
+const RevenueInput = React.forwardRef<HTMLInputElement, { value: string; onChange: (val: string) => void; required: boolean; placeholder?: string; id?: string }>(
+  ({ value, onChange, required, placeholder, id }, ref) => {
+    // Remove all non-digit characters for storage
+    const formatNumber = (val: string) => {
+      if (!val) return '';
+      const num = val.replace(/[^\d]/g, '');
+      if (!num) return '';
+      return '£' + Number(num).toLocaleString();
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Only allow numbers
+      const raw = e.target.value.replace(/[^\d]/g, '');
+      onChange(raw);
+    };
+
+    return (
+      <Input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={formatNumber(value)}
+        onChange={handleChange}
+        required={required}
+        placeholder={placeholder ? `£${placeholder}` : '£0'}
+        autoComplete="off"
+        ref={ref}
+      />
+    );
+  }
+);
+RevenueInput.displayName = 'RevenueInput';
+
+// Percentage Input with formatting
+const PercentageInput = React.forwardRef<HTMLInputElement, { value: string; onChange: (val: string) => void; required: boolean; placeholder?: string; id?: string }>(
+  ({ value, onChange, required, placeholder, id }, ref) => {
+    // Remove all non-digit and non-decimal characters for storage
+    const formatNumber = (val: string) => {
+      if (!val) return '';
+      // Remove leading zeros
+      const num = val.replace(/^0+(?!\.)/, '');
+      return num ? num + '%' : '';
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Only allow numbers and a single decimal point
+      let raw = e.target.value.replace(/[^\d.]/g, '');
+      // Prevent multiple decimals
+      const parts = raw.split('.');
+      if (parts.length > 2) {
+        raw = parts[0] + '.' + parts.slice(1).join('');
+      }
+      onChange(raw);
+    };
+
+    return (
+      <Input
+        id={id}
+        type="text"
+        inputMode="decimal"
+        pattern="[0-9.]*"
+        value={formatNumber(value)}
+        onChange={handleChange}
+        required={required}
+        placeholder={placeholder ? `${placeholder}%` : '0%'}
+        autoComplete="off"
+        ref={ref}
+      />
+    );
+  }
+);
+PercentageInput.displayName = 'PercentageInput';
 
 // Highly descriptive schema for AI training
 const formSchema = z.object({
@@ -785,7 +864,7 @@ const questions: Question[] = [
     placeholder: "Enter annual revenue",
     required: true,
     aiAssist: false,
-    icon: DollarSign,
+    icon: PoundSterling,
   },
   {
     name: 'current_profit_margin_percentage',
@@ -974,7 +1053,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
             <div className="flex-1">
               <div className="mb-6">
                 <h1 className="text-4xl font-bold text-gray-900 mb-3">
-                  Welcome, <span className="text-blue-600">{firstName}</span>
+                  Welcome, <span className="text-blue-600">{firstName}</span>.
                 </h1>
                 <div className="flex items-center gap-2 text-gray-500">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -1094,7 +1173,7 @@ function FloatingAIAssistant({
       ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
       : currentQuestion.type === 'sop-links-repeater'
       ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
-      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim() : currentValue)
+      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length >= 10 : false)
   ) : false;
 
   // Get current chat state for focused question
@@ -1268,6 +1347,8 @@ function FloatingAIAssistant({
     return null;
   }
 
+  const wordCount = currentQuestion && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length : 0;
+
   return (
     <div className="h-full w-full">
       <div className={`h-full bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden ${
@@ -1424,7 +1505,21 @@ function FloatingAIAssistant({
               ) : (
                 /* Suggestion Mode Interface */
                 <div className="space-y-4">
-                  {hasContent ? (
+                  {wordCount > 0 && wordCount < 10 ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-6">
+                      <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                        <FileText className="h-9 w-9 text-blue-600" />
+                      </div>
+                      <h3 className="text-gray-900 font-semibold mb-3 text-lg">Waiting for more context...</h3>
+                      <p className="text-gray-600 text-sm max-w-sm mx-auto text-center leading-relaxed">
+                        Keep typing a few more words so AI can help you improve your answer.
+                      </p>
+                      <div className="mt-6 flex items-center gap-2 text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-full">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                        <span>Waiting for more context</span>
+                      </div>
+                    </div>
+                  ) : hasContent ? (
                     <>
                       {/* Quick Actions - Clean Pills */}
                       <div className="space-y-2">
@@ -1585,7 +1680,7 @@ function MobileAIAssistant({
         ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
         : currentQuestion.type === 'sop-links-repeater'
         ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
-        : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim() : currentValue)
+        : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length >= 10 : false)
     ) : false;
     
     if (!hasContent) return [];
@@ -1678,12 +1773,36 @@ function MobileAIAssistant({
       ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
       : currentQuestion.type === 'sop-links-repeater'
       ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
-      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim() : currentValue)
+      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length >= 10 : false)
   ) : false;
+
+  const wordCount = currentQuestion && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return (
     <div className="lg:hidden mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-      {hasContent ? (
+      {wordCount > 0 && wordCount < 10 ? (
+        <div className="flex flex-col items-center py-6 px-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center mb-4 shadow-sm">
+            <FileText className="h-6 w-6 text-blue-600" />
+          </div>
+          <h4 className="text-gray-900 font-medium text-sm mb-2">Waiting for more context...</h4>
+          <p className="text-xs text-gray-600 text-center leading-relaxed mb-4">
+            Keep typing a few more words so AI can help you improve your answer.
+          </p>
+          <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
+            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+            <span>Waiting for more context</span>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClose}
+            className="mt-3 h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : hasContent ? (
         <>
           {/* Compact suggestions */}
           <div className="space-y-2 mb-3">
@@ -1774,6 +1893,111 @@ function MobileAIAssistant({
   );
 }
 
+// UK Address Fields Component
+const UkAddressFields = React.forwardRef<HTMLInputElement, {
+  value: string;
+  onChange: (address: string) => void;
+  required: boolean;
+  id?: string;
+}>(
+  ({ value, onChange, required, id }, ref) => {
+  // Parse the value into parts
+  const parseAddress = (address: string) => {
+    const parts = address.split(',').map((p) => p.trim());
+    return {
+      line1: parts[0] || '',
+      line2: parts[1] || '',
+      city: parts[2] || '',
+      county: parts[3] || '',
+      postcode: parts[4] || '',
+      country: parts[5] || '',
+    };
+  };
+  const [fields, setFields] = React.useState(() => parseAddress(value || ''));
+
+  React.useEffect(() => {
+    setFields(parseAddress(value || ''));
+    // eslint-disable-next-line
+  }, [value]);
+
+  const handleFieldChange = (field: keyof typeof fields, val: string) => {
+    const newFields = { ...fields, [field]: val };
+    setFields(newFields);
+    // Format: "Line 1, Line 2, City, County, Postcode, Country"
+    const formatted = [
+      newFields.line1,
+      newFields.line2,
+      newFields.city,
+      newFields.county,
+      newFields.postcode,
+      newFields.country
+    ]
+      .filter((v) => v && v.trim())
+      .join(', ');
+    onChange(formatted);
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+        <Input
+          id={id}
+          ref={ref}
+          value={fields.line1}
+          onChange={(e) => handleFieldChange('line1', e.target.value)}
+          placeholder="e.g. 123 High Street"
+          required={required}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+        <Input
+          value={fields.line2}
+          onChange={(e) => handleFieldChange('line2', e.target.value)}
+          placeholder="Apartment, suite, etc. (optional)"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+        <Input
+          value={fields.city}
+          onChange={(e) => handleFieldChange('city', e.target.value)}
+          placeholder="e.g. London"
+          required={required}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">County</label>
+        <Input
+          value={fields.county}
+          onChange={(e) => handleFieldChange('county', e.target.value)}
+          placeholder="e.g. Greater London"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Postcode</label>
+        <Input
+          value={fields.postcode}
+          onChange={(e) => handleFieldChange('postcode', e.target.value)}
+          placeholder="e.g. SW1A 1AA"
+          required={required}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+        <Input
+          value={fields.country}
+          onChange={(e) => handleFieldChange('country', e.target.value)}
+          placeholder="e.g. United Kingdom"
+          required={required}
+        />
+      </div>
+    </div>
+  );
+});
+UkAddressFields.displayName = 'UkAddressFields';
+
 export default function OnboardingClient() {
   const router = useRouter();
   const { toast } = useToast();
@@ -1797,7 +2021,7 @@ export default function OnboardingClient() {
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [mobileAiOpen, setMobileAiOpen] = useState<{[key: string]: boolean}>({});
   const [desktopAiOpen, setDesktopAiOpen] = useState(true); // Desktop AI assistant starts open
-
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -2290,6 +2514,7 @@ export default function OnboardingClient() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setOnboardingComplete(true);
 
     // NEW CHECK: Only allow submission if we are truly on the last category page.
     if (currentCategory !== categories.length - 1) {
@@ -2532,315 +2757,425 @@ export default function OnboardingClient() {
 
   const currentQuestions = categories[currentCategory].questions;
 
+  // Scroll to top of form when section changes
+  React.useEffect(() => {
+    const formElement = document.getElementById('onboarding-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentCategory]);
+
   return (
     <div className="min-h-screen bg-gray-50 w-full">
-      {isLoading && <SubmissionLoader loadingSteps={submissionSteps} />}
-      <OnboardingHeader userName={userName} />
-      <main className="mx-auto p-0">
-        {showWelcome ? (
-          <WelcomeScreen userEmail={userName} onStart={handleStartOnboarding} />
-        ) : (
-          <div className="min-h-screen w-full flex relative">
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              className="md:hidden fixed top-20 left-4 z-20 bg-white border p-2 hover:bg-gray-100 transition-colors"
-              onClick={() => setIsSidebarOpen(true)}
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
+      {onboardingComplete ? (
+        <SubmissionLoader loadingSteps={submissionSteps} />
+      ) : (
+        <>
+          {isLoading && <SubmissionLoader loadingSteps={submissionSteps} />}
+          <OnboardingHeader userName={userName} />
+          <main className="mx-auto p-0">
+            {showWelcome ? (
+              <WelcomeScreen userEmail={userName} onStart={handleStartOnboarding} />
+            ) : (
+              <div className="min-h-screen w-full flex relative">
+                {/* Mobile Menu Button */}
+                <Button
+                  variant="ghost"
+                  className="md:hidden fixed top-20 left-4 z-20 bg-white border p-2 hover:bg-gray-100 transition-colors"
+                  onClick={() => setIsSidebarOpen(true)}
+                >
+                  <Menu className="h-6 w-6" />
+                </Button>
 
-            {/* Sidebar for desktop */}
-            <div className="hidden md:block w-full max-w-[380px] bg-white sticky top-16 self-start min-h-[calc(100vh-4rem)] border-r z-10 shadow-sm">
-              <div className="flex flex-col h-full">
-                {/* Sidebar header */}
-                <div className="px-6 py-6 border-b">
-                  <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
-                  <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
-                </div>
-
-                {/* Steps list */}
-                <div className="flex-1 overflow-y-auto py-2">
-                  <div className="flex flex-col gap-2">
-                    {categories.map((category, index) => (
-                      <StepIndicator
-                        key={category.id}
-                        step={index + 1}
-                        title={category.title}
-                        description={category.description}
-                        isActive={index === currentCategory}
-                        isCompleted={index < currentCategory}
-                        onClick={() => handleCategoryClick(index)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Progress indicator */}
-                <div className="p-6 border-t bg-gray-50">
-                  <div className="flex items-center justify-between mb-0">
-                    <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-                    <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
-                  </div>
-                  <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile sidebar using Sheet */}
-            <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-              <SheetContent side="left" className="w-full max-w-[280px] p-0">
-                <div className="flex flex-col h-full">
-                  {/* Sidebar header */}
-                  <div className="px-6 py-6 border-b">
-                    <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
-                    <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
-                  </div>
-
-                  {/* Steps list */}
-                  <div className="flex-1 overflow-y-auto py-2">
-                    <div className="flex flex-col">
-                      {categories.map((category, index) => (
-                        <StepIndicator
-                          key={category.id}
-                          step={index + 1}
-                          title={category.title}
-                          description={category.description}
-                          isActive={index === currentCategory}
-                          isCompleted={index < currentCategory}
-                          onClick={() => {
-                            handleCategoryClick(index);
-                            setIsSidebarOpen(false);
-                          }}
-                        />
-                      ))}
+                {/* Sidebar for desktop */}
+                <div className="hidden md:block w-full max-w-[380px] bg-white sticky top-16 self-start min-h-[calc(100vh-4rem)] border-r z-10 shadow-sm">
+                  <div className="flex flex-col h-full">
+                    {/* Sidebar header */}
+                    <div className="px-6 py-6 border-b">
+                      <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
+                      <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
                     </div>
-                  </div>
 
-                  {/* Progress indicator */}
-                  <div className="p-6 border-t bg-gray-50">
-                    <div className="flex items-center justify-between mb-0">
-                      <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-                      <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
-                    </div>
-                    <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* Right Content Area for Questions */}
-            <div className="flex justify-center items-center w-full p-4 md:p-8 relative pb-24 md:pb-8 pt-24">
-              <div className={`w-full flex gap-8 ${desktopAiOpen ? 'max-w-6xl' : 'max-w-3xl justify-center'}`}>
-                {/* Form Section */}
-                <form onSubmit={handleSubmit} id="onboarding-form" className={`flex-1 flex flex-col items-center min-h-[calc(100vh-10rem)] pt-0 md:pt-20 ${desktopAiOpen ? 'max-w-3xl' : 'max-w-3xl'}`}>
-              <Progress value={(currentCategory + 1) / categories.length * 100} className="mb-6" />
-
-                <div className="w-full mb-8 text-left">
-                  <h2 className="text-2xl font-bold text-gray-900">Step {currentCategory + 1}: {categories[currentCategory].title}</h2>
-                  <p className="text-sm text-gray-600 mt-2">{categories[currentCategory].description}</p>
-                </div>
-
-                <div className="w-full space-y-8">
-                  {currentQuestions.map((q) => {
-                    const fieldName = q.name as keyof z.infer<typeof formSchema>;
-                    const fieldValue = form.watch(fieldName);
-                    const hasContent = q.type === 'business-owners-repeater'
-                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((owner: any) => owner.fullName && owner.role)
-                      : q.type === 'competitors-repeater'
-                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((competitor: any) => competitor.name)
-                      : q.type === 'employees-repeater'
-                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
-                      : q.type === 'sop-links-repeater'
-                      ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((link: any) => link.title && link.url)
-                      : !!(fieldValue && typeof fieldValue === 'string' ? fieldValue.trim() : fieldValue);
-                    const IconComponent = q.icon || HelpCircle;
-
-                    return (
-                      <div 
-                        key={q.name} 
-                        className={`group bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border-2 border-gray-200 ${
-                          currentFocusedQuestion === q.name 
-                            ? ' !border-blue-400 shadow-lg shadow-blue-100/50 bg-blue-50/30' 
-                            : 'border border-gray-100 hover:border-blue-200'
-                        }`}
-                      >
-                        {/* Question Header */}
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-indigo-100 transition-colors">
-                            <IconComponent className="w-6 h-6 text-blue-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1">
-                          <label
-                                  className="block text-sm md:text-lg font-medium text-gray-900 mb-1 leading-tight"
-                            htmlFor={q.name}
-                          >
-                            {q.label}
-                          </label>
-                                {q.description && (
-                                  <p className="text-sm text-gray-500 mb-3">{q.description}</p>
-                                )}
-                              </div>
-
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Form Field */}
-                        <div className="space-y-3">
-                        {q.type === 'business-owners-repeater' ? (
-                            <BusinessOwnersRepeater
-                              value={form.getValues(fieldName) as BusinessOwner[] || []}
-                              onChange={(owners) => {
-                                form.setValue(fieldName, owners, { shouldValidate: true });
-                              }}
-                              required={q.required}
-                            />
-                        ) : q.type === 'competitors-repeater' ? (
-                            <CompetitorsRepeater
-                              value={form.getValues(fieldName) as Competitor[] || []}
-                              onChange={(competitors) => {
-                                form.setValue(fieldName, competitors, { shouldValidate: true });
-                              }}
-                              required={q.required}
-                            />
-                        ) : q.type === 'employees-repeater' ? (
-                            <EmployeesRepeater
-                              value={form.getValues(fieldName) as Employee[] || []}
-                              onChange={(employees) => {
-                                form.setValue(fieldName, employees, { shouldValidate: true });
-                              }}
-                              required={q.required}
-                            />
-                        ) : q.type === 'date-picker' ? (
-                            <DatePicker
-                              value={typeof form.getValues(fieldName) === 'string' ? form.getValues(fieldName) as string : ""}
-                              onChange={(date) => {
-                                form.setValue(fieldName, date, { shouldValidate: true });
-                              }}
-                              required={q.required}
-                              placeholder={q.placeholder}
-                            />
-                        ) : q.type === 'sop-links-repeater' ? (
-                            <SOPLinksRepeater
-                              value={form.getValues(fieldName) as SOPLink[] || []}
-                              onChange={(links) => {
-                                form.setValue(fieldName, links, { shouldValidate: true });
-                              }}
-                              required={q.required}
-                            />
-                        ) : q.type === 'input' ? (
-                            <Input
-                              id={q.name}
-                              type={q.inputType || 'text'}
-                              placeholder={q.placeholder}
-                              className="w-full text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg h-12 px-4 bg-gray-50"
-                              required={q.required}
-                              onFocus={() => setCurrentFocusedQuestion(q.name)}
-                              {...form.register(fieldName)}
-                            />
-                        ) : (
-                            <Textarea
-                              id={q.name}
-                              placeholder={q.placeholder}
-                              className="w-full min-h-[220px] text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-4 resize-none bg-gray-50"
-                              required={q.required}
-                              onFocus={() => setCurrentFocusedQuestion(q.name)}
-                              {...form.register(fieldName)}
-                            />
-                          )}
-                          
-
-                          
-                             {form.formState.errors[fieldName] && (
-                            <p className="text-red-500 text-sm flex items-center gap-1">
-                              <X className="h-4 w-4" />
-                              {form.formState.errors[fieldName]?.message}
-                            </p>
-                          )}
-
-                          {/* Mobile AI Dropdown - FAQ-style collapsible for AI-enabled questions */}
-                          {q.aiAssist && hasContent && (
-                            <div className="lg:hidden mt-3">
-                              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                                <button
-                                type="button"
-                                onClick={() => {
-                                  setCurrentFocusedQuestion(q.name);
-                                  setMobileAiOpen(prev => ({
-                                    ...prev,
-                                    [q.name]: !prev[q.name]
-                                  }));
-                                }}
-                                  className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
-                              >
-                                  <div className="flex items-center gap-2">
-                                    <AnimatedAIBlob className="w-4 h-4" isActive={mobileAiOpen[q.name]} />
-                                    <span className="text-sm font-medium text-blue-700">
-                                      Need Writing Help?
-                                    </span>
-                            </div>
-                                  {mobileAiOpen[q.name] ? (
-                                    <ChevronUp className="h-4 w-4 text-blue-600" />
-                                  ) : (
-                                    <ChevronDown className="h-4 w-4 text-blue-600" />
-                                  )}
-                                </button>
-                                
-                                {mobileAiOpen[q.name] && (
-                                  <div className="border-t border-gray-200 bg-white">
-                                    <div className="p-3">
-                                      <p className="text-xs text-gray-600 mb-3">
-                                        Get AI help with improving your response
-                                      </p>
-                                      <MobileAIAssistant
-                                        focusedQuestion={q.name}
-                                        form={form}
-                                        categories={categories}
-                                        onClose={() => setMobileAiOpen(prev => ({
-                                          ...prev,
-                                          [q.name]: false
-                                        }))}
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                                </div>
-
-                        {/* Progress indicator for this question */}
-                        <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
-                          {q.required ? (
-                            <span className="flex items-center gap-1">
-                              <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                              Required
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
-                              Optional
-                            </span>
-                          )}
-                          {hasContent && (
-                            <span className="text-green-600 font-medium">✓ Completed</span>
-                              )}
-                          </div>
-
-
+                    {/* Steps list */}
+                    <div className="flex-1 overflow-y-auto py-2">
+                      <div className="flex flex-col gap-2">
+                        {categories.map((category, index) => (
+                          <StepIndicator
+                            key={category.id}
+                            step={index + 1}
+                            title={category.title}
+                            description={category.description}
+                            isActive={index === currentCategory}
+                            isCompleted={index < currentCategory}
+                            onClick={() => handleCategoryClick(index)}
+                          />
+                        ))}
                       </div>
-                    );
-                  })}
+                    </div>
+
+                    {/* Progress indicator */}
+                    <div className="p-6 border-t bg-gray-50">
+                      <div className="flex items-center justify-between mb-0">
+                        <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                        <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
+                      </div>
+                      <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
+                    </div>
+                  </div>
                 </div>
 
+                {/* Mobile sidebar using Sheet */}
+                <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+                  <SheetContent side="left" className="w-full max-w-[280px] p-0">
+                    <div className="flex flex-col h-full">
+                      {/* Sidebar header */}
+                      <div className="px-6 py-6 border-b">
+                        <h3 className="text-lg font-semibold text-gray-900">Setup Progress</h3>
+                        <p className="text-sm text-gray-500 mt-1">Complete all sections to continue</p>
+                      </div>
+
+                      {/* Steps list */}
+                      <div className="flex-1 overflow-y-auto py-2">
+                        <div className="flex flex-col">
+                          {categories.map((category, index) => (
+                            <StepIndicator
+                              key={category.id}
+                              step={index + 1}
+                              title={category.title}
+                              description={category.description}
+                              isActive={index === currentCategory}
+                              isCompleted={index < currentCategory}
+                              onClick={() => {
+                                handleCategoryClick(index);
+                                setIsSidebarOpen(false);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Progress indicator */}
+                      <div className="p-6 border-t bg-gray-50">
+                        <div className="flex items-center justify-between mb-0">
+                          <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                          <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
+                        </div>
+                        <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+
+                {/* Right Content Area for Questions */}
+                <div className="flex justify-center items-center w-full p-4 md:p-8 relative pb-24 md:pb-8 pt-24">
+                  <div className={`w-full flex gap-8 ${desktopAiOpen ? 'max-w-6xl' : 'max-w-3xl justify-center'}`}>
+                    {/* Form Section */}
+                    <form onSubmit={handleSubmit} id="onboarding-form" className={`flex-1 flex flex-col items-center min-h-[calc(100vh-10rem)] pt-0 md:pt-20 ${desktopAiOpen ? 'max-w-3xl' : 'max-w-3xl'}`}>
+                  <Progress value={(currentCategory + 1) / categories.length * 100} className="mb-6" />
+
+                    <div className="w-full mb-8 text-left">
+                      <h2 className="text-2xl font-bold text-gray-900">Step {currentCategory + 1}: {categories[currentCategory].title}</h2>
+                      <p className="text-sm text-gray-600 mt-2">{categories[currentCategory].description}</p>
+                    </div>
+
+                    <div className="w-full space-y-8">
+                      {currentQuestions.map((q) => {
+                        const fieldName = q.name as keyof z.infer<typeof formSchema>;
+                        const fieldValue = form.watch(fieldName);
+                        const hasContent = q.type === 'business-owners-repeater'
+                          ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((owner: any) => owner.fullName && owner.role)
+                          : q.type === 'competitors-repeater'
+                          ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((competitor: any) => competitor.name)
+                          : q.type === 'employees-repeater'
+                          ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
+                          : q.type === 'sop-links-repeater'
+                          ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((link: any) => link.title && link.url)
+                          : q.name === 'main_office_physical_address_full'
+                          ? !!(fieldValue && typeof fieldValue === 'string' ? fieldValue.trim() : fieldValue)
+                          : !!(fieldValue && typeof fieldValue === 'string' ? fieldValue.trim() : fieldValue);
+                        const IconComponent = q.icon || HelpCircle;
+
+                        return (
+                          <div 
+                            key={q.name} 
+                            className={`group bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border-2 border-gray-200 ${
+                              currentFocusedQuestion === q.name 
+                                ? ' !border-blue-400 shadow-lg shadow-blue-100/50 bg-blue-50/30' 
+                                : 'border border-gray-100 hover:border-blue-200'
+                            }`}
+                          >
+                            {/* Question Header */}
+                            <div className="flex items-start gap-4 mb-4">
+                              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-indigo-100 transition-colors">
+                                <IconComponent className="w-6 h-6 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1">
+                              <label
+                                      className="block text-sm md:text-lg font-medium text-gray-900 mb-1 leading-tight"
+                                htmlFor={q.name}
+                              >
+                                {q.label}
+                              </label>
+                                    {q.description && (
+                                      <p className="text-sm text-gray-500 mb-3">{q.description}</p>
+                                    )}
+                                  </div>
+
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Form Field */}
+                            <div className="space-y-3">
+                            {q.type === 'business-owners-repeater' ? (
+                                <BusinessOwnersRepeater
+                                  value={form.getValues(fieldName) as BusinessOwner[] || []}
+                                  onChange={(owners) => {
+                                    form.setValue(fieldName, owners, { shouldValidate: true });
+                                  }}
+                                  required={q.required}
+                                />
+                            ) : q.type === 'competitors-repeater' ? (
+                                <CompetitorsRepeater
+                                  value={form.getValues(fieldName) as Competitor[] || []}
+                                  onChange={(competitors) => {
+                                    form.setValue(fieldName, competitors, { shouldValidate: true });
+                                  }}
+                                  required={q.required}
+                                />
+                            ) : q.type === 'employees-repeater' ? (
+                                <EmployeesRepeater
+                                  value={form.getValues(fieldName) as Employee[] || []}
+                                  onChange={(employees) => {
+                                    form.setValue(fieldName, employees, { shouldValidate: true });
+                                  }}
+                                  required={q.required}
+                                />
+                            ) : q.type === 'date-picker' ? (
+                                <DatePicker
+                                  value={typeof form.getValues(fieldName) === 'string' ? form.getValues(fieldName) as string : ""}
+                                  onChange={(date) => {
+                                    form.setValue(fieldName, date, { shouldValidate: true });
+                                  }}
+                                  required={q.required}
+                                  placeholder={q.placeholder}
+                                  captionLayout="dropdown"
+                                />
+                            ) : q.type === 'sop-links-repeater' ? (
+                                <SOPLinksRepeater
+                                  value={form.getValues(fieldName) as SOPLink[] || []}
+                                  onChange={(links) => {
+                                    form.setValue(fieldName, links, { shouldValidate: true });
+                                  }}
+                                  required={q.required}
+                                />
+                            ) : q.name === 'main_office_physical_address_full' ? (
+                              <UkAddressFields
+                                id={q.name}
+                                value={form.getValues(fieldName) as string || ''}
+                                onChange={(address) => {
+                                  form.setValue(fieldName, address, { shouldValidate: true });
+                                }}
+                                required={q.required}
+                                ref={el => {}}
+                              />
+                            ) : q.name === 'last_full_year_annual_revenue_amount' ? (
+                              <RevenueInput
+                                id={q.name}
+                                value={form.getValues(fieldName) as string || ''}
+                                onChange={(val) => form.setValue(fieldName, val, { shouldValidate: true })}
+                                required={q.required}
+                                placeholder={q.placeholder}
+                                ref={el => {}}
+                              />
+                            ) : q.name === 'current_profit_margin_percentage' ? (
+                              <PercentageInput
+                                id={q.name}
+                                value={form.getValues(fieldName) as string || ''}
+                                onChange={(val) => form.setValue(fieldName, val, { shouldValidate: true })}
+                                required={q.required}
+                                placeholder={q.placeholder}
+                                ref={el => {}}
+                              />
+                            ) : q.type === 'input' ? (
+                                <Input
+                                  id={q.name}
+                                  type={q.inputType || 'text'}
+                                  placeholder={q.placeholder}
+                                  className="w-full text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg h-12 px-4 bg-gray-50"
+                                  required={q.required}
+                                  onFocus={() => setCurrentFocusedQuestion(q.name)}
+                                  {...form.register(fieldName)}
+                                />
+                            ) : (
+                                <Textarea
+                                  id={q.name}
+                                  placeholder={q.placeholder}
+                                  className="w-full min-h-[220px] text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-4 resize-none bg-gray-50"
+                                  required={q.required}
+                                  onFocus={() => setCurrentFocusedQuestion(q.name)}
+                                  {...form.register(fieldName)}
+                                />
+                              )}
+                              
+
+                              
+                                 {form.formState.errors[fieldName] && (
+                                <p className="text-red-500 text-sm flex items-center gap-1">
+                                  <X className="h-4 w-4" />
+                                  {form.formState.errors[fieldName]?.message}
+                                </p>
+                              )}
+
+                              {/* Mobile AI Dropdown - FAQ-style collapsible for AI-enabled questions */}
+                              {q.aiAssist && hasContent && (
+                                <div className="lg:hidden mt-3">
+                                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                    <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCurrentFocusedQuestion(q.name);
+                                      setMobileAiOpen(prev => ({
+                                        ...prev,
+                                        [q.name]: !prev[q.name]
+                                      }));
+                                    }}
+                                      className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+                                  >
+                                      <div className="flex items-center gap-2">
+                                        <AnimatedAIBlob className="w-4 h-4" isActive={mobileAiOpen[q.name]} />
+                                        <span className="text-sm font-medium text-blue-700">
+                                          Need Writing Help?
+                                        </span>
+                                </div>
+                                      {mobileAiOpen[q.name] ? (
+                                        <ChevronUp className="h-4 w-4 text-blue-600" />
+                                      ) : (
+                                        <ChevronDown className="h-4 w-4 text-blue-600" />
+                                      )}
+                                    </button>
+                                    
+                                    {mobileAiOpen[q.name] && (
+                                      <div className="border-t border-gray-200 bg-white">
+                                        <div className="p-3">
+                                          <p className="text-xs text-gray-600 mb-3">
+                                            Get AI help with improving your response
+                                          </p>
+                                          <MobileAIAssistant
+                                            focusedQuestion={q.name}
+                                            form={form}
+                                            categories={categories}
+                                            onClose={() => setMobileAiOpen(prev => ({
+                                              ...prev,
+                                              [q.name]: false
+                                            }))}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                                    </div>
+
+                            {/* Progress indicator for this question */}
+                            <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
+                              {q.required ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                                  Required
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
+                                  Optional
+                                </span>
+                              )}
+                              {hasContent && (
+                                <span className="text-green-600 font-medium">✓ Completed</span>
+                                  )}
+                              </div>
 
 
-                {/* Desktop navigation buttons */}
-                <div className="hidden md:flex w-full pt-6 justify-center">
-                  <div className="w-full max-w-3xl flex justify-between gap-4">
+                          </div>
+                        );
+                      })}
+                    </div>
+
+
+
+                    {/* Desktop navigation buttons */}
+                    <div className="hidden md:flex w-full pt-6 justify-center">
+                      <div className="w-full max-w-3xl flex justify-between gap-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleBack}
+                          disabled={currentCategory === 0 || isLoading}
+                          className="flex items-center gap-2"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Back
+                        </Button>
+                        {currentCategory < categories.length - 1 ? (
+                          <Button
+                            type="button"
+                            onClick={handleNext}
+                            disabled={isLoading}
+                            className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={isLoading}
+                            className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
+                          >
+                            {isLoading ? "Saving..." : "Complete Onboarding"}
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </form>
+
+                    {/* Sticky AI Assistant - only render container when open */}
+                    {desktopAiOpen && (
+                      <div className="hidden lg:block sticky top-20 self-start h-[calc(100vh-8rem)] w-96">
+                        <FloatingAIAssistant
+                          focusedQuestion={currentFocusedQuestion}
+                          form={form}
+                          categories={categories}
+                          onAcceptContent={handleAiContentAccept}
+                          isOpen={desktopAiOpen}
+                          onToggle={() => setDesktopAiOpen(!desktopAiOpen)}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Floating AI Open Button - shows when AI is closed */}
+                    {!desktopAiOpen && (
+                      <div className="hidden lg:block fixed top-24 right-8 z-20">
+                        <Button
+                          onClick={() => setDesktopAiOpen(true)}
+                          className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg flex items-center justify-center p-0"
+                          title="Open AI Assistant"
+                        >
+                          <AnimatedAIBlob className="w-6 h-6" isActive={true} />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mobile AI is now inline - no floating assistant needed */}
+
+                  {/* Mobile bottom navigation bar */}
+                  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center">
                     <Button
                       type="button"
                       variant="outline"
@@ -2851,12 +3186,15 @@ export default function OnboardingClient() {
                       <ChevronLeft className="h-4 w-4" />
                       Back
                     </Button>
+                    <span className="text-sm font-medium text-gray-500">
+                      Step {currentCategory + 1} of {categories.length}
+                    </span>
                     {currentCategory < categories.length - 1 ? (
                       <Button
                         type="button"
                         onClick={handleNext}
                         disabled={isLoading}
-                        className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-2"
                       >
                         Next
                         <ChevronRight className="h-4 w-4" />
@@ -2866,87 +3204,19 @@ export default function OnboardingClient() {
                         type="button"
                         onClick={handleSubmit}
                         disabled={isLoading}
-                        className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
+                        className="flex items-center gap-2"
                       >
-                        {isLoading ? "Saving..." : "Complete Onboarding"}
+                        {isLoading ? "Saving..." : "Complete"}
                         <CheckCircle className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
                 </div>
-              </form>
-
-                {/* Sticky AI Assistant - only render container when open */}
-                {desktopAiOpen && (
-                  <div className="hidden lg:block sticky top-20 self-start h-[calc(100vh-8rem)] w-96">
-                    <FloatingAIAssistant
-                      focusedQuestion={currentFocusedQuestion}
-                      form={form}
-                      categories={categories}
-                      onAcceptContent={handleAiContentAccept}
-                      isOpen={desktopAiOpen}
-                      onToggle={() => setDesktopAiOpen(!desktopAiOpen)}
-                    />
-                  </div>
-                )}
-                
-                {/* Floating AI Open Button - shows when AI is closed */}
-                {!desktopAiOpen && (
-                  <div className="hidden lg:block fixed top-24 right-8 z-20">
-                    <Button
-                      onClick={() => setDesktopAiOpen(true)}
-                      className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg flex items-center justify-center p-0"
-                      title="Open AI Assistant"
-                    >
-                      <AnimatedAIBlob className="w-6 h-6" isActive={true} />
-                    </Button>
-                  </div>
-                )}
               </div>
-
-              {/* Mobile AI is now inline - no floating assistant needed */}
-
-              {/* Mobile bottom navigation bar */}
-              <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleBack}
-                  disabled={currentCategory === 0 || isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Back
-                </Button>
-                <span className="text-sm font-medium text-gray-500">
-                  Step {currentCategory + 1} of {categories.length}
-                </span>
-                {currentCategory < categories.length - 1 ? (
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    disabled={isLoading}
-                    className="flex items-center gap-2"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={isLoading}
-                    className="flex items-center gap-2"
-                  >
-                    {isLoading ? "Saving..." : "Complete"}
-                    <CheckCircle className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+            )}
+          </main>
+        </>
+      )}
     </div>
   );
 }

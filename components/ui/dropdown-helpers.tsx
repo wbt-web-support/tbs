@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, User, Hash, Percent, DollarSign, Filter } from "lucide-react";
+import { Building2, User, Hash, Percent, PoundSterling, Filter } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CustomDropdown, type DropdownOption } from "./custom-dropdown";
 
@@ -20,7 +20,7 @@ export interface TeamMember {
 export const getMetricTypeIcon = (metricType: string) => {
   switch (metricType) {
     case "Currency / Revenue":
-      return DollarSign;
+      return PoundSterling;
     case "Percentages":
       return Percent;
     case "Numeric Count":

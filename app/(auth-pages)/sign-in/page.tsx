@@ -7,27 +7,23 @@ import Link from "next/link";
 import { SmtpMessage } from "../smtp-message";
 import Image from "next/image";
 
-export default async function SignIn(props: {
-  searchParams: Promise<Message>;
-}) {
-  const searchParams = await props.searchParams;
-  if ("message" in searchParams) {
-    return (
-      <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
-        <FormMessage message={searchParams} />
-      </div>
-    );
+export default async function SignIn({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
+  // Parse error/success/message from query params
+  let message: Message | null = null;
+  if (searchParams.error) {
+    message = { error: decodeURIComponent(searchParams.error) };
+  } else if (searchParams.success) {
+    message = { success: decodeURIComponent(searchParams.success) };
+  } else if (searchParams.message) {
+    message = { message: decodeURIComponent(searchParams.message) };
   }
 
   return (
     <div className="flex min-h-screen w-full bg-gray-100">
       <div className="flex-1 flex items-center justify-center p-8">
-
-      
-
         <div className="w-full max-w-md space-y-8 bg-white p-8 rounded">
           <div className="flex flex-col items-start justify-start">
-          <div className="flex justify-center mb-6 ">
+            <div className="flex justify-center mb-6 ">
               <Image 
                 src="https://tradebusinessschool.com/wp-content/uploads/2024/11/TBS-coloured-logo-1.webp"
                 alt="Trades Business School Logo"
@@ -42,8 +38,7 @@ export default async function SignIn(props: {
             </p>
           </div>
 
-
-          <form className="space-y-6">
+          <form className="space-y-6 mb-3">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-800 font-medium">Email</Label>
@@ -71,6 +66,13 @@ export default async function SignIn(props: {
                 />
               </div>
             </div>
+
+            {/* Show error/success/message just above the button, compact and prominent */}
+            {message && (
+              <div className="mb-0">
+                <FormMessage message={message} compact />
+              </div>
+            )}
 
             <SubmitButton 
               formAction={signInAction} 

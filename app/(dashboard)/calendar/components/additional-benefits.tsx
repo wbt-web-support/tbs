@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckSquare, Gift, PartyPopper, Sparkles, Award, TrendingUp, CalendarCheck, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, CheckSquare, Gift, PartyPopper, Sparkles, Award, TrendingUp, CalendarCheck, Calendar, ExternalLink, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 
@@ -23,6 +25,8 @@ interface TodoListProps {
 
 export default function TodoList({ todoItems, loading, teamId }: TodoListProps) {
   const supabase = createClient();
+  const [selectedIframe, setSelectedIframe] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Function to determine which icon to show based on benefit name
   const getItemIcon = (itemName: string) => {
@@ -43,7 +47,7 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
       
       // If the iframe doesn't have a height attribute, add one
       if (!modifiedIframe.includes('height=')) {
-        modifiedIframe = modifiedIframe.replace('<iframe', '<iframe height="1000"');
+        modifiedIframe = modifiedIframe.replace('<iframe', '<iframe height="800"');
       }
       
       // If the iframe doesn't have a width attribute, add one
@@ -51,9 +55,14 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
         modifiedIframe = modifiedIframe.replace('<iframe', '<iframe width="100%"');
       }
       
-      // Ensure the iframe allows fullscreen
+      // Ensure the iframe allows fullscreen and scrolling
       if (!modifiedIframe.includes('allowfullscreen')) {
-        modifiedIframe = modifiedIframe.replace('<iframe', '<iframe allowfullscreen');
+        modifiedIframe = modifiedIframe.replace('<iframe', '<iframe allowfullscreen scrolling="auto"');
+      }
+      
+      // Add scrolling attribute if not present
+      if (!modifiedIframe.includes('scrolling=')) {
+        modifiedIframe = modifiedIframe.replace('<iframe', '<iframe scrolling="auto"');
       }
       
       return modifiedIframe;
@@ -61,6 +70,16 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
       console.error('Error enhancing iframe:', error);
       return iframeHtml; // Return original if parsing fails
     }
+  };
+
+  const openIframeModal = (iframe: string) => {
+    setSelectedIframe(iframe);
+    setIsModalOpen(true);
+  };
+
+  const closeIframeModal = () => {
+    setIsModalOpen(false);
+    setSelectedIframe(null);
   };
 
   if (loading) {
@@ -81,13 +100,10 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <CheckSquare className="w-5 h-5 text-blue-600" />
-        <h2 className="text-xl font-semibold">To Do List</h2>
-      </div>
+ 
       
       <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-1">
+        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
           {todoItems.map((item) => {
             const ItemIcon = getItemIcon(item.benefit_name);
             return (
@@ -95,45 +111,38 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
                 key={item.id}
                 className="transform transition-all duration-300 hover:translate-y-[-2px]"
               >
-                <Card className="p-5 h-full hover:shadow-md transition-shadow duration-300 overflow-hidden group relative">
-                  <div className="absolute top-0 right-0 w-24 h-24 -mt-12 -mr-12 bg-blue-50 rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
+                <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 overflow-hidden group relative border-l-4 border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30">
                   
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-full bg-blue-50 text-blue-600">
-                      <ItemIcon className="w-5 h-5" />
-                    </div>
-                    
-                    <div className="space-y-3 flex-grow">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">{item.benefit_name}</h3>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-600 hover:bg-blue-100">
-                          To Do
-                        </Badge>
+                  <div className="relative z-10 space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-full bg-blue-100 text-blue-600 shadow-sm">
+                        <ItemIcon className="w-6 h-6" />
                       </div>
                       
-                      {item.notes && (
-                        <p className="text-sm text-muted-foreground">{item.notes}</p>
-                      )}
-                      
-                      {item.iframe && (
-                        <div className="mt-4 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-600">Book Your Call</span>
-                          </div>
-                          <div 
-                            className="w-full overflow-hidden bg-white shadow-sm"
-                            style={{ 
-                              minHeight: '650px',
-                              maxWidth: '100%'
-                            }}
-                            dangerouslySetInnerHTML={{ 
-                              __html: enhanceIframeForDisplay(item.iframe) 
-                            }}
-                          />
+                      <div className="flex-grow space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-lg text-gray-800">{item.benefit_name}</h3>
+                          
                         </div>
-                      )}
+                        
+                        {item.notes && (
+                          <p className="text-sm text-gray-600 leading-relaxed">{item.notes}</p>
+                        )}
+                      </div>
                     </div>
+                    
+                    {item.iframe && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <Button
+                          onClick={() => openIframeModal(item.iframe!)}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200 flex items-center gap-2"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          <span>Book Your Call</span>
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </Card>
               </div>
@@ -141,6 +150,23 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
           })}
         </div>
       </div>
+
+      {/* Iframe Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden">
+      
+          <div className="flex-1 overflow-auto p-4 pt-0">
+            {selectedIframe && (
+              <div 
+                className="w-full bg-white rounded-lg overflow-auto"
+                dangerouslySetInnerHTML={{ 
+                  __html: enhanceIframeForDisplay(selectedIframe) 
+                }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

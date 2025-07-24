@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, RefreshCw, CheckCircle, XCircle, Building, Users, FileText, DollarSign, Clock, TrendingUp, Star } from 'lucide-react'
+import { Loader2, RefreshCw, CheckCircle, XCircle, Building, Users, FileText, PoundSterling, Clock, TrendingUp, Star } from 'lucide-react'
 
 interface XeroData {
   connected: boolean
@@ -407,7 +407,7 @@ export default function XeroIntegration() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center space-x-2">
-                    <DollarSign className="h-5 w-5 text-orange-600" />
+                    <PoundSterling className="h-5 w-5 text-orange-600" />
                     <div>
                       <p className="text-2xl font-bold">{data.bank_transactions.length}</p>
                       <p className="text-sm text-muted-foreground">Transactions</p>

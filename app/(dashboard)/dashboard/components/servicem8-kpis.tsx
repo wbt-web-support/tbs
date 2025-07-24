@@ -12,7 +12,7 @@ import {
   TrendingDown,
   Clock,
   Users,
-  DollarSign,
+  PoundSterling,
   RefreshCw,
   Loader2,
   AlertTriangle,
@@ -249,7 +249,7 @@ export default function ServiceM8KPIs() {
         return {
           label: 'Average Job Value',
           color: '#f59e0b',
-          icon: <DollarSign className="h-4 w-4" />,
+          icon: <PoundSterling className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
       default:

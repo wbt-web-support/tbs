@@ -287,10 +287,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       setUser(data);
       setEditedUser(data);
       
-      // Fetch user details
-      if (data.user_id) {
-        fetchUserDetails(data.user_id);
-      }
+      
     } catch (error) {
       console.error("Error fetching user:", error);
       toast.error("Failed to load user data");
@@ -299,187 +296,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const fetchUserDetails = async (userId: string) => {
-    try {
-      setDetailsLoading(true);
-      
-      // Fetch timeline items with user claims - use left join to get all claims
-      const { data: timeline, error: timelineError } = await supabase
-        .from('chq_timeline')
-        .select(`
-          id,
-          event_name,
-          week_number,
-          scheduled_date,
-          description,
-          user_timeline_claims (
-            is_completed,
-            completion_date,
-            user_id
-          )
-        `)
-        .order('week_number', { ascending: true });
-      
-      if (timelineError) throw timelineError;
-
-      // Fetch checklist items with user claims - use left join to get all claims
-      const { data: checklist, error: checklistError } = await supabase
-        .from('chq_checklist')
-        .select(`
-          id,
-          checklist_item,
-          notes,
-          user_checklist_claims (
-            is_completed,
-            completion_date,
-            user_id
-          )
-        `);
-      
-      if (checklistError) throw checklistError;
-
-      // Fetch benefits with user claims - use left join to get all claims
-      const { data: benefits, error: benefitsError } = await supabase
-        .from('chq_benefits')
-        .select(`
-          id,
-          benefit_name,
-          notes,
-          user_benefit_claims (
-            is_claimed,
-            claimed_date,
-            user_id
-          )
-        `);
-      
-      if (benefitsError) throw benefitsError;
-
-      // Fetch battle plan
-      const { data: battlePlan, error: battlePlanError } = await supabase
-        .from('battle_plan')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (battlePlanError && battlePlanError.code !== 'PGRST116') throw battlePlanError;
-
-      // Fetch chain of command
-      const { data: chainOfCommand, error: chainOfCommandError } = await supabase
-        .from('chain_of_command')
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (chainOfCommandError) throw chainOfCommandError;
-
-      // Fetch HWGT plan
-      const { data: hwgtPlan, error: hwgtPlanError } = await supabase
-        .from('hwgt_plan')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (hwgtPlanError && hwgtPlanError.code !== 'PGRST116') throw hwgtPlanError;
-
-      // Fetch machines
-      const { data: machines, error: machinesError } = await supabase
-        .from('machines')
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (machinesError) throw machinesError;
-
-      // Fetch meeting rhythm planner
-      const { data: meetings, error: meetingsError } = await supabase
-        .from('meeting_rhythm_planner')
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (meetingsError) throw meetingsError;
-
-      // Fetch playbooks
-      const { data: playbooks, error: playbooksError } = await supabase
-        .from('playbooks')
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (playbooksError) throw playbooksError;
-
-      // Fetch quarterly sprint canvas
-      const { data: quarterlySprint, error: quarterlySprintError } = await supabase
-        .from('quarterly_sprint_canvas')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (quarterlySprintError && quarterlySprintError.code !== 'PGRST116') throw quarterlySprintError;
-
-      // Fetch triage planner
-      const { data: triagePlanner, error: triagePlannerError } = await supabase
-        .from('triage_planner')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (triagePlannerError && triagePlannerError.code !== 'PGRST116') throw triagePlannerError;
-
-      // Transform data to include claim status for user-specific items
-      const formattedTimeline = timeline?.map(item => ({
-        id: item.id,
-        event_name: item.event_name,
-        week_number: item.week_number,
-        scheduled_date: item.scheduled_date,
-        description: item.description,
-        is_completed: item.user_timeline_claims.find(c => c.user_id === userId)?.is_completed || false,
-        completion_date: item.user_timeline_claims.find(c => c.user_id === userId)?.completion_date || null,
-      })) || [];
-
-      const formattedChecklist = checklist?.map(item => ({
-        id: item.id,
-        checklist_item: item.checklist_item,
-        notes: item.notes,
-        is_completed: item.user_checklist_claims.find(c => c.user_id === userId)?.is_completed || false,
-        completion_date: item.user_checklist_claims.find(c => c.user_id === userId)?.completion_date || null,
-      })) || [];
-
-      const formattedBenefits = benefits?.map(item => ({
-        id: item.id,
-        benefit_name: item.benefit_name,
-        notes: item.notes,
-        is_claimed: item.user_benefit_claims.find(c => c.user_id === userId)?.is_claimed || false,
-        claimed_date: item.user_benefit_claims.find(c => c.user_id === userId)?.claimed_date || null,
-      })) || [];
-
-      console.log("Fetched data:", { 
-        battlePlan, 
-        chainOfCommand, 
-        hwgtPlan, 
-        machines, 
-        meetings, 
-        playbooks, 
-        quarterlySprint, 
-        triagePlanner 
-      });
-
-      setUserDetails({
-        timeline: formattedTimeline,
-        checklist: formattedChecklist,
-        benefits: formattedBenefits,
-        battlePlan: battlePlan || null,
-        chainOfCommand: chainOfCommand || [],
-        hwgtPlan: hwgtPlan || null,
-        machines: machines || [],
-        meetings: meetings || [],
-        playbooks: playbooks || [],
-        quarterlySprint: quarterlySprint || null,
-        triagePlanner: triagePlanner || null,
-      });
-    } catch (error) {
-      console.error("Error fetching user details:", error);
-      toast.error("Failed to load user activity data");
-    } finally {
-      setDetailsLoading(false);
-    }
-  };
+ 
 
   const handleSave = async () => {
     if (!editedUser) return;
@@ -840,35 +657,10 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               Delete User Account
             </DialogTitle>
             <DialogDescription className="space-y-3">
-              <p className="font-medium text-red-600">
+              <p className="font-medium text-red-600 pt-2 ">
                 This action cannot be undone and will permanently delete:
               </p>
-              <div className="text-sm space-y-2 text-left">
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>User profile and business information</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>All user data (battle plans, machines, playbooks, etc.)</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>Team members (if user is a team admin)</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>Analytics assignments and integrations</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>Chat history and innovation documents</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>All related records and claims</span>
-                </div>
-              </div>
+              
               <p className="text-xs text-muted-foreground mt-3">
                 Note: The user will be completely removed from the system including their authentication account.
               </p>
@@ -892,10 +684,10 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         </DialogContent>
       </Dialog>
       
-      {/* User Info & Tabs */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar with user info */}
-        <div className="lg:col-span-1 space-y-6">
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Left Column - User Profile */}
+        <div className="xl:col-span-1 space-y-6">
           <Card className="overflow-hidden">
             <div className="p-6 flex flex-col items-center text-center">
               <Avatar className="h-24 w-24 mb-4">
@@ -905,9 +697,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 </AvatarFallback>
               </Avatar>
               <h2 className="text-xl font-semibold">{user.full_name}</h2>
-              <Badge className={`mt-2 ${getRoleBadgeColor(user.role)}`}>
-                {user.role}
-              </Badge>
+             
               <p className="text-muted-foreground mt-1 text-sm">{user.email}</p>
               <p className="text-muted-foreground text-sm">{user.phone_number}</p>
               
@@ -930,27 +720,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   <p className="text-sm font-medium">User ID</p>
                   <p className="text-muted-foreground text-xs truncate">{user.user_id}</p>
                 </div>
-
-                {/* START: Added Company Onboarding Section */}
-                <div>
-                  <p className="text-sm font-medium mt-2">Company Onboarding</p>
-                  {loadingOnboardingData ? (
-                    <p className="text-muted-foreground text-sm">Loading data...</p>
-                  ) : onboardingData && onboardingData.onboarding_data ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 w-full justify-start text-left"
-                      onClick={() => setIsOnboardingModalOpen(true)}
-                    >
-                      View Onboarding Data
-                    </Button>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No data submitted.</p>
-                  )}
-                </div>
-                {/* END: Added Company Onboarding Section */}
-
               </div>
             </div>
           </Card>
@@ -1039,1434 +808,198 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </Card>
         </div>
-        
-        {/* Main content area with tabs */}
-        <div className="lg:col-span-3 space-y-6">
-          {editMode && (
+
+        {/* Right Column - Additional Information */}
+        <div className="xl:col-span-2 space-y-6">
+          {/* Company Onboarding and Account Statistics Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Company Onboarding */}
             <Card>
-              <div className="p-6 space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-4">Edit Profile</h3>
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name">Full Name</Label>
-                      <Input
-                        id="full_name"
-                        name="full_name"
-                        value={editedUser?.full_name || ""}
-                        onChange={handleInputChange}
-                      />
+              <div className="p-6">
+                <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                  <Building className="w-5 h-5" />
+                  Company Onboarding
+                </h3>
+                <div className="text-center">
+                  {loadingOnboardingData ? (
+                    <p className="text-muted-foreground">Loading data...</p>
+                  ) : onboardingData && onboardingData.onboarding_data ? (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setIsOnboardingModalOpen(true)}
+                    >
+                      View Onboarding Data
+                    </Button>
+                  ) : (
+                    <p className="text-muted-foreground">No onboarding data submitted.</p>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Account Statistics */}
+            <Card>
+              <div className="p-6">
+                <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Account Statistics
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))}
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={editedUser?.email || ""}
-                        onChange={handleInputChange}
-                      />
+                    <div className="text-sm text-muted-foreground">Days Active</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {user.role === 'super_admin' ? 'Super' : user.role === 'admin' ? 'Admin' : 'User'}
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="business_name">Business Name</Label>
-                      <Input
-                        id="business_name"
-                        name="business_name"
-                        value={editedUser?.business_name || ""}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="phone_number">Phone Number</Label>
-                      <Input
-                        id="phone_number"
-                        name="phone_number"
-                        value={editedUser?.phone_number || ""}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="payment_option">Payment Option</Label>
-                      <Select
-                        value={editedUser?.payment_option || ""}
-                        onValueChange={(value) => handleSelectChange("payment_option", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select payment option" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FULL">Full Payment</SelectItem>
-                          <SelectItem value="6_MONTH_SPLIT">6 Month Split</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="payment_remaining">Payment Remaining</Label>
-                      <Input
-                        id="payment_remaining"
-                        name="payment_remaining"
-                        type="number"
-                        step="0.01"
-                        value={editedUser?.payment_remaining.toString() || "0"}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
-                      <Select
-                        value={editedUser?.role || "user"}
-                        onValueChange={(value) => handleSelectChange("role", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="super_admin">Super Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <div className="text-sm text-muted-foreground">Role Level</div>
                   </div>
                 </div>
               </div>
             </Card>
-          )}
-          
-          <Tabs defaultValue="timeline" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="timeline">Timeline</TabsTrigger>
-              <TabsTrigger value="checklist">Checklist</TabsTrigger>
-              <TabsTrigger value="benefits">Benefits</TabsTrigger>
-              <TabsTrigger value="business-battle-plan">Battle Plan</TabsTrigger>
-              <TabsTrigger value="command">Chain of Command</TabsTrigger>
-              <TabsTrigger value="hwgt">HWGT Plan</TabsTrigger>
-              <TabsTrigger value="machines">Machines</TabsTrigger>
-              <TabsTrigger value="meetings">Meetings</TabsTrigger>
-              <TabsTrigger value="playbooks">Playbooks</TabsTrigger>
-              <TabsTrigger value="quarterly">Quarterly Sprint</TabsTrigger>
-              <TabsTrigger value="triage">Company Overview</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="timeline" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Timeline Progress</h3>
-                    <Badge variant="outline">
-                      {userDetails.timeline.filter(item => item.is_completed).length}/{userDetails.timeline.length} Completed
-                    </Badge>
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : userDetails.timeline.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No timeline events for this user</p>
-                    </div>
+          </div>
+
+          {/* Payment Information */}
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Payment Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Payment Option</Label>
+                  {editMode ? (
+                    <Select
+                      value={editedUser?.payment_option || ""}
+                      onValueChange={(value) => handleSelectChange("payment_option", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="annually">Annually</SelectItem>
+                        <SelectItem value="one-time">One Time</SelectItem>
+                      </SelectContent>
+                    </Select>
                   ) : (
-                    <div className="space-y-4">
-                      {userDetails.timeline
-                        .sort((a, b) => a.week_number - b.week_number)
-                        .map((event) => (
-                          <div key={event.id} className="flex items-start gap-3 pb-4 border-b last:border-0">
-                            <div className={`rounded-full w-8 h-8 flex items-center justify-center ${event.is_completed ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                              {event.week_number}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-medium text-sm">{event.event_name}</h4>
-                                {event.is_completed ? (
-                                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    Completed
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline">Pending</Badge>
-                                )}
-                              </div>
-                              {event.description && (
-                                <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
-                              )}
-                              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                <Calendar className="w-3 h-3" />
-                                <span>Scheduled: {new Date(event.scheduled_date).toLocaleDateString()}</span>
-                                {event.completion_date && (
-                                  <>
-                                    <span>•</span>
-                                    <span>Completed: {new Date(event.completion_date).toLocaleDateString()}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
+                    <p className="text-muted-foreground mt-1">{user.payment_option || "Not specified"}</p>
                   )}
                 </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="checklist" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Build Checklist</h3>
-                    <Badge variant="outline">
-                      {userDetails.checklist.filter(item => item.is_completed).length}/{userDetails.checklist.length} Completed
-                    </Badge>
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : userDetails.checklist.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No checklist items for this user</p>
-                    </div>
+                <div>
+                  <Label className="text-sm font-medium">Payment Remaining</Label>
+                  {editMode ? (
+                    <Input
+                      type="number"
+                      name="payment_remaining"
+                      value={editedUser?.payment_remaining || 0}
+                      onChange={handleInputChange}
+                      placeholder="0"
+                    />
                   ) : (
-                    <div className="space-y-3">
-                      {userDetails.checklist.map((item) => (
-                        <div key={item.id} className="flex items-start gap-3 py-3 border-b last:border-0">
-                          <div className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded-full ${item.is_completed ? 'bg-green-500' : 'border-2 border-gray-300'}`}>
-                            {item.is_completed && <CheckCircle2 className="w-5 h-5 text-white" />}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h4 className={`font-medium text-sm ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                                {item.checklist_item}
-                              </h4>
-                              {item.is_completed && (
-                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                                  Completed
-                                </Badge>
-                              )}
-                            </div>
-                            {item.notes && (
-                              <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
-                            )}
-                            {item.completion_date && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Completed on: {new Date(item.completion_date).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-muted-foreground mt-1">${user.payment_remaining || 0}</p>
                   )}
                 </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="benefits" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Available Benefits</h3>
-                    <Badge variant="outline">
-                      {userDetails.benefits.filter(item => item.is_claimed).length}/{userDetails.benefits.length} Claimed
-                    </Badge>
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : userDetails.benefits.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No benefits for this user</p>
-                    </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Contact Information */}
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Contact Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Full Name</Label>
+                  {editMode ? (
+                    <Input
+                      name="full_name"
+                      value={editedUser?.full_name || ""}
+                      onChange={handleInputChange}
+                      placeholder="Enter full name"
+                    />
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {userDetails.benefits.map((benefit) => (
-                        <Card key={benefit.id} className={`overflow-hidden ${benefit.is_claimed ? 'border-green-200 bg-green-50/20' : ''}`}>
-                          <div className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-3">
-                                <div className={`p-2 rounded-full ${benefit.is_claimed ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                  <Gift className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <h4 className="font-medium">{benefit.benefit_name}</h4>
-                                  {benefit.notes && (
-                                    <p className="text-sm text-muted-foreground mt-1">{benefit.notes}</p>
-                                  )}
-                                  {benefit.claimed_date && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      Claimed on: {new Date(benefit.claimed_date).toLocaleDateString()}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              <Badge className={benefit.is_claimed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
-                                {benefit.is_claimed ? 'Claimed' : 'Not Claimed'}
-                              </Badge>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
+                    <p className="text-muted-foreground mt-1">{user.full_name}</p>
                   )}
                 </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="business-battle-plan" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Battle Plan</h3>
-                    {userDetails.battlePlan ? (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                        Last Updated: {new Date(userDetails.battlePlan.updated_at).toLocaleDateString()}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-gray-100">
-                        Not Created
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : !userDetails.battlePlan ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No battle plan found for this user</p>
-                    </div>
+                <div>
+                  <Label className="text-sm font-medium">Email Address</Label>
+                  {editMode ? (
+                    <Input
+                      type="email"
+                      name="email"
+                      value={editedUser?.email || ""}
+                      onChange={handleInputChange}
+                      placeholder="Enter email address"
+                    />
                   ) : (
-                    <div className="space-y-6">
-                      {/* Mission & Vision */}
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Mission Statement</h4>
-                          <Card className="bg-muted/40">
-                            <div className="p-4">
-                              <p className="text-sm">{userDetails.battlePlan.missionstatement || "Not defined"}</p>
-                            </div>
-                          </Card>
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Vision Statement</h4>
-                          <Card className="bg-muted/40">
-                            <div className="p-4">
-                              <p className="text-sm">{userDetails.battlePlan.visionstatement || "Not defined"}</p>
-                            </div>
-                          </Card>
-                        </div>
-                      </div>
-                      
-                      {/* Business Plan Link */}
-                      {userDetails.battlePlan.businessplanlink && (
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Business Plan Link</h4>
-                          <div className="flex">
-                            <Button variant="link" className="h-auto p-0 text-blue-600" asChild>
-                              <a href={userDetails.battlePlan.businessplanlink} target="_blank" rel="noopener noreferrer">
-                                <LinkIcon className="w-3 h-3 mr-1" />
-                                {userDetails.battlePlan.businessplanlink}
-                              </a>
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Purpose Why */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Purpose Why</h4>
-                        {!userDetails.battlePlan?.purposewhy || userDetails.battlePlan.purposewhy.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No purpose defined</p>
-                        ) : (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {userDetails.battlePlan.purposewhy.map((purpose, index) => (
-                              <Card key={index} className="bg-blue-50">
-                                <div className="p-4">
-                                  <p className="text-sm">{typeof purpose === 'string' ? purpose : purpose.text || purpose.purpose || purpose.value || JSON.stringify(purpose)}</p>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Strategic Anchors */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Strategic Anchors</h4>
-                        {!userDetails.battlePlan?.strategicanchors || userDetails.battlePlan.strategicanchors.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No strategic anchors defined</p>
-                        ) : (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {userDetails.battlePlan.strategicanchors.map((anchor, index) => (
-                              <Card key={index} className="bg-green-50">
-                                <div className="p-4">
-                                  <p className="text-sm">{typeof anchor === 'string' ? anchor : anchor.text || anchor.anchor || anchor.value || JSON.stringify(anchor)}</p>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Core Values */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Core Values</h4>
-                        {!userDetails.battlePlan?.corevalues || userDetails.battlePlan.corevalues.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No core values defined</p>
-                        ) : (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {userDetails.battlePlan.corevalues.map((value, index) => (
-                              <Card key={index} className="bg-purple-50">
-                                <div className="p-4">
-                                  {typeof value === 'string' ? (
-                                    <p className="text-sm">{value}</p>
-                                  ) : (
-                                    <>
-                                      <p className="text-sm font-medium">{value.title || value.name || "Value"}</p>
-                                      <p className="text-sm">{value.text || value.description || value.content || ""}</p>
-                                    </>
-                                  )}
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Three Year Target */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Three Year Target</h4>
-                        {!userDetails.battlePlan?.threeyeartarget || userDetails.battlePlan.threeyeartarget.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No three year targets defined</p>
-                        ) : (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {userDetails.battlePlan.threeyeartarget.map((target, index) => (
-                              <Card key={index} className="bg-yellow-50">
-                                <div className="p-4">
-                                  <p className="text-sm">{typeof target === 'string' ? target : target.text || target.target || target.value || JSON.stringify(target)}</p>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <p className="text-muted-foreground mt-1">{user.email}</p>
                   )}
                 </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="command" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Chain of Command</h3>
-                    <Badge variant="outline">
-                      {userDetails.chainOfCommand.length} Team Members
-                    </Badge>
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : userDetails.chainOfCommand.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No chain of command entries found</p>
-                    </div>
+                <div>
+                  <Label className="text-sm font-medium">Phone Number</Label>
+                  {editMode ? (
+                    <Input
+                      name="phone_number"
+                      value={editedUser?.phone_number || ""}
+                      onChange={handleInputChange}
+                      placeholder="Enter phone number"
+                    />
                   ) : (
-                    <div className="space-y-4">
-                      {userDetails.chainOfCommand.map((member) => (
-                        <Card key={member.id} className="overflow-hidden">
-                          <div className="p-4 border-b bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <Avatar className="h-10 w-10">
-                                  <AvatarFallback className={getRandomColor(member.id)}>
-                                    {getInitials(member.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <h4 className="font-medium">{member.name || "Unnamed"}</h4>
-                                  <p className="text-sm text-muted-foreground">{member.jobtitle || "No Job Title"}</p>
-                                </div>
-                              </div>
-                              <Badge>{member.department || "No Department"}</Badge>
-                            </div>
-                          </div>
-                          <div className="p-4 space-y-4">
-                            {/* Manager */}
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium">Reports To</p>
-                              <p className="text-sm">{member.manager || "Not specified"}</p>
-                            </div>
-                            
-                            {/* Critical Accountabilities */}
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium">Critical Accountabilities</p>
-                              {!member.criticalaccountabilities || 
-                               typeof member.criticalaccountabilities === 'string' ||
-                               member.criticalaccountabilities.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No accountabilities defined</p>
-                              ) : (
-                                <ul className="list-disc list-inside space-y-1">
-                                  {Array.isArray(member.criticalaccountabilities) && member.criticalaccountabilities.map((item: any, index: number) => (
-                                    <li key={index} className="text-sm">
-                                      {typeof item === 'string' ? item : 
-                                       typeof item === 'object' ? (item.text || item.accountability || item.item || item.value || JSON.stringify(item)) : 
-                                       String(item)}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                            
-                            {/* Playbooks Owned */}
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium">Playbooks Owned</p>
-                              {!member.playbooksowned || 
-                               typeof member.playbooksowned === 'string' ||
-                               member.playbooksowned.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No playbooks assigned</p>
-                              ) : (
-                                <div className="flex flex-wrap gap-2">
-                                  {Array.isArray(member.playbooksowned) && member.playbooksowned.map((playbook: any, index: number) => (
-                                    <Badge key={index} variant="outline" className="bg-blue-50">
-                                      {typeof playbook === 'string' ? playbook : 
-                                       typeof playbook === 'object' ? (playbook.name || playbook.title || playbook.playbookname || playbook.value || JSON.stringify(playbook)) : 
-                                       String(playbook)}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
+                    <p className="text-muted-foreground mt-1">{user.phone_number}</p>
                   )}
                 </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="hwgt" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">How We Get There Plan</h3>
-                    {userDetails.hwgtPlan ? (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                        Last Updated: {new Date(userDetails.hwgtPlan.updated_at).toLocaleDateString()}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-gray-100">
-                        Not Created
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : !userDetails.hwgtPlan ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No HWGT plan found for this user</p>
-                    </div>
+                <div>
+                  <Label className="text-sm font-medium">Business Name</Label>
+                  {editMode ? (
+                    <Input
+                      name="business_name"
+                      value={editedUser?.business_name || ""}
+                      onChange={handleInputChange}
+                      placeholder="Enter business name"
+                    />
                   ) : (
-                    <div className="space-y-6">
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="bg-muted/40">
-                              <th className="text-left p-3 border">Category</th>
-                              <th className="text-left p-3 border">Q0</th>
-                              <th className="text-left p-3 border">Q4</th>
-                              <th className="text-left p-3 border">Q8</th>
-                              <th className="text-left p-3 border">Q12</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td className="p-3 border font-medium">Model & Brand</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.modelBrand?.Q0 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.modelBrand?.Q4 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.modelBrand?.Q8 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.modelBrand?.Q12 || "-"}</td>
-                            </tr>
-                            <tr>
-                              <td className="p-3 border font-medium">Customer Avatars</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAvatars?.Q0 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAvatars?.Q4 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAvatars?.Q8 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAvatars?.Q12 || "-"}</td>
-                            </tr>
-                            <tr>
-                              <td className="p-3 border font-medium">Products & Services</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.productsServices?.Q0 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.productsServices?.Q4 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.productsServices?.Q8 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.productsServices?.Q12 || "-"}</td>
-                            </tr>
-                            <tr>
-                              <td className="p-3 border font-medium">Team Organisation</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.teamOrganisation?.Q0 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.teamOrganisation?.Q4 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.teamOrganisation?.Q8 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.teamOrganisation?.Q12 || "-"}</td>
-                            </tr>
-                            <tr>
-                              <td className="p-3 border font-medium">Customer Acquisition</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAcquisition?.Q0 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAcquisition?.Q4 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAcquisition?.Q8 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.customerAcquisition?.Q12 || "-"}</td>
-                            </tr>
-                            <tr>
-                              <td className="p-3 border font-medium">Fulfilment Production</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.fulfillmentProduction?.Q0 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.fulfillmentProduction?.Q4 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.fulfillmentProduction?.Q8 || "-"}</td>
-                              <td className="p-3 border text-sm">{userDetails.hwgtPlan.howwegetthereplan.fulfillmentProduction?.Q12 || "-"}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+                    <p className="text-muted-foreground mt-1">{user.business_name}</p>
                   )}
                 </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="machines" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Machines</h3>
-                    <Badge variant="outline">
-                      {userDetails.machines.length} Machines
-                    </Badge>
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : userDetails.machines.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No machines found for this user</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {userDetails.machines.map((machine) => (
-                        <Card key={machine.id} className="overflow-hidden">
-                          <div className="p-4 border-b bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-medium">{machine.enginename}</h4>
-                                <p className="text-sm text-muted-foreground">{machine.description}</p>
-                              </div>
-                              <Badge className={
-                                machine.enginetype === 'GROWTH' ? 'bg-green-100 text-green-700' :
-                                machine.enginetype === 'FULFILLMENT' ? 'bg-blue-100 text-blue-700' :
-                                'bg-purple-100 text-purple-700'
-                              }>
-                                {machine.enginetype}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="p-4 space-y-4">
-                            {/* Triggering Events */}
-                            <div className="space-y-2">
-                              <h5 className="text-sm font-medium">Triggering Events</h5>
-                              {!machine.triggeringevents || 
-                               typeof machine.triggeringevents === 'string' ||
-                               machine.triggeringevents.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No triggering events defined</p>
-                              ) : (
-                                <div className="space-y-2">
-                                  {Array.isArray(machine.triggeringevents) && machine.triggeringevents.map((event: any, index: number) => (
-                                    <Badge key={index} variant="outline" className="mr-2 mb-2">
-                                      {typeof event === 'string' ? event : 
-                                       typeof event === 'object' ? (event.text || event.event || event.name || event.value || JSON.stringify(event)) : 
-                                       String(event)}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Ending Event */}
-                            <div className="space-y-2">
-                              <h5 className="text-sm font-medium">Ending Event</h5>
-                              {!machine.endingevent || 
-                               typeof machine.endingevent === 'string' ||
-                               machine.endingevent.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No ending event defined</p>
-                              ) : (
-                                <div className="space-y-2">
-                                  {Array.isArray(machine.endingevent) && machine.endingevent.map((event: any, index: number) => (
-                                    <Badge key={index} variant="outline" className="bg-blue-50 mr-2 mb-2">
-                                      {typeof event === 'string' ? event : 
-                                       typeof event === 'object' ? (event.text || event.event || event.name || event.value || JSON.stringify(event)) : 
-                                       String(event)}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Actions & Activities */}
-                            <div className="space-y-2">
-                              <h5 className="text-sm font-medium">Actions & Activities</h5>
-                              {!machine.actionsactivities || 
-                               typeof machine.actionsactivities === 'string' ||
-                               machine.actionsactivities.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No actions defined</p>
-                              ) : (
-                                <ul className="list-disc list-inside space-y-1">
-                                  {Array.isArray(machine.actionsactivities) && machine.actionsactivities.map((action: any, index: number) => (
-                                    <li key={index} className="text-sm">
-                                      {typeof action === 'string' ? action : 
-                                       typeof action === 'object' ? (action.text || action.action || action.activity || action.name || action.value || JSON.stringify(action)) : 
-                                       String(action)}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                            
-                            {/* Figma Link */}
-                            {machine.figma_link && (
-                              <div className="space-y-1">
-                                <h5 className="text-sm font-medium">Figma Link</h5>
-                                <Button variant="link" className="h-auto p-0 text-blue-600" asChild>
-                                  <a href={machine.figma_link} target="_blank" rel="noopener noreferrer">
-                                    <LinkIcon className="w-3 h-3 mr-1" />
-                                    Open Figma
-                                  </a>
-                                </Button>
-                              </div>
-                            )}
-                            
-                            {/* Figma Embed */}
-                            {machine.figma_embed && (
-                              <div className="space-y-1">
-                                <h5 className="text-sm font-medium">Figma Embed</h5>
-                                <div className="border rounded-md p-2 bg-muted/20">
-                                  <code className="text-xs">{machine.figma_embed}</code>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="meetings" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Meeting Rhythm Planner</h3>
-                    <Badge variant="outline">
-                      {userDetails.meetings.length} Meetings
-                    </Badge>
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : userDetails.meetings.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No meetings found for this user</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex space-x-4">
-                          <Badge variant="outline" className="bg-blue-50">Daily</Badge>
-                          <Badge variant="outline" className="bg-green-50">Weekly</Badge>
-                          <Badge variant="outline" className="bg-yellow-50">Monthly</Badge>
-                          <Badge variant="outline" className="bg-purple-50">Quarterly</Badge>
-                          <Badge variant="outline" className="bg-pink-50">Annual</Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="bg-muted/40">
-                              <th className="text-left p-3 border">Meeting Type</th>
-                              <th className="text-left p-3 border">Title</th>
-                              <th className="text-left p-3 border">Date</th>
-                              <th className="text-left p-3 border">Description</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {userDetails.meetings
-                              .sort((a, b) => new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime())
-                              .map((meeting) => (
-                                <tr key={meeting.id}>
-                                  <td className="p-3 border">
-                                    <Badge className={
-                                      meeting.meeting_type === 'DAILY' ? 'bg-blue-100 text-blue-700' :
-                                      meeting.meeting_type === 'WEEKLY' ? 'bg-green-100 text-green-700' :
-                                      meeting.meeting_type === 'MONTHLY' ? 'bg-yellow-100 text-yellow-700' :
-                                      meeting.meeting_type === 'QUARTERLY' ? 'bg-purple-100 text-purple-700' :
-                                      'bg-pink-100 text-pink-700'
-                                    }>
-                                      {meeting.meeting_type}
-                                    </Badge>
-                                  </td>
-                                  <td className="p-3 border font-medium">
-                                    {meeting.meeting_title || "Untitled Meeting"}
-                                  </td>
-                                  <td className="p-3 border text-sm">
-                                    {new Date(meeting.meeting_date).toLocaleDateString()}
-                                  </td>
-                                  <td className="p-3 border text-sm">
-                                    {meeting.meeting_description || "-"}
-                                  </td>
-                                </tr>
-                              ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="playbooks" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Playbooks</h3>
-                    <Badge variant="outline">
-                      {userDetails.playbooks.length} Playbooks
-                    </Badge>
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : userDetails.playbooks.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No playbooks found for this user</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Playbook Status Summary */}
-                      <div className="grid grid-cols-4 gap-3">
-                        <Card className="bg-gray-50">
-                          <div className="p-3 text-center">
-                            <p className="text-sm font-medium">Backlog</p>
-                            <p className="text-2xl font-bold mt-1">
-                              {userDetails.playbooks.filter(p => p.status === 'Backlog').length}
-                            </p>
-                          </div>
-                        </Card>
-                        <Card className="bg-blue-50">
-                          <div className="p-3 text-center">
-                            <p className="text-sm font-medium">In Progress</p>
-                            <p className="text-2xl font-bold mt-1 text-blue-700">
-                              {userDetails.playbooks.filter(p => p.status === 'In Progress').length}
-                            </p>
-                          </div>
-                        </Card>
-                        <Card className="bg-yellow-50">
-                          <div className="p-3 text-center">
-                            <p className="text-sm font-medium">Behind</p>
-                            <p className="text-2xl font-bold mt-1 text-yellow-700">
-                              {userDetails.playbooks.filter(p => p.status === 'Behind').length}
-                            </p>
-                          </div>
-                        </Card>
-                        <Card className="bg-green-50">
-                          <div className="p-3 text-center">
-                            <p className="text-sm font-medium">Completed</p>
-                            <p className="text-2xl font-bold mt-1 text-green-700">
-                              {userDetails.playbooks.filter(p => p.status === 'Completed').length}
-                            </p>
-                          </div>
-                        </Card>
-                      </div>
-                      
-                      {/* Playbooks List */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="bg-muted/40">
-                              <th className="text-left p-3 border">Name</th>
-                              <th className="text-left p-3 border">Engine Type</th>
-                              <th className="text-left p-3 border">Owner</th>
-                              <th className="text-left p-3 border">Status</th>
-                              <th className="text-left p-3 border">Link</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {userDetails.playbooks.map((playbook) => (
-                              <tr key={playbook.id}>
-                                <td className="p-3 border font-medium">
-                                  <div className="flex flex-col">
-                                    <span>{playbook.playbookname}</span>
-                                    {playbook.description && (
-                                      <span className="text-xs text-muted-foreground mt-1">{playbook.description}</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="p-3 border">
-                                  <Badge className={
-                                    playbook.enginetype === 'GROWTH' ? 'bg-green-100 text-green-700' :
-                                    playbook.enginetype === 'FULFILLMENT' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-purple-100 text-purple-700'
-                                  }>
-                                    {playbook.enginetype}
-                                  </Badge>
-                                </td>
-                                <td className="p-3 border text-sm">
-                                  {playbook.owner || "-"}
-                                </td>
-                                <td className="p-3 border">
-                                  <Badge className={
-                                    playbook.status === 'Backlog' ? 'bg-gray-100 text-gray-700' :
-                                    playbook.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                    playbook.status === 'Behind' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-green-100 text-green-700'
-                                  }>
-                                    {playbook.status}
-                                  </Badge>
-                                </td>
-                                <td className="p-3 border">
-                                  {playbook.link ? (
-                                    <Button variant="link" className="h-auto p-0 text-blue-600" asChild>
-                                      <a href={playbook.link} target="_blank" rel="noopener noreferrer">
-                                        <LinkIcon className="w-3 h-3 mr-1" />
-                                        Open
-                                      </a>
-                                    </Button>
-                                  ) : (
-                                    <span className="text-sm text-muted-foreground">-</span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="quarterly" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Quarterly Sprint Canvas</h3>
-                    {userDetails.quarterlySprint ? (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                        Last Updated: {new Date(userDetails.quarterlySprint.updated_at).toLocaleDateString()}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-gray-100">
-                        Not Created
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : !userDetails.quarterlySprint ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No quarterly sprint canvas found for this user</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {/* Theme */}
-                      {userDetails.quarterlySprint.theme && (
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Theme</h4>
-                          <Card className="bg-purple-50">
-                            <div className="p-4">
-                              <p className="text-lg font-medium text-center">{userDetails.quarterlySprint.theme}</p>
-                            </div>
-                          </Card>
-                        </div>
-                      )}
-                      
-                      {/* Revenue Goals */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Revenue Goals</h4>
-                        <div className="grid grid-cols-3 gap-4">
-                          <Card className="bg-green-50">
-                            <div className="p-4 text-center">
-                              <p className="text-sm font-medium">GOOD</p>
-                              <p className="text-xl mt-1">{userDetails.quarterlySprint.revenuegoals.good || "-"}</p>
-                            </div>
-                          </Card>
-                          <Card className="bg-blue-50">
-                            <div className="p-4 text-center">
-                              <p className="text-sm font-medium">BETTER</p>
-                              <p className="text-xl mt-1">{userDetails.quarterlySprint.revenuegoals.better || "-"}</p>
-                            </div>
-                          </Card>
-                          <Card className="bg-purple-50">
-                            <div className="p-4 text-center">
-                              <p className="text-sm font-medium">BEST</p>
-                              <p className="text-xl mt-1">{userDetails.quarterlySprint.revenuegoals.best || "-"}</p>
-                            </div>
-                          </Card>
-                        </div>
-                      </div>
-                      
-                      {/* Unit Goals */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Unit Goals</h4>
-                        {userDetails.quarterlySprint.unitgoals.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No unit goals defined</p>
-                        ) : (
-                          <div className="grid sm:grid-cols-2 gap-3">
-                            {userDetails.quarterlySprint.unitgoals.map((goal, index) => (
-                              <Card key={index} className="bg-blue-50/50">
-                                <div className="p-4">
-                                  <p className="text-sm font-medium">{typeof goal === 'string' ? goal : goal.title || goal.name || "Unit Goal"}</p>
-                                  <p className="text-lg mt-1">{typeof goal === 'string' ? "" : goal.value || goal.target || goal.amount || "-"}</p>
-                                  {typeof goal !== 'string' && goal.description && (
-                                    <p className="text-xs text-muted-foreground mt-1">{goal.description}</p>
-                                  )}
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Revenue by Month */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Revenue by Month</h4>
-                        {userDetails.quarterlySprint.revenuebymonth.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No monthly revenue targets defined</p>
-                        ) : (
-                          <div className="grid grid-cols-3 gap-3">
-                            {userDetails.quarterlySprint.revenuebymonth.map((month, index) => (
-                              <Card key={index} className="bg-green-50/50">
-                                <div className="p-4 text-center">
-                                  <p className="text-sm font-medium">{typeof month === 'string' ? month : month.month || month.name || `Month ${index + 1}`}</p>
-                                  <p className="text-lg mt-1">{typeof month === 'string' ? "" : month.value || month.revenue || month.amount || "-"}</p>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Strategic Pillars */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Strategic Pillars</h4>
-                        {userDetails.quarterlySprint.strategicpillars.every(p => !p) ? (
-                          <p className="text-sm text-muted-foreground">No strategic pillars defined</p>
-                        ) : (
-                          <div className="grid grid-cols-3 gap-3">
-                            {userDetails.quarterlySprint.strategicpillars.map((pillar, index) => (
-                              pillar && (
-                                <Card key={index} className="bg-yellow-50">
-                                  <div className="p-4 text-center">
-                                    <p className="font-medium">{pillar}</p>
-                                  </div>
-                                </Card>
-                              )
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* North Star Metrics */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">North Star Metrics</h4>
-                        {userDetails.quarterlySprint.northstarmetrics.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No north star metrics defined</p>
-                        ) : (
-                          <div className="grid sm:grid-cols-2 gap-3">
-                            {userDetails.quarterlySprint.northstarmetrics.map((metric, index) => (
-                              <Card key={index} className="bg-blue-50">
-                                <div className="p-4">
-                                  <div className="flex justify-between items-center">
-                                    <p className="font-medium">{typeof metric === 'string' ? metric : metric.name || metric.title || "Metric"}</p>
-                                    {typeof metric !== 'string' && metric.category && <Badge>{metric.category}</Badge>}
-                                  </div>
-                                  {typeof metric !== 'string' && (
-                                    <>
-                                      <p className="text-sm mt-2">{metric.description || "-"}</p>
-                                      {metric.target && (
-                                        <div className="mt-2">
-                                          <span className="text-sm font-medium">Target: </span>
-                                          <span>{metric.target}</span>
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Key Initiatives */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Key Initiatives</h4>
-                        {userDetails.quarterlySprint.keyinitiatives.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No key initiatives defined</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {userDetails.quarterlySprint.keyinitiatives.map((initiative, index) => (
-                              <Card key={index}>
-                                <div className="p-4">
-                                  <div className="flex justify-between items-center">
-                                    <p className="font-medium">{typeof initiative === 'string' ? initiative : initiative.name || initiative.title || "Initiative"}</p>
-                                    {typeof initiative !== 'string' && initiative.status && (
-                                      <Badge className={
-                                        initiative.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                        initiative.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-gray-100 text-gray-700'
-                                      }>
-                                        {initiative.status}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {typeof initiative !== 'string' && (
-                                    <>
-                                      <p className="text-sm mt-2">{initiative.description || "-"}</p>
-                                      {initiative.owner && (
-                                        <div className="mt-2 text-sm">
-                                          <span className="font-medium">Owner: </span>
-                                          <span>{initiative.owner}</span>
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="triage" className="space-y-4">
-              <Card>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Company Overview</h3>
-                    {userDetails.triagePlanner ? (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                        Last Updated: {new Date(userDetails.triagePlanner.updated_at).toLocaleDateString()}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-gray-100">
-                        Not Created
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {detailsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                  ) : !userDetails.triagePlanner ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No triage planner found for this user</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {/* Company Overview */}
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <h4 className="font-medium">What You Do</h4>
-                          <Card className="bg-muted/40">
-                            <div className="p-4">
-                              <p className="text-sm">{userDetails.triagePlanner.what_you_do || "Not defined"}</p>
-                            </div>
-                          </Card>
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Who You Serve</h4>
-                          <Card className="bg-muted/40">
-                            <div className="p-4">
-                              <p className="text-sm">{userDetails.triagePlanner.who_you_serve || "Not defined"}</p>
-                            </div>
-                          </Card>
-                        </div>
-                      </div>
-                      
-                      {/* Company Info */}
-                      {userDetails.triagePlanner && userDetails.triagePlanner.company_info && Object.keys(userDetails.triagePlanner.company_info || {}).length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Company Information</h4>
-                          <Card>
-                            <div className="p-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                {Object.entries(userDetails.triagePlanner.company_info || {}).map(([key, value]) => {
-                                  // Parse the value depending on the key
-                                  const parseValueFromObject = (obj: any): { current: string; target?: string } => {
-                                    // If value is already a string, just return it
-                                    if (typeof obj !== 'object' || obj === null) {
-                                      return { current: String(obj || '-') };
-                                    }
-                                    
-                                    // Try to extract key-value pairs from the object
-                                    const strValue = JSON.stringify(obj);
-                                    let result: { current: string; target?: string } = { current: '-' };
-                                    
-                                    // Handle common patterns like "target:X,current:Y"
-                                    if (strValue.includes('target') && strValue.includes('current')) {
-                                      const current = (obj.current !== undefined) ? obj.current : 
-                                        strValue.match(/current:([^,}]+)/i)?.[1] || '-';
-                                      const target = (obj.target !== undefined) ? obj.target : 
-                                        strValue.match(/target:([^,}]+)/i)?.[1] || '-';
-                                      result = { current: String(current), target: String(target) };
-                                    } else {
-                                      // Use the first property as the value
-                                      result = { current: obj.value || obj.text || obj.name || strValue.replace(/[{}"]/g, '') };
-                                    }
-                                    
-                                    return result;
-                                  };
-                                  
-                                  const parsedValue = parseValueFromObject(value);
-                                  const hasTarget = parsedValue.target !== undefined;
-                                  
-                                  // Format the values based on the key
-                                  const formatValue = (val: string, keyName: string): string => {
-                                    if (val === '-') return '-';
-                                    
-                                    if (keyName.toLowerCase().includes('revenue') || 
-                                        keyName.toLowerCase().includes('income') || 
-                                        keyName.toLowerCase().includes('sale')) {
-                                      // Format currency values
-                                      return val.startsWith('$') ? val : 
-                                        val.startsWith('£') ? val : 
-                                        `£${val}`;
-                                    } else if (keyName.toLowerCase().includes('margin') || 
-                                              keyName.toLowerCase().includes('rate') || 
-                                              keyName.toLowerCase().includes('percentage')) {
-                                      // Format percentage values
-                                      return val.endsWith('%') ? val : `${val}%`;
-                                    }
-                                    
-                                    return val;
-                                  };
-                                  
-                                  const formattedCurrent = formatValue(parsedValue.current, key);
-                                  const formattedTarget = parsedValue.target ? formatValue(parsedValue.target, key) : undefined;
-                                  
-                                  return (
-                                    <div key={key} className="border rounded-md p-4 bg-muted/10">
-                                      <p className="text-sm font-medium capitalize mb-2 text-blue-700">
-                                        {key.replace(/_/g, ' ')}
-                                      </p>
-                                      
-                                      {hasTarget ? (
-                                        <div className="space-y-2">
-                                          <div className="flex justify-between items-center">
-                                            <span className="text-xs text-muted-foreground">Current</span>
-                                            <span className="font-semibold text-lg">{formattedCurrent}</span>
-                                          </div>
-                                          
-                                          <div className="flex justify-between items-center">
-                                            <span className="text-xs text-muted-foreground">Target</span>
-                                            <span className="font-semibold text-lg text-blue-600">{formattedTarget}</span>
-                                          </div>
-                                          
-                                          {/* Progress visualization if we can calculate percentage */}
-                                          {key.toLowerCase().includes('revenue') && 
-                                           parseFloat(parsedValue.current.replace(/[^\d.-]/g, '')) > 0 && 
-                                           parseFloat(parsedValue.target?.replace(/[^\d.-]/g, '') || '0') > 0 && (
-                                            <div className="mt-2">
-                                              <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                                <div 
-                                                  className="h-full bg-blue-500 transition-all duration-500" 
-                                                  style={{ 
-                                                    width: `${Math.min(100, (parseFloat(parsedValue.current.replace(/[^\d.-]/g, '')) / parseFloat(parsedValue.target?.replace(/[^\d.-]/g, '') || '1')) * 100)}%` 
-                                                  }}
-                                                />
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <p className="font-semibold text-lg">{formattedCurrent}</p>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </Card>
-                        </div>
-                      )}
-                      
-                      {/* Four Quadrants */}
-                      <div className="grid md:grid-cols-2 gap-4">
-                        {/* What's Right */}
-                        <Card className="bg-green-50">
-                          <div className="p-4">
-                            <h4 className="font-medium mb-2">What's Right</h4>
-                            {userDetails.triagePlanner.what_is_right.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">Nothing identified</p>
-                            ) : (
-                              <ul className="list-disc list-inside space-y-1">
-                                {userDetails.triagePlanner.what_is_right.map((item, index) => (
-                                  <li key={index} className="text-sm">
-                                    {typeof item === 'string' ? item : item.text || item.content || JSON.stringify(item)}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </Card>
-                        
-                        {/* What's Wrong */}
-                        <Card className="bg-red-50">
-                          <div className="p-4">
-                            <h4 className="font-medium mb-2">What's Wrong</h4>
-                            {userDetails.triagePlanner.what_is_wrong.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">Nothing identified</p>
-                            ) : (
-                              <ul className="list-disc list-inside space-y-1">
-                                {userDetails.triagePlanner.what_is_wrong.map((item, index) => (
-                                  <li key={index} className="text-sm">
-                                    {typeof item === 'string' ? item : item.text || item.content || JSON.stringify(item)}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </Card>
-                        
-                        {/* What's Missing */}
-                        <Card className="bg-amber-50">
-                          <div className="p-4">
-                            <h4 className="font-medium mb-2">What's Missing</h4>
-                            {userDetails.triagePlanner.what_is_missing.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">Nothing identified</p>
-                            ) : (
-                              <ul className="list-disc list-inside space-y-1">
-                                {userDetails.triagePlanner.what_is_missing.map((item, index) => (
-                                  <li key={index} className="text-sm">
-                                    {typeof item === 'string' ? item : item.text || item.content || JSON.stringify(item)}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </Card>
-                        
-                        {/* What's Confusing */}
-                        <Card className="bg-blue-50">
-                          <div className="p-4">
-                            <h4 className="font-medium mb-2">What's Confusing</h4>
-                            {userDetails.triagePlanner.what_is_confusing.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">Nothing identified</p>
-                            ) : (
-                              <ul className="list-disc list-inside space-y-1">
-                                {userDetails.triagePlanner.what_is_confusing.map((item, index) => (
-                                  <li key={index} className="text-sm">
-                                    {typeof item === 'string' ? item : item.text || item.content || JSON.stringify(item)}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </Card>
-                      </div>
-                      
-                      {/* Internal Tasks */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Internal Tasks</h4>
-                        {userDetails.triagePlanner.internal_tasks.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No internal tasks defined</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {userDetails.triagePlanner.internal_tasks.map((task, index) => (
-                              <Card key={index} className="overflow-hidden">
-                                <div className="p-4 flex items-start gap-3">
-                                  <div className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded-full ${task.completed ? 'bg-green-500' : 'border-2 border-gray-300'}`}>
-                                    {task.completed && <CheckCircle2 className="w-5 h-5 text-white" />}
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                      {typeof task === 'string' ? task : task.text || task.title || task.description || "Task"}
-                                    </p>
-                                    {typeof task !== 'string' && task.assignee && (
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        Assigned to: {task.assignee}
-                                      </p>
-                                    )}
-                                    {typeof task !== 'string' && task.due_date && (
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        Due: {new Date(task.due_date).toLocaleDateString()}
-                                      </p>
-                                    )}
-                                  </div>
-                                  {typeof task !== 'string' && task.priority && (
-                                    <Badge className={
-                                      task.priority === 'high' ? 'bg-red-100 text-red-700' :
-                                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-blue-100 text-blue-700'
-                                    }>
-                                      {task.priority}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Notes */}
-                      {userDetails.triagePlanner.notes && (
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Notes</h4>
-                          <Card className="bg-muted/30">
-                            <div className="p-4">
-                              <p className="text-sm whitespace-pre-line">{userDetails.triagePlanner.notes}</p>
-                            </div>
-                          </Card>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </TabsContent>
-          </Tabs>
+              </div>
+            </div>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                <CheckSquare className="w-5 h-5" />
+                Quick Actions
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Button variant="outline" className="justify-start" asChild>
+                  <Link href={`/admin/users/${user.id}/reset-password`}>
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    Reset Password
+                  </Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Delete User
+                </Button>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
 

@@ -29,6 +29,33 @@ type TodoItem = {
   is_disabled_for_team: boolean;
 };
 
+type TimelineData = {
+  id: string;
+  week_number: number;
+  event_name: string;
+  scheduled_date: string;
+  duration_minutes: number | null;
+  description: string | null;
+};
+
+type UserClaim = {
+  timeline_id: string;
+  is_completed: boolean;
+  completion_date: string | null;
+};
+
+type Benefit = {
+  id: string;
+  benefit_name: string;
+  notes: string | null;
+  iframe: string | null;
+  created_at: string;
+};
+
+type TeamStatus = {
+  benefit_id: string;
+};
+
 export default function ChqTimelinePage() {
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [todoItems, setTodoItems] = useState<TodoItem[]>([]);
@@ -91,8 +118,8 @@ export default function ChqTimelinePage() {
       if (claimsError) throw claimsError;
 
       // Combine timeline data with user claims
-      const eventsWithClaims = timelineData?.map(event => {
-        const claim = userClaims?.find(claim => claim.timeline_id === event.id);
+      const eventsWithClaims = timelineData?.map((event: TimelineData) => {
+        const claim = userClaims?.find((claim: UserClaim) => claim.timeline_id === event.id);
         return {
           ...event,
           is_completed: claim?.is_completed || false,
@@ -147,13 +174,13 @@ export default function ChqTimelinePage() {
           .eq('is_disabled', true);
 
         if (statusError) throw statusError;
-        disabledBenefits = teamStatuses?.map(status => status.benefit_id) || [];
+        disabledBenefits = teamStatuses?.map((status: TeamStatus) => status.benefit_id) || [];
       }
 
       // Combine data and filter out disabled benefits
       const todoItemsWithStatus = allBenefits
-        .filter(benefit => !disabledBenefits.includes(benefit.id))
-        .map(benefit => ({
+        .filter((benefit: Benefit) => !disabledBenefits.includes(benefit.id))
+        .map((benefit: Benefit) => ({
           ...benefit,
           is_disabled_for_team: false
         }));
@@ -200,7 +227,7 @@ export default function ChqTimelinePage() {
         value={activeTab}
         onValueChange={setActiveTab}
         className={`transition-all duration-300 ease-in-out ${
-          activeTab === 'progress' ? 'h-screen' : 'space-y-4'
+          activeTab === 'progress' ? '' : 'space-y-4'
         }`}
       >
         <TabsList className={`bg-background border-b border-t rounded-none w-full justify-start h-10 p-0 gap-6 transition-all duration-300 ${

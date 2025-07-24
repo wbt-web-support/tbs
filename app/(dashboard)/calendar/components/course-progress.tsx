@@ -28,7 +28,8 @@ import {
   X,
   Circle,
   CheckCircle2,
-  ChevronUp
+  ChevronUp,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,7 @@ type Course = {
   description: string;
   thumbnail_url: string;
   is_active: boolean;
+  created_at: string;
 };
 
 type CourseModule = {
@@ -125,12 +127,12 @@ const VideoPlayer = ({ videoUrl, videoType, lessonTitle, onProgress, onComplete 
 };
 
 export default function CourseProgress() {
-  const [course, setCourse] = useState<Course | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<CourseModule[]>([]);
   const [lessons, setLessons] = useState<CourseLesson[]>([]);
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
   const [moduleProgress, setModuleProgress] = useState<ModuleProgress[]>([]);
-  // Removed enrollment state - no longer needed
   const [loading, setLoading] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<CourseLesson | null>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
@@ -140,31 +142,50 @@ export default function CourseProgress() {
   const supabase = createClient();
 
   useEffect(() => {
-    fetchCourseData();
+    fetchCourses();
   }, []);
 
-  const fetchCourseData = async () => {
+  const fetchCourses = async () => {
     try {
-      // Fetch course (assuming there's only one active course)
-      const { data: courseData, error: courseError } = await supabase
+      // Fetch all active courses
+      const { data: coursesData, error: coursesError } = await supabase
         .from('courses')
         .select('*')
         .eq('is_active', true)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (courseError) throw courseError;
-      setCourse(courseData);
+      if (coursesError) throw coursesError;
+      setCourses(coursesData || []);
 
-      if (!courseData) {
-        setLoading(false);
-        return;
+      // Auto-select and load the first course if only one is available
+      if (coursesData && coursesData.length === 1) {
+        setSelectedCourse(coursesData[0]);
+        await loadCourseContent(coursesData[0]);
       }
+
+    } catch (error: any) {
+      console.error('Error fetching courses:', error);
+      toast({
+        title: "Error loading courses",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCourseContent = async (course: Course) => {
+    try {
+      setSelectedCourse(course);
+      setSelectedLesson(null);
+      setExpandedModules(new Set());
 
       // Fetch modules
       const { data: modulesData, error: modulesError } = await supabase
         .from('course_modules')
         .select('*')
-        .eq('course_id', courseData.id)
+        .eq('course_id', course.id)
         .eq('is_active', true)
         .order('order_index');
 
@@ -175,15 +196,15 @@ export default function CourseProgress() {
       const { data: lessonsData, error: lessonsError } = await supabase
         .from('course_lessons')
         .select('*')
-        .in('module_id', modulesData?.map(m => m.id) || [])
+        .in('module_id', modulesData?.map((m: { id: any; }) => m.id) || [])
         .eq('is_active', true)
-        .order('order_index');
+        .order('order_index');  
 
       if (lessonsError) throw lessonsError;
       setLessons(lessonsData || []);
 
-      // Auto-select first lesson if none selected and expand first module
-      if (!selectedLesson && lessonsData && lessonsData.length > 0) {
+      // Auto-select first lesson if available and expand first module
+      if (lessonsData && lessonsData.length > 0) {
         setSelectedLesson(lessonsData[0]);
         setExpandedModules(new Set([lessonsData[0].module_id]));
       } else if (modulesData && modulesData.length > 0) {
@@ -192,22 +213,20 @@ export default function CourseProgress() {
       }
 
       // Fetch team progress using utility functions
-      const progressData = await getTeamLessonProgress(lessonsData?.map(l => l.id) || []);
+      const progressData = await getTeamLessonProgress(lessonsData?.map((l: { id: any; }) => l.id) || []);
       setUserProgress(progressData);
 
       // Fetch module progress using utility functions
-      const moduleProgressData = await getTeamModuleProgress(modulesData?.map(m => m.id) || []);
+      const moduleProgressData = await getTeamModuleProgress(modulesData?.map((m: { id: any; }) => m.id) || []);
       setModuleProgress(moduleProgressData);
 
     } catch (error: any) {
-      console.error('Error fetching course data:', error);
+      console.error('Error loading course content:', error);
       toast({
-        title: "Error loading course",
+        title: "Error loading course content",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -325,7 +344,7 @@ export default function CourseProgress() {
     );
   }
 
-  if (!course) {
+  if (courses.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-center">
@@ -334,6 +353,57 @@ export default function CourseProgress() {
           </div>
           <h3 className="text-xl font-medium text-gray-900 mb-2">No Course Available</h3>
           <p className="text-gray-500 max-w-sm">There is no active course at the moment. Check back later!</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show course selection only if there are multiple courses and no course is selected
+  if (courses.length > 1 && (!selectedCourse || modules.length === 0)) {
+          return (
+        <div className="p-6">
+          <div className="max-w-6xl">
+            <div className="text-left mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Course</h1>
+              <p className="text-lg text-gray-600">Select a course to start your learning journey</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses.map((course) => (
+                <Card 
+                  key={course.id} 
+                  className="cursor-pointer transition-all hover:shadow-lg border-2 border-gray-200 hover:border-blue-300"
+                  onClick={() => loadCourseContent(course)}
+                >
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <BookOpen className="h-6 w-6 text-blue-600" />
+                    </div>
+                    {selectedCourse?.id === course.id && (
+                      <CheckCircle className="h-6 w-6 text-blue-600" />
+                    )}
+                  </div>
+                  <CardTitle className="text-xl mt-4">{course.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 text-sm line-clamp-3 mb-4">
+                    {course.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <Badge variant={course.is_active ? "default" : "secondary"}>
+                      {course.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <span className="text-xs text-gray-500">
+                      {new Date(course.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+
         </div>
       </div>
     );
@@ -466,15 +536,36 @@ export default function CourseProgress() {
         {/* Course Header */}
           <div className="py-3 px-4 border-b border-gray-100 flex-shrink-0 bg-blue-50">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-gray-900">{course.title}</h2>
-            {/* Close button for mobile */}
-            <button
-              onClick={() => setIsSidebarOpen(false)}
+              <div className="flex items-center gap-3">
+                {courses.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedCourse(null);
+                      setModules([]);
+                      setLessons([]);
+                      setSelectedLesson(null);
+                      setExpandedModules(new Set());
+                      setUserProgress([]);
+                      setModuleProgress([]);
+                    }}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                  >
+                    <ChevronUp className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
+                )}
+                <h2 className="text-xl font-bold text-gray-900">{selectedCourse?.title}</h2>
+              </div>
+              {/* Close button for mobile */}
+              <button
+                onClick={() => setIsSidebarOpen(false)}
                 className="lg:hidden p-2 hover:bg-blue-100 rounded-full transition-colors"
-            >
+              >
                 <X className="h-5 w-5 text-gray-600" />
-            </button>
-          </div>
+              </button>
+            </div>
             
             <div className="space-y-3">
               
@@ -492,7 +583,7 @@ export default function CourseProgress() {
 
         {/* Modules and Lessons */}
         <ScrollArea className="flex-1 h-0">
-            <div className="py-2">
+            <div className="py-0">
             {modules.map((module, moduleIndex) => {
               const moduleLessons = lessons
                 .filter(l => l.module_id === module.id)
@@ -505,11 +596,11 @@ export default function CourseProgress() {
                 const moduleProgressPercentage = moduleLessons.length > 0 ? (completedCount / moduleLessons.length) * 100 : 0;
               
               return (
-                  <div key={module.id} className="mb-2">
+                  <div key={module.id} className="mb-0">
                   {/* Module Header */}
                   <button
                     onClick={() => toggleModule(module.id)}
-                      className="w-full flex items-center justify-between p-4 mx-2 bg-gray-100 hover:bg-gray-50 transition-colors text-left rounded-lg border border-gray-100"
+                      className="w-full flex items-center justify-between p-4 bg-gray-100 hover:bg-gray-50 transition-colors text-left border-gray-200 border-t border-b"
                   >
                     <div className="flex items-center gap-3 flex-1">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
@@ -538,7 +629,7 @@ export default function CourseProgress() {
 
                   {/* Lessons */}
                   {isExpanded && (
-                      <div className="ml-6 mr-2 mt-2 space-y-1">
+                      <div className="">
                       {moduleLessons.map((lesson, lessonIndex) => {
                         const lessonProgressData = getLessonProgress(lesson.id);
                         const isUnlocked = isLessonUnlocked(lesson);
@@ -555,13 +646,27 @@ export default function CourseProgress() {
                               }
                             }}
                             className={cn(
-                                "w-full flex items-center gap-3 p-3 text-left transition-all rounded-lg",
+                                "w-full flex items-center gap-3 p-3 text-left transition-all",
                               isSelected 
-                                  ? "bg-blue-100 border border-blue-200" 
-                                  : "hover:bg-gray-50 border border-transparent",
+                                  ? "bg-blue-100 border-blue-200 shadow-sm" 
+                                  : "hover:bg-gray-50 border-gray-100 hover:border-gray-200",
                               !isUnlocked && "opacity-50 cursor-not-allowed"
                             )}
                           >
+                            
+                            <div className="flex-1 min-w-0">
+                                <h4 className={cn(
+                                  " text-sm",
+                                  isSelected ? "text-blue-900" : "text-gray-900"
+                                )}>
+                                  {lesson.title}
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{formatDuration(lesson.video_duration_seconds || 0)}</span>
+                                </div>
+                              </div>
+
                             <div className="flex items-center justify-center flex-shrink-0">
                               {lessonProgressData?.is_completed ? (
                                 <CheckCircle2 className="w-6 h-6 text-green-600" />
@@ -572,18 +677,6 @@ export default function CourseProgress() {
                               )}
                             </div>
                             
-                              <div className="flex-1 min-w-0">
-                                <h4 className={cn(
-                                  "font-medium text-sm",
-                                  isSelected ? "text-blue-900" : "text-gray-900"
-                                )}>
-                                  {lesson.title}
-                                </h4>
-                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>{formatDuration(lesson.video_duration_seconds || 0)}</span>
-                                </div>
-                              </div>
                           </button>
                         );
                       })}

@@ -121,6 +121,22 @@ function formatCompanyContext(companyData: any) {
   
   const parts: string[] = ['📊 COMPANY DATA CONTEXT 📊\n'];
   
+  // Add formatting instructions
+  parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📝 CONTENT FORMATTING REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+IMPORTANT FORMATTING RULES:
+- Use shorter sentences (maximum 20-25 words per sentence)
+- Add line breaks (\\n) between different points or paragraphs
+- Structure content with clear sections and bullet points where appropriate
+- Make all content scannable and easy to read
+- For notes section: Break long paragraphs into shorter, focused points
+- Use bullet points or numbered lists for better readability
+- Keep each point concise and actionable
+`);
+  
   // Format business info
   if (companyData.businessInfo) {
     const info = companyData.businessInfo;
@@ -241,6 +257,20 @@ const COMPANY_OVERVIEW_JSON_STRUCTURE = `
 Return ONLY a valid JSON object with this exact structure:
 
 {
+  "company_info": {
+    "annualRevenue": {
+      "current": "realistic current annual revenue based on company data (e.g., £150,000)",
+      "target": ""
+    },
+    "profitMargin": {
+      "current": "realistic current profit margin percentage based on company data (e.g., 12%)",
+      "target": ""
+    },
+    "teamSize": {
+      "current": "current team size based on company data (e.g., 8)",
+      "target": ""
+    }
+  },
   "what_you_do": "comprehensive description of what the business does",
   "who_you_serve": "detailed description of target audience and customers",
   "internal_tasks": [
@@ -253,7 +283,7 @@ Return ONLY a valid JSON object with this exact structure:
   "what_is_wrong": ["challenge 1", "challenge 2", "challenge 3"],
   "what_is_missing": ["gap 1", "gap 2", "gap 3"],
   "what_is_confusing": ["confusion 1", "confusion 2", "confusion 3"],
-  "notes": "strategic insights and observations"
+  "notes": "strategic insights and observations with proper line breaks and shorter sentences. Example format:\\n\\n• First key insight with actionable recommendation\\n\\n• Second important observation about the business\\n\\n• Third strategic point that needs attention\\n\\nUse bullet points and line breaks for better readability."
 }
 
 IMPORTANT: 
@@ -261,6 +291,15 @@ IMPORTANT:
 - Base recommendations on the actual company data provided
 - Keep descriptions concise but comprehensive
 - Focus on practical, implementable insights
+- For company_info, only generate current values based on the company context, leave target values empty
+- Use realistic financial figures based on the company's industry, size, and context
+- For notes section: Use shorter sentences (max 20-25 words per sentence)
+- Add line breaks (\\n) between different points in notes to improve readability
+- Structure notes with clear paragraphs and bullet points where appropriate
+- Make notes more scannable and easier to read
+- Generate 4-6 bullet points for notes, each focusing on a different aspect
+- Use bullet points (•) for better visual organization
+- Keep each bullet point focused on one specific insight or recommendation
 `;
 
 // Helper function to load prompt template from the prompts table

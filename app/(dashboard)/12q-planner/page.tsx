@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Loader2, Save, Calculator, TrendingUp, DollarSign, Edit, Target, BarChart3, Info } from 'lucide-react';
+import { Loader2, Save, Calculator, TrendingUp, PoundSterling, Edit, Target, BarChart3, Info } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -973,7 +973,7 @@ export default function QuarterPlannerPage() {
           <Card className="border border-gray-200 bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-green-600" />
+                <PoundSterling className="h-5 w-5 text-green-600" />
                 Sales Target
               </CardTitle>
             </CardHeader>

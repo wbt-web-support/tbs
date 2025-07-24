@@ -116,7 +116,7 @@ export default function AdminBenefitsPage() {
       if (error) throw error;
       
       // Group by team_id and take the first business_info for each team
-      const uniqueTeams = data?.reduce((acc: Team[], curr) => {
+      const uniqueTeams = data?.reduce((acc: Team[], curr: Team) => {
         if (!acc.find(team => team.team_id === curr.team_id)) {
           acc.push({
             id: curr.id,
@@ -293,18 +293,18 @@ export default function AdminBenefitsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Manage Benefits & Users</h1>
+        <h1 className="text-2xl font-bold">Manage To Do List Items</h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="benefits">Benefits</TabsTrigger>
-          <TabsTrigger value="teams">User Benefit Management</TabsTrigger>
+          <TabsTrigger value="benefits">To Do List Items</TabsTrigger>
+          <TabsTrigger value="teams">User To Do List Management</TabsTrigger>
         </TabsList>
 
         <TabsContent value="benefits" className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Benefits Management</h2>
+            <h2 className="text-lg font-semibold">To Do List Items Management</h2>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -320,7 +320,7 @@ export default function AdminBenefitsPage() {
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="benefit_name">Benefit Name</Label>
+                    <Label htmlFor="benefit_name">To Do List Item Name</Label>
                     <Input
                       id="benefit_name"
                       value={formData.benefit_name}

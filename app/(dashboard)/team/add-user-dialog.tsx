@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -24,15 +24,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Loader2, User, Mail, Phone, Lock } from 'lucide-react'
+import { Loader2, User, Mail, Phone, Lock, Building2, Briefcase } from 'lucide-react'
 import { inviteUser } from '../invite/actions'
 import UserAddedMessage from './user-added-message'
+import { DepartmentDropdown, type Department } from '@/components/ui/dropdown-helpers'
 
 const basicUserSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   full_name: z.string().min(1, { message: 'Full name is required.' }),
   phone_number: z.string().min(1, { message: 'Phone number is required.' }),
+  job_title: z.string().optional(),
+  department_id: z.string().optional(),
 })
 
 type BasicUserFormValues = z.infer<typeof basicUserSchema>
@@ -45,6 +48,9 @@ interface AddUserDialogProps {
 }
 
 export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditUser }: AddUserDialogProps) {
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [loadingDepartments, setLoadingDepartments] = useState(true)
+
   const form = useForm<BasicUserFormValues>({
     resolver: zodResolver(basicUserSchema),
     defaultValues: {
@@ -52,6 +58,8 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
       password: '',
       full_name: '',
       phone_number: '',
+      job_title: '',
+      department_id: '',
     },
   })
 
@@ -60,15 +68,53 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
   const [addedUserName, setAddedUserName] = useState('')
   const [addedUserId, setAddedUserId] = useState('')
 
+  // Fetch departments when component mounts
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setLoadingDepartments(true)
+        const supabase = createClient()
+        
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data: adminBusinessInfo } = await supabase
+          .from('business_info')
+          .select('team_id')
+          .eq('user_id', user.id)
+          .single()
+        
+        const teamId = adminBusinessInfo?.team_id || user.id
+
+        const { data: departmentsData, error } = await supabase
+          .from('departments')
+          .select('id, name')
+          .or(`team_id.eq.${teamId},team_id.eq.00000000-0000-0000-0000-000000000000`)
+
+        if (error) {
+          console.error('Error fetching departments:', error)
+        } else {
+          setDepartments(departmentsData || [])
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error)
+      } finally {
+        setLoadingDepartments(false)
+      }
+    }
+
+    if (open) {
+      fetchDepartments()
+    }
+  }, [open])
+
   async function onSubmit(values: BasicUserFormValues) {
     setIsSubmitting(true)
     try {
       // Add default permissions for new users
       const result = await inviteUser({
         ...values,
-        job_title: '',
         manager_id: null,
-        department_id: null,
         critical_accountabilities: [],
         playbook_ids: [],
         permissions: ['dashboard', 'chat'], // Default basic permissions
@@ -176,6 +222,52 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
                       placeholder="(123) 456-7890" 
                       {...field}
                       className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="job_title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-700 flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-blue-600" />
+                    Job Title
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Software Engineer" 
+                      {...field}
+                      className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="department_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-700 flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-blue-600" />
+                    Department
+                  </FormLabel>
+                  <FormControl>
+                    <DepartmentDropdown
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      departments={departments}
+                      placeholder={loadingDepartments ? "Loading departments..." : "Select department"}
+                      className="border-gray-200 focus:border-gray-400 focus:ring-gray-400"
+                      allowNone={true}
+                      noneLabel="No Department"
                     />
                   </FormControl>
                   <FormMessage />

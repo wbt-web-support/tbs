@@ -37,6 +37,16 @@ export default function HelpfulLists({
   const [wrong, setWrong] = useState<string[]>(wrongData);
   const [missing, setMissing] = useState<string[]>(missingData);
   const [confusing, setConfusing] = useState<string[]>(confusingData);
+  const [newItems, setNewItems] = useState({
+    right: "",
+    wrong: "",
+    missing: "",
+    confusing: ""
+  });
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [editSection, setEditSection] = useState<string | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     if (generatedData) {
@@ -49,34 +59,28 @@ export default function HelpfulLists({
 
   useEffect(() => {
     onChange({ right, wrong, missing, confusing });
-  }, [right, wrong, missing, confusing, onChange]);
-  
-  const [newItem, setNewItem] = useState("");
-  const [addingTo, setAddingTo] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [editSection, setEditSection] = useState<string | null>(null);
-  
-  const supabase = createClient();
+  }, [right, wrong, missing, confusing]);
 
-  const handleAddItem = () => {
-    if (!newItem.trim() || !addingTo) return;
+  const handleAddItem = (section: string) => {
+    const itemText = newItems[section as keyof typeof newItems];
+    if (!itemText.trim()) return;
     
-    switch (addingTo) {
+    switch (section) {
       case "right":
-        setRight([...right, newItem.trim()]);
+        setRight([...right, itemText.trim()]);
         break;
       case "wrong":
-        setWrong([...wrong, newItem.trim()]);
+        setWrong([...wrong, itemText.trim()]);
         break;
       case "missing":
-        setMissing([...missing, newItem.trim()]);
+        setMissing([...missing, itemText.trim()]);
         break;
       case "confusing":
-        setConfusing([...confusing, newItem.trim()]);
+        setConfusing([...confusing, itemText.trim()]);
         break;
     }
     
-    setNewItem("");
+    setNewItems(prev => ({ ...prev, [section]: "" }));
   };
 
   const handleRemoveItem = (section: string, index: number) => {
@@ -254,9 +258,7 @@ export default function HelpfulLists({
             ) : (
               <div className="space-y-2">
                 {items.map((item, index) => {
-                  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
                   const setTextareaRef = (el: HTMLTextAreaElement | null) => {
-                    textareaRef.current = el;
                     if (el) {
                       el.style.height = "auto";
                       el.style.height = `${el.scrollHeight}px`;
@@ -312,8 +314,8 @@ export default function HelpfulLists({
           {editMode && (
             <div className="flex items-center space-x-2 pt-2">
               <ExpandableInput
-                value={addingTo === section ? newItem : ""}
-                onChange={(e) => setNewItem(e.target.value)}
+                value={newItems[section as keyof typeof newItems]}
+                onChange={(e) => setNewItems(prev => ({ ...prev, [section]: e.target.value }))}
                 placeholder="Add new item..."
                 className="flex-1"
                 expandAfter={40}
@@ -322,8 +324,8 @@ export default function HelpfulLists({
               <Button 
                 size="sm"
                 className={`h-8 px-3 text-xs ${style.actionBtnClass}`}
-                onClick={() => { setAddingTo(section); handleAddItem(); }}
-                disabled={!newItem.trim()}
+                onClick={() => handleAddItem(section)}
+                disabled={!newItems[section as keyof typeof newItems].trim()}
               >
                 <Plus className="mr-1 h-3 w-3" /> Add
               </Button>

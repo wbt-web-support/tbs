@@ -60,8 +60,8 @@ export default function BuildChecklist() {
       if (claimsError) throw claimsError;
 
       // Combine the data
-      const itemsWithClaims = items.map(item => {
-        const claim = userClaims?.find(claim => claim.checklist_id === item.id);
+      const itemsWithClaims = items.map((item: { id: any; }) => {
+        const claim = userClaims?.find((claim: { checklist_id: any; }) => claim.checklist_id === item.id);
         return {
           ...item,
           completed: claim?.is_completed || false,
@@ -137,7 +137,7 @@ export default function BuildChecklist() {
     }
   };
 
-  const completedCount = checklistItems.filter(item => item.completed).length;
+  const completedCount = checklistItems.filter((item: { completed: any; }) => item.completed).length;
   const totalCount = checklistItems.length;
   const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
@@ -160,8 +160,8 @@ export default function BuildChecklist() {
   };
   
   // Group items by completion status
-  const completedItems = checklistItems.filter(item => item.completed);
-  const pendingItems = checklistItems.filter(item => !item.completed);
+  const completedItems = checklistItems.filter((item: { completed: any; }) => item.completed);
+  const pendingItems = checklistItems.filter((item: { completed: any; }) => !item.completed);
 
   return (
     <div className="space-y-8">

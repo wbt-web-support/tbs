@@ -223,7 +223,7 @@ export default function ChainOfCommandPage() {
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Job Title</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Team</TableHead>
-                    <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[20%] border-l">CABs</TableHead>
+                    <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[20%] border-l">Critical Accountabilities</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Playbooks Owned</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Direct Reports</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Manager</TableHead>
@@ -343,34 +343,13 @@ export default function ChainOfCommandPage() {
               Delete Team Member
             </DialogTitle>
             <DialogDescription className="space-y-3">
-              <p className="font-medium text-red-600">
+              <p className="font-medium text-red-600 pt-2">
                 Are you sure you want to delete {memberToDelete?.full_name}?
               </p>
               <p className="text-sm font-medium text-red-600">
                 This action cannot be undone and will permanently delete:
               </p>
-              <div className="text-sm space-y-2 text-left">
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>All user data (battle plans, machines, playbooks, etc.)</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>Team relationships and manager assignments</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>Analytics assignments and integrations</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>Chat history and innovation documents</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500">•</span>
-                  <span>The user's authentication account</span>
-                </div>
-              </div>
+              
               <p className="text-xs text-muted-foreground mt-3">
                 Note: The user will be completely removed from the system including their authentication account.
               </p>

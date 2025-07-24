@@ -9,17 +9,18 @@ import { Info } from "lucide-react";
 const responseFormat = `## 📝 RESPONSE FORMAT\nReturn ONLY a valid JSON object with this exact structure:\n\n{\n  \"what_you_do\": \"comprehensive description of what the business does\",\n  \"who_you_serve\": \"detailed description of target audience and customers\",\n  \"internal_tasks\": [\n    {\n      \"name\": \"Task name\",\n      \"description\": \"Task description\"\n    }\n  ],\n  \"what_is_right\": [\"strength 1\", \"strength 2\", \"strength 3\"],\n  \"what_is_wrong\": [\"challenge 1\", \"challenge 2\", \"challenge 3\"],\n  \"what_is_missing\": [\"gap 1\", \"gap 2\", \"gap 3\"],\n  \"what_is_confusing\": [\"confusion 1\", \"confusion 2\", \"confusion 3\"],\n  \"notes\": \"strategic insights and observations\"\n}\n\nIMPORTANT: \n- Make all content realistic and actionable\n- Base recommendations on the actual company data provided\n- Keep descriptions concise but comprehensive\n- Focus on practical, implementable insights`;
 
 const dynamicFields = [
-  { name: 'Company Context', code: '{{companyContext}}', description: 'Injects all company data context.' },
-  { name: 'Response Format', code: '{{responseFormat}}', description: 'Inserts the required JSON structure and rules.' },
+  { name: 'Company Context', code: '{{companyContext}}', description: 'Automatically fills in all the company information (name, industry, size, etc.) when the prompt is used. This includes the company name, what they do, who their customers are, and other details from their profile.' },
+  { name: 'Response Format', code: '{{responseFormat}}', description: 'Automatically adds the required structure and rules for how the AI should format its response. This includes the exact JSON format, what fields are required, and specific instructions for the AI to follow.' },
 ];
 
 export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: any, onClose: () => void, onSaved: (updated: any) => void }) {
   const [text, setText] = useState(prompt.prompt_text);
+  const [description, setDescription] = useState(prompt.description);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const changed = text !== prompt.prompt_text;
+  const changed = text !== prompt.prompt_text || description !== prompt.description;
 
   // Live preview of the final prompt (body + structure)
   const preview = useMemo(() => {
@@ -35,14 +36,14 @@ export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: 
       const res = await fetch("/api/admin/update-prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: prompt.id, description: prompt.description, prompt_text: text }),
+        body: JSON.stringify({ id: prompt.id, description: description, prompt_text: text }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to update prompt");
       }
       toast({ title: "Prompt updated!", description: prompt.prompt_key });
-      onSaved({ ...prompt, prompt_text: text, updated_at: new Date().toISOString() });
+      onSaved({ ...prompt, description: description, prompt_text: text, updated_at: new Date().toISOString() });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -61,6 +62,9 @@ export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: 
         {/* Dynamic Fields Sidebar */}
         <div className="w-full md:w-1/3 bg-neutral-50 border-r px-8 py-10 flex flex-col gap-4 min-h-[500px]">
           <div className="font-semibold mb-2 text-neutral-800 text-lg">Dynamic Fields</div>
+          <div className="text-sm text-neutral-600 mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <strong>What are these?</strong> These are special placeholders that automatically get replaced with real data when your prompt is used. Think of them like smart templates!
+          </div>
           <ul className="space-y-4">
             {dynamicFields.map((field) => (
               <li key={field.code} className="flex flex-col gap-1">
@@ -83,7 +87,17 @@ export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: 
         </div>
         {/* Edit Form */}
         <div className="flex-1 flex flex-col gap-6 px-10 py-10 min-h-[500px]">
-          <div >
+          <div>
+            <label className="block text-base font-medium mb-2 text-neutral-800">Description</label>
+            <Input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-neutral-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+              disabled={loading}
+              placeholder="Enter a description for this prompt..."
+            />
+          </div>
+          <div>
             <label className="block text-base font-medium mb-2 text-neutral-800">Prompt Body (Instructions Only)</label>
             <Textarea
               value={text}
@@ -92,7 +106,6 @@ export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: 
               className="w-full font-mono text-sm flex-1 min-h-[520px] h-full px-4 py-3 rounded-lg border border-neutral-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
               disabled={loading}
             />
-            <div className="text-xs text-neutral-400 mt-2">Only edit the instructions. The required JSON structure is fixed and will always be appended.</div>
           </div>
           <div className="hidden">
             <label className="block text-base font-medium mb-2 text-neutral-800">Live Preview</label>
