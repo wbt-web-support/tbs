@@ -69,18 +69,22 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
+    console.log('Xero sync GET request received');
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
+      console.log('Authentication failed:', authError);
       return NextResponse.json(
         { error: 'Authentication required. Please log in.' },
         { status: 401 }
       );
     }
 
+    console.log('User authenticated:', user.id);
     const xeroAPI = new XeroAPI(supabase);
     const connections = await xeroAPI.getAllConnections(user.id);
+    console.log('Found connections:', connections.length);
 
     if (connections.length === 0) {
       return NextResponse.json({
@@ -108,8 +112,7 @@ export async function GET() {
 
     // Return summary for primary connection (first one)
     const primaryConnection = connectionsData[0];
-
-    return NextResponse.json({
+    const response = {
       connected: true,
       sync_status: primaryConnection.sync_status,
       last_sync_at: primaryConnection.last_sync_at,
@@ -120,7 +123,10 @@ export async function GET() {
       accounts: primaryConnection.accounts,
       bank_transactions: primaryConnection.bank_transactions,
       connections: connectionsData // Include all connections for multi-tenant support
-    });
+    };
+    
+    console.log('Returning Xero data:', response);
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Xero sync status error:', error);

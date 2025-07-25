@@ -1,0 +1,628 @@
+
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+    
+
+        .slider-container {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .swiper {
+            width: 100%;
+            height: 500px;
+            overflow: hidden;
+        }
+
+        .swiper-slide {
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            aspect-ratio: 4/5;
+            height: 100%;
+            border-radius: 15px;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            border-radius: 15px;
+        }
+
+        .video-container .thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            border-radius: 15px;
+        }
+
+        .video-container.playing video {
+            display: block;
+        }
+
+        .video-container.playing .thumbnail {
+            display: none;
+        }
+
+        /* Overlay for company details */
+        .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 1));
+            padding: 40px 30px 20px;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .company-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .company-name {
+    font-size: 24px;
+    font-weight: bold;
+    font-family: 'futura bold';
+    color: #ffffff;
+    letter-spacing: 1px;
+    line-height: 1.4;
+}
+
+        .ceo-name {
+            font-size: 16px;
+            opacity: 0.9;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Play button overlay */
+        .play-button-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 1;
+            z-index: 10;
+        }
+
+        .play-button-overlay:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .play-button-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .play-button-overlay i {
+            font-size: 30px;
+            color: #333;
+            margin-left: 5px;
+        }
+
+        /* Swiper navigation - hidden */
+        .swiper-button-next,
+        .swiper-button-prev {
+            display: none;
+        }
+
+        /* Swiper pagination */
+        .swiper-pagination {
+            position: relative;
+            margin-top: 30px;
+            text-align: center;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .swiper-pagination-bullet {
+            background: #ffffff;
+            opacity: 1;
+            width: 10px;
+            height: 10px;
+            margin: 0;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .swiper-pagination-bullet:hover {
+            background: #3ac5b7;
+            transform: scale(1.1);
+        }
+
+        .swiper-pagination-bullet-active {
+            background: #3ac5b7;
+            transform: scale(1.3);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+
+            .swiper {
+                max-height: 380px;
+            }
+
+            .slider-container {
+                padding: 15px;
+            }
+
+            .swiper-slide {
+                aspect-ratio: 4/5;
+            }
+
+            .company-name {
+                font-size: 20px;
+            }
+
+            .ceo-name {
+                font-size: 12px;
+            }
+
+            .play-button-overlay {
+                width: 50px;
+                height: 50px;
+            }
+
+            .play-button-overlay i {
+                font-size: 20px;
+            }
+
+            .video-overlay {
+                padding: 20px 20px 20px;
+            }
+
+            .swiper-pagination {
+                margin-top: 20px;
+            }
+
+            .swiper-pagination-bullet {
+                width: 12px;
+                height: 12px;
+                margin: 0 4px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .slider-container {
+                padding: 10px;
+            }
+
+            .swiper-slide {
+                aspect-ratio: 4/5;
+            }
+
+            .company-name {
+                font-size: 20px;
+            }
+
+            .ceo-name {
+                font-size: 11px;
+            }
+
+            .play-button-overlay {
+                width: 45px;
+                height: 45px;
+            }
+
+            .play-button-overlay i {
+                font-size: 18px;
+            }
+
+            .video-overlay {
+                padding: 15px 20px 20px;
+            }
+
+            .swiper-pagination {
+                margin-top: 30px;
+            }
+
+            .swiper-pagination-bullet {
+                width: 10px;
+                height: 10px;
+                margin: 0 3px;
+            }
+        }
+
+        /* Loading animation */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+        }
+
+        /* Video controls styling */
+        .video-container video::-webkit-media-controls {
+            display: none;
+        }
+
+        .video-container video::-webkit-media-controls-panel {
+            display: none;
+        }
+
+        .video-container video::-webkit-media-controls-play-button {
+            display: none;
+        }
+    </style>
+
+    <div class="slider-container">
+        <div class="swiper">
+            <div class="swiper-wrapper">
+                <!-- Slide 1 - ED Barlow -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="/wp-content/uploads/APH-testimonial-thumbnail.webp" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-public.b-cdn.net/client-testimonials/APH%20ED%20Barlow.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">APH</div>
+                                <div class="ceo-name">ED Barlow</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 - Lachlan McInnes -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="/wp-content/uploads/Lachlan-McInnes-testimonial-thumbnail.webp" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-public.b-cdn.net/client-testimonials/Lachlan%20Mcinnes%20Group%20Testimonial.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">Mcinnes Group</div>
+                                <div class="ceo-name">Lachlan McInnes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 3 - Alex Slater -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="/wp-content/uploads/VACA-Services-testimonial-thumbnail.webp" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-public.b-cdn.net/client-testimonials/Alex%20Slater%20VACA%20Services.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">VACA Services</div>
+                                <div class="ceo-name">Alex Slater</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 4 - Stephen Dunn -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="/wp-content/uploads/Origin-testimonial-thumbnail.webp" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-public.b-cdn.net/client-testimonials/Origin%20Stephen%20Dunn%20testimonial.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">Origin GPH</div>
+                                <div class="ceo-name">Stephen Dunn</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 5 - Jesse Burgess -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-1.png" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-video.b-cdn.net/client-testimonials/ALL-SOLAR-AD.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">All Solar</div>
+                                <div class="ceo-name">Jesse Burgess</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 6 - Phill Kitson -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-22.png" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-video.b-cdn.net/client-testimonials/Phill-Kitson-Ad.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">Gastek Home Assist</div>
+                                <div class="ceo-name">Phill Kitson</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 7 - Ashley Hale -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-3.png" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-video.b-cdn.net/client-testimonials/ash-hale-ads-video-demo.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">Hale Heating</div>
+                                <div class="ceo-name">Ashley Hale</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 8 - Tristan Spence -->
+                <div class="swiper-slide">
+                    <div class="video-container">
+                        <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-4.png" class="thumbnail">
+                        <video preload="metadata" >
+                            <source src="https://wbt-video.b-cdn.net/client-testimonials/Tristan-Ad.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-button-overlay">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="video-overlay">
+                            <div class="company-info">
+                                <div class="company-name">TRS Cooling</div>
+                                <div class="ceo-name">Tristan Spence</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pagination dots -->
+        <div class="swiper-pagination"></div>
+    </div>
+    </div>
+
+    <!-- Swiper JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+    <script>
+        // Initialize Swiper
+        const swiper = new Swiper('.swiper', {
+            // Enable auto-play
+            autoplay: {
+                delay: 5000,
+                disableOnInteraction: false,
+            },
+            
+            // Enable loop
+            loop: true,
+            
+            // Enable pagination
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+            },
+            
+            // Enable grab cursor
+            grabCursor: true,
+            
+            // Enable touch/swipe on mobile
+            allowTouchMove: true,
+            
+            // Fixed slides per view for better control
+            slidesPerView: 1.5,
+            spaceBetween: 20,
+            
+            // Responsive breakpoints
+            breakpoints: {
+                320: {
+                    slidesPerView: 1.5,
+                    spaceBetween: 15
+                },
+                768: {
+                    slidesPerView: 2.5,
+                    spaceBetween: 20
+                },
+                1024: {
+                    slidesPerView: 3.5,
+                    spaceBetween: 25
+                },
+                1400: {
+                    slidesPerView: 4.5,
+                    spaceBetween: 30
+                },
+                1600: {
+                    slidesPerView: 4.5,
+                    spaceBetween: 30
+                }
+            }
+        });
+
+        // Video control functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const slides = document.querySelectorAll('.swiper-slide');
+            
+            slides.forEach(slide => {
+                const video = slide.querySelector('video');
+                const playButton = slide.querySelector('.play-button-overlay');
+                const overlay = slide.querySelector('.video-overlay');
+                
+                if (video && playButton && overlay) {
+                    // Play button click handler
+                    playButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        playVideo(video, playButton, overlay);
+                    });
+                    
+                    // Video click handler for pause
+                    video.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!video.paused) {
+                            video.pause();
+                        }
+                    });
+                    
+                    // Video event listeners
+                    video.addEventListener('play', function() {
+                        hideOverlays(playButton, overlay);
+                        pauseSwiper();
+                    });
+                    
+                    video.addEventListener('pause', function() {
+                        showOverlays(playButton, overlay);
+                        resumeSwiper();
+                    });
+                    
+                    video.addEventListener('ended', function() {
+                        showOverlays(playButton, overlay);
+                        resumeSwiper();
+                        // Move to next slide when video ends
+                        setTimeout(() => {
+                            swiper.slideNext();
+                        }, 1000);
+                    });
+                    
+                    // Pause video when slide changes
+                    video.addEventListener('loadedmetadata', function() {
+                        video.currentTime = 0;
+                    });
+                }
+            });
+        });
+
+        // Function to play video
+        function playVideo(video, playButton, overlay) {
+            const videoContainer = video.closest('.video-container');
+            
+            if (video.paused) {
+                video.play();
+                videoContainer.classList.add('playing');
+            } else {
+                video.pause();
+                videoContainer.classList.remove('playing');
+            }
+        }
+
+        // Function to hide overlays
+        function hideOverlays(playButton, overlay) {
+            playButton.classList.add('hidden');
+            overlay.classList.add('hidden');
+        }
+
+        // Function to show overlays
+        function showOverlays(playButton, overlay) {
+            playButton.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+        }
+
+        // Function to pause swiper autoplay
+        function pauseSwiper() {
+            swiper.autoplay.stop();
+        }
+
+        // Function to resume swiper autoplay
+        function resumeSwiper() {
+            swiper.autoplay.start();
+        }
+
+        // Pause all videos when slide changes
+        swiper.on('slideChange', function() {
+            const videos = document.querySelectorAll('video');
+            const videoContainers = document.querySelectorAll('.video-container');
+            
+            videos.forEach(video => {
+                video.pause();
+                video.currentTime = 0;
+            });
+            
+            videoContainers.forEach(container => {
+                container.classList.remove('playing');
+            });
+            
+            // Show overlays for all slides
+            const playButtons = document.querySelectorAll('.play-button-overlay');
+            const overlays = document.querySelectorAll('.video-overlay');
+            
+            playButtons.forEach(button => button.classList.remove('hidden'));
+            overlays.forEach(overlay => overlay.classList.remove('hidden'));
+        });
+
+        // Touch/swipe functionality is automatically handled by Swiper.js
+        // The slider will work with touch gestures on mobile devices
+    </script>

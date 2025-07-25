@@ -392,15 +392,19 @@ export class XeroAPI {
   async getAllConnections(userId: string): Promise<XeroConnection[]> {
     const supabase = await this.getSupabaseClient();
     
+    console.log('Getting Xero connections for user:', userId);
+    
     const { data, error } = await supabase
       .from('xero_data')
       .select('*')
       .eq('user_id', userId);
 
     if (error) {
+      console.error('Error getting Xero connections:', error);
       throw new Error(`Failed to get Xero connections: ${error.message}`);
     }
 
+    console.log('Found Xero connections:', data?.length || 0, data);
     return data || [];
   }
 

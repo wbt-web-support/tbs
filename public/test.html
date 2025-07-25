@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+ 
+ 
+    .testimonial-section {
+        display: flex;
+        gap: 20px !important;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+.play-button i {
+    filter: drop-shadow(2px 4px 6px #00000055);
+}
+    
+    .testimonial-card {
+        background-color: #222;
+        border-radius: 10px;
+        overflow: hidden;
+        width: 330px;
+        text-align: center;
+        position: relative;
+        pointer-events: auto;
+    }
+    
+    .video-container {
+        position: relative;
+        width: 100%;
+        z-index: 1;
+        pointer-events: auto;
+    }
+    
+    .testimonial-card video {
+        width: 100%;
+        height: auto;
+        display: block;
+        height: auto;
+    }
+    
+    .testimonial-card:hover .play-button {
+     opacity: 1; /* Show the button when hovering */
+}
+.play-button {
+     position: absolute;
+     top: 48%;
+     left: 50%;
+     transform: translate(-50%, -50%);
+     background: transparent;
+     border: none;
+     cursor: pointer;
+     z-index: 1111;
+     color: white;
+     font-size: 80px;
+     opacity: 1; /* Show the button by default */
+     transition: 0.2s;
+}
+.testimonial-card.playing .play-button {
+     opacity: 0; /* Hide the play button when video is playing and not hovered */
+}
+.testimonial-card:hover.playing .play-button {
+     opacity: 1; /* Show the button when video is playing and the card is hovered */
+}
+.play-button:hover {
+     color: #ffffffd9;
+     background: transparent !important;
+     box-shadow: none !important;
+}
+.play-button:focus {
+     color: #ffffffd9;
+     background: transparent !important;
+     box-shadow: none !important;
+}
+    
+.play-button:active {
+     color: #ffffffd9;
+     background: transparent !important;
+     box-shadow: none !important;
+}
+    
+    .play-button:focus {
+        outline: none;
+    }
+    
+    .testimonial-info {
+     padding: 20px;
+     position: absolute;
+     z-index: 10000;
+     bottom: 0;
+     background: linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+     width: 100%;
+     color: white;
+     text-align: left;
+     height: 30%;
+     display: flex;
+     flex-direction: column;
+     justify-content: end;
+}
+    
+    .testimonial-info h3 {
+        margin-bottom: 0;
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+    }
+    
+    .position, .company {
+        font-size: 18px;
+    }
+    
+     .position {
+         margin-bottom: 0px !important;
+     }
+    
+    .company {
+     color: #65dfdc;
+     margin-top: 0;
+}
+ 
+ 
+ 
+    .thumbnail {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        cursor: pointer;
+        z-index: 11;
+        pointer-events: auto;
+    }
+    
+     @media only screen and (max-width: 600px) {
+    
+    .testimonial-section {
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    overflow-x: scroll;
+    padding-bottom: 20px;
+gap: 0;
+ 
+}
+ 
+.testimonial-card {
+    min-width: 270px;
+    margin-left: 15px;
+    margin-right: 15px;
+}
+ 
+ 
+}
+.testimonial-marquee-wrapper {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  background: #111; /* optional background */
+  padding: 20px 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  touch-action: pan-y;
+}
+
+.testimonial-marquee {
+  display: flex;
+  width: fit-content;
+  padding-left: 15px;
+  will-change: transform;
+}
+
+.testimonial-marquee.transitioning {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Cards layout inside marquee */
+.testimonial-section {
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.testimonial-card {
+  flex: 0 0 auto;
+  width: 330px;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+/* On small screen — ensure responsiveness */
+@media only screen and (max-width: 600px) {
+.testimonial-section {
+padding-bottom: 0px; 
+gap: 0;
+}
+.testimonial-marquee-wrapper {
+padding: 20px 0px 0px 0px ;
+}
+  .testimonial-marquee {
+    animation-duration: 80s;
+  }
+  .testimonial-card {
+    width: 270px;
+  }
+}
+
+
+        </style>
+    
+    
+    
+  <div class="testimonial-marquee-wrapper">
+  <div class="testimonial-marquee">
+    <!-- Duplicate content twice for seamless infinite scroll -->
+    <div class="testimonial-section marquee-track">
+      <div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/APH-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/APH%20ED%20Barlow.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>ED Barlow</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">APH</p>
+         </div>
+     </div>
+ 
+
+<div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/Lachlan-McInnes-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Lachlan%20Mcinnes%20Group%20Testimonial.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>ED Barlow</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Lachlan McInnes</p>
+         </div>
+     </div>
+
+
+<div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/VACA-Services-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Alex%20Slater%20VACA%20Services.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Alex Slater</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">VACA Services</p>
+         </div>
+     </div>
+
+
+
+<div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/Origin-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Origin%20Stephen%20Dunn%20testimonial.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Stephen Dunn</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Origin Gas, Plumbing and Heating Ltd</p>
+         </div>
+     </div>
+
+ 
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-1.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ALL-SOLAR-AD.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Jesse Burgess</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">All Solar</p>
+         </div>
+     </div>
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-22.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Phill-Kitson-Ad.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Phill Kitson</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Gastek Home Assist</p>
+         </div>
+     </div>
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-3.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ash-hale-ads-video-demo.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Ashley Hale</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Hale Heating</p>
+         </div>
+     </div>
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-4.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Tristan-Ad.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Tristan Spence</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">TRS Cooling</p>
+         </div>
+     </div>
+ 
+  <div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/APH-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/APH%20ED%20Barlow.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>ED Barlow</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">APH</p>
+         </div>
+     </div>
+ 
+
+<div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/Lachlan-McInnes-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Lachlan%20Mcinnes%20Group%20Testimonial.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>ED Barlow</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Lachlan McInnes</p>
+         </div>
+     </div>
+
+
+<div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/VACA-Services-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Alex%20Slater%20VACA%20Services.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Alex Slater</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">VACA Services</p>
+         </div>
+     </div>
+
+
+
+<div class="testimonial-card">
+         <div class="video-container">
+            <img src="/wp-content/uploads/Origin-testimonial-thumbnail.webp" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Origin%20Stephen%20Dunn%20testimonial.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Stephen Dunn</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Origin Gas, Plumbing and Heating Ltd</p>
+         </div>
+     </div>
+
+ 
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-1.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ALL-SOLAR-AD.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Jesse Burgess</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">All Solar</p>
+         </div>
+     </div>
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-22.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Phill-Kitson-Ad.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Phill Kitson</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Gastek Home Assist</p>
+         </div>
+     </div>
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-3.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ash-hale-ads-video-demo.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Ashley Hale</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">Hale Heating</p>
+         </div>
+     </div>
+     <div class="testimonial-card">
+         <div class="video-container">
+            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-4.png" class="thumbnail">
+             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Tristan-Ad.mp4" preload="metadata"></video>
+             <button class="playPauseBtn play-button">
+                 <i class="fa-solid fa-circle-play"></i>
+             </button>
+         </div>
+         <div class="testimonial-info">
+             <h3>Tristan Spence</h3>
+             <!-- <p class="position">Operations Director</p> -->
+             <p class="company">TRS Cooling</p>
+         </div>
+     </div>
+
+</div>
+    </div>
+  </div>
+</div>
+    </div>
+    <div class="testimonial-section marquee-track">
+        <div class="testimonial-section">
+ 
+ 
+
+    
+    
+<script>
+    const videos = document.querySelectorAll('.testimonialVideo');
+    const playPauseButtons = document.querySelectorAll('.playPauseBtn');
+    const testimonialCards = document.querySelectorAll('.testimonial-card');
+    const thumbnails = document.querySelectorAll('.thumbnail');
+    const marquee = document.querySelector('.testimonial-marquee');
+    const marqueeWrapper = document.querySelector('.testimonial-marquee-wrapper');
+    
+    let isHovering = false;
+    let scrollInterval;
+    let currentCardIndex = 0;
+    let isDragging = false;
+    let startX = 0;
+    let currentX = 0;
+    let dragStartPosition = 0;
+    let isVideoPlaying = false;
+    
+    // Function to get current card width based on screen size
+    function getCardWidth() {
+        return window.innerWidth <= 600 ? 270 : 330; // 270px on mobile, 330px on desktop
+    }
+    
+    // Function to get current gap based on screen size
+    function getGap() {
+        return window.innerWidth <= 600 ? 20 : 20; // 20px gap on both mobile and desktop
+    }
+    
+    // Function to calculate exact position for a given card index
+    function getCardPosition(index) {
+        const cardWidth = getCardWidth();
+        const gap = getGap();
+        return index * (cardWidth + gap);
+    }
+    
+    // Pause marquee on hover
+    marqueeWrapper.addEventListener('mouseenter', () => {
+        if (!isDragging) {
+            isHovering = true;
+            marquee.classList.add('paused');
+        }
+    });
+    
+    marqueeWrapper.addEventListener('mouseleave', () => {
+        if (!isDragging) {
+            isHovering = false;
+            marquee.classList.remove('paused');
+        }
+    });
+    
+    // Mouse drag events
+    marqueeWrapper.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', endDrag);
+    
+    // Touch events for mobile
+    marqueeWrapper.addEventListener('touchstart', startDrag);
+    document.addEventListener('touchmove', drag);
+    document.addEventListener('touchend', endDrag);
+    
+    // Prevent default touch behavior only when dragging
+    marqueeWrapper.addEventListener('touchstart', (e) => {
+        // Don't prevent default if clicking on a button or video
+        if (e.target.closest('.playPauseBtn') || e.target.closest('video')) {
+            return;
+        }
+        e.preventDefault();
+    }, { passive: false });
+    
+    marqueeWrapper.addEventListener('touchmove', (e) => {
+        if (isDragging) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Add pointer events to prevent drag interference
+    document.addEventListener('mousedown', (e) => {
+        // If clicking on any element inside the marquee that's not a button or video, allow drag
+        if (e.target.closest('.testimonial-marquee-wrapper') && 
+            !e.target.closest('.playPauseBtn') && 
+            !e.target.closest('video')) {
+            // This will allow the mousedown event to bubble up to the wrapper
+            return;
+        }
+    });
+    
+    // Snapping scroll functionality
+    function startSnappingScroll() {
+        scrollInterval = setInterval(() => {
+            if (!isHovering && !isVideoPlaying && !isDragging) {
+                // Add transition for auto-scroll
+                marquee.classList.add('transitioning');
+                
+                // Move to the next card
+                currentCardIndex++;
+                
+                // Calculate the exact position for this card
+                const scrollPosition = getCardPosition(currentCardIndex);
+                marquee.style.transform = `translateX(-${scrollPosition}px)`;
+                
+                // Reset when we reach the end (assuming 8 cards per set)
+                if (currentCardIndex >= 8) {
+                    currentCardIndex = 0;
+                    marquee.style.transform = `translateX(0px)`;
+                }
+                
+                // Remove transition after animation
+                setTimeout(() => {
+                    marquee.classList.remove('transitioning');
+                }, 300);
+            }
+        }, 8000); // Move every 8 seconds
+    }
+    
+    // Initialize snapping scroll
+    startSnappingScroll();
+    
+    // Handle window resize to recalculate card widths
+    window.addEventListener('resize', () => {
+        // Clear existing interval
+        clearInterval(scrollInterval);
+        
+        // Reset position to prevent jumping
+        currentCardIndex = 0;
+        marquee.style.transform = `translateX(0px)`;
+        
+        // Restart with new card dimensions
+        startSnappingScroll();
+    });
+    
+    // Drag functions
+    function startDrag(e) {
+        // Don't start drag if clicking on a button or video
+        if (e.target.closest('.playPauseBtn') || e.target.closest('video')) {
+            return;
+        }
+        
+        // Ensure we're clicking within the marquee wrapper
+        if (!e.target.closest('.testimonial-marquee-wrapper')) {
+            return;
+        }
+        
+        isDragging = true;
+        isHovering = false;
+        marquee.classList.add('paused');
+        marquee.classList.remove('transitioning'); // Remove transition during drag
+        
+        // Get the starting position
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        startX = clientX;
+        currentX = clientX;
+        
+        // Get current transform position
+        const transform = window.getComputedStyle(marquee).transform;
+        if (transform && transform !== 'none') {
+            const matrix = new DOMMatrix(transform);
+            dragStartPosition = Math.abs(matrix.m41);
+        } else {
+            dragStartPosition = 0;
+        }
+        
+        // Change cursor to grabbing
+        marqueeWrapper.style.cursor = 'grabbing';
+        marqueeWrapper.style.userSelect = 'none';
+        
+        // Prevent text selection on mobile
+        e.preventDefault();
+    }
+    
+    function drag(e) {
+        if (!isDragging) return;
+        
+        e.preventDefault();
+        
+        // Get current position
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        currentX = clientX;
+        
+        // Calculate drag distance
+        const dragDistance = startX - currentX;
+        const newPosition = Math.max(0, dragStartPosition + dragDistance);
+        
+        // Apply the transform immediately without transition
+        requestAnimationFrame(() => {
+            marquee.style.transform = `translateX(-${newPosition}px)`;
+        });
+    }
+    
+    function endDrag(e) {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        marqueeWrapper.style.cursor = 'grab';
+        marqueeWrapper.style.userSelect = 'auto';
+        
+        // Add transition for snapping
+        marquee.classList.add('transitioning');
+        
+        // Calculate which card we should snap to
+        const transform = window.getComputedStyle(marquee).transform;
+        let currentPosition = 0;
+        if (transform && transform !== 'none') {
+            const matrix = new DOMMatrix(transform);
+            currentPosition = Math.abs(matrix.m41);
+        }
+        
+        const cardWidth = getCardWidth();
+        const gap = getGap();
+        const totalCardWidth = cardWidth + gap;
+        
+        // Calculate velocity for momentum
+        const dragDistance = startX - currentX;
+        const velocity = Math.abs(dragDistance) > 50 ? Math.sign(dragDistance) : 0;
+        
+        // Find the closest card index with velocity consideration
+        let targetIndex = Math.round(currentPosition / totalCardWidth);
+        
+        // Add velocity influence
+        if (velocity !== 0) {
+            targetIndex += velocity;
+        }
+        
+        // Limit to valid range
+        currentCardIndex = Math.max(0, Math.min(targetIndex, 7)); // Limit to 0-7
+        
+        // Snap to the closest card
+        const snapPosition = getCardPosition(currentCardIndex);
+        marquee.style.transform = `translateX(-${snapPosition}px)`;
+        
+        // Remove transition class after animation
+        setTimeout(() => {
+            marquee.classList.remove('transitioning');
+        }, 300);
+        
+        // Resume auto-scroll after a delay
+        setTimeout(() => {
+            if (!isHovering && !isVideoPlaying) {
+                marquee.classList.remove('paused');
+            }
+        }, 1000);
+    }
+ 
+    playPauseButtons.forEach((button, index) => {
+        const video = videos[index];
+        const card = testimonialCards[index];
+        const thumbnail = thumbnails[index];
+        const testimonialInfo = card.querySelector('.testimonial-info');
+ 
+        button.addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+                button.innerHTML = '<i class="fa-solid fa-circle-pause"></i>'; // Show the pause icon
+                thumbnail.style.display = 'none'; // Hide the thumbnail when playing
+                testimonialInfo.style.display = 'none'; // Hide the testimonial info when playing
+                card.classList.add('playing'); // Add 'playing' class to hide the button when not hovered
+            } else {
+                video.pause();
+                button.innerHTML = '<i class="fa-solid fa-circle-play"></i>'; // Show the play icon
+                testimonialInfo.style.display = 'flex'; // Show the testimonial info when paused
+                card.classList.remove('playing'); // Remove 'playing' class to show the button when paused
+            }
+        });
+ 
+        video.addEventListener('play', () => {
+            card.classList.add('playing');
+            thumbnail.style.display = 'none';
+            testimonialInfo.style.display = 'none'; // Hide the testimonial info when playing
+            isVideoPlaying = true;
+        });
+ 
+        video.addEventListener('pause', () => {
+            card.classList.remove('playing');
+            button.innerHTML = '<i class="fa-solid fa-circle-play"></i>';
+            testimonialInfo.style.display = 'flex'; // Show the testimonial info when paused
+            // Check if any other video is playing
+            isVideoPlaying = Array.from(videos).some(v => !v.paused);
+        });
+ 
+        video.addEventListener('ended', () => {
+            card.classList.remove('playing');
+            button.innerHTML = '<i class="fa-solid fa-circle-play"></i>';
+            testimonialInfo.style.display = 'flex'; // Show the testimonial info when video ends
+            // Check if any other video is playing
+            isVideoPlaying = Array.from(videos).some(v => !v.paused);
+        });
+    });
+</script>
+</body>
+</html>

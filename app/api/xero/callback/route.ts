@@ -27,11 +27,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Extract user ID from state (format: userId-timestamp-random)
-    const userId = state.split('-')[0];
-    if (!userId) {
+    // Extract user ID from state (format: userId_timestamp_random)
+    // Note: Using underscores instead of hyphens because UUIDs contain hyphens
+    const stateParts = state.split('_');
+    if (stateParts.length < 3) {
       return NextResponse.redirect(
-        new URL('/integrations/xero?error=invalid_state&message=Invalid state parameter', 
+        new URL('/integrations/xero?error=invalid_state&message=Invalid state format', 
+        request.url)
+      );
+    }
+    
+    const userId = stateParts[0];
+    console.log('Extracted userId from state:', userId, 'Full state:', state);
+    
+    if (!userId || userId.length < 36) { // UUID should be 36 characters
+      return NextResponse.redirect(
+        new URL('/integrations/xero?error=invalid_state&message=Invalid user ID in state parameter', 
+        request.url)
+      );
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.error('Invalid UUID format in state parameter:', userId);
+      return NextResponse.redirect(
+        new URL('/integrations/xero?error=invalid_uuid&message=Invalid user ID format in state parameter', 
         request.url)
       );
     }
@@ -76,6 +97,16 @@ export async function GET(request: NextRequest) {
 
       console.log('✓ Xero connection established successfully');
 
+      // Auto-trigger sync after successful connection
+      try {
+        console.log('Auto-triggering sync for new Xero connection...');
+        await xeroAPI.syncData(userId, selectedTenant.tenantId);
+        console.log('✓ Xero auto-sync completed successfully');
+      } catch (syncError) {
+        console.error('Auto-sync failed, but connection was successful:', syncError);
+        // Don't fail the connection if sync fails - user can manually sync later
+      }
+
       // Redirect to integration page with success
       return NextResponse.redirect(
         new URL('/integrations/xero?connected=true&tenant=' + encodeURIComponent(organizationName), 
@@ -85,6 +116,14 @@ export async function GET(request: NextRequest) {
     } catch (apiError) {
       console.error('API error during Xero callback:', apiError);
       const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown API error';
+      
+      // Check if it's a UUID error and provide a more helpful message
+      if (errorMessage.includes('invalid input syntax for type uuid')) {
+        return NextResponse.redirect(
+          new URL('/integrations/xero?error=uuid_error&message=Invalid user ID format. Please try connecting again.', 
+          request.url)
+        );
+      }
       
       return NextResponse.redirect(
         new URL('/integrations/xero?error=api_error&message=' + encodeURIComponent(errorMessage), 

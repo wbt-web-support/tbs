@@ -14,6 +14,8 @@ export async function POST() {
       );
     }
 
+    console.log('Authenticated user:', { id: user.id, email: user.email });
+
     // Check for existing active connections
     const xeroAPI = new XeroAPI(supabase);
     const existingConnections = await xeroAPI.getAllConnections(user.id);
@@ -29,8 +31,9 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // Generate state parameter for OAuth security
-    const state = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+    // Generate state parameter for OAuth security (using underscores to avoid UUID parsing issues)
+    const state = `${user.id}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    console.log('Generated state parameter:', state, 'User ID:', user.id);
 
     // Generate OAuth authorization URL
     const authUrl = xeroAPI.generateAuthUrl(state);

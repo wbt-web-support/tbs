@@ -6,9 +6,9 @@ import { clearCorruptedSupabaseCookies, handleCookieErrors } from '@/utils/clear
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, RefreshCw, CheckCircle, XCircle, Building, Users, FileText, PoundSterling, Clock, TrendingUp, Star } from 'lucide-react'
+import { Loader2, RefreshCw, CheckCircle, XCircle, Building, Users, FileText, PoundSterling } from 'lucide-react'
+import XeroGraphs from '@/app/(dashboard)/dashboard/components/xero-graphs'
 
 interface XeroData {
   connected: boolean
@@ -23,14 +23,7 @@ interface XeroData {
   connections?: any[]
 }
 
-interface KPI {
-  value: number
-  label: string
-  unit: string
-  trend: 'up' | 'down' | 'neutral'
-  change: number
-  period: string
-}
+
 
 // Initialize Supabase client once outside component
 const supabase = createClient()
@@ -45,8 +38,6 @@ export default function XeroIntegration() {
     accounts: [],
     bank_transactions: []
   })
-  const [kpis, setKpis] = useState<KPI[]>([])
-  const [period, setPeriod] = useState('monthly')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [connecting, setConnecting] = useState(false)
@@ -61,10 +52,8 @@ export default function XeroIntegration() {
   }, [])
 
   useEffect(() => {
-    if (data.connected) {
-      loadKpis()
-    }
-  }, [data.connected, period])
+    console.log('Data state changed:', data)
+  }, [data.connected])
 
   // Handle URL parameters (from OAuth callback)
   useEffect(() => {
@@ -92,6 +81,7 @@ export default function XeroIntegration() {
 
   const loadData = async () => {
     try {
+      console.log('Loading Xero data...')
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError) {
         console.error('Auth error:', userError)
@@ -100,17 +90,24 @@ export default function XeroIntegration() {
           return
         }
       }
-      if (!user) return
+      if (!user) {
+        console.log('No user found')
+        return
+      }
 
+      console.log('User authenticated, fetching Xero data...')
       const response = await fetch('/api/xero/sync')
       if (response.ok) {
         const syncData = await response.json()
+        console.log('Xero data loaded:', syncData)
         setData(prev => ({ ...prev, ...syncData }))
+      } else {
+        console.error('Failed to load Xero data:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Failed to load data:', error)
       // If it's a cookie parsing error, try clearing corrupted cookies
-      if (error.message?.includes('Failed to parse cookie')) {
+      if (error instanceof Error && error.message?.includes('Failed to parse cookie')) {
         clearCorruptedSupabaseCookies()
       }
     }
@@ -118,29 +115,23 @@ export default function XeroIntegration() {
 
   const checkConnection = async () => {
     try {
+      console.log('Checking Xero connection...')
       const response = await fetch('/api/xero/sync')
       if (response.ok) {
         const syncData = await response.json()
+        console.log('Xero sync data received:', syncData)
         setData(prev => ({ ...prev, ...syncData, connected: syncData.connected }))
+      } else {
+        console.error('Xero sync response not ok:', response.status, response.statusText)
       }
-    } catch (error) {
-      console.error('Failed to check connection:', error)
+    } catch (error: unknown) {
+      console.error('Failed to check connection:', error instanceof Error ? error.message : String(error))
     } finally {
       setLoading(false)
     }
   }
 
-  const loadKpis = async () => {
-    try {
-      const response = await fetch(`/api/xero/kpis?period=${period}`)
-      if (response.ok) {
-        const { kpis } = await response.json()
-        setKpis(kpis)
-      }
-    } catch (error) {
-      console.error('Failed to load KPIs:', error)
-    }
-  }
+
 
   const connectXero = async () => {
     try {
@@ -191,7 +182,6 @@ export default function XeroIntegration() {
           accounts: [],
           bank_transactions: []
         })
-        setKpis([])
         setError('')
       }
     } catch (error) {
@@ -211,7 +201,6 @@ export default function XeroIntegration() {
       if (response.ok) {
         const result = await response.json()
         setData(prev => ({ ...prev, ...result, connected: true }))
-        loadKpis()
       } else {
         const errorData = await response.json()
         setError(errorData.error || 'Failed to sync data')
@@ -223,13 +212,7 @@ export default function XeroIntegration() {
     }
   }
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case 'up': return '📈'
-      case 'down': return '📉'
-      default: return '➡️'
-    }
-  }
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -365,109 +348,8 @@ export default function XeroIntegration() {
             </CardHeader>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Overview</CardTitle>
-              <CardDescription>Summary of your Xero data</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-2xl font-bold">{data.invoices.length}</p>
-                      <p className="text-sm text-muted-foreground">Invoices</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-2xl font-bold">{data.contacts.length}</p>
-                      <p className="text-sm text-muted-foreground">Contacts</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center space-x-2">
-                    <Building className="h-5 w-5 text-purple-600" />
-                    <div>
-                      <p className="text-2xl font-bold">{data.accounts.length}</p>
-                      <p className="text-sm text-muted-foreground">Accounts</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center space-x-2">
-                    <PoundSterling className="h-5 w-5 text-orange-600" />
-                    <div>
-                      <p className="text-2xl font-bold">{data.bank_transactions.length}</p>
-                      <p className="text-sm text-muted-foreground">Transactions</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Key Performance Indicators</CardTitle>
-                <CardDescription>Track your financial performance</CardDescription>
-              </div>
-              <Select value={period} onValueChange={setPeriod}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardHeader>
-            <CardContent>
-              {kpis.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                  <p>Loading KPIs...</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {kpis.map((kpi, index) => (
-                    <Card key={index} className="border-l-4 border-l-blue-500">
-                      <CardContent className="pt-6">
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">{kpi.label}</p>
-                          <div className="flex items-baseline space-x-2">
-                            <p className="text-2xl font-bold">{kpi.value.toLocaleString()}{kpi.unit}</p>
-                            <span className="text-sm">{getTrendIcon(kpi.trend)}</span>
-                          </div>
-                          {kpi.change !== 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              {kpi.change > 0 ? '+' : ''}{kpi.change}% vs previous {kpi.period}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground capitalize">{kpi.period} period</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Xero Graphs Component */}
+          <XeroGraphs />
         </div>
       )}
     </div>
