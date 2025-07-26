@@ -4,26 +4,13 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import EnvironmentChecker from '@/components/env-checker';
 import AccountPropertyModal from '@/app/(dashboard)/dashboard/components/account-property-modal';
-import RealAnalyticsViewer from '@/app/(dashboard)/dashboard/components/real-analytics-viewer';
 import DashboardSidebar from '@/app/(dashboard)/dashboard/components/dashboard-sidebar';
 import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { LoadingSpinner } from '@/components/loading-spinner';
+import { Card, CardContent } from '@/components/ui/card';
 import IntegrationsDashboard from '@/app/(dashboard)/dashboard/components/integrations-dashboard';
 import { trackActivity } from '@/utils/points';
-import {
-  BarChart3,
-  LinkIcon,
-  ExternalLink,
-  CheckCircle,
-  Users,
-  TrendingUp,
-  Settings,
-  Unlink,
-  RefreshCw,
-} from 'lucide-react';
+
 
 interface BusinessInfo {
   id: string;

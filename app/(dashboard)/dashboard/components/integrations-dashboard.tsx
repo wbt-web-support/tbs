@@ -2,7 +2,7 @@
 
 import QuickBooksKPIs from "./quickbooks-kpis";
 import ServiceM8KPIs from "./servicem8-kpis";
-import XeroGraphs from "./xero-graphs";
+import XeroKPIs from "./xero-kpis";
 import RealAnalyticsViewer from './real-analytics-viewer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -133,7 +133,7 @@ export default function IntegrationsDashboard(props: IntegrationsDashboardProps)
       {availableTabs.some(tab => tab.key === 'xero') && (
         <TabsContent value="xero" className="mt-6">
           <div className="space-y-4">
-            <XeroGraphs />
+            <XeroKPIs />
           </div>
         </TabsContent>
       )}
