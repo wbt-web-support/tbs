@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Removed Tabs
 import { 
   Calculator, 
   TrendingUp,
@@ -81,6 +81,15 @@ interface ChartDataPoint {
   customer_count: number;
 }
 
+const COLORS = [
+  '#6B7280', // Gray
+  '#EF4444', // Red
+  '#F59E0B', // Amber
+  '#10B981', // Emerald
+  '#3B82F6', // Blue
+  '#8B5CF6', // Violet
+];
+
 export default function XeroKPIs() {
   const [connection, setConnection] = useState<XeroConnection | null>(null);
   const [kpiValues, setKpiValues] = useState<KPIValues | null>(null);
@@ -88,7 +97,7 @@ export default function XeroKPIs() {
   const [loading, setLoading] = useState(true);
   const [calculatingKPIs, setCalculatingKPIs] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  // const [activeTab, setActiveTab] = useState('overview'); // Removed activeTab state
   const supabase = createClient();
 
   useEffect(() => {
@@ -261,63 +270,63 @@ export default function XeroKPIs() {
       case 'revenue':
         return {
           label: 'Revenue',
-          color: '#10b981',
+          color: COLORS[3],
           icon: <PoundSterling className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
       case 'cash_flow':
         return {
           label: 'Cash Flow',
-          color: '#3b82f6',
+          color: COLORS[4],
           icon: <TrendingUp className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
       case 'accounts_receivable':
         return {
           label: 'Accounts Receivable',
-          color: '#f59e0b',
+          color: COLORS[2],
           icon: <FileText className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
       case 'average_invoice_value':
         return {
           label: 'Average Invoice Value',
-          color: '#8b5cf6',
+          color: COLORS[5],
           icon: <BarChart3 className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
       case 'customer_count':
         return {
           label: 'Total Customers',
-          color: '#06b6d4',
+          color: COLORS[0],
           icon: <Users className="h-4 w-4" />,
           format: (value: number) => value.toLocaleString()
         };
       case 'invoice_count':
         return {
           label: 'Total Invoices',
-          color: '#84cc16',
+          color: COLORS[1],
           icon: <FileText className="h-4 w-4" />,
           format: (value: number) => value.toLocaleString()
         };
       case 'overdue_amount':
         return {
           label: 'Overdue Amount',
-          color: '#ef4444',
+          color: COLORS[1],
           icon: <Clock className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
       case 'days_sales_outstanding':
         return {
           label: 'Days Sales Outstanding',
-          color: '#f97316',
+          color: COLORS[2],
           icon: <Target className="h-4 w-4" />,
           format: (value: number) => `${value.toFixed(1)} days`
         };
       default:
         return {
           label: 'Metric',
-          color: '#6b7280',
+          color: COLORS[0],
           icon: <BarChart3 className="h-4 w-4" />,
           format: (value: number) => value.toLocaleString()
         };
@@ -398,27 +407,27 @@ export default function XeroKPIs() {
   const chartConfig = {
     revenue: {
       label: 'Revenue',
-      color: '#10b981',
+      color: COLORS[3],
     },
     cash_flow: {
       label: 'Cash Flow',
-      color: '#3b82f6',
+      color: COLORS[4],
     },
     accounts_receivable: {
       label: 'Accounts Receivable',
-      color: '#f59e0b',
+      color: COLORS[2],
     },
     average_invoice_value: {
       label: 'Average Invoice Value',
-      color: '#8b5cf6',
+      color: COLORS[5],
     },
     invoice_count: {
       label: 'Invoice Count',
-      color: '#84cc16',
+      color: COLORS[1],
     },
     customer_count: {
       label: 'Customer Count',
-      color: '#06b6d4',
+      color: COLORS[0],
     },
   } satisfies ChartConfig;
  
@@ -498,179 +507,63 @@ export default function XeroKPIs() {
           </div>
         )}
 
-        {/* Charts Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="trends">Trends</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            {chartData.length > 0 && (
-              <div className="w-full h-80 overflow-hidden">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <AreaChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e5e7eb' }}
+        {/* Overview Chart */}
+        {chartData.length > 0 && (
+          <div className="w-full h-80 overflow-hidden">
+            <ChartContainer config={chartConfig} className="h-full w-full">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 11 }}
+                  tickLine={{ stroke: '#9ca3af' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `$${(value / 1000).toFixed(1)}k`;
+                    }
+                    return `$${value.toLocaleString()}`;
+                  }}
+                  width={60}
+                />
+                <ChartTooltip 
+                  content={
+                    <ChartTooltipContent 
+                      formatter={(value, name) => [
+                        formatValue(value as number), 
+                        chartConfig[name as keyof typeof chartConfig]?.label || name
+                      ]}
                     />
-                    <YAxis 
-                      tick={{ fontSize: 11 }}
-                      tickLine={{ stroke: '#9ca3af' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      tickFormatter={(value) => {
-                        if (value >= 1000) {
-                          return `$${(value / 1000).toFixed(1)}k`;
-                        }
-                        return `$${value.toLocaleString()}`;
-                      }}
-                      width={60}
-                    />
-                    <ChartTooltip 
-                      content={
-                        <ChartTooltipContent 
-                          formatter={(value, name) => [
-                            formatValue(value as number), 
-                            chartConfig[name as keyof typeof chartConfig]?.label || name
-                          ]}
-                        />
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stackId="1"
-                      stroke={chartConfig.revenue.color}
-                      fill={chartConfig.revenue.color}
-                      fillOpacity={0.6}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="cash_flow"
-                      stackId="1"
-                      stroke={chartConfig.cash_flow.color}
-                      fill={chartConfig.cash_flow.color}
-                      fillOpacity={0.6}
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="trends" className="space-y-4">
-            {chartData.length > 0 && (
-              <div className="w-full h-80 overflow-hidden">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 11 }}
-                      tickLine={{ stroke: '#9ca3af' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      tickFormatter={(value) => {
-                        if (value >= 1000) {
-                          return `$${(value / 1000).toFixed(1)}k`;
-                        }
-                        return `$${value.toLocaleString()}`;
-                      }}
-                      width={60}
-                    />
-                    <ChartTooltip 
-                      content={
-                        <ChartTooltipContent 
-                          formatter={(value, name) => [
-                            formatValue(value as number), 
-                            chartConfig[name as keyof typeof chartConfig]?.label || name
-                          ]}
-                        />
-                      }
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke={chartConfig.revenue.color}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.revenue.color }}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="accounts_receivable"
-                      stroke={chartConfig.accounts_receivable.color}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.accounts_receivable.color }}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="average_invoice_value"
-                      stroke={chartConfig.average_invoice_value.color}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.average_invoice_value.color }}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                    />
-                  </LineChart>
-                </ChartContainer>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="performance" className="space-y-4">
-            {chartData.length > 0 && (
-              <div className="w-full h-80 overflow-hidden">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 11 }}
-                      tickLine={{ stroke: '#9ca3af' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      width={40}
-                    />
-                    <ChartTooltip 
-                      content={
-                        <ChartTooltipContent 
-                          formatter={(value, name) => [
-                            value.toLocaleString(), 
-                            chartConfig[name as keyof typeof chartConfig]?.label || name
-                          ]}
-                        />
-                      }
-                    />
-                    <Bar dataKey="invoice_count" fill={chartConfig.invoice_count.color} />
-                    <Bar dataKey="customer_count" fill={chartConfig.customer_count.color} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                  }
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stackId="1"
+                  stroke={chartConfig.revenue.color}
+                  fill={chartConfig.revenue.color}
+                  fillOpacity={0.6}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="cash_flow"
+                  stackId="1"
+                  stroke={chartConfig.cash_flow.color}
+                  fill={chartConfig.cash_flow.color}
+                  fillOpacity={0.6}
+                />
+              </AreaChart>
+            </ChartContainer>
+          </div>
+        )}
 
         {/* Connection Info */}
         <div className="pt-4 border-t">

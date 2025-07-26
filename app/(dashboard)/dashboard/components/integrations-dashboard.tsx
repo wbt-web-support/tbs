@@ -4,15 +4,8 @@ import QuickBooksKPIs from "./quickbooks-kpis";
 import ServiceM8KPIs from "./servicem8-kpis";
 import XeroGraphs from "./xero-graphs";
 import RealAnalyticsViewer from './real-analytics-viewer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { 
-  PoundSterling, 
-  Wrench, 
-  BarChart3,
-  Building, 
-} from "lucide-react";
+
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 

@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Removed Tabs
 import { 
   Building,
   FileText,
@@ -17,7 +17,7 @@ import {
   CreditCard,
   Wallet,
   BarChart3,
-  PieChart,
+  PieChart as PieChartIcon, // Renamed to avoid conflict with RechartsPieChart
   Activity
 } from "lucide-react";
 import {
@@ -37,8 +37,9 @@ import {
   Bar,
   PieChart as RechartsPieChart,
   Pie,
-  Cell
+  Cell, Label, Sector
 } from 'recharts';
+import { PieSectorDataItem } from "recharts/types/polar/Pie";
 
 interface XeroData {
   connected: boolean;
@@ -72,7 +73,14 @@ interface KPIData {
   overdueAmount: number;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+// const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+// Muted colors
+const COLORS = [
+  '#F87171', // Muted Red 
+  '#FCD34D', // Muted Amber
+  '#60A5FA', // Muted Blue
+  '#A78BFA', // Muted Violet
+];
 
 export default function XeroGraphs() {
   const [data, setData] = useState<XeroData>({
@@ -88,7 +96,7 @@ export default function XeroGraphs() {
   const [kpiData, setKpiData] = useState<KPIData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  // const [activeTab, setActiveTab] = useState('overview'); // Removed activeTab state
   const supabase = createClient();
 
   useEffect(() => {
@@ -327,10 +335,10 @@ export default function XeroGraphs() {
     if (!kpiData) return [];
     
     return [
-      { name: 'Revenue', value: kpiData.totalRevenue, color: '#10b981' },
-      { name: 'Expenses', value: kpiData.totalExpenses, color: '#ef4444' },
-      { name: 'Receivables', value: kpiData.accountsReceivable, color: '#f59e0b' },
-      { name: 'Overdue', value: kpiData.overdueAmount, color: '#dc2626' }
+      { name: 'Revenue', value: kpiData.totalRevenue, color: COLORS[3] }, // Emerald
+      { name: 'Expenses', value: kpiData.totalExpenses, color: COLORS[1] }, // Red
+      { name: 'Receivables', value: kpiData.accountsReceivable, color: COLORS[2] }, // Amber
+      { name: 'Overdue', value: kpiData.overdueAmount, color: COLORS[0] } // Gray
     ].filter(item => item.value > 0);
   };
 
@@ -381,29 +389,40 @@ export default function XeroGraphs() {
   const chartConfig = {
     invoicesIn: {
       label: "Invoices In",
-      color: "#10b981",
+      color: COLORS[3], // Emerald
     },
     invoicesOut: {
       label: "Invoices Out",
-      color: "#ef4444",
+      color: COLORS[1], // Red
     },
     transactions: {
       label: "Transactions",
-      color: "#3b82f6",
+      color: COLORS[4], // Blue
     },
     revenue: {
       label: "Revenue",
-      color: "#10b981",
+      color: COLORS[3], // Emerald
     },
     expenses: {
       label: "Expenses",
-      color: "#ef4444",
+      color: COLORS[1], // Red
     },
     netCashFlow: {
       label: "Net Cash Flow",
-      color: "#8b5cf6",
+      color: COLORS[4], // Blue
+    },
+    receivables: {
+      label: "Receivables",
+      color: COLORS[2], // Amber
+    },
+    overdue: {
+      label: "Overdue",
+      color: COLORS[0], // Gray
     },
   } satisfies ChartConfig;
+
+  const pieChartId = "xero-financial-breakdown";
+  const activePieIndex = 0; // Always show the first slice as active
 
   return (
     <div>
@@ -440,32 +459,32 @@ export default function XeroGraphs() {
         {/* KPI Summary Cards */}
         {kpiData && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white">
-            <div>
+            <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white">
+              <div>
                 <div className="text-sm font-medium text-gray-600 mb-1">Total Revenue</div>
                 <div className="text-2xl font-bold text-green-600">
                   {formatCurrency(kpiData.totalRevenue)}
                 </div>
-            </div>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-green-100">
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-green-100">
                 <TrendingUp className="h-5 w-5 text-green-600" />
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white">
-            <div>
+            <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white">
+              <div>
                 <div className="text-sm font-medium text-gray-600 mb-1">Net Cash Flow</div>
                 <div className={`text-2xl font-bold ${kpiData.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(kpiData.netCashFlow)}
                 </div>
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+              </div>
             </div>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
-              <DollarSign className="h-5 w-5 text-blue-600" />
-            </div>
-          </div>
 
-          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white">
-            <div>
+            <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white">
+              <div>
                 <div className="text-sm font-medium text-gray-600 mb-1">Accounts Receivable</div>
                 <div className="text-2xl font-bold text-orange-600">
                   {formatCurrency(kpiData.accountsReceivable)}
@@ -481,260 +500,141 @@ export default function XeroGraphs() {
                 <div className="text-sm font-medium text-gray-600 mb-1">Total Customers</div>
                 <div className="text-2xl font-bold text-purple-600">
                   {kpiData.customerCount}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-purple-100">
-              <Wallet className="h-5 w-5 text-purple-600" />
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-purple-100">
+                <Wallet className="h-5 w-5 text-purple-600" />
+              </div>
             </div>
           </div>
-        </div>
         )}
 
-        {/* Charts Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            {chartData.length > 0 ? (
-              <div className="w-full h-80 overflow-hidden">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 11 }}
-                      tickLine={{ stroke: '#9ca3af' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
-                      width={60}
-                    />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke={chartConfig.revenue.color}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.revenue.color }}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="expenses"
-                      stroke={chartConfig.expenses.color}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.expenses.color }}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="netCashFlow"
-                      stroke={chartConfig.netCashFlow.color}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.netCashFlow.color }}
-                      activeDot={{ r: 5, strokeWidth: 2 }}
-                    />
-                  </LineChart>
-                </ChartContainer>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No data available to display</p>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="cashflow" className="space-y-4">
-            {chartData.length > 0 ? (
-              <div className="w-full h-80 overflow-hidden">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 11 }}
-                      tickLine={{ stroke: '#9ca3af' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
-                      width={60}
-                    />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />}
-                    />
-                    <Bar dataKey="revenue" fill={chartConfig.revenue.color} />
-                    <Bar dataKey="expenses" fill={chartConfig.expenses.color} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No cash flow data available</p>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="invoices" className="space-y-4">
-        {chartData.length > 0 ? (
-              <div className="w-full h-80 overflow-hidden">
-            <ChartContainer config={chartConfig} className="h-full w-full">
-              <LineChart
-                data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+        {/* Breakdown Chart */}
+        {kpiData && getPieChartData().length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="w-full h-80 overflow-hidden">
+              <ChartContainer 
+                id={pieChartId} 
+                config={chartConfig} 
+                className="mx-auto aspect-square w-full max-w-[300px]"
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                />
-                <YAxis 
-                  tick={{ fontSize: 11 }}
-                  tickLine={{ stroke: '#9ca3af' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  width={40}
-                />
-                <ChartTooltip 
-                  content={<ChartTooltipContent />}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="invoicesIn"
-                  stroke={chartConfig.invoicesIn.color}
-                  strokeWidth={2.5}
-                  dot={{ r: 3, strokeWidth: 2, fill: chartConfig.invoicesIn.color }}
-                  activeDot={{ r: 5, strokeWidth: 2 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="invoicesOut"
-                  stroke={chartConfig.invoicesOut.color}
-                  strokeWidth={2.5}
-                  dot={{ r: 3, strokeWidth: 2, fill: chartConfig.invoicesOut.color }}
-                  activeDot={{ r: 5, strokeWidth: 2 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="transactions"
-                  stroke={chartConfig.transactions.color}
-                  strokeWidth={2.5}
-                  dot={{ r: 3, strokeWidth: 2, fill: chartConfig.transactions.color }}
-                  activeDot={{ r: 5, strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ChartContainer>
+                <RechartsPieChart>
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  <Pie
+                    data={getPieChartData()}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    strokeWidth={5}
+                    activeIndex={activePieIndex}
+                    activeShape={({
+                      outerRadius = 0,
+                      ...props
+                    }: PieSectorDataItem) => (
+                      <g>
+                        <Sector {...props} outerRadius={outerRadius + 10} />
+                        <Sector
+                          {...props}
+                          outerRadius={outerRadius + 25}
+                          innerRadius={outerRadius + 12}
+                        />
+                      </g>
+                    )}
+                  >
+                    {getPieChartData().map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                    <Label
+                      content={({ viewBox }) => {
+                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                          const total = getPieChartData().reduce((sum, item) => sum + item.value, 0);
+                          const activeData = getPieChartData()[activePieIndex];
+                          const percentage = activeData ? ((activeData.value / total) * 100).toFixed(0) : "0";
+                          return (
+                            <text
+                              x={viewBox.cx}
+                              y={viewBox.cy}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              <tspan
+                                x={viewBox.cx}
+                                y={viewBox.cy}
+                                className="fill-foreground text-3xl font-bold"
+                              >
+                                {formatCurrency(activeData?.value || 0)}
+                              </tspan>
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) + 24}
+                                className="fill-muted-foreground"
+                              >
+                                {activeData?.name || 'Total'} ({percentage}%) 
+                              </tspan>
+                            </text>
+                          );
+                        }
+                      }}
+                    />
+                  </Pie>
+                </RechartsPieChart>
+              </ChartContainer>
+            </div>
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-2">Financial Summary</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Total Revenue:</span>
+                    <span className="font-medium text-green-600">{formatCurrency(kpiData.totalRevenue)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Expenses:</span>
+                    <span className="font-medium text-red-600">{formatCurrency(kpiData.totalExpenses)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Net Cash Flow:</span>
+                    <span className={`font-medium ${kpiData.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(kpiData.netCashFlow)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Accounts Receivable:</span>
+                    <span className="font-medium text-orange-600">{formatCurrency(kpiData.accountsReceivable)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Overdue Amount:</span>
+                    <span className="font-medium text-red-600">{formatCurrency(kpiData.overdueAmount)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-2">Business Metrics</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Total Invoices:</span>
+                    <span className="font-medium">{kpiData.invoiceCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Customers:</span>
+                    <span className="font-medium">{kpiData.customerCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Average Invoice Value:</span>
+                    <span className="font-medium">{formatCurrency(kpiData.averageInvoiceValue)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-                <p>No invoice data available</p>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="breakdown" className="space-y-4">
-            {kpiData && getPieChartData().length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="w-full h-80 overflow-hidden">
-                  <ChartContainer config={chartConfig} className="h-full w-full">
-                    <RechartsPieChart>
-                      <Pie
-                        data={getPieChartData()}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {getPieChartData().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip 
-                        content={<ChartTooltipContent 
-                          formatter={(value) => [formatCurrency(value as number), 'Amount']}
-                        />}
-                      />
-                    </RechartsPieChart>
-                  </ChartContainer>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2">Financial Summary</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Total Revenue:</span>
-                        <span className="font-medium text-green-600">{formatCurrency(kpiData.totalRevenue)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total Expenses:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(kpiData.totalExpenses)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Net Cash Flow:</span>
-                        <span className={`font-medium ${kpiData.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(kpiData.netCashFlow)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Accounts Receivable:</span>
-                        <span className="font-medium text-orange-600">{formatCurrency(kpiData.accountsReceivable)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Overdue Amount:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(kpiData.overdueAmount)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2">Business Metrics</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Total Invoices:</span>
-                        <span className="font-medium">{kpiData.invoiceCount}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total Customers:</span>
-                        <span className="font-medium">{kpiData.customerCount}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Average Invoice Value:</span>
-                        <span className="font-medium">{formatCurrency(kpiData.averageInvoiceValue)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No breakdown data available</p>
+            <p>No breakdown data available</p>
           </div>
         )}
-          </TabsContent>
-        </Tabs>
 
         {/* Connection Info */}
         <div className="pt-4 border-t">

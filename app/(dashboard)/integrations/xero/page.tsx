@@ -7,10 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Loader2, RefreshCw, CheckCircle, XCircle, Building, Users, FileText, PoundSterling, BarChart3, TrendingUp } from 'lucide-react'
-import XeroGraphs from '@/app/(dashboard)/dashboard/components/xero-graphs'
-import XeroKPIs from '@/app/(dashboard)/dashboard/components/xero-kpis'
+import { Loader2, RefreshCw, Building, Users, FileText, PoundSterling, BarChart3 } from 'lucide-react'
 
 interface XeroData {
   connected: boolean
