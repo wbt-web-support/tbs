@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
 
       // Redirect to integration page with success
       return NextResponse.redirect(
-        new URL('/integrations/xero?connected=true&tenant=' + encodeURIComponent(organizationName), 
+        new URL('/integrations?success=xero_connected&tenant=' + encodeURIComponent(organizationName), 
         request.url)
       );
 
@@ -120,13 +120,13 @@ export async function GET(request: NextRequest) {
       // Check if it's a UUID error and provide a more helpful message
       if (errorMessage.includes('invalid input syntax for type uuid')) {
         return NextResponse.redirect(
-          new URL('/integrations/xero?error=uuid_error&message=Invalid user ID format. Please try connecting again.', 
+          new URL('/integrations?error=uuid_error&message=Invalid user ID format. Please try connecting again.', 
           request.url)
         );
       }
       
       return NextResponse.redirect(
-        new URL('/integrations/xero?error=api_error&message=' + encodeURIComponent(errorMessage), 
+        new URL('/integrations?error=api_error&message=' + encodeURIComponent(errorMessage), 
         request.url)
       );
     }
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown callback error';
     
     return NextResponse.redirect(
-      new URL('/integrations/xero?error=callback_error&message=' + encodeURIComponent(errorMessage), 
+      new URL('/integrations?error=callback_error&message=' + encodeURIComponent(errorMessage), 
       request.url)
     );
   }

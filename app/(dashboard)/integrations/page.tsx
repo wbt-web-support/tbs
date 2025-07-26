@@ -23,7 +23,9 @@ import {
   Users,
   TrendingUp,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Building,
+  FileText
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -56,14 +58,24 @@ interface GoogleAnalyticsConnection {
   assignmentDetails?: { property_name?: string; account_name?: string; company_name?: string };
 }
 
+interface XeroConnection {
+  connected: boolean;
+  sync_status: string;
+  last_sync_at: string | null;
+  organization_name?: string;
+  tenant_id?: string;
+}
+
 export default function IntegrationsPage() {
   const [quickbooksConnection, setQuickbooksConnection] = useState<QuickBooksConnection | null>(null);
   const [servicem8Connection, setServicem8Connection] = useState<ServiceM8Connection | null>(null);
   const [googleAnalyticsConnection, setGoogleAnalyticsConnection] = useState<GoogleAnalyticsConnection | null>(null);
+  const [xeroConnection, setXeroConnection] = useState<XeroConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectingQuickBooks, setConnectingQuickBooks] = useState(false);
   const [connectingServiceM8, setConnectingServiceM8] = useState(false);
   const [connectingGoogleAnalytics, setConnectingGoogleAnalytics] = useState(false);
+  const [connectingXero, setConnectingXero] = useState(false);
   const [refreshingGoogleAnalytics, setRefreshingGoogleAnalytics] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -77,6 +89,7 @@ export default function IntegrationsPage() {
     const tenant = searchParams.get('tenant');
     const errorParam = searchParams.get('error');
     const message = searchParams.get('message');
+    const type = searchParams.get('type');
 
     if (success === 'quickbooks_connected' && company) {
       setSuccessMessage(`Successfully connected to QuickBooks (${company})! Initial data sync is in progress.`);
@@ -91,6 +104,12 @@ export default function IntegrationsPage() {
       // Clear URL parameters
       window.history.replaceState({}, '', window.location.pathname);
       // Auto-clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+
+    if (success === 'xero_connected' && tenant) {
+      setSuccessMessage(`Successfully connected to Xero (${tenant})! Initial data sync is in progress.`);
+      window.history.replaceState({}, '', window.location.pathname);
       setTimeout(() => setSuccessMessage(null), 5000);
     }
 
@@ -175,6 +194,20 @@ export default function IntegrationsPage() {
         setGoogleAnalyticsConnection({ connected: false, dataSource: null });
       }
 
+      // Fetch Xero connection status
+      try {
+        const xeroResponse = await fetch('/api/xero/sync');
+        if (xeroResponse.ok) {
+          const xeroData = await xeroResponse.json();
+          setXeroConnection(xeroData);
+        } else {
+          setXeroConnection({ connected: false, sync_status: 'disconnected', last_sync_at: null });
+        }
+      } catch (err) {
+        console.error('Xero connection check failed:', err);
+        setXeroConnection({ connected: false, sync_status: 'error', last_sync_at: null });
+      }
+
     } catch (err) {
       console.error('Error:', err);
       setError('Failed to fetch connection status');
@@ -247,6 +280,36 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleConnectXero = async () => {
+    try {
+      setConnectingXero(true);
+      setError(null);
+      
+      const response = await fetch('/api/xero/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.authUrl) {
+          // Redirect to Xero for authorization
+          window.location.href = result.authUrl;
+        }
+      } else {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || 'Failed to connect to Xero';
+        setError(errorMessage);
+      }
+    } catch (error) {
+      setError('Failed to connect to Xero. Please try again.');
+    } finally {
+      setConnectingXero(false);
+    }
+  };
+
   const handleDisconnectQuickBooks = async () => {
     try {
       setLoading(true);
@@ -312,6 +375,31 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleDisconnectXero = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/xero/disconnect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+      });
+      if (response.ok) {
+        setXeroConnection({ connected: false, sync_status: 'disconnected', last_sync_at: null });
+        setError(null);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to disconnect Xero');
+      }
+    } catch (error) {
+      setError('Failed to disconnect Xero');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Google Analytics handlers
   const handleConnectGoogleAnalytics = async () => {
     setConnectingGoogleAnalytics(true);
@@ -368,30 +456,41 @@ export default function IntegrationsPage() {
     // TODO: Implement sync logic
     alert('Syncing ServiceM8...');
   };
+  const handleSyncXero = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/xero/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (response.ok) {
+        await fetchConnectionStatus();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to sync data');
+      }
+    } catch (error) {
+      setError('Failed to sync data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const getStatusBadge = (status: string, isQuickBooks: boolean = true) => {
-    if (isQuickBooks) {
-      switch (status) {
-        case 'active':
-          return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>;
-        case 'expired':
-          return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Expired</Badge>;
-        case 'error':
-          return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Error</Badge>;
-        default:
-          return <Badge variant="outline">Disconnected</Badge>;
-      }
-    } else {
-      switch (status) {
-        case 'completed':
-          return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>;
-        case 'syncing':
-          return <Badge variant="secondary" className="bg-blue-100 text-blue-800"><AlertTriangle className="w-3 h-3 mr-1" />Syncing</Badge>;
-        case 'error':
-          return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Error</Badge>;
-        default:
-          return <Badge variant="outline">Disconnected</Badge>;
-      }
+  const getStatusBadge = (status: string, type: 'quickbooks' | 'servicem8' | 'xero') => {
+    switch (status) {
+      case 'active':
+      case 'completed':
+        return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>;
+      case 'expired':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Expired</Badge>;
+      case 'syncing':
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-800"><RefreshCw className="w-3 h-3 mr-1" />Syncing</Badge>;
+      case 'error':
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Error</Badge>;
+      default:
+        return <Badge variant="outline">Disconnected</Badge>;
     }
   };
 
@@ -449,6 +548,16 @@ export default function IntegrationsPage() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Sync ServiceM8
               </Button>
+              <Button
+                onClick={handleSyncXero}
+                variant="outline"
+                size="sm"
+                className="bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                disabled={!xeroConnection?.connected}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sync Xero
+              </Button>
             </div>
           </AlertDescription>
         </Alert>
@@ -468,7 +577,7 @@ export default function IntegrationsPage() {
                   <CardDescription>Financial data & accounting</CardDescription>
                 </div>
               </div>
-              {quickbooksConnection && getStatusBadge(quickbooksConnection.status, true)}
+              {quickbooksConnection && getStatusBadge(quickbooksConnection.status, 'quickbooks')}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -568,7 +677,7 @@ export default function IntegrationsPage() {
                   <CardDescription>Field service management</CardDescription>
                 </div>
               </div>
-              {servicem8Connection && getStatusBadge(servicem8Connection.sync_status, false)}
+              {servicem8Connection && getStatusBadge(servicem8Connection.sync_status, 'servicem8')}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -655,6 +764,106 @@ export default function IntegrationsPage() {
                     <ExternalLink className="h-4 w-4 mr-2" />
                   )}
                   {connectingServiceM8 ? 'Connecting...' : 'Connect ServiceM8'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Xero Integration Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9f/Xero_software_logo.svg/1200px-Xero_software_logo.svg.png" alt="Xero Logo" className="h-8 w-8 object-contain" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Xero</CardTitle>
+                  <CardDescription>Accounting & financial management</CardDescription>
+                </div>
+              </div>
+              {xeroConnection && getStatusBadge(xeroConnection.sync_status, 'xero')}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {xeroConnection?.connected ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">{xeroConnection.organization_name || 'Xero Account'}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Last synced: {xeroConnection.last_sync_at 
+                      ? new Date(xeroConnection.last_sync_at).toLocaleDateString()
+                      : 'Never'
+                    }
+                  </p>
+                </div>
+                
+                <Separator />
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Sync Status</p>
+                    <p className="font-medium capitalize">{xeroConnection.sync_status}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Tenant ID</p>
+                    <p className="font-medium break-all">{xeroConnection.tenant_id}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleSyncXero}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Sync
+                  </Button>
+                  <Button 
+                    onClick={handleDisconnectXero}
+                    variant="outline"
+                    size="sm"
+                    className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Available KPIs:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <PoundSterling className="h-3 w-3 mr-1" />
+                      Revenue
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <BarChart3 className="h-3 w-3 mr-1" />
+                      Cash Flow
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
+                      Accounts Receivable
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={handleConnectXero}
+                  disabled={connectingXero}
+                  className="w-full"
+                >
+                  {connectingXero ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                  )}
+                  {connectingXero ? 'Connecting...' : 'Connect Xero'}
                 </Button>
               </div>
             )}
@@ -755,24 +964,6 @@ export default function IntegrationsPage() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Coming Soon Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white border">
-                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9f/Xero_software_logo.svg/1200px-Xero_software_logo.svg.png" alt="Xero Logo" className="h-8 w-8 object-contain" />
-              </div>
-              <div>
-                <CardTitle className="text-xl">Xero</CardTitle>
-                <CardDescription>Accounting (Coming Soon)</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-muted-foreground">Connect your Xero account to view business KPIs and sync data. This integration is coming soon!</div>
           </CardContent>
         </Card>
       </div>

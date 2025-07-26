@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calculator, 
   TrendingUp,
@@ -18,7 +18,11 @@ import {
   CheckCircle,
   XCircle,
   PoundSterling,
-  Users
+  Users,
+  DollarSign,
+  CreditCard,
+  Clock,
+  Target
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -33,6 +37,10 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area
 } from 'recharts';
 
 interface XeroConnection {
@@ -48,6 +56,8 @@ interface KPIValue {
   change: number;
   trend: 'up' | 'down' | 'neutral';
   lastCalculated: string;
+  target?: number;
+  status?: 'good' | 'warning' | 'critical';
 }
 
 interface KPIValues {
@@ -55,6 +65,10 @@ interface KPIValues {
   cash_flow?: KPIValue;
   accounts_receivable?: KPIValue;
   average_invoice_value?: KPIValue;
+  customer_count?: KPIValue;
+  invoice_count?: KPIValue;
+  overdue_amount?: KPIValue;
+  days_sales_outstanding?: KPIValue;
 }
 
 interface ChartDataPoint {
@@ -63,17 +77,18 @@ interface ChartDataPoint {
   cash_flow: number;
   accounts_receivable: number;
   average_invoice_value: number;
+  invoice_count: number;
+  customer_count: number;
 }
 
 export default function XeroKPIs() {
   const [connection, setConnection] = useState<XeroConnection | null>(null);
   const [kpiValues, setKpiValues] = useState<KPIValues | null>(null);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [period, setPeriod] = useState('monthly');
   const [loading, setLoading] = useState(true);
   const [calculatingKPIs, setCalculatingKPIs] = useState(false);
   const [error, setError] = useState('');
-  const [activeMetric, setActiveMetric] = useState<'revenue' | 'cash_flow' | 'accounts_receivable' | 'average_invoice_value'>('revenue');
+  const [activeTab, setActiveTab] = useState('overview');
   const supabase = createClient();
 
   useEffect(() => {
@@ -85,7 +100,7 @@ export default function XeroKPIs() {
       loadKpis();
       loadChartData();
     }
-  }, [connection, period]);
+  }, [connection]);
 
   const loadData = async () => {
     try {
@@ -122,7 +137,7 @@ export default function XeroKPIs() {
       setCalculatingKPIs(true);
       setError('');
       
-      const response = await fetch(`/api/xero/kpis?period=${period}`);
+      const response = await fetch('/api/xero/kpis');
       if (response.ok) {
         const data = await response.json();
         if (data.kpis) {
@@ -138,7 +153,8 @@ export default function XeroKPIs() {
                   value: kpi.value,
                   change: kpi.change,
                   trend: kpi.trend,
-                  lastCalculated: new Date().toISOString()
+                  lastCalculated: new Date().toISOString(),
+                  status: getKPIStatus(key, kpi.value, kpi.change)
                 };
               }
             });
@@ -150,7 +166,8 @@ export default function XeroKPIs() {
                 value: kpi.value || kpi,
                 change: kpi.change || 0,
                 trend: kpi.trend || 'neutral',
-                lastCalculated: kpi.lastCalculated || new Date().toISOString()
+                lastCalculated: kpi.lastCalculated || new Date().toISOString(),
+                status: getKPIStatus(key as keyof KPIValues, kpi.value || kpi, kpi.change || 0)
               };
             });
           }
@@ -168,19 +185,40 @@ export default function XeroKPIs() {
     }
   };
 
+  const getKPIStatus = (key: keyof KPIValues, value: number, change: number): 'good' | 'warning' | 'critical' => {
+    switch (key) {
+      case 'revenue':
+        return change > 5 ? 'good' : change > -5 ? 'warning' : 'critical';
+      case 'cash_flow':
+        return value > 0 ? 'good' : value > -1000 ? 'warning' : 'critical';
+      case 'accounts_receivable':
+        return value < 10000 ? 'good' : value < 50000 ? 'warning' : 'critical';
+      case 'overdue_amount':
+        return value < 1000 ? 'good' : value < 5000 ? 'warning' : 'critical';
+      case 'days_sales_outstanding':
+        return value < 30 ? 'good' : value < 60 ? 'warning' : 'critical';
+      default:
+        return 'good';
+    }
+  };
+
   const mapKpiLabelToKey = (label: string): keyof KPIValues | null => {
     const labelMap: Record<string, keyof KPIValues> = {
       'Total Revenue': 'revenue',
       'Net Cash Flow': 'cash_flow',
       'Accounts Receivable': 'accounts_receivable',
-      'Average Invoice Value': 'average_invoice_value'
+      'Average Invoice Value': 'average_invoice_value',
+      'Total Customers': 'customer_count',
+      'Total Invoices': 'invoice_count',
+      'Overdue Amount': 'overdue_amount',
+      'Days Sales Outstanding': 'days_sales_outstanding'
     };
     return labelMap[label] || null;
   };
 
   const loadChartData = async () => {
     try {
-      const response = await fetch(`/api/xero/kpis?period=${period}&include_history=true`);
+      const response = await fetch('/api/xero/kpis?include_history=true');
       if (response.ok) {
         const data = await response.json();
         if (data.history && data.history.length > 0) {
@@ -194,38 +232,15 @@ export default function XeroKPIs() {
             cash_flow: item.cash_flow || 0,
             accounts_receivable: item.accounts_receivable || 0,
             average_invoice_value: item.average_invoice_value || 0,
+            invoice_count: item.invoice_count || 0,
+            customer_count: item.customer_count || 0,
           }));
           setChartData(transformedData);
-        } else {
-          // Generate mock data if no history is available
-          generateMockChartData();
         }
-      } else {
-        // Generate mock data if API fails
-        generateMockChartData();
       }
     } catch (error) {
       console.error('Failed to load chart data:', error);
-      // Generate mock data if there's an error
-      generateMockChartData();
     }
-  };
-
-  const generateMockChartData = () => {
-    const mockData = [];
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - (i * 30));
-      
-      mockData.push({
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        revenue: 4000 + Math.random() * 6000,
-        cash_flow: 1000 + Math.random() * 3000,
-        accounts_receivable: 2000 + Math.random() * 2000,
-        average_invoice_value: 250 + Math.random() * 300,
-      });
-    }
-    setChartData(mockData);
   };
 
   const getStatusBadge = (status: string) => {
@@ -271,6 +286,34 @@ export default function XeroKPIs() {
           icon: <BarChart3 className="h-4 w-4" />,
           format: (value: number) => `$${value.toLocaleString()}`
         };
+      case 'customer_count':
+        return {
+          label: 'Total Customers',
+          color: '#06b6d4',
+          icon: <Users className="h-4 w-4" />,
+          format: (value: number) => value.toLocaleString()
+        };
+      case 'invoice_count':
+        return {
+          label: 'Total Invoices',
+          color: '#84cc16',
+          icon: <FileText className="h-4 w-4" />,
+          format: (value: number) => value.toLocaleString()
+        };
+      case 'overdue_amount':
+        return {
+          label: 'Overdue Amount',
+          color: '#ef4444',
+          icon: <Clock className="h-4 w-4" />,
+          format: (value: number) => `$${value.toLocaleString()}`
+        };
+      case 'days_sales_outstanding':
+        return {
+          label: 'Days Sales Outstanding',
+          color: '#f97316',
+          icon: <Target className="h-4 w-4" />,
+          format: (value: number) => `${value.toFixed(1)} days`
+        };
       default:
         return {
           label: 'Metric',
@@ -288,6 +331,24 @@ export default function XeroKPIs() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
+  };
+
+  const getStatusColor = (status: 'good' | 'warning' | 'critical') => {
+    switch (status) {
+      case 'good': return 'text-green-600';
+      case 'warning': return 'text-yellow-600';
+      case 'critical': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getStatusBgColor = (status: 'good' | 'warning' | 'critical') => {
+    switch (status) {
+      case 'good': return 'bg-green-100';
+      case 'warning': return 'bg-yellow-100';
+      case 'critical': return 'bg-red-100';
+      default: return 'bg-gray-100';
+    }
   };
 
   if (loading) {
@@ -334,11 +395,30 @@ export default function XeroKPIs() {
     );
   }
 
-  const currentMetric = getMetricConfig(activeMetric);
   const chartConfig = {
-    [activeMetric]: {
-      label: currentMetric.label,
-      color: currentMetric.color,
+    revenue: {
+      label: 'Revenue',
+      color: '#10b981',
+    },
+    cash_flow: {
+      label: 'Cash Flow',
+      color: '#3b82f6',
+    },
+    accounts_receivable: {
+      label: 'Accounts Receivable',
+      color: '#f59e0b',
+    },
+    average_invoice_value: {
+      label: 'Average Invoice Value',
+      color: '#8b5cf6',
+    },
+    invoice_count: {
+      label: 'Invoice Count',
+      color: '#84cc16',
+    },
+    customer_count: {
+      label: 'Customer Count',
+      color: '#06b6d4',
     },
   } satisfies ChartConfig;
  
@@ -348,21 +428,10 @@ export default function XeroKPIs() {
         <div className="flex items-center gap-2">
           {getStatusBadge(connection.sync_status)}
           <span className="font-semibold text-lg flex items-center gap-2">
-            <Calculator className="h-5 w-5" /> Xero
+            <Calculator className="h-5 w-5" /> Xero Financial KPIs
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-            </SelectContent>
-          </Select>
           <Button 
             onClick={() => {
               loadKpis();
@@ -392,31 +461,34 @@ export default function XeroKPIs() {
         {/* KPI Cards */}
         {kpiValues && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {(['revenue', 'cash_flow', 'accounts_receivable', 'average_invoice_value'] as const).map((metric) => {
+            {(['revenue', 'cash_flow', 'accounts_receivable', 'average_invoice_value', 'customer_count', 'invoice_count', 'overdue_amount', 'days_sales_outstanding'] as const).map((metric) => {
               const kpi = kpiValues[metric];
               const config = getMetricConfig(metric);
-              const isActive = activeMetric === metric;
               if (!kpi) return null;
+              
               return (
                 <div
                   key={metric}
-                  className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer h-full min-h-[96px] ${
-                    isActive
-                      ? 'border-orange-400 bg-orange-50 shadow-sm'
-                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-all h-full min-h-[96px] ${
+                    kpi.status ? `${getStatusBgColor(kpi.status)} border-${kpi.status === 'good' ? 'green' : kpi.status === 'warning' ? 'yellow' : 'red'}-200` : 'border-gray-200 bg-white'
                   }`}
-                  onClick={() => setActiveMetric(metric)}
                 >
                   <div>
                     <div className="text-sm font-medium text-gray-600 mb-1">{config.label}</div>
-                    <div className="text-2xl font-bold text-gray-900">{formatValue(kpi.value)}</div>
+                    <div className={`text-2xl font-bold ${kpi.status ? getStatusColor(kpi.status) : 'text-gray-900'}`}>
+                      {config.format(kpi.value)}
+                    </div>
+                    {kpi.change !== 0 && (
+                      <div className={`text-xs flex items-center gap-1 mt-1 ${
+                        kpi.trend === 'up' ? 'text-green-600' : kpi.trend === 'down' ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {kpi.trend === 'up' ? <TrendingUp className="h-3 w-3" /> : kpi.trend === 'down' ? <TrendingDown className="h-3 w-3" /> : null}
+                        {kpi.change > 0 ? '+' : ''}{kpi.change.toFixed(1)}%
+                      </div>
+                    )}
                   </div>
                   <div className={`flex items-center justify-center h-10 w-10 rounded-lg ${
-                    metric === 'revenue' ? 'bg-green-100' :
-                    metric === 'cash_flow' ? 'bg-blue-100' :
-                    metric === 'accounts_receivable' ? 'bg-orange-100' :
-                    metric === 'average_invoice_value' ? 'bg-purple-100' :
-                    'bg-gray-100'
+                    kpi.status ? getStatusBgColor(kpi.status) : 'bg-gray-100'
                   }`}>
                     {config.icon}
                   </div>
@@ -426,15 +498,21 @@ export default function XeroKPIs() {
           </div>
         )}
 
-        {/* Chart */}
-        {chartData.length > 0 && (
-          <Card>
-            <CardContent>
-              <div className="w-full h-64 overflow-hidden">
+        {/* Charts Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="trends">Trends</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-4">
+            {chartData.length > 0 && (
+              <div className="w-full h-80 overflow-hidden">
                 <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart
+                  <AreaChart
                     data={chartData}
-                    margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
@@ -460,30 +538,144 @@ export default function XeroKPIs() {
                         <ChartTooltipContent 
                           formatter={(value, name) => [
                             formatValue(value as number), 
-                            currentMetric.label
+                            chartConfig[name as keyof typeof chartConfig]?.label || name
+                          ]}
+                        />
+                      }
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stackId="1"
+                      stroke={chartConfig.revenue.color}
+                      fill={chartConfig.revenue.color}
+                      fillOpacity={0.6}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="cash_flow"
+                      stackId="1"
+                      stroke={chartConfig.cash_flow.color}
+                      fill={chartConfig.cash_flow.color}
+                      fillOpacity={0.6}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="trends" className="space-y-4">
+            {chartData.length > 0 && (
+              <div className="w-full h-80 overflow-hidden">
+                <ChartContainer config={chartConfig} className="h-full w-full">
+                  <LineChart
+                    data={chartData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 11 }}
+                      tickLine={{ stroke: '#9ca3af' }}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                      tickFormatter={(value) => {
+                        if (value >= 1000) {
+                          return `$${(value / 1000).toFixed(1)}k`;
+                        }
+                        return `$${value.toLocaleString()}`;
+                      }}
+                      width={60}
+                    />
+                    <ChartTooltip 
+                      content={
+                        <ChartTooltipContent 
+                          formatter={(value, name) => [
+                            formatValue(value as number), 
+                            chartConfig[name as keyof typeof chartConfig]?.label || name
                           ]}
                         />
                       }
                     />
                     <Line
                       type="monotone"
-                      dataKey={activeMetric}
-                      stroke={currentMetric.color}
+                      dataKey="revenue"
+                      stroke={chartConfig.revenue.color}
                       strokeWidth={2.5}
-                      dot={{ r: 3, strokeWidth: 2, fill: currentMetric.color }}
+                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.revenue.color }}
+                      activeDot={{ r: 5, strokeWidth: 2 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="accounts_receivable"
+                      stroke={chartConfig.accounts_receivable.color}
+                      strokeWidth={2.5}
+                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.accounts_receivable.color }}
+                      activeDot={{ r: 5, strokeWidth: 2 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="average_invoice_value"
+                      stroke={chartConfig.average_invoice_value.color}
+                      strokeWidth={2.5}
+                      dot={{ r: 3, strokeWidth: 2, fill: chartConfig.average_invoice_value.color }}
                       activeDot={{ r: 5, strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ChartContainer>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </TabsContent>
+
+          <TabsContent value="performance" className="space-y-4">
+            {chartData.length > 0 && (
+              <div className="w-full h-80 overflow-hidden">
+                <ChartContainer config={chartConfig} className="h-full w-full">
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 11 }}
+                      tickLine={{ stroke: '#9ca3af' }}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                      width={40}
+                    />
+                    <ChartTooltip 
+                      content={
+                        <ChartTooltipContent 
+                          formatter={(value, name) => [
+                            value.toLocaleString(), 
+                            chartConfig[name as keyof typeof chartConfig]?.label || name
+                          ]}
+                        />
+                      }
+                    />
+                    <Bar dataKey="invoice_count" fill={chartConfig.invoice_count.color} />
+                    <Bar dataKey="customer_count" fill={chartConfig.customer_count.color} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* Connection Info */}
         <div className="pt-4 border-t">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Financial Data ({connection.organization_name})</span>
+            <span>Financial Performance Metrics ({connection.organization_name})</span>
             <span>
               Last sync: {connection.last_sync_at 
                 ? new Date(connection.last_sync_at).toLocaleDateString()

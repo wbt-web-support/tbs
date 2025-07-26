@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, RefreshCw, CheckCircle, XCircle, Building, Users, FileText, PoundSterling } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Loader2, RefreshCw, CheckCircle, XCircle, Building, Users, FileText, PoundSterling, BarChart3, TrendingUp } from 'lucide-react'
 import XeroGraphs from '@/app/(dashboard)/dashboard/components/xero-graphs'
+import XeroKPIs from '@/app/(dashboard)/dashboard/components/xero-kpis'
 
 interface XeroData {
   connected: boolean
@@ -22,8 +24,6 @@ interface XeroData {
   bank_transactions: any[]
   connections?: any[]
 }
-
-
 
 // Initialize Supabase client once outside component
 const supabase = createClient()
@@ -42,6 +42,7 @@ export default function XeroIntegration() {
   const [syncing, setSyncing] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState('graphs')
 
   useEffect(() => {
     // Initialize cookie error handling
@@ -131,8 +132,6 @@ export default function XeroIntegration() {
     }
   }
 
-
-
   const connectXero = async () => {
     try {
       setConnecting(true)
@@ -212,8 +211,6 @@ export default function XeroIntegration() {
     }
   }
 
-
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed': return <Badge variant="default" className="bg-green-100 text-green-800">✓ Connected</Badge>
@@ -236,7 +233,7 @@ export default function XeroIntegration() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Xero Integration</h1>
-          <p className="text-muted-foreground">Connect your Xero accounting data and track key financial metrics</p>
+          <p className="text-muted-foreground">Connect your Xero accounting data and track key financial metrics with advanced analytics</p>
         </div>
       </div>
 
@@ -271,7 +268,7 @@ export default function XeroIntegration() {
               </div>
               <h3 className="text-lg font-semibold mb-2">Connect Xero</h3>
               <p className="text-sm text-muted-foreground">
-                Connect your Xero account to sync your accounting data and track financial KPIs.
+                Connect your Xero account to sync your accounting data and track financial KPIs with advanced visualizations.
               </p>
             </div>
             
@@ -280,11 +277,12 @@ export default function XeroIntegration() {
                 <div className="flex items-start space-x-2">
                   <Building className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="text-xs text-blue-700">
-                    <p className="font-medium mb-1">What you'll need:</p>
+                    <p className="font-medium mb-1">What you'll get:</p>
                     <ul className="list-disc list-inside space-y-1 text-blue-600">
-                      <li>A Xero account with admin access</li>
-                      <li>Permission to authorize third-party apps</li>
-                      <li>Your organization's accounting data in Xero</li>
+                      <li>Real-time financial graphs and charts</li>
+                      <li>KPI tracking with trend analysis</li>
+                      <li>Cash flow and revenue analytics</li>
+                      <li>Invoice and transaction insights</li>
                     </ul>
                   </div>
                 </div>
@@ -308,10 +306,14 @@ export default function XeroIntegration() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Connection Status Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Connection Status</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Connection Status
+                </CardTitle>
                 <CardDescription>
                   {data.organization_name && `Connected to: ${data.organization_name}`}
                   {data.last_sync_at && (
@@ -348,8 +350,69 @@ export default function XeroIntegration() {
             </CardHeader>
           </Card>
 
-          {/* Xero Graphs Component */}
-          <XeroGraphs />
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
+                    <p className="text-2xl font-bold">{data.invoices?.length || 0}</p>
+                  </div>
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Customers</p>
+                    <p className="text-2xl font-bold">
+                      {(data.contacts || []).filter((c: any) => c.IsCustomer).length}
+                    </p>
+                  </div>
+                  <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center">
+                    <Users className="h-4 w-4 text-green-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Bank Transactions</p>
+                    <p className="text-2xl font-bold">{data.bank_transactions?.length || 0}</p>
+                  </div>
+                  <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <PoundSterling className="h-4 w-4 text-purple-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Accounts</p>
+                    <p className="text-2xl font-bold">{data.accounts?.length || 0}</p>
+                  </div>
+                  <div className="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <BarChart3 className="h-4 w-4 text-orange-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Analytics Tabs */}
+          
         </div>
       )}
     </div>
