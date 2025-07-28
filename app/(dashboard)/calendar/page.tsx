@@ -9,6 +9,7 @@ import CourseProgress from "./components/course-progress";
 import { createClient } from "@/utils/supabase/client";
 import MeetingRhythmPlanner from "./components/meeting-rhythm-planner";
 
+
 type TimelineEvent = {
   id: string;
   week_number: number;
@@ -257,6 +258,7 @@ export default function ChqTimelinePage() {
           >
             To Do List
           </TabsTrigger>
+
         </TabsList>
 
         {/* All content is always mounted, just hidden with CSS */}
@@ -295,6 +297,8 @@ export default function ChqTimelinePage() {
               teamId={teamId}
             />
           </div>
+
+
 
           {/* Progress Tab */}
           <div 
