@@ -2011,7 +2011,6 @@ export default function OnboardingClient() {
     done: boolean;
   }[]>([
     { title: "Saving your information", done: false },
-    { title: "Creating your Battle Plan", done: false },
     { title: "Preparing your workspace", done: false },
     { title: "Redirecting to dashboard", done: false },
   ]);
@@ -2695,36 +2694,9 @@ export default function OnboardingClient() {
         console.log('✅ Successfully created onboarding record');
       }
 
-      // Update second step - Creating your SOP
+      // Update second step - Preparing your workspace
       setSubmissionSteps(steps => steps.map((step, i) =>
         i === 1 ? { ...step, done: true } : step
-      ));
-
-      // Generate SOP automatically after successful onboarding
-      try {
-        const sopResponse = await fetch('/api/sop/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            onboardingData: dataToSubmit,
-          }),
-        });
-
-        if (sopResponse.ok) {
-          console.log('✅ Battle Plan generated successfully');
-        } else {
-          console.warn('⚠️ Battle Plan generation failed, but onboarding completed');
-        }
-      } catch (sopError) {
-        console.warn('⚠️ Battle Plan generation error:', sopError);
-        // Don't fail the onboarding if SOP generation fails
-      }
-
-      // Update third step - Preparing your workspace
-      setSubmissionSteps(steps => steps.map((step, i) =>
-        i === 2 ? { ...step, done: true } : step
       ));
 
       // Small delay to show the animation
@@ -2732,13 +2704,13 @@ export default function OnboardingClient() {
 
       // Update final step - Redirecting to dashboard
       setSubmissionSteps(steps => steps.map((step, i) =>
-        i === 3 ? { ...step, done: true } : step
+        i === 2 ? { ...step, done: true } : step
       ));
 
       // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      toast({ title: "Success", description: "Your company information has been saved and Battle Plan generated!" });
+      toast({ title: "Success", description: "Your company information has been saved successfully!" });
       
       // Add URL parameter to indicate fresh onboarding completion
       router.push('/dashboard?onboarding=completed');

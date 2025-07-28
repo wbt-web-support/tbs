@@ -6,9 +6,8 @@ import TimelineView from "./components/timeline-view";
 import TodoList from "./components/additional-benefits";
 import ContactInfo from "./components/contact-info";
 import CourseProgress from "./components/course-progress";
-import { Input } from "@/components/ui/input";
-import { Search, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import MeetingRhythmPlanner from "./components/meeting-rhythm-planner";
 
 type TimelineEvent = {
   id: string;
@@ -73,8 +72,7 @@ export default function ChqTimelinePage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // Fetch timeline data immediately as it's the default tab
-    fetchTimelineEvents();
+    // No need to fetch timeline data immediately since calendar is now the default tab
   }, []);
 
   // Fetch data based on active tab to implement lazy loading
@@ -223,7 +221,7 @@ export default function ChqTimelinePage() {
       </div>
 
       <Tabs 
-        defaultValue="timeline" 
+        defaultValue="calendar" 
         value={activeTab}
         onValueChange={setActiveTab}
         className={`transition-all duration-300 ease-in-out ${
@@ -235,6 +233,12 @@ export default function ChqTimelinePage() {
             ? 'sticky top-0 z-10 bg-white shadow-sm px-8' 
             : ''
         }`}>
+          <TabsTrigger 
+            value="calendar" 
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
+          >
+            Calendar
+          </TabsTrigger>
           <TabsTrigger 
             value="timeline" 
             className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
@@ -257,6 +261,15 @@ export default function ChqTimelinePage() {
 
         {/* All content is always mounted, just hidden with CSS */}
         <div className="relative">
+          {/* Calendar Tab */}
+          <div 
+            className={`${activeTab === 'calendar' ? 'block' : 'hidden'} ${
+              activeTab === 'progress' ? 'hidden' : 'space-y-4'
+            }`}
+          >
+            <MeetingRhythmPlanner />
+          </div>
+
           {/* Timeline Tab */}
           <div 
             className={`${activeTab === 'timeline' ? 'block' : 'hidden'} ${

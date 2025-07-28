@@ -91,7 +91,7 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    title: "Planning",
+    title: "Strategy",
     items: [
       {
         name: "Company Overview",
@@ -102,6 +102,11 @@ const navigationSections: NavigationSection[] = [
         name: "Business Plan",
         href: "/business-plan",
         icon: ClipboardList,
+      },
+      {
+        name: "Playbooks",
+        href: "/playbook-planner",
+        icon: BookText,
       },
     ],
   },
@@ -121,41 +126,37 @@ const navigationSections: NavigationSection[] = [
     ],
   },
  
-  {
-    title: "Management",
-    items: [
-      {
-        name: "Playbook & Machine Planner",
-        href: "/playbook-planner",
-        icon: BookText,
-      },
-      // {
-      //   name: "Company Scorecard",
-      //   href: "/company-scorecard",
-      //   icon: Gauge,
-      // },
-      {
-        name: "Meeting Rhythm Planner",
-        href: "/meeting-rhythm-planner",
-        icon: Clock,
-      },
-      // {
-      //   name: "12Q Planner",
-      //   href: "/12q-planner",
-      //   icon: Flag,
-      // },
-      // {
-      //   name: "Quarterly Sprint Canvas",
-      //   href: "/quarterly-sprint-canvas",
-      //   icon: Flag,
-      // },
-      // {
-      //   name: "Zapier Mappings",
-      //   href: "/zapier-mappings",
-      //   icon: Settings, 
-      // }
-    ],
-  },
+  // {
+  //   title: "Management",
+  //   items: [
+      
+  //     {
+  //       name: "Company Scorecard",
+  //       href: "/company-scorecard",
+  //       icon: Gauge,
+  //     },
+  //     {
+  //       name: "Meeting Rhythm Planner",
+  //       href: "/meeting-rhythm-planner",
+  //       icon: Clock,
+  //     },
+  //     {
+  //       name: "12Q Planner",
+  //       href: "/12q-planner",
+  //       icon: Flag,
+  //     },
+  //     {
+  //       name: "Quarterly Sprint Canvas",
+  //       href: "/quarterly-sprint-canvas",
+  //       icon: Flag,
+  //     },
+  //     {
+  //       name: "Zapier Mappings",
+  //       href: "/zapier-mappings",
+  //       icon: Settings, 
+  //     }
+  //   ],
+  // },
   {
     title: "AI",
     items: [
@@ -235,7 +236,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       
       {/* Sidebar */}
       <div className={cn(
-        "fixed lg:static inset-y-0 left-0 z-50 w-74 border-r bg-background flex flex-col transform transition-transform duration-200 ease-in-out",
+        "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-background flex flex-col transform transition-transform duration-200 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b">

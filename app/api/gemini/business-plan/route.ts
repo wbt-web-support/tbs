@@ -353,9 +353,9 @@ IMPORTANT RULES:
 - Make all statements practical and implementable for their specific business
 - Ensure alignment with their existing machines and business processes
 - For target sections (oneyeartarget, threeyeartarget, tenyeartarget), each item must include "completed": false and a realistic "deadline" date
-- 1-year targets should have deadlines within the next 12 months
-- 3-year targets should have deadlines within the next 3 years
-- 10-year targets should have deadlines within the next 10 years
+- 1-year targets should have deadlines within the next 12 months (please get the current date from the internet and add 12 months)
+- 3-year targets should have deadlines within the next 3 years (please get the current date from the internet and add 3 years)
+- 10-year targets should have deadlines within the next 10 years (please get the current date from the internet and add 10 years)
 - The business_plan_document_html must be a comprehensive, actionable business plan for the company, formatted in HTML (use <h2>, <h3>, <p>, <ul>, <li>, <strong> etc). It should synthesize the structured data and company context into a readable, professional document ready to share with stakeholders.
 - The HTML must be well-structured, readable, and include all major sections of a business plan (executive summary, mission, vision, core values, strategic anchors, purpose/why, 1-year targets, 3-year targets, 10-year targets, and any other relevant sections based on the context).
 - Do NOT include markdown or any non-HTML formatting.

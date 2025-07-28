@@ -41,7 +41,7 @@ export default function GrowthMachinePage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [showImageWhenFigmaExists, setShowImageWhenFigmaExists] = useState(false);
-  const [mainActiveTab, setMainActiveTab] = useState("design");
+  const [mainActiveTab, setMainActiveTab] = useState("details");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -273,13 +273,13 @@ export default function GrowthMachinePage() {
             {/* Main Tab Navigation */}
             <Tabs value={mainActiveTab} onValueChange={setMainActiveTab} className="w-full">
               <TabsList className="grid grid-cols-2 w-full sm:w-auto max-w-[400px] bg-white border-b border-gray-200 p-2 w-full h-full mb-2 gap-2">
-                <TabsTrigger value="design" className="bg-gray-50 hover:bg-gray-100 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-                  <Image className="h-4 w-4 mr-2" />
-                  Design
-                </TabsTrigger>
                 <TabsTrigger value="details" className="bg-gray-50 hover:bg-gray-100 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                   <Settings className="h-4 w-4 mr-2" />
                   Planner
+                </TabsTrigger>
+                <TabsTrigger value="design" className="bg-gray-50 hover:bg-gray-100 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                  <Image className="h-4 w-4 mr-2" />
+                  Design
                 </TabsTrigger>
               </TabsList>
             </Tabs>

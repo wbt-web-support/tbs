@@ -441,7 +441,7 @@ async function getChatInstances(userId: string) {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('chat_history')
-      .select('id, title, created_at, updated_at, document_ids')
+      .select('id, title, created_at, updated_at, document_ids, pinned')
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
 
@@ -2168,7 +2168,8 @@ export async function PUT(req: Request) {
   }
 
   try {
-    const { action, instanceId, title, documentIds } = await req.json();
+    const body = await req.json();
+    const { action, instanceId, title, documentIds, pinned } = body;
 
     switch (action) {
       case 'create':
@@ -2240,6 +2241,42 @@ export async function PUT(req: Request) {
           success: updateSuccess,
           instanceId,
           title
+        });
+
+      case 'toggle_pin':
+        // Toggle pin status of a chat instance
+        if (!instanceId) {
+          return NextResponse.json({
+            type: 'error',
+            error: 'Instance ID is required for pin toggle'
+          }, { status: 400 });
+        }
+
+
+        
+        const supabasePin = await createClient();
+        const { error: pinError } = await supabasePin
+          .from('chat_history')
+          .update({ pinned: pinned })
+          .eq('id', instanceId)
+          .eq('user_id', userId);
+
+        if (pinError) {
+          console.error('❌ [Supabase] Error toggling pin status:', pinError);
+          return NextResponse.json({
+            type: 'error',
+            error: 'Failed to toggle pin status',
+            details: pinError.message
+          }, { status: 500 });
+        }
+
+        console.log(`✅ [Supabase] Toggled pin status for instance: ${instanceId} to ${pinned}`);
+        
+        return NextResponse.json({
+          type: 'pin_toggled',
+          success: true,
+          instanceId,
+          pinned
         });
 
       default:
