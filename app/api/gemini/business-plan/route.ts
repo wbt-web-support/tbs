@@ -269,6 +269,8 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       strategicanchors: generatedData.strategicanchors,
       purposewhy: generatedData.purposewhy,
       threeyeartarget: generatedData.threeyeartarget,
+      oneyeartarget: generatedData.oneyeartarget,
+      tenyeartarget: generatedData.tenyeartarget,
       business_plan_document_html: generatedData.business_plan_document_html,
     };
 
@@ -323,10 +325,20 @@ CRITICAL: You must respond with ONLY a valid JSON object. Do not include any exp
     {"value": "Second purpose/why"},
     {"value": "Third purpose/why"}
   ],
+  "oneyeartarget": [
+    {"value": "First one year target", "completed": false, "deadline": "2024-12-31"},
+    {"value": "Second one year target", "completed": false, "deadline": "2024-12-31"},
+    {"value": "Third one year target", "completed": false, "deadline": "2024-12-31"}
+  ],
   "threeyeartarget": [
-    {"value": "First three year target"},
-    {"value": "Second three year target"},
-    {"value": "Third three year target"}
+    {"value": "First three year target", "completed": false, "deadline": "2026-12-31"},
+    {"value": "Second three year target", "completed": false, "deadline": "2026-12-31"},
+    {"value": "Third three year target", "completed": false, "deadline": "2026-12-31"}
+  ],
+  "tenyeartarget": [
+    {"value": "First ten year target", "completed": false, "deadline": "2033-12-31"},
+    {"value": "Second ten year target", "completed": false, "deadline": "2033-12-31"},
+    {"value": "Third ten year target", "completed": false, "deadline": "2033-12-31"}
   ],
   "business_plan_document_html": "<h2>Business Plan</h2>...full HTML document here..."
 }
@@ -340,8 +352,12 @@ IMPORTANT RULES:
 - Focus on their specific industry, business model, and current situation
 - Make all statements practical and implementable for their specific business
 - Ensure alignment with their existing machines and business processes
+- For target sections (oneyeartarget, threeyeartarget, tenyeartarget), each item must include "completed": false and a realistic "deadline" date
+- 1-year targets should have deadlines within the next 12 months
+- 3-year targets should have deadlines within the next 3 years
+- 10-year targets should have deadlines within the next 10 years
 - The business_plan_document_html must be a comprehensive, actionable business plan for the company, formatted in HTML (use <h2>, <h3>, <p>, <ul>, <li>, <strong> etc). It should synthesize the structured data and company context into a readable, professional document ready to share with stakeholders.
-- The HTML must be well-structured, readable, and include all major sections of a business plan (executive summary, mission, vision, core values, strategic anchors, purpose/why, 3-year targets, and any other relevant sections based on the context).
+- The HTML must be well-structured, readable, and include all major sections of a business plan (executive summary, mission, vision, core values, strategic anchors, purpose/why, 1-year targets, 3-year targets, 10-year targets, and any other relevant sections based on the context).
 - Do NOT include markdown or any non-HTML formatting.
 `;
 
@@ -438,6 +454,14 @@ export async function POST(req: Request) {
           throw new Error("Three year targets array is empty or invalid");
         }
 
+        if (!Array.isArray(generatedData.oneyeartarget) || generatedData.oneyeartarget.length === 0) {
+          throw new Error("One year targets array is empty or invalid");
+        }
+
+        if (!Array.isArray(generatedData.tenyeartarget) || generatedData.tenyeartarget.length === 0) {
+          throw new Error("Ten year targets array is empty or invalid");
+        }
+
         if (!generatedData.business_plan_document_html || generatedData.business_plan_document_html.trim() === '') {
           throw new Error("Business plan document HTML is empty or invalid");
         }
@@ -457,7 +481,27 @@ export async function POST(req: Request) {
 
         generatedData.threeyeartarget = generatedData.threeyeartarget
           .filter((item: any) => item && item.value && item.value.trim() !== '')
-          .map((item: any) => ({ value: item.value.trim() }));
+          .map((item: any) => ({ 
+            value: item.value.trim(),
+            completed: item.completed || false,
+            deadline: item.deadline || ""
+          }));
+
+        generatedData.oneyeartarget = generatedData.oneyeartarget
+          .filter((item: any) => item && item.value && item.value.trim() !== '')
+          .map((item: any) => ({ 
+            value: item.value.trim(),
+            completed: item.completed || false,
+            deadline: item.deadline || ""
+          }));
+
+        generatedData.tenyeartarget = generatedData.tenyeartarget
+          .filter((item: any) => item && item.value && item.value.trim() !== '')
+          .map((item: any) => ({ 
+            value: item.value.trim(),
+            completed: item.completed || false,
+            deadline: item.deadline || ""
+          }));
 
         // Ensure we have minimum items
         if (generatedData.corevalues.length < 3) {
@@ -474,6 +518,14 @@ export async function POST(req: Request) {
 
         if (generatedData.threeyeartarget.length < 2) {
           throw new Error("Not enough three year targets generated");
+        }
+
+        if (generatedData.oneyeartarget.length < 2) {
+          throw new Error("Not enough one year targets generated");
+        }
+
+        if (generatedData.tenyeartarget.length < 2) {
+          throw new Error("Not enough ten year targets generated");
         }
 
       } catch (parseError) {

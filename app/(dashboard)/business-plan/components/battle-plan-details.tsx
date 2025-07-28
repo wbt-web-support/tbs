@@ -73,15 +73,8 @@ export default function BattlePlanDetails({
   };
 
   return (
-    <>
-      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b border-indigo-100 bg-indigo-50">
-        <div className="flex items-center">
-          <BookOpen className="h-5 w-5 text-indigo-600 mr-2" />
-          <CardTitle className="text-lg font-semibold text-indigo-800">Mission & Vision</CardTitle>
-        </div>
-        {/* Remove Edit/Save/Cancel buttons, use editMode prop */}
-      </CardHeader>
-      <div className="px-4 py-4 space-y-5">
+    <div className="px-4 py-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Mission Statement */}
         <div className="space-y-2">
           <div className="flex items-center">
@@ -130,6 +123,6 @@ export default function BattlePlanDetails({
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 } 

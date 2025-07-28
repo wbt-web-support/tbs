@@ -22,6 +22,8 @@ type BattlePlanData = {
   strategicanchors: any[];
   corevalues: any[];
   threeyeartarget: any[];
+  oneyeartarget: any[];
+  tenyeartarget: any[];
   created_at: string;
   updated_at: string;
 };
@@ -34,7 +36,6 @@ export default function BattlePlanPage() {
   const [generatedData, setGeneratedData] = useState<any>(null);
   const [editMode, setEditMode] = useState(false); // Unified edit mode
   const [detailsData, setDetailsData] = useState<{ mission: string; vision: string } | null>(null);
-  const [strategicData, setStrategicData] = useState<any>(null);
   const [businessPlanContent, setBusinessPlanContent] = useState<string>("");
   const supabase = createClient();
 
@@ -120,7 +121,6 @@ export default function BattlePlanPage() {
 
   // Handlers to collect data from children
   const handleDetailsChange = (data: { mission: string; vision: string }) => setDetailsData(data);
-  const handleStrategicChange = (data: any) => setStrategicData(data);
   const handleBusinessPlanContentChange = (content: string) => setBusinessPlanContent(content);
 
   // Unified save handler
@@ -132,12 +132,6 @@ export default function BattlePlanPage() {
       if (detailsData) {
         updateObj.missionstatement = detailsData.mission;
         updateObj.visionstatement = detailsData.vision;
-      }
-      if (strategicData) {
-        updateObj.corevalues = strategicData.coreValues;
-        updateObj.strategicanchors = strategicData.strategicAnchors;
-        updateObj.purposewhy = strategicData.purposeWhy;
-        updateObj.threeyeartarget = strategicData.threeYearTarget;
       }
       if (businessPlanContent) {
         updateObj.business_plan_content = businessPlanContent;
@@ -315,39 +309,37 @@ export default function BattlePlanPage() {
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Left Column - Mission & Vision */}
-            <div className="lg:col-span-4">
-              <Card className="overflow-hidden border-gray-200 h-full">
-                <BattlePlanDetails 
-                  missionStatement={battlePlanData?.missionstatement || ""}
-                  visionStatement={battlePlanData?.visionstatement || ""}
-                  onUpdate={fetchBattlePlanData} 
-                  planId={battlePlanData?.id}
-                  generatedData={generatedData}
-                  onGeneratedDataChange={setGeneratedData}
-                  editMode={editMode}
-                  onChange={handleDetailsChange}
-                />
-              </Card>
-            </div>
-
-            {/* Right Column - Strategic Elements */}
-            <div className="lg:col-span-8">
-              <StrategicElements 
-                coreValues={battlePlanData?.corevalues || []}
-                strategicAnchors={battlePlanData?.strategicanchors || []}
-                purposeWhy={battlePlanData?.purposewhy || []}
-                threeYearTarget={battlePlanData?.threeyeartarget || []}
+          {/* Row 1: Mission & Vision - Full Width */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Mission & Vision</h2>
+            <Card className="overflow-hidden border-gray-200">
+              <BattlePlanDetails 
+                missionStatement={battlePlanData?.missionstatement || ""}
+                visionStatement={battlePlanData?.visionstatement || ""}
                 onUpdate={fetchBattlePlanData} 
                 planId={battlePlanData?.id}
                 generatedData={generatedData}
                 onGeneratedDataChange={setGeneratedData}
                 editMode={editMode}
-                onChange={handleStrategicChange}
+                onChange={handleDetailsChange}
               />
-            </div>
+            </Card>
           </div>
+
+          {/* Strategic Elements */}
+          <StrategicElements 
+            coreValues={battlePlanData?.corevalues || []}
+            strategicAnchors={battlePlanData?.strategicanchors || []}
+            purposeWhy={battlePlanData?.purposewhy || []}
+            threeYearTarget={battlePlanData?.threeyeartarget || []}
+            oneYearTarget={battlePlanData?.oneyeartarget || []}
+            tenYearTarget={battlePlanData?.tenyeartarget || []}
+            onUpdate={fetchBattlePlanData} 
+            planId={battlePlanData?.id}
+            generatedData={generatedData}
+            onGeneratedDataChange={setGeneratedData}
+            editMode={editMode}
+          />
 
           {/* Business Plan Document Editor */}
           <Card className="overflow-hidden border-gray-200">
