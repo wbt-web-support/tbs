@@ -125,14 +125,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                       Profile
                   </Link>
               </DropdownMenuItem>
-              {(isAdmin || userPermissions.includes('sop')) && (
-                <DropdownMenuItem>
-                    <Link href="/battle-plan" className="w-full text-left flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Battle Plan
-                    </Link>
-                </DropdownMenuItem>
-              )}
+              
               {/* <DropdownMenuItem>
                   <Link href="/export" className="w-full text-left flex items-center gap-2">
                       <Download className="h-4 w-4" />

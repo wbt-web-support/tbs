@@ -269,9 +269,9 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       strategicanchors: generatedData.strategicanchors,
       purposewhy: generatedData.purposewhy,
       threeyeartarget: generatedData.threeyeartarget,
-      oneyeartarget: generatedData.oneyeartarget,
-      tenyeartarget: generatedData.tenyeartarget,
-      business_plan_document_html: generatedData.business_plan_document_html,
+      oneyeartarget: { targets: generatedData.oneyeartarget },
+      tenyeartarget: { targets: generatedData.tenyeartarget },
+      business_plan_content: generatedData.business_plan_document_html,
     };
 
     let result;

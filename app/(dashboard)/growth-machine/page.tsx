@@ -42,6 +42,7 @@ export default function GrowthMachinePage() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [showImageWhenFigmaExists, setShowImageWhenFigmaExists] = useState(false);
   const [mainActiveTab, setMainActiveTab] = useState("details");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -88,8 +89,10 @@ export default function GrowthMachinePage() {
       
       if (data) {
         setMachineData(data);
+        setError("");
       } else {
-        setError("No growth machine found.");
+        // Automatically create a new growth machine if none exists
+        await createDefaultGrowthMachine(teamId);
       }
     } catch (error) {
       console.error("Error fetching growth machine data:", error);
@@ -98,6 +101,36 @@ export default function GrowthMachinePage() {
       setLoading(false);
     }
   };
+
+  const createDefaultGrowthMachine = async (teamId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("machines")
+        .insert({
+          user_id: teamId,
+          enginename: "Growth Machine",
+          enginetype: "GROWTH",
+          description: "",
+          triggeringevents: [],
+          endingevent: [],
+          actionsactivities: []
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setMachineData(data);
+      setError("");
+      toast.success("Growth machine created successfully!");
+    } catch (error: any) {
+      console.error("Error creating default growth machine:", error);
+      setError("Failed to create growth machine");
+      toast.error("Failed to create growth machine");
+    }
+  };
+
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,9 +283,13 @@ export default function GrowthMachinePage() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="max-w-md">
             <h2 className="text-2xl font-semibold text-gray-800 mb-3">
-              Growth machine not found
+              Setting up your Growth Machine
             </h2>
             <p className="text-gray-600 mb-6">{error}</p>
+            <div className="flex items-center justify-center">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin mr-2" />
+              <span className="text-sm text-gray-500">Creating your growth machine...</span>
+            </div>
           </div>
         </div>
       ) : (
@@ -612,7 +649,7 @@ export default function GrowthMachinePage() {
             </div>
           </div>
         </>
-      )}
+              )}
     </div>
   );
 } 

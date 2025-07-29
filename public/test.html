@@ -1,7 +1,4 @@
 <style>
-
-
-
     /* CSS Variables for Solution Pricing Table */
     :root {
         --solution-primary-color: #44cbc6;
@@ -16,7 +13,7 @@
         --solution-shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.4);
     }
 
-    .featured{
+    .featured {
         padding: 0 !important;
     }
 
@@ -60,40 +57,40 @@
         border-radius: 120px;
         max-width: 390px;
         margin: 0 auto;
-        margin-bottom: 40px;
+        margin-bottom: 60px;
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(100px);
         border: 1px solid #ffffff1f;
     }
 
     p.solution-limited-time-offer {
-position: absolute;
-top: -36px;
-text-align: center;
-width: 100%;
-left: 0;
-background: #44cbc6;
-color: white;
-font-size: 14px;
-height: 56px;
-display: flex;
-justify-content: center;
-/* align-items: center; */
-font-weight: 600;
-padding-top: 8px;
-border-radius: 20px 20px 0 0;
-z-index: 1;
-}
+        position: absolute;
+        top: -36px;
+        text-align: center;
+        width: 100%;
+        left: 0;
+        background: #44cbc6;
+        color: white;
+        font-size: 14px;
+        height: 56px;
+        display: flex;
+        justify-content: center;
+        /* align-items: center; */
+        font-weight: 600;
+        padding-top: 8px;
+        border-radius: 20px 20px 0 0;
+        z-index: 1;
+    }
 
 
-.solution-pricing-content-inner{
-padding: 30px;
-border-radius: 20px;
-border: solid 4px #44cbc6;
-z-index: 1111;
-position: relative;
-background: #101318;
-}
+    .solution-pricing-content-inner {
+        padding: 30px;
+        border-radius: 20px;
+        border: solid 4px #44cbc6;
+        z-index: 1111;
+        position: relative;
+        background: #101318;
+    }
 
     .solution-payment-tab {
         flex: 1;
@@ -145,10 +142,12 @@ background: #101318;
         z-index: 2;
         transition: color 0.3s ease;
     }
-    
-    .solution-select-btn:hover, .solution-select-btn:focus, .solution-select-btn:active {
-    color: white;
-}
+
+    .solution-select-btn:hover,
+    .solution-select-btn:focus,
+    .solution-select-btn:active {
+        color: white;
+    }
 
     .solution-tab:hover {
         background: rgba(58, 191, 187, 0.1);
@@ -194,9 +193,6 @@ background: #101318;
         transform: translateY(-5px);
         box-shadow: var(--solution-shadow-hover);
     }
-
-
-
 
     .solution-save-tag {
         position: absolute;
@@ -354,7 +350,7 @@ background: #101318;
     .solution-hand-icon {
         position: absolute;
         left: 26px;
-        top: 46%;
+        top: 50%;
         transform: translateY(-50%);
         font-size: 24px;
         animation: pointingHand 2s ease-in-out infinite;
@@ -372,85 +368,83 @@ background: #101318;
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /* Responsive Design */
     @media (max-width: 640px) {
 
-        .solution-pricing-content-inner{
+        .solution-pricing-content-inner {
             padding: 20px !important;
         }
-        
-    p.solution-limited-time-offer {
+
+        p.solution-limited-time-offer {
 
             top: -34px !important;
 
         }
 
-        .featured{
+        .featured {
             margin-top: 30px !important;
             padding: 0 !important;
         }
 
-     
+
 
         .solution-pricing-info-container {
-            grid-template-columns: 1fr; /* Stack items vertically */
+            grid-template-columns: 1fr;
+            /* Stack items vertically */
             gap: 30px;
         }
 
         .solution-pricing-content {
-            padding: 25px; /* Slightly reduced padding */
+            padding: 25px;
+            /* Slightly reduced padding */
             width: 100%;
-            margin-bottom: 0; /* Remove margin-bottom to avoid double spacing */
+            margin-bottom: 0;
+            /* Remove margin-bottom to avoid double spacing */
         }
 
-   
+
         .solution-title {
-            font-size: 26px; /* Slightly reduced font size */
-            margin-bottom: 10px; /* Adjusted margin */
+            font-size: 26px;
+            /* Slightly reduced font size */
+            margin-bottom: 10px;
+            /* Adjusted margin */
         }
 
         .solution-amount {
-            font-size: 40px !important; /* Kept consistent */
+            font-size: 40px !important;
+            /* Kept consistent */
         }
 
         .solution-currency {
-            font-size: 22px !important; /* Slightly reduced font size */
+            font-size: 22px !important;
+            /* Slightly reduced font size */
         }
 
         .solution-vat {
-            font-size: 16px !important; /* Slightly reduced font size */
+            font-size: 16px !important;
+            /* Slightly reduced font size */
         }
 
         .solution-tab,
         .solution-payment-tab {
-            font-size: 12px !important; /* Adjusted font size */
-            padding: 10px 10px; /* Adjusted padding */
+            font-size: 12px !important;
+            /* Adjusted font size */
+            padding: 10px 10px;
+            /* Adjusted padding */
         }
 
         .solution-select-btn {
-            padding: 12px 0px; /* Adjusted padding */
-            font-size: 16px; /* Slightly reduced font size */
+            padding: 12px 0px;
+            /* Adjusted padding */
+            font-size: 16px;
+            /* Slightly reduced font size */
         }
 
         .solution-hand-icon {
-            font-size: 20px; /* Slightly reduced font size */
-            left: 18px; /* Adjusted position */
+            font-size: 20px;
+            /* Slightly reduced font size */
+            left: 18px;
+            /* Adjusted position */
         }
 
         .solution-price {
@@ -461,7 +455,8 @@ background: #101318;
     /* Additional adjustments for smaller mobile devices (e.g., iPhone SE) */
     @media (max-width: 400px) {
         .solution-payment-tabs {
-            padding: 8px; /* Reduce padding */
+            padding: 8px;
+            /* Reduce padding */
             margin-bottom: 30px !important;
             position: sticky;
             top: 10px;
@@ -469,39 +464,46 @@ background: #101318;
         }
 
         .solution-payment-tab {
-            font-size: 12px !important; /* Further reduce font size */
-            padding: 8px 8px; /* Further reduce padding */
+            font-size: 12px !important;
+            /* Further reduce font size */
+            padding: 8px 8px;
+            /* Further reduce padding */
         }
-        
+
         .solution-pricing-content {
-            padding: 20px; /* Reduce padding for content cards */
+            padding: 20px;
+            /* Reduce padding for content cards */
         }
 
         .solution-title {
-            font-size: 22px; /* Further reduce title font size */
+            font-size: 22px;
+            /* Further reduce title font size */
         }
 
         .solution-amount {
-            font-size: 36px !important; /* Further reduce amount font size */
+            font-size: 36px !important;
+            /* Further reduce amount font size */
         }
 
         .solution-currency {
-            font-size: 20px !important; /* Further reduce currency font size */
+            font-size: 20px !important;
+            /* Further reduce currency font size */
         }
 
         .solution-select-btn {
-            font-size: 16px; /* Further reduce button font size */
-            padding: 12px 0px; /* Further reduce button padding */
+            font-size: 16px;
+            /* Further reduce button font size */
+            padding: 12px 0px;
+            /* Further reduce button padding */
         }
 
         .solution-hand-icon {
-            font-size: 18px; /* Further reduce hand icon size */
-            left: 15px; /* Adjust hand icon position */
+            font-size: 18px;
+            /* Further reduce hand icon size */
+            left: 15px;
+            /* Adjust hand icon position */
         }
     }
-
-
-
 
     /* Print Styles */
     @media print {
@@ -510,22 +512,17 @@ background: #101318;
             display: none;
         }
     }
-
-
-
-
-
 </style>
 
 <div class="solution-pricing-container" id="price-table">
     <div class="solution-pricing-card">
         <!-- Payment Type Tabs -->
         <div class="solution-payment-tabs">
-            <button class="solution-payment-tab solution-payment-tab--active" data-payment-type="single">
-                One Time Payment
-            </button>
-            <button class="solution-payment-tab" data-payment-type="split">
+            <button class="solution-payment-tab solution-payment-tab--active" data-payment-type="split">
                 Split Payment
+            </button>
+            <button class="solution-payment-tab" data-payment-type="single">
+                One Time Payment
             </button>
         </div>
 
@@ -534,129 +531,142 @@ background: #101318;
             <!-- Dominate Package -->
             <div class="solution-pricing-content">
                 <div class="solution-card-image-container">
-                    <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon" class="solution-card-image">
+                    <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon"
+                        class="solution-card-image">
                 </div>
                 <h5 class="solution-title">Dominate Package</h5>
-                <p class="solution-card-description">A complete marketing solution with SEO, social media management, and exclusive masterminds built to position your trade business as the market leader.</p>
+                <p class="solution-card-description">A complete marketing solution with SEO, social media management,
+                    and exclusive masterminds built to position your trade business as the market leader.</p>
 
                 <!-- Dominate Single Payment -->
-                <div class="solution-payment-option solution-payment-option--active" data-payment="single">
+                <div class="solution-payment-option" data-payment="single">
                     <p class="solution-payment-description">One Payment Of</p>
                     <div class="solution-price">
                         <span class="solution-amount">£30,000</span>
                         <span class="solution-vat">+VAT</span>
                     </div>
-                    <a href="https://link.fastpaydirect.com/payment-link/68877b43ddc6a633e6c5986c" class="solution-select-btn" draggable="false">
-                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                    <a href="https://link.fastpaydirect.com/payment-link/68877b43ddc6a633e6c5986c"
+                        class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉"
+                                src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
                         SELECT PLAN
                     </a>
                 </div>
 
                 <!-- Dominate Split Payment -->
-                <div class="solution-payment-option" data-payment="split">
+                <div class="solution-payment-option solution-payment-option--active" data-payment="split">
                     <p class="solution-payment-description">12 Payments Of</p>
                     <div class="solution-price">
                         <span class="solution-amount">£2,500</span>
                         <span class="solution-vat">+VAT</span>
                     </div>
-                    <a href="https://link.fastpaydirect.com/payment-link/676552b691c50c7b0eb4c373" class="solution-select-btn" draggable="false">
-                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                    <a href="https://link.fastpaydirect.com/payment-link/676552b691c50c7b0eb4c373"
+                        class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉"
+                                src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
                         SELECT PLAN
                     </a>
+                </div>
+            </div>
+
+              <!-- WBT X TBS Package -->
+              <div class="solution-pricing-content featured">
+                <p class="solution-limited-time-offer"> LIMITED TIME OFFER </p>
+                <div class="solution-pricing-content-inner">
+                    <div class="solution-save-tag">SAVE 12.5%</div>
+                    <div class="solution-card-images-wrapper">
+                        <div class="solution-card-image-container">
+                            <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon"
+                                class="solution-card-image">
+                        </div>
+                        <div class="solution-card-image-container">
+                            <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon"
+                                class="solution-card-image">
+                        </div>
+                    </div>
+                    <h5 class="solution-title">WBT x TBS Package</h5>
+                    <p class="solution-card-description">A powerful combo of business coaching and full-scale marketing
+                        systemise operations, scale growth, and dominate your trade niche from every angle.</p>
+
+                    <!-- WBT X TBS Single Payment -->
+                    <div class="solution-payment-option" data-payment="single">
+                        <p class="solution-payment-description">One Payment Of</p>
+                        <div class="solution-price">
+                            <span class="solution-amount">£42,000</span>
+                            <span class="solution-vat">+VAT</span>
+                        </div>
+                        <a href="https://link.fastpaydirect.com/payment-link/68877d4dde64cd3066619214"
+                            class="solution-select-btn" draggable="false">
+                            <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉"
+                                    src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                            SELECT PLAN
+                        </a>
+
+                    </div>
+
+                    <!-- WBT X TBS Split Payment -->
+                    <div class="solution-payment-option solution-payment-option--active" data-payment="split">
+                        <p class="solution-payment-description">12 Payments Of</p>
+                        <div class="solution-price">
+                            <span class="solution-amount">£3,500</span>
+                            <span class="solution-vat">+VAT</span>
+                        </div>
+                        <a href="https://link.fastpaydirect.com/payment-link/68877daaddc6a67f18c59876"
+                            class="solution-select-btn" draggable="false">
+                            <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉"
+                                    src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                            SELECT PLAN
+                        </a>
+                    </div>
                 </div>
             </div>
 
             <!-- TBS Package -->
             <div class="solution-pricing-content">
                 <div class="solution-card-image-container">
-                    <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon" class="solution-card-image">
+                    <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon"
+                        class="solution-card-image">
                 </div>
                 <h5 class="solution-title">Trades Business School</h5>
-                <p class="solution-card-description">A 16-week program with expert coaching, step-by-step systems, and a paid partnership opportunity to help you streamline operations and build a sellable business.</p>
+                <p class="solution-card-description">A 16-week program with expert coaching, step-by-step systems, and a
+                    paid partnership opportunity to help you streamline operations and build a sellable business.</p>
 
                 <!-- TBS Single Payment -->
-                <div class="solution-payment-option solution-payment-option--active" data-payment="single">
+                <div class="solution-payment-option" data-payment="single">
                     <p class="solution-payment-description">One Payment Of</p>
                     <div class="solution-price">
                         <span class="solution-amount">£18,000</span>
                         <span class="solution-vat">+VAT</span>
                     </div>
-                    <a href="https://link.fastpaydirect.com/payment-link/679878677ec5af95a19d677e" class="solution-select-btn" draggable="false">
-                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                    <a href="https://link.fastpaydirect.com/payment-link/679878677ec5af95a19d677e"
+                        class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉"
+                                src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
                         SELECT PLAN
                     </a>
                 </div>
 
                 <!-- TBS Split Payment -->
-                <div class="solution-payment-option" data-payment="split">
+                <div class="solution-payment-option solution-payment-option--active" data-payment="split">
                     <p class="solution-payment-description">12 Payments Of</p>
                     <div class="solution-price">
                         <span class="solution-amount">£1,500</span>
                         <span class="solution-vat">+VAT</span>
                     </div>
-                    <a href="https://link.fastpaydirect.com/payment-link/68876eb2eba110c5ab8dee14" class="solution-select-btn" draggable="false">
-                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                    <a href="https://link.fastpaydirect.com/payment-link/68876eb2eba110c5ab8dee14"
+                        class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉"
+                                src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
                         SELECT PLAN
                     </a>
                 </div>
             </div>
 
-            <!-- WBT X TBS Package -->
-            <div class="solution-pricing-content featured">
-                <p class="solution-limited-time-offer"> LIMITED TIME OFFER </p>
-                <div class="solution-pricing-content-inner">
-                <div class="solution-save-tag">SAVE 12.5%</div>
-                <div class="solution-card-images-wrapper">
-                    <div class="solution-card-image-container">
-                        <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon" class="solution-card-image">
-                    </div>
-                    <div class="solution-card-image-container">
-                        <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon" class="solution-card-image">
-                    </div>
-                </div>
-                <h5 class="solution-title">WBT x TBS Package</h5>
-                <p class="solution-card-description">A powerful combo of business coaching and full-scale marketing systemise operations, scale growth, and dominate your trade niche from every angle.</p>
-                
-                <!-- WBT X TBS Single Payment -->
-                <div class="solution-payment-option solution-payment-option--active" data-payment="single">
-                    <p class="solution-payment-description">One Payment Of</p>
-                    <div class="solution-price">
-                        <span class="solution-amount">£42,000</span>
-                        <span class="solution-vat">+VAT</span>
-                    </div>
-                    <a href="https://link.fastpaydirect.com/payment-link/68877d4dde64cd3066619214" class="solution-select-btn" draggable="false">
-                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
-                        SELECT PLAN
-                    </a>
-               
-                </div>
-
-                <!-- WBT X TBS Split Payment -->
-                <div class="solution-payment-option" data-payment="split">
-                    <p class="solution-payment-description">12 Payments Of</p>
-                    <div class="solution-price">
-                        <span class="solution-amount">£3,500</span>
-                        <span class="solution-vat">+VAT</span>
-                    </div>
-                    <a href="https://link.fastpaydirect.com/payment-link/68877daaddc6a67f18c59876" class="solution-select-btn" draggable="false">
-                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
-                        SELECT PLAN
-                    </a>
-                </div>
-            </div>
-            </div>
-
-
-            </div>
+          
 
         </div>
-
-
-
-
-
-
     </div>
+</div>
 </div>
 
 <script src="test.js"></script>

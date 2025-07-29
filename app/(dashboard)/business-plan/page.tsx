@@ -22,8 +22,8 @@ type BattlePlanData = {
   strategicanchors: any[];
   corevalues: any[];
   threeyeartarget: any[];
-  oneyeartarget: any[];
-  tenyeartarget: any[];
+  oneyeartarget: { targets: any[] } | null;
+  tenyeartarget: { targets: any[] } | null;
   created_at: string;
   updated_at: string;
 };
@@ -76,7 +76,9 @@ export default function BattlePlanPage() {
           purposewhy: [],
           strategicanchors: [],
           corevalues: [],
-          threeyeartarget: []
+          threeyeartarget: [],
+          oneyeartarget: { targets: [] },
+          tenyeartarget: { targets: [] }
         };
         
         const { data: newData, error: insertError } = await supabase
@@ -332,8 +334,8 @@ export default function BattlePlanPage() {
             strategicAnchors={battlePlanData?.strategicanchors || []}
             purposeWhy={battlePlanData?.purposewhy || []}
             threeYearTarget={battlePlanData?.threeyeartarget || []}
-            oneYearTarget={battlePlanData?.oneyeartarget || []}
-            tenYearTarget={battlePlanData?.tenyeartarget || []}
+            oneYearTarget={battlePlanData?.oneyeartarget?.targets || []}
+            tenYearTarget={battlePlanData?.tenyeartarget?.targets || []}
             onUpdate={fetchBattlePlanData} 
             planId={battlePlanData?.id}
             generatedData={generatedData}

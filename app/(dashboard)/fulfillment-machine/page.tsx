@@ -88,14 +88,44 @@ export default function FulfillmentMachinePage() {
       
       if (data) {
         setMachineData(data);
+        setError("");
       } else {
-        setError("No fulfillment machine found.");
+        // Automatically create a new fulfillment machine if none exists
+        await createDefaultFulfillmentMachine(teamId);
       }
     } catch (error) {
       console.error("Error fetching fulfillment machine data:", error);
       setError("Failed to load fulfillment machine data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createDefaultFulfillmentMachine = async (teamId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("machines")
+        .insert({
+          user_id: teamId,
+          enginename: "Fulfillment Machine",
+          enginetype: "FULFILLMENT",
+          description: "",
+          triggeringevents: [],
+          endingevent: [],
+          actionsactivities: []
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setMachineData(data);
+      setError("");
+      toast.success("Fulfillment machine created successfully!");
+    } catch (error: any) {
+      console.error("Error creating default fulfillment machine:", error);
+      setError("Failed to create fulfillment machine");
+      toast.error("Failed to create fulfillment machine");
     }
   };
 
@@ -250,9 +280,13 @@ export default function FulfillmentMachinePage() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="max-w-md">
             <h2 className="text-2xl font-semibold text-gray-800 mb-3">
-              Fulfilment machine not found
+              Setting up your Fulfillment Machine
             </h2>
             <p className="text-gray-600 mb-6">{error}</p>
+            <div className="flex items-center justify-center">
+              <Loader2 className="w-6 h-6 text-purple-600 animate-spin mr-2" />
+              <span className="text-sm text-gray-500">Creating your fulfillment machine...</span>
+            </div>
           </div>
         </div>
       ) : (

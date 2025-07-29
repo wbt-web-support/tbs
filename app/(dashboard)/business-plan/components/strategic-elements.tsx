@@ -171,8 +171,8 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             threeyeartarget: updatedThreeYearTargets,
-            oneyeartarget: updatedOneYearTargets,
-            tenyeartarget: updatedTenYearTargets
+            oneyeartarget: { targets: updatedOneYearTargets },
+            tenyeartarget: { targets: updatedTenYearTargets }
           })
           .eq("id", planId);
           
@@ -231,8 +231,8 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             threeyeartarget: updatedThreeYearTargets,
-            oneyeartarget: updatedOneYearTargets,
-            tenyeartarget: updatedTenYearTargets
+            oneyeartarget: { targets: updatedOneYearTargets },
+            tenyeartarget: { targets: updatedTenYearTargets }
           })
           .eq("id", planId);
           
@@ -291,8 +291,8 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             threeyeartarget: updatedThreeYearTargets,
-            oneyeartarget: updatedOneYearTargets,
-            tenyeartarget: updatedTenYearTargets
+            oneyeartarget: { targets: updatedOneYearTargets },
+            tenyeartarget: { targets: updatedTenYearTargets }
           })
           .eq("id", planId);
           
@@ -351,8 +351,8 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             threeyeartarget: updatedThreeYearTargets,
-            oneyeartarget: updatedOneYearTargets,
-            tenyeartarget: updatedTenYearTargets
+            oneyeartarget: { targets: updatedOneYearTargets },
+            tenyeartarget: { targets: updatedTenYearTargets }
           })
           .eq("id", planId);
           
@@ -411,8 +411,8 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             threeyeartarget: updatedThreeYearTargets,
-            oneyeartarget: updatedOneYearTargets,
-            tenyeartarget: updatedTenYearTargets
+            oneyeartarget: { targets: updatedOneYearTargets },
+            tenyeartarget: { targets: updatedTenYearTargets }
           })
           .eq("id", planId);
           
@@ -438,8 +438,8 @@ export default function StrategicElements({
           strategicanchors: anchors,
           purposewhy: purposes,
           threeyeartarget: threeYearTargets,
-          oneyeartarget: oneYearTargets,
-          tenyeartarget: tenYearTargets
+          oneyeartarget: { targets: oneYearTargets },
+          tenyeartarget: { targets: tenYearTargets }
         })
         .eq("id", planId);
         

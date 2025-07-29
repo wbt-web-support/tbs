@@ -62,7 +62,7 @@ export default function ChqTimelinePage() {
   const [loading, setLoading] = useState(true);
   const [todoLoading, setTodoLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("timeline");
+  const [activeTab, setActiveTab] = useState("calendar");
   const [teamId, setTeamId] = useState<string | null>(null);
   const [dataFetched, setDataFetched] = useState({
     timeline: false,

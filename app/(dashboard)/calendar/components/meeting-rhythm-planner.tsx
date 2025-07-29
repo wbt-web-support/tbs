@@ -17,12 +17,14 @@ import {
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Info, Plus, Trash2, Eye, Edit, ChevronRight, ChevronLeft, SquareCode, Users } from "lucide-react";
+import { Calendar, Info, Plus, Trash2, Eye, Edit, ChevronRight, ChevronLeft, SquareCode, Users, Settings, CheckCircle, Check, X, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 
 type Meeting = {
@@ -41,6 +43,13 @@ type Meeting = {
   duration_days?: number;
   user_name?: string;
   description?: string;
+  selected_user_id?: string; // For team member selection
+};
+
+type TeamMember = {
+  user_id: string;
+  full_name: string;
+  color: string;
 };
 
 type MeetingDialogProps = {
@@ -53,6 +62,16 @@ type MeetingDialogProps = {
   meeting?: Meeting;
   isLoading: boolean;
   viewOnly?: boolean;
+  teamMemberColors?: Map<string, string>;
+};
+
+type LeaveSummaryDialogProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  date: string;
+  leaves: any[];
+  teamMemberColors: Map<string, string>;
+  onViewLeave: (leave: any) => void;
 };
 
 const MEETING_TYPES = [
@@ -67,7 +86,14 @@ const MEETING_TYPES = [
 const LEAVE_TYPE = { id: "leave", name: "Leave", color: "#4CAF50" };
 const BANK_HOLIDAY_TYPE = { id: "bank_holiday", name: "Bank Holiday", color: "#9CA3AF" };
 
-const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit, meeting, isLoading, viewOnly = false }: MeetingDialogProps) => {
+// Generate colors for team members
+const TEAM_MEMBER_COLORS = [
+  "#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#F44336", 
+  "#00BCD4", "#FF5722", "#795548", "#607D8B", "#E91E63",
+  "#3F51B5", "#009688", "#FFEB3B", "#8BC34A", "#FFC107"
+];
+
+const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit, meeting, isLoading, viewOnly = false, teamMemberColors }: MeetingDialogProps) => {
   const [formData, setFormData] = useState<Partial<Meeting>>({
     meeting_type: "",
     meeting_date: format(new Date(), "yyyy-MM-dd"),
@@ -75,8 +101,98 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
     meeting_description: "",
     meeting_color: "",
   });
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [currentUserRole, setCurrentUserRole] = useState<string>('user');
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [leaveEntitlementInfo, setLeaveEntitlementInfo] = useState<any>(null);
+  const [isCheckingEntitlement, setIsCheckingEntitlement] = useState<boolean>(false);
 
   const isLeave = meeting?.leave_type || formData.leave_type;
+
+  // Function to fetch leave entitlement information
+  const fetchLeaveEntitlementInfo = async (userId: string) => {
+    setIsCheckingEntitlement(true);
+    try {
+      const supabase = createClient();
+      const currentYear = new Date().getFullYear();
+      
+      const { data: leaveInfo } = await supabase.rpc('calculate_remaining_leave_days', {
+        p_user_id: userId,
+        p_year: currentYear
+      });
+
+      if (leaveInfo && leaveInfo[0]) {
+        setLeaveEntitlementInfo(leaveInfo[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching leave entitlement info:", error);
+    } finally {
+      setIsCheckingEntitlement(false);
+    }
+  };
+
+  // Fetch team members and user role when dialog opens
+  useEffect(() => {
+    const fetchTeamMembersAndRole = async () => {
+      if (isOpen && isLeave) {
+        try {
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) return;
+
+          // Get current user's role and team info
+          const { data: userInfo, error: userError } = await supabase
+            .from('business_info')
+            .select('role, team_id')
+            .eq('user_id', user.id)
+            .single();
+
+          if (userError) {
+            console.error("Error fetching user info:", userError);
+            return;
+          }
+
+          const role = userInfo.role || 'user';
+          setCurrentUserRole(role);
+          setIsAdmin(role === 'admin');
+
+          // If admin, fetch team members
+          if (role === 'admin' && userInfo.team_id) {
+            const { data: teamMembersData, error: teamError } = await supabase
+              .from('business_info')
+              .select('user_id, full_name')
+              .eq('team_id', userInfo.team_id)
+              .order('full_name', { ascending: true });
+
+            if (teamError) {
+              console.error("Error fetching team members:", teamError);
+              return;
+            }
+
+            // Use the teamMemberColors Map passed from parent component for consistent colors
+            const membersWithColors = (teamMembersData || []).map((member: { user_id: string; full_name: string }) => ({
+              user_id: member.user_id,
+              full_name: member.full_name,
+              color: teamMemberColors?.get(member.user_id) || TEAM_MEMBER_COLORS[0] // Fallback to first color if not found
+            }));
+
+            setTeamMembers(membersWithColors);
+          }
+
+          // Fetch leave entitlement info for the current user or selected user
+          if (isLeave) {
+            const userIdForEntitlement = formData.selected_user_id || user.id;
+            await fetchLeaveEntitlementInfo(userIdForEntitlement);
+          }
+        } catch (error) {
+          console.error("Error fetching team members:", error);
+        }
+      }
+    };
+
+    fetchTeamMembersAndRole();
+  }, [isOpen, isLeave, formData.selected_user_id, teamMemberColors]);
 
   useEffect(() => {
     if (meeting) {
@@ -94,6 +210,7 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
         status: meeting.status,
         duration_days: meeting.duration_days,
         description: meeting.description,
+        selected_user_id: meeting.user_id, // Set the selected user for editing
       });
     } else {
       setFormData({
@@ -109,6 +226,7 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
         status: "pending",
         duration_days: 1,
         description: "",
+        selected_user_id: "", // Will be set to current user for non-admin users
       });
     }
   }, [meeting, isOpen]);
@@ -137,10 +255,29 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
         setFormData(prev => ({ ...prev, [name]: value, duration_days: diffDays }));
       }
     }
+
+    // Fetch entitlement info when selected user changes
+    if (name === "selected_user_id" && typeof value === "string" && isLeave) {
+      const fetchEntitlementForUser = async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const userIdForEntitlement = value || user.id;
+          fetchLeaveEntitlementInfo(userIdForEntitlement);
+        }
+      };
+      fetchEntitlementForUser();
+    }
   };
 
   const handleSubmit = () => {
     if (isLeave && onSaveLeave) {
+      // Check if there's sufficient leave entitlement
+      if (leaveEntitlementInfo && formData.duration_days && formData.duration_days > leaveEntitlementInfo.remaining_days) {
+        // Don't submit if insufficient leave
+        return;
+      }
+
       // For leaves, we need to call the leave save function
       const leaveData = {
         id: formData.id,
@@ -150,6 +287,7 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
         status: formData.status || "pending",
         duration_days: formData.duration_days || 1,
         description: formData.description || "",
+        selected_user_id: formData.selected_user_id, // Include selected user ID
       };
       onSaveLeave(leaveData);
     } else {
@@ -180,7 +318,7 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
             <div 
               className="py-5 px-6" 
               style={{
-                backgroundColor: LEAVE_TYPE.color,
+                backgroundColor: (teamMemberColors && meeting.user_id) ? teamMemberColors.get(meeting.user_id) || LEAVE_TYPE.color : LEAVE_TYPE.color,
                 color: "white"
               }}
             >
@@ -330,6 +468,54 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
         <div className="px-6 py-4 space-y-5">
           {isLeave ? (
             <>
+              {/* Team Member Selection - Only show for admin users */}
+              {isAdmin && teamMembers.length > 0 && (
+                <div className="space-y-1">
+                  <Label htmlFor="selected_user_id" className="text-sm font-medium">
+                    Team Member
+                  </Label>
+                  <CustomDropdown
+                    value={formData.selected_user_id || ""}
+                    onChange={(value) => handleChange("selected_user_id", value)}
+                    placeholder="Select team member"
+                    options={teamMembers.map(member => ({ 
+                      value: member.user_id, 
+                      label: member.full_name, 
+                      data: member 
+                    }))}
+                    renderOption={(option) => {
+                      const initials = option.label.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+                      return (
+                        <div className="flex items-center">
+                          <div 
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2" 
+                            style={{ backgroundColor: option.data.color }}
+                          >
+                            {initials}
+                          </div>
+                          {option.label}
+                        </div>
+                      );
+                    }}
+                    renderSelected={(option) => {
+                      const initials = option.label.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+                      return (
+                        <div className="flex items-center">
+                          <div 
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2" 
+                            style={{ backgroundColor: option.data.color }}
+                          >
+                            {initials}
+                          </div>
+                          {option.label}
+                        </div>
+                      );
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="start_date" className="text-sm font-medium">
@@ -387,6 +573,58 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
                   placeholder="Reason for leave..."
                 />
               </div>
+
+              {/* Leave Entitlement Information */}
+              {isLeave && (
+                <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700">Leave Entitlement</h3>
+                    {isCheckingEntitlement && (
+                      <Spinner className="h-4 w-4 text-gray-500" />
+                    )}
+                  </div>
+                  
+                  {leaveEntitlementInfo ? (
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500">Total Entitlement:</span>
+                        <span className="ml-2 font-medium">{leaveEntitlementInfo.total_entitlement} days</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Used Leave:</span>
+                        <span className="ml-2 font-medium">{leaveEntitlementInfo.used_leave_days} days</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Bank Holidays:</span>
+                        <span className="ml-2 font-medium">{leaveEntitlementInfo.bank_holidays} days</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Remaining:</span>
+                        <span className={`ml-2 font-medium ${leaveEntitlementInfo.remaining_days < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {leaveEntitlementInfo.remaining_days} days
+                        </span>
+                      </div>
+                    </div>
+                  ) : !isCheckingEntitlement ? (
+                    <p className="text-sm text-gray-500">No entitlement information available</p>
+                  ) : null}
+
+                  {/* Show warning if insufficient leave */}
+                  {leaveEntitlementInfo && formData.duration_days && formData.duration_days > leaveEntitlementInfo.remaining_days && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <div className="flex items-center">
+                        <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
+                        <span className="text-sm font-medium text-red-800">
+                          Insufficient Leave Entitlement
+                        </span>
+                      </div>
+                      <p className="text-sm text-red-700 mt-1">
+                        You only have {leaveEntitlementInfo.remaining_days} days remaining, but requesting {formData.duration_days} days.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -484,12 +722,135 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+            <Button 
+              onClick={handleSubmit} 
+              disabled={
+                isLoading || 
+                (isLeave && leaveEntitlementInfo && formData.duration_days && formData.duration_days > leaveEntitlementInfo.remaining_days)
+              } 
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               {isLoading ? <Spinner className="mr-2 h-4 w-4" /> : null}
               {meeting ? "Update" : "Save"}
             </Button>
           </div>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const LeaveSummaryDialog = ({ isOpen, onClose, date, leaves, teamMemberColors, onViewLeave }: LeaveSummaryDialogProps) => {
+  const formatDate = (dateStr: string) => {
+    try {
+      const dateObj = new Date(dateStr);
+      if (isNaN(dateObj.getTime())) {
+        return "Invalid Date";
+      }
+      return format(dateObj, "EEEE, MMMM d, yyyy");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name ? name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U';
+  };
+
+  // Don't render if date is invalid
+  if (!date || date === "") {
+    return null;
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px] rounded-xl p-0 overflow-hidden border-none shadow-lg">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Team Members on Leave</DialogTitle>
+        </DialogHeader>
+        <div 
+          className="py-5 px-6" 
+          style={{
+            backgroundColor: LEAVE_TYPE.color,
+            color: "white"
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">Team Members on Leave</h2>
+              <p className="text-sm opacity-80 mt-1">{formatDate(date)}</p>
+            </div>
+            <Badge 
+              className="text-xs font-medium py-1 px-2"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.25)",
+                backdropFilter: "blur(4px)",
+                color: "white"
+              }}
+            >
+              {leaves.length} member{leaves.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <div className="space-y-3">
+            {leaves.map((leave) => {
+              const memberColor = teamMemberColors.get(leave.user_id) || LEAVE_TYPE.color;
+              const initials = getInitials(leave.user_name || 'Unknown User');
+              
+              return (
+                <div
+                  key={leave.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => onViewLeave(leave)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+                      style={{ backgroundColor: memberColor }}
+                    >
+                      {initials}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{leave.user_name || 'Unknown User'}</h3>
+                      <p className="text-sm text-gray-500">
+                        {(() => {
+                          try {
+                            const startDate = new Date(leave.start_date);
+                            const endDate = new Date(leave.end_date);
+                            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                              return "Invalid date range";
+                            }
+                            return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")} (${leave.duration_days} day${leave.duration_days !== 1 ? 's' : ''})`;
+                          } catch (error) {
+                            return "Invalid date range";
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      className="text-xs"
+                      variant={leave.status === 'approved' ? 'default' : 'secondary'}
+                    >
+                      {leave.status}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
+        <div className="py-3 px-6 flex justify-end items-center border-t border-gray-100">
+          <Button variant="outline" onClick={onClose} size="sm" className="rounded-lg">
+            Close
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -506,8 +867,59 @@ export default function MeetingRhythmPlanner() {
   const [currentMeeting, setCurrentMeeting] = useState<Meeting | undefined>(undefined);
   const [showPastMeetings, setShowPastMeetings] = useState<boolean>(false);
   const [showLeaves, setShowLeaves] = useState<boolean>(false);
+  const [teamMemberColors, setTeamMemberColors] = useState<Map<string, string>>(new Map());
+  const [leaveSummaryDialog, setLeaveSummaryDialog] = useState<{
+    isOpen: boolean;
+    date: string;
+    leaves: any[];
+  }>({
+    isOpen: false,
+    date: "",
+    leaves: []
+  });
+  const [adminPanelDialog, setAdminPanelDialog] = useState<{
+    isOpen: boolean;
+    activeTab: string;
+  }>({
+    isOpen: false,
+    activeTab: "approvals"
+  });
+  const [userLeaveInfo, setUserLeaveInfo] = useState<{
+    total_entitlement: number;
+    used_leave_days: number;
+    bank_holidays: number;
+    remaining_days: number;
+  } | null>(null);
+  const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
+  const [entitlements, setEntitlements] = useState<any[]>([]);
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
+  const [approvalComments, setApprovalComments] = useState('');
+  const [selectedLeaveForApproval, setSelectedLeaveForApproval] = useState<any>(null);
+  const [entitlementForm, setEntitlementForm] = useState({
+    total_entitlement_days: 25,
+    year: new Date().getFullYear()
+  });
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
+
+  const fetchUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const role = userInfo?.role || 'user';
+      setIsAdmin(role === 'admin');
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
 
   const fetchMeetings = async () => {
     setIsLoading(true);
@@ -553,6 +965,99 @@ export default function MeetingRhythmPlanner() {
     } catch (error: any) {
       console.error("Error fetching bank holidays:", error);
       // Don't show toast for bank holidays as they're not critical
+    }
+  };
+
+  const fetchUserLeaveInfo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const currentYear = new Date().getFullYear();
+      const { data: leaveInfo } = await supabase.rpc('calculate_remaining_leave_days', {
+        p_user_id: user.id,
+        p_year: currentYear
+      });
+
+      if (leaveInfo && leaveInfo[0]) {
+        setUserLeaveInfo(leaveInfo[0]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching user leave info:", error);
+    }
+  };
+
+  const fetchPendingLeaves = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!userInfo?.team_id) return;
+
+      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+
+      // Get pending leave requests
+      const { data: leaves, error: leavesError } = await supabase
+        .from('team_leaves')
+        .select('*')
+        .in('user_id', teamMemberIds)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (leavesError) throw leavesError;
+
+      // Get team member names
+      const { data: teamMembers, error: teamError } = await supabase
+        .from('business_info')
+        .select('user_id, full_name')
+        .eq('team_id', userInfo.team_id);
+
+      if (teamError) throw teamError;
+
+      // Combine the data
+      const leavesWithNames = leaves?.map((leave: any) => {
+        const teamMember = teamMembers?.find((m: any) => m.user_id === leave.user_id);
+        return {
+          ...leave,
+          user_name: teamMember?.full_name || 'Unknown User'
+        };
+      }) || [];
+
+      setPendingLeaves(leavesWithNames);
+    } catch (error: any) {
+      console.error("Error fetching pending leaves:", error);
+    }
+  };
+
+  const fetchEntitlements = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!userInfo?.team_id) return;
+
+      const { data, error } = await supabase
+        .from('leave_entitlements')
+        .select('*')
+        .eq('team_id', userInfo.team_id)
+        .order('year', { ascending: false });
+
+      if (error) throw error;
+      setEntitlements(data || []);
+    } catch (error: any) {
+      console.error("Error fetching entitlements:", error);
     }
   };
 
@@ -619,7 +1124,7 @@ export default function MeetingRhythmPlanner() {
 
       if (error) throw error;
       
-      // Map user names to leaves
+      // Map user names to leaves and assign colors
       const leavesWithNames = data?.map((leave: any) => {
         const teamMember = teamMembers.find((member: any) => member.user_id === leave.user_id);
         return {
@@ -627,6 +1132,13 @@ export default function MeetingRhythmPlanner() {
           user_name: teamMember?.full_name || 'Unknown User'
         };
       }) || [];
+      
+      // Create color mapping for team members
+      const colorMap = new Map<string, string>();
+      teamMembers.forEach((member: any, index: number) => {
+        colorMap.set(member.user_id, TEAM_MEMBER_COLORS[index % TEAM_MEMBER_COLORS.length]);
+      });
+      setTeamMemberColors(colorMap);
       
       setLeaves(leavesWithNames);
     } catch (error: any) {
@@ -640,11 +1152,20 @@ export default function MeetingRhythmPlanner() {
   };
 
   useEffect(() => {
+    fetchUserRole();
+  }, []);
+
+  useEffect(() => {
     fetchMeetings();
     if (showLeaves) {
       fetchLeaves();
+      fetchUserLeaveInfo();
+      if (isAdmin) {
+        fetchPendingLeaves();
+        fetchEntitlements();
     }
-  }, [selectedYear, showLeaves]);
+    }
+  }, [selectedYear, showLeaves, isAdmin]);
 
   useEffect(() => {
     fetchBankHolidays();
@@ -759,6 +1280,41 @@ export default function MeetingRhythmPlanner() {
       
       if (!user) throw new Error("No authenticated user");
       
+      // Determine which user ID to use for the leave
+      let userIdForLeave = user.id; // Default to current user
+      
+      // If admin is creating leave for someone else, use the selected user ID
+      if (leave.selected_user_id) {
+        userIdForLeave = leave.selected_user_id;
+      }
+
+      // Check leave entitlement for new leave requests
+      if (!leave.id) {
+        const currentYear = new Date().getFullYear();
+        const { data: leaveInfo } = await supabase.rpc('calculate_remaining_leave_days', {
+          p_user_id: userIdForLeave,
+          p_year: currentYear
+        });
+
+        if (leaveInfo && leaveInfo[0]) {
+          const remainingDays = leaveInfo[0].remaining_days;
+          const requestedDays = leave.duration_days || 1;
+          const totalEntitlement = leaveInfo[0].total_entitlement;
+          const usedLeave = leaveInfo[0].used_leave_days;
+          const bankHolidays = leaveInfo[0].bank_holidays;
+
+          if (requestedDays > remainingDays) {
+            toast({
+              title: "Insufficient Leave Entitlement",
+              description: `Leave entitlement: ${totalEntitlement} days total, ${usedLeave} days used, ${bankHolidays} bank holidays. You only have ${remainingDays} days remaining. You cannot request ${requestedDays} days.`,
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+      
       if (leave.id) {
         // Update existing leave
         const { error } = await supabase
@@ -783,7 +1339,7 @@ export default function MeetingRhythmPlanner() {
         const { error } = await supabase
           .from('team_leaves')
           .insert({
-            user_id: user.id,
+            user_id: userIdForLeave,
             leave_type: leave.leave_type || "leave", // Ensure leave_type is always set
             start_date: leave.start_date,
             end_date: leave.end_date,
@@ -840,7 +1396,179 @@ export default function MeetingRhythmPlanner() {
     }
   };
 
-  const handleAddLeave = () => {
+  const handleApproval = async () => {
+    if (!selectedLeaveForApproval) return;
+
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
+      // Update leave status
+      const { error: leaveError } = await supabase
+        .from('team_leaves')
+        .update({ status: approvalAction === 'approve' ? 'approved' : 'rejected' })
+        .eq('id', selectedLeaveForApproval.id);
+
+      if (leaveError) throw leaveError;
+
+      // Create approval record
+      const { error: approvalError } = await supabase
+        .from('leave_approvals')
+        .insert({
+          leave_id: selectedLeaveForApproval.id,
+          approver_id: user.id,
+          action: approvalAction === 'approve' ? 'approved' : 'rejected',
+          comments: approvalComments.trim() || null
+        });
+
+      if (approvalError) throw approvalError;
+
+      toast({
+        title: `Leave ${approvalAction === 'approve' ? 'Approved' : 'Rejected'}`,
+        description: `The leave request has been ${approvalAction === 'approve' ? 'approved' : 'rejected'} successfully.`,
+      });
+
+      fetchPendingLeaves();
+      fetchLeaves();
+      setSelectedLeaveForApproval(null);
+      setApprovalComments('');
+    } catch (error: any) {
+      toast({
+        title: "Error processing approval",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveEntitlement = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!userInfo?.team_id) throw new Error("No team found");
+
+      // Check if entitlement already exists for this year
+      const existingEntitlement = entitlements.find(e => e.year === entitlementForm.year);
+
+      if (existingEntitlement) {
+        // Update existing entitlement
+        const { error } = await supabase
+          .from('leave_entitlements')
+          .update({
+            total_entitlement_days: entitlementForm.total_entitlement_days
+          })
+          .eq('id', existingEntitlement.id);
+
+        if (error) throw error;
+        toast({
+          title: "Entitlement updated",
+          description: "Leave entitlement has been updated successfully.",
+        });
+      } else {
+        // Create new entitlement
+        const { error } = await supabase
+          .from('leave_entitlements')
+          .insert({
+            team_id: userInfo.team_id,
+            total_entitlement_days: entitlementForm.total_entitlement_days,
+            year: entitlementForm.year
+          });
+
+        if (error) throw error;
+        toast({
+          title: "Entitlement created",
+          description: "Leave entitlement has been created successfully.",
+        });
+      }
+
+      fetchEntitlements();
+      setEntitlementForm({
+        total_entitlement_days: 25,
+        year: new Date().getFullYear()
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error saving entitlement",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteEntitlement = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this entitlement?")) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('leave_entitlements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast({
+        title: "Entitlement deleted",
+        description: "Leave entitlement has been deleted successfully.",
+      });
+      fetchEntitlements();
+    } catch (error: any) {
+      toast({
+        title: "Error deleting entitlement",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddLeave = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current user's role
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const isAdmin = userInfo?.role === 'admin';
+      
+      setCurrentMeeting({
+        id: "",
+        meeting_type: "",
+        meeting_date: "",
+        meeting_title: "",
+        meeting_description: "",
+        meeting_color: "",
+        leave_type: "leave",
+        start_date: format(new Date(), "yyyy-MM-dd"),
+        end_date: format(new Date(), "yyyy-MM-dd"),
+        status: "pending",
+        duration_days: 1,
+        description: "",
+        selected_user_id: isAdmin ? "" : user.id // Set current user for non-admin users
+      });
+      setIsViewOnly(false);
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error("Error setting up leave form:", error);
+      // Fallback to basic setup
     setCurrentMeeting({
       id: "",
       meeting_type: "",
@@ -857,6 +1585,7 @@ export default function MeetingRhythmPlanner() {
     });
     setIsViewOnly(false);
     setIsDialogOpen(true);
+    }
   };
 
   const handleViewLeave = (leave: any) => {
@@ -1019,9 +1748,9 @@ export default function MeetingRhythmPlanner() {
                       if (mainBankHoliday) {
                         bgColor = `bg-[${BANK_HOLIDAY_TYPE.color}]`;
                       }
-                      // If there's a leave, use its color
-                      else if (mainLeave) {
-                        bgColor = `bg-[${LEAVE_TYPE.color}]`;
+                      // If there are leaves, use a neutral background
+                      else if (dateLeaves.length > 0) {
+                        bgColor = "bg-gray-100";
                       }
                       // If there's a meeting, use its color (only in meeting mode)
                       else if (mainMeeting) {
@@ -1035,7 +1764,19 @@ export default function MeetingRhythmPlanner() {
                           onClick={() => {
                             // Allow viewing leaves on any date
                             if (showLeaves && dateLeaves.length > 0) {
-                              handleViewLeave(dateLeaves[0]);
+                              // Show leave summary dialog with all team members on leave
+                              const dateStr = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
+                              // Validate the date before setting it
+                              const testDate = new Date(dateStr);
+                              if (!isNaN(testDate.getTime())) {
+                                setLeaveSummaryDialog({
+                                  isOpen: true,
+                                  date: dateStr,
+                                  leaves: dateLeaves
+                                });
+                              } else {
+                                console.error("Invalid date generated:", dateStr);
+                              }
                               return;
                             }
                             
@@ -1054,6 +1795,7 @@ export default function MeetingRhythmPlanner() {
                             if (showLeaves) {
                               // If leaves are enabled, create a leave entry
                               const dateStr = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
+                              // For now, we'll let the dialog handle user selection
                               setCurrentMeeting({
                                 id: "",
                                 meeting_type: "",
@@ -1066,7 +1808,8 @@ export default function MeetingRhythmPlanner() {
                                 end_date: dateStr,
                                 status: "pending",
                                 duration_days: 1,
-                                description: ""
+                                description: "",
+                                selected_user_id: "" // Will be set in the dialog based on user role
                               });
                               setIsViewOnly(false);
                               setIsDialogOpen(true);
@@ -1101,7 +1844,7 @@ export default function MeetingRhythmPlanner() {
                           }}
                           style={{
                             backgroundColor: mainBankHoliday ? BANK_HOLIDAY_TYPE.color : 
-                                            mainLeave ? LEAVE_TYPE.color : 
+                                            dateLeaves.length > 0 ? "#f3f4f6" : 
                                             mainMeeting ? mainMeeting.meeting_color : 
                                             !showLeaves && isThursdayDay && dateMeetings.length === 0 ? getMeetingTypeColor("weekly_pulse") : 
                                             isWeekendDay ? "#f4f5f6" : "#ffffff",
@@ -1110,7 +1853,6 @@ export default function MeetingRhythmPlanner() {
                         >
                           <div className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium" style={{
                             color: (mainBankHoliday) || 
-                                  (mainLeave) || 
                                   (mainMeeting && mainMeeting.meeting_color === "#263238") || 
                                   (!showLeaves && isThursdayDay && dateMeetings.length === 0 && getMeetingTypeColor("weekly_pulse") === "#263238") 
                                   ? "white" : "black",
@@ -1118,11 +1860,35 @@ export default function MeetingRhythmPlanner() {
                           }}>
                             {dayNumber}
                           </div>
-                          {dateLeaves.length > 1 && (
-                            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                              {dateLeaves.length}
+                          
+                          {/* Show initials for team members on leave */}
+                          {showLeaves && dateLeaves.length > 0 && (
+                            <div className="absolute -top-1 -right-1 flex flex-col gap-0.5">
+                              {dateLeaves.slice(0, 3).map((leave, index) => {
+                                const memberColor = teamMemberColors.get(leave.user_id) || LEAVE_TYPE.color;
+                                const initials = leave.user_name ? leave.user_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U';
+                                return (
+                                  <div
+                                    key={`${leave.user_id}-${index}`}
+                                    className="w-4 h-4 rounded-full text-[8px] font-bold flex items-center justify-center text-white shadow-sm"
+                                    style={{ backgroundColor: memberColor }}
+                                    title={`${leave.user_name} - ${leave.duration_days} day(s)`}
+                                  >
+                                    {initials}
+                                  </div>
+                                );
+                              })}
+                              {dateLeaves.length > 3 && (
+                                <div
+                                  className="w-4 h-4 rounded-full text-[8px] font-bold flex items-center justify-center text-white shadow-sm bg-gray-500"
+                                  title={`${dateLeaves.length - 3} more team members on leave`}
+                                >
+                                  +{dateLeaves.length - 3}
                             </div>
                           )}
+                            </div>
+                          )}
+
                         </div>
                       );
                     })}
@@ -1155,6 +1921,16 @@ export default function MeetingRhythmPlanner() {
             />
             <span className="text-sm text-gray-600">Leaves</span>
           </div>
+          {isAdmin && showLeaves && (
+            <Button 
+              onClick={() => setAdminPanelDialog({ isOpen: true, activeTab: "approvals" })}
+              variant="outline"
+              className="border-orange-200 text-orange-700 hover:bg-orange-50"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Admin Panel
+            </Button>
+          )}
           <Button 
             onClick={showLeaves ? handleAddLeave : handleAddMeeting} 
             className="bg-blue-600 hover:bg-blue-700"
@@ -1164,6 +1940,40 @@ export default function MeetingRhythmPlanner() {
           </Button>
         </div>
       </div>
+      
+      {/* Leave Entitlement Summary - Only show when in leave mode */}
+      {showLeaves && userLeaveInfo && (
+        <Card className="border-0 bg-blue-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center text-gray-700">
+              <Calendar className="mr-2 h-4 w-4 text-blue-500" />
+              Your Leave Entitlement ({new Date().getFullYear()})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-lg font-bold text-blue-600">{userLeaveInfo.total_entitlement}</div>
+                <div className="text-xs text-gray-600">Total Days</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-orange-600">{userLeaveInfo.used_leave_days}</div>
+                <div className="text-xs text-gray-600">Used Days</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-gray-600">{userLeaveInfo.bank_holidays}</div>
+                <div className="text-xs text-gray-600">Bank Holidays</div>
+              </div>
+              <div className="text-center">
+                <div className={`text-lg font-bold ${userLeaveInfo.remaining_days < 5 ? 'text-red-600' : 'text-green-600'}`}>
+                  {userLeaveInfo.remaining_days}
+                </div>
+                <div className="text-xs text-gray-600">Remaining</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       <Card className="border-0">
         <CardHeader className="pb-2">
@@ -1187,6 +1997,7 @@ export default function MeetingRhythmPlanner() {
               </div>
             ))}
             {showLeaves && (
+              <>
               <div className="flex items-center">
                 <div 
                   className="w-4 h-4 rounded-sm mr-2" 
@@ -1194,6 +2005,23 @@ export default function MeetingRhythmPlanner() {
                 />
                 <span className="text-xs text-gray-700">{LEAVE_TYPE.name}</span>
               </div>
+                {/* Show team member initials if available */}
+                {Array.from(teamMemberColors.entries()).map(([userId, color]) => {
+                  const leave = leaves.find(l => l.user_id === userId);
+                  return leave ? (
+                    <div key={userId} className="flex items-center">
+                      <div 
+                        className="w-6 h-6 rounded-full mr-2 flex items-center justify-center text-white text-xs font-bold"
+                        style={{ backgroundColor: color }}
+                        title={leave.user_name}
+                      >
+                        {leave.user_name ? leave.user_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
+                      </div>
+                      <span className="text-xs text-gray-700">{leave.user_name}</span>
+                    </div>
+                  ) : null;
+                })}
+              </>
             )}
             <div className="flex items-center">
               <div 
@@ -1274,7 +2102,7 @@ export default function MeetingRhythmPlanner() {
                               key={leave.id}
                               className="relative overflow-hidden rounded-xl cursor-pointer transition-all duration-200 border border-gray-200"
                               style={{ 
-                                backgroundColor: LEAVE_TYPE.color,
+                                backgroundColor: teamMemberColors.get(leave.user_id) || LEAVE_TYPE.color,
                               }}
                               onClick={() => handleViewLeave(leave)}
                             >
@@ -1284,9 +2112,17 @@ export default function MeetingRhythmPlanner() {
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1 min-w-0 mr-2">
                                     <div className="flex items-center gap-2 mb-1 justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+                                          style={{ backgroundColor: "rgba(255,255,255,0.3)" }}
+                                        >
+                                          {leave.user_name ? leave.user_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
+                                        </div>
                                       <h4 className="text-sm font-semibold leading-tight text-white">
                                         {leave.user_name || "Unknown User"}
                                       </h4>
+                                      </div>
                                       <Badge 
                                         className="text-xs font-medium px-2 py-1 rounded-md border-0"
                                         style={{
@@ -1418,7 +2254,230 @@ export default function MeetingRhythmPlanner() {
         meeting={currentMeeting}
         isLoading={isLoading}
         viewOnly={isViewOnly}
+        teamMemberColors={teamMemberColors}
       />
+
+      {leaveSummaryDialog.isOpen && leaveSummaryDialog.date && (
+        <LeaveSummaryDialog
+          isOpen={leaveSummaryDialog.isOpen}
+          onClose={() => setLeaveSummaryDialog({ isOpen: false, date: "", leaves: [] })}
+          date={leaveSummaryDialog.date}
+          leaves={leaveSummaryDialog.leaves}
+          teamMemberColors={teamMemberColors}
+          onViewLeave={(leave) => {
+            setLeaveSummaryDialog({ isOpen: false, date: "", leaves: [] });
+            handleViewLeave(leave);
+          }}
+        />
+      )}
+
+      {/* Admin Panel Dialog */}
+      <Dialog open={adminPanelDialog.isOpen} onOpenChange={(open) => setAdminPanelDialog({ ...adminPanelDialog, isOpen: open })}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Admin Panel
+            </DialogTitle>
+          </DialogHeader>
+          
+          <Tabs value={adminPanelDialog.activeTab} onValueChange={(value) => setAdminPanelDialog({ ...adminPanelDialog, activeTab: value })} className="h-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="approvals" className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Leave Approvals ({pendingLeaves.length})
+              </TabsTrigger>
+              <TabsTrigger value="entitlements" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Entitlements
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="approvals" className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
+              {pendingLeaves.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">All Caught Up!</h3>
+                  <p className="text-gray-500">No pending leave requests to review.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingLeaves.map((leave) => (
+                    <Card key={leave.id} className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{leave.user_name}</h3>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(leave.start_date), "MMM d")} - {format(new Date(leave.end_date), "MMM d, yyyy")} 
+                            ({leave.duration_days} day{leave.duration_days !== 1 ? 's' : ''})
+                          </p>
+                          {leave.description && (
+                            <p className="text-sm text-gray-600 mt-1">{leave.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="secondary">Pending</Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedLeaveForApproval(leave);
+                            setApprovalAction('approve');
+                            setApprovalComments('');
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setSelectedLeaveForApproval(leave);
+                            setApprovalAction('reject');
+                            setApprovalComments('');
+                          }}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="entitlements" className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Add/Edit Entitlement</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="entitlement-year">Year</Label>
+                      <Input
+                        id="entitlement-year"
+                        type="number"
+                        value={entitlementForm.year}
+                        onChange={(e) => setEntitlementForm({ ...entitlementForm, year: parseInt(e.target.value) })}
+                        min={new Date().getFullYear() - 5}
+                        max={new Date().getFullYear() + 5}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="entitlement-days">Total Days</Label>
+                      <Input
+                        id="entitlement-days"
+                        type="number"
+                        value={entitlementForm.total_entitlement_days}
+                        onChange={(e) => setEntitlementForm({ ...entitlementForm, total_entitlement_days: parseInt(e.target.value) })}
+                        min="1"
+                        max="365"
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={handleSaveEntitlement} disabled={isLoading} className="w-full">
+                    Save Entitlement
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Current Entitlements</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {entitlements.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500">No entitlements configured yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {entitlements.map((entitlement) => (
+                        <div key={entitlement.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <h3 className="font-medium">{entitlement.year}</h3>
+                            <p className="text-sm text-gray-500">{entitlement.total_entitlement_days} days</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteEntitlement(entitlement.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog */}
+      <Dialog open={!!selectedLeaveForApproval} onOpenChange={(open) => !open && setSelectedLeaveForApproval(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {approvalAction === 'approve' ? 'Approve' : 'Reject'} Leave Request
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {selectedLeaveForApproval && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Employee</Label>
+                  <p className="text-sm text-gray-600">{selectedLeaveForApproval.user_name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Leave Period</Label>
+                  <p className="text-sm text-gray-600">
+                    {format(new Date(selectedLeaveForApproval.start_date), "MMM d, yyyy")} - {format(new Date(selectedLeaveForApproval.end_date), "MMM d, yyyy")} 
+                    ({selectedLeaveForApproval.duration_days} day{selectedLeaveForApproval.duration_days !== 1 ? 's' : ''})
+                  </p>
+                </div>
+                {selectedLeaveForApproval.description && (
+                  <div>
+                    <Label className="text-sm font-medium">Reason</Label>
+                    <p className="text-sm text-gray-600">{selectedLeaveForApproval.description}</p>
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="approval-comments" className="text-sm font-medium">
+                    Comments (Optional)
+                  </Label>
+                  <Textarea
+                    id="approval-comments"
+                    value={approvalComments}
+                    onChange={(e) => setApprovalComments(e.target.value)}
+                    placeholder={`Add a comment for this ${approvalAction === 'approve' ? 'approval' : 'rejection'}...`}
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedLeaveForApproval(null)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleApproval} 
+              disabled={isLoading}
+              variant={approvalAction === 'approve' ? 'default' : 'destructive'}
+            >
+              {approvalAction === 'approve' ? 'Approve' : 'Reject'} Leave
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

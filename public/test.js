@@ -34,22 +34,28 @@
 
             // Setup initial state
             setupInitialState() {
-                // Ensure first payment tab is active
-                const firstPaymentTab = solutionElements.paymentTabs[0];
+                // Ensure split payment tab is active (first tab)
+                const splitPaymentTab = solutionElements.paymentTabs[0];
 
-                if (firstPaymentTab && !firstPaymentTab.classList.contains(solutionConfig.activePaymentTabClass)) {
-                    firstPaymentTab.classList.add(solutionConfig.activePaymentTabClass);
+                if (splitPaymentTab && !splitPaymentTab.classList.contains(solutionConfig.activePaymentTabClass)) {
+                    splitPaymentTab.classList.add(solutionConfig.activePaymentTabClass);
+                }
+
+                // Remove active class from second tab if it exists
+                const secondPaymentTab = solutionElements.paymentTabs[1];
+                if (secondPaymentTab && secondPaymentTab.classList.contains(solutionConfig.activePaymentTabClass)) {
+                    secondPaymentTab.classList.remove(solutionConfig.activePaymentTabClass);
                 }
 
                 // Position slider on initial load
-                if (firstPaymentTab) {
-                    this.moveSlider(firstPaymentTab, solutionElements.paymentTabSlider);
+                if (splitPaymentTab) {
+                    this.moveSlider(splitPaymentTab, solutionElements.paymentTabSlider);
                 }
 
-                // Ensure initial payment options for all packages are set to "single"
+                // Ensure initial payment options for all packages are set to "split"
                 solutionElements.paymentOptions.forEach(option => {
                     const paymentType = option.getAttribute('data-payment');
-                    if (paymentType === 'single') {
+                    if (paymentType === 'split') {
                         option.classList.add(solutionConfig.activeOptionClass);
                     } else {
                         option.classList.remove(solutionConfig.activeOptionClass);
@@ -182,8 +188,8 @@
                 // Add roles to individual tabs
                 solutionElements.paymentTabs.forEach((tab, index) => {
                     tab.setAttribute('role', 'tab');
-                    tab.setAttribute('tabindex', index === 0 ? '0' : '-1');
-                    tab.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+                    tab.setAttribute('tabindex', index === 0 ? '0' : '-1'); // Split payment tab (index 0) gets focus
+                    tab.setAttribute('aria-selected', index === 0 ? 'true' : 'false'); // Split payment tab is selected
                 });
             }
         };
