@@ -1210,25 +1210,33 @@ function FloatingAIAssistant({
     const suggestions = [];
     
     if (currentQuestion.name.includes('competitor')) {
-      suggestions.push("Add more detail about why these are competitors");
-      suggestions.push("Include their pricing and service comparison");
-      suggestions.push("Explain their competitive advantages");
+      suggestions.push("Improve the competitive analysis structure");
+      suggestions.push("Enhance the comparison clarity");
+      suggestions.push("Strengthen the competitive positioning");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
-      suggestions.push("Make this more inspiring and compelling");
-      suggestions.push("Add specific measurable outcomes");
-      suggestions.push("Include timeline and milestones");
+      suggestions.push("Make the vision more compelling");
+      suggestions.push("Add clarity to the goals");
+      suggestions.push("Improve the impact statement");
     } else if (currentQuestion.name.includes('sales') || currentQuestion.name.includes('process')) {
-      suggestions.push("Add more detail to each step");
-      suggestions.push("Include timelines and responsibilities");
-      suggestions.push("Add qualification criteria");
+      suggestions.push("Streamline the process description");
+      suggestions.push("Improve the flow clarity");
+      suggestions.push("Enhance the step-by-step structure");
     } else if (currentQuestion.name.includes('team') || currentQuestion.name.includes('employee')) {
-      suggestions.push("Clarify roles and responsibilities");
-      suggestions.push("Add reporting structure details");
-      suggestions.push("Include skills and experience levels");
+      suggestions.push("Clarify the organizational structure");
+      suggestions.push("Improve role descriptions");
+      suggestions.push("Enhance responsibility clarity");
+    } else if (currentQuestion.name.includes('revenue') || currentQuestion.name.includes('profit')) {
+      suggestions.push("Improve the financial clarity");
+      suggestions.push("Enhance the metrics explanation");
+      suggestions.push("Strengthen the performance description");
+    } else if (currentQuestion.name.includes('customer') || currentQuestion.name.includes('client')) {
+      suggestions.push("Improve customer journey clarity");
+      suggestions.push("Enhance service description");
+      suggestions.push("Strengthen value proposition");
     } else {
-      suggestions.push("Make this more detailed and specific");
-      suggestions.push("Add examples from my industry");
-      suggestions.push("Improve the structure and flow");
+      suggestions.push("Improve the writing structure");
+      suggestions.push("Enhance clarity and flow");
+      suggestions.push("Strengthen the message impact");
     }
 
     return suggestions;
@@ -1688,17 +1696,20 @@ function MobileAIAssistant({
     const suggestions = [];
     
     if (currentQuestion.name.includes('competitor')) {
-      suggestions.push("Add more detail about why these are competitors");
-      suggestions.push("Include their pricing and service comparison");
+      suggestions.push("Improve the competitive analysis structure");
+      suggestions.push("Enhance the comparison clarity");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
-      suggestions.push("Make this more inspiring and compelling");
-      suggestions.push("Add specific measurable outcomes");
+      suggestions.push("Make the vision more compelling");
+      suggestions.push("Add clarity to the goals");
     } else if (currentQuestion.name.includes('sales') || currentQuestion.name.includes('process')) {
-      suggestions.push("Add more detail to each step");
-      suggestions.push("Add qualification criteria");
+      suggestions.push("Streamline the process description");
+      suggestions.push("Improve the flow clarity");
+    } else if (currentQuestion.name.includes('revenue') || currentQuestion.name.includes('profit')) {
+      suggestions.push("Improve the financial clarity");
+      suggestions.push("Enhance the metrics explanation");
     } else {
-      suggestions.push("Make this more detailed and specific");
-      suggestions.push("Improve the structure and flow");
+      suggestions.push("Improve the writing structure");
+      suggestions.push("Enhance clarity and flow");
     }
 
     return suggestions.slice(0, 2); // Only show 2 suggestions for mobile

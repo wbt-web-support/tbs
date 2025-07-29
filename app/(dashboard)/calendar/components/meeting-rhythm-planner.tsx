@@ -65,6 +65,7 @@ const MEETING_TYPES = [
 ];
 
 const LEAVE_TYPE = { id: "leave", name: "Leave", color: "#4CAF50" };
+const BANK_HOLIDAY_TYPE = { id: "bank_holiday", name: "Bank Holiday", color: "#9CA3AF" };
 
 const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit, meeting, isLoading, viewOnly = false }: MeetingDialogProps) => {
   const [formData, setFormData] = useState<Partial<Meeting>>({
@@ -497,6 +498,7 @@ const MeetingDialog = ({ isOpen, onClose, onSave, onSaveLeave, onDelete, onEdit,
 export default function MeetingRhythmPlanner() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [bankHolidays, setBankHolidays] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -534,6 +536,23 @@ export default function MeetingRhythmPlanner() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchBankHolidays = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bank_holidays')
+        .select('*')
+        .eq('year', selectedYear)
+        .eq('is_active', true)
+        .order('holiday_date', { ascending: true });
+
+      if (error) throw error;
+      setBankHolidays(data || []);
+    } catch (error: any) {
+      console.error("Error fetching bank holidays:", error);
+      // Don't show toast for bank holidays as they're not critical
     }
   };
 
@@ -626,6 +645,10 @@ export default function MeetingRhythmPlanner() {
       fetchLeaves();
     }
   }, [selectedYear, showLeaves]);
+
+  useEffect(() => {
+    fetchBankHolidays();
+  }, [selectedYear]);
 
   const handleSaveMeeting = async (meeting: Partial<Meeting>) => {
     setIsLoading(true);
@@ -857,6 +880,11 @@ export default function MeetingRhythmPlanner() {
     });
   };
 
+  const getBankHolidaysForDate = (year: number, month: number, day: number) => {
+    const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return bankHolidays.filter(holiday => holiday.holiday_date === date);
+  };
+
   const getMeetingTypeColor = (type: string) => {
     const meetingType = MEETING_TYPES.find(t => t.id === type);
     return meetingType?.color || "#e0e0e0";
@@ -963,6 +991,7 @@ export default function MeetingRhythmPlanner() {
                       const dayNumber = day + 1;
                       const dateMeetings = showLeaves ? [] : getMeetingsForDate(selectedYear, monthIndex, dayNumber);
                       const dateLeaves = showLeaves ? getLeavesForDate(selectedYear, monthIndex, dayNumber) : [];
+                      const dateBankHolidays = getBankHolidaysForDate(selectedYear, monthIndex, dayNumber);
                       const isWeekendDay = isWeekend(selectedYear, monthIndex, dayNumber);
                       const isThursdayDay = isThursday(selectedYear, monthIndex, dayNumber);
                       
@@ -976,6 +1005,7 @@ export default function MeetingRhythmPlanner() {
                       let bgColor = isWeekendDay ? "bg-gray-50" : "bg-white";
                       let mainMeeting = dateMeetings[0]; // Get the first meeting for this date
                       let mainLeave = dateLeaves[0]; // Get the first leave for this date
+                      let mainBankHoliday = dateBankHolidays[0]; // Get the first bank holiday for this date
                       
                       // Thursday default to Weekly Pulse if no other meeting exists (only in meeting mode)
                       if (!showLeaves && isThursdayDay && dateMeetings.length === 0) {
@@ -985,8 +1015,12 @@ export default function MeetingRhythmPlanner() {
                         }
                       }
                       
+                      // Bank holidays take highest priority
+                      if (mainBankHoliday) {
+                        bgColor = `bg-[${BANK_HOLIDAY_TYPE.color}]`;
+                      }
                       // If there's a leave, use its color
-                      if (mainLeave) {
+                      else if (mainLeave) {
                         bgColor = `bg-[${LEAVE_TYPE.color}]`;
                       }
                       // If there's a meeting, use its color (only in meeting mode)
@@ -1066,7 +1100,8 @@ export default function MeetingRhythmPlanner() {
                             }
                           }}
                           style={{
-                            backgroundColor: mainLeave ? LEAVE_TYPE.color : 
+                            backgroundColor: mainBankHoliday ? BANK_HOLIDAY_TYPE.color : 
+                                            mainLeave ? LEAVE_TYPE.color : 
                                             mainMeeting ? mainMeeting.meeting_color : 
                                             !showLeaves && isThursdayDay && dateMeetings.length === 0 ? getMeetingTypeColor("weekly_pulse") : 
                                             isWeekendDay ? "#f4f5f6" : "#ffffff",
@@ -1074,7 +1109,8 @@ export default function MeetingRhythmPlanner() {
                           }}
                         >
                           <div className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium" style={{
-                            color: (mainLeave) || 
+                            color: (mainBankHoliday) || 
+                                  (mainLeave) || 
                                   (mainMeeting && mainMeeting.meeting_color === "#263238") || 
                                   (!showLeaves && isThursdayDay && dateMeetings.length === 0 && getMeetingTypeColor("weekly_pulse") === "#263238") 
                                   ? "white" : "black",
@@ -1159,6 +1195,13 @@ export default function MeetingRhythmPlanner() {
                 <span className="text-xs text-gray-700">{LEAVE_TYPE.name}</span>
               </div>
             )}
+            <div className="flex items-center">
+              <div 
+                className="w-4 h-4 rounded-sm mr-2" 
+                style={{ backgroundColor: BANK_HOLIDAY_TYPE.color }}
+              />
+              <span className="text-xs text-gray-700">{BANK_HOLIDAY_TYPE.name}</span>
+            </div>
           </div>
         </CardContent>
       </Card>

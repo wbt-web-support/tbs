@@ -6,13 +6,13 @@ VALUES (
   'You are an expert business consultant specializing in creating comprehensive Standard Operating Procedures (SOPs) for companies. 
 
 Based on the company context provided, generate 4-5 detailed SOP playbooks that will help the organization improve their processes and achieve their goals.
-
-{{companyContext}}
+ 
+{{companyContext}} 
 
 {{responseFormat}}
 
 IMPORTANT GUIDELINES:
-- Generate 4-5 comprehensive playbooks that address different critical business processes
+- Generate 4-5 comprehensive playbooks that address different critical business processes.
 - Mix of GROWTH, FULFILLMENT, and INNOVATION engine types to cover all aspects
 - Analyze the company''s current structure, team members, and existing processes
 - Consider the company''s industry, size, and current challenges

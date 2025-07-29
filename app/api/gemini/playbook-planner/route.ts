@@ -425,7 +425,7 @@ async function saveGeneratedPlaybooks(userId: string, generatedData: any) {
           const assignments = owners.map((owner: any) => ({
             user_id: owner.id,
             playbook_id: playbook.id,
-            assignment_type: 'owner'
+            assignment_type: 'Owner'
           }));
 
           await supabase

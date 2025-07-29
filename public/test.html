@@ -1,768 +1,662 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <style>
- 
- 
-    .testimonial-section {
+
+
+
+    /* CSS Variables for Solution Pricing Table */
+    :root {
+        --solution-primary-color: #44cbc6;
+        --solution-primary-dark: #3ab8b3;
+        --solution-primary-light: #4dd4cf;
+        --solution-text-dark: #ffffff;
+        --solution-text-light: #dadada;
+        --solution-bg-white: #1a1a1a;
+        --solution-bg-gray: #2d2d2d;
+        --solution-border-color: #404040;
+        --solution-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        --solution-shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .featured{
+        padding: 0 !important;
+    }
+
+    /* Solution Pricing Container */
+    .solution-pricing-container {
+        font-family: 'Inter', sans-serif;
+        width: 100%;
+        margin: 0 auto;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+    }
+
+
+    button.solution-tab.solution-tab--active {
+        background: #2c3e50 !important;
+    }
+
+    /* Solution Tabs */
+    .solution-tabs {
         display: flex;
-        gap: 20px !important;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-.play-button i {
-    filter: drop-shadow(2px 4px 6px #00000055);
-}
-    
-    .testimonial-card {
-        background-color: #222;
-        border-radius: 10px;
-        overflow: hidden;
-        width: 330px;
-        text-align: center;
+        padding: 10px;
+        gap: 6px;
         position: relative;
-        pointer-events: auto;
+        border-radius: 120px;
+        max-width: 390px;
+        margin: 0 auto;
+        margin-bottom: 20px;
     }
-    
-    .video-container {
+
+    .solution-pricing-card {
         position: relative;
-        width: 100%;
-        z-index: 1;
-        pointer-events: auto;
+        z-index: 2;
     }
-    
-    .testimonial-card video {
-        width: 100%;
-        height: auto;
-        display: block;
-        height: auto;
+
+    /* Solution Payment Tabs */
+    .solution-payment-tabs {
+        display: flex;
+        padding: 10px;
+        gap: 6px;
+        position: relative;
+        border-radius: 120px;
+        max-width: 390px;
+        margin: 0 auto;
+        margin-bottom: 40px;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(100px);
+        border: 1px solid #ffffff1f;
     }
-    
-    .testimonial-card:hover .play-button {
-     opacity: 1; /* Show the button when hovering */
+
+    p.solution-limited-time-offer {
+position: absolute;
+top: -36px;
+text-align: center;
+width: 100%;
+left: 0;
+background: #44cbc6;
+color: white;
+font-size: 14px;
+height: 56px;
+display: flex;
+justify-content: center;
+/* align-items: center; */
+font-weight: 600;
+padding-top: 8px;
+border-radius: 20px 20px 0 0;
+z-index: 1;
 }
-.play-button {
-     position: absolute;
-     top: 48%;
-     left: 50%;
-     transform: translate(-50%, -50%);
-     background: transparent;
-     border: none;
-     cursor: pointer;
-     z-index: 1111;
-     color: white;
-     font-size: 80px;
-     opacity: 1; /* Show the button by default */
-     transition: 0.2s;
+
+
+.solution-pricing-content-inner{
+padding: 30px;
+border-radius: 20px;
+border: solid 4px #44cbc6;
+z-index: 1111;
+position: relative;
+background: #101318;
 }
-.testimonial-card.playing .play-button {
-     opacity: 0; /* Hide the play button when video is playing and not hovered */
-}
-.testimonial-card:hover.playing .play-button {
-     opacity: 1; /* Show the button when video is playing and the card is hovered */
-}
-.play-button:hover {
-     color: #ffffffd9;
-     background: transparent !important;
-     box-shadow: none !important;
-}
-.play-button:focus {
-     color: #ffffffd9;
-     background: transparent !important;
-     box-shadow: none !important;
-}
-    
-.play-button:active {
-     color: #ffffffd9;
-     background: transparent !important;
-     box-shadow: none !important;
-}
-    
-    .play-button:focus {
+
+    .solution-payment-tab {
+        flex: 1;
+        padding: 10px 16px;
+        border: none;
+        background: transparent;
+        color: var(--solution-text-light);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        border-radius: 100px;
         outline: none;
+        position: relative;
+        z-index: 2;
+        transition: all 0.3s ease;
+        font-family: 'Inter', sans-serif !important;
+    }
+
+    .solution-payment-tab:hover {
+        background: rgba(68, 203, 198, 0.1);
+        color: var(--solution-text-dark);
+    }
+
+    .solution-payment-tab--active {
+        background: white;
+        color: black;
+    }
+
+    .solution-payment-tab--active:hover {
+        background: var(--solution-primary-color);
+        color: black;
+    }
+
+
+    .solution-tab {
+        flex: 1;
+        padding: 12px 16px;
+        border: none;
+        background: #ebf8f8;
+        color: var(--solution-text-light);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        border-radius: 100px;
+        outline: none;
+        position: relative;
+        z-index: 2;
+        transition: color 0.3s ease;
     }
     
-    .testimonial-info {
-     padding: 20px;
-     position: absolute;
-     z-index: 10000;
-     bottom: 0;
-     background: linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
-     width: 100%;
-     color: white;
-     text-align: left;
-     height: 30%;
-     display: flex;
-     flex-direction: column;
-     justify-content: end;
+    .solution-select-btn:hover, .solution-select-btn:focus, .solution-select-btn:active {
+    color: white;
 }
-    
-    .testimonial-info h3 {
-        margin-bottom: 0;
-        font-size: 24px;
-        font-weight: bold;
+
+    .solution-tab:hover {
+        background: rgba(58, 191, 187, 0.1);
+        color: var(--solution-text-dark);
+    }
+
+    .solution-tab--active {
+        background: transparent;
+        color: var(--solution-bg-white);
+    }
+
+    .solution-tab--active:hover {
+        background: transparent;
         color: white;
     }
-    
-    .position, .company {
-        font-size: 18px;
+
+    .solution-pricing-info-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        justify-content: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        max-width: 1200px;
+        margin: 0 auto;
     }
-    
-     .position {
-         margin-bottom: 0px !important;
-     }
-    
-    .company {
-     color: #65dfdc;
-     margin-top: 0;
-}
- 
- 
- 
-    .thumbnail {
+
+
+
+    /* Solution Pricing Content */
+    .solution-pricing-content {
+        padding: 30px 30px;
+        background: #ffffff08;
+        border-radius: 15px;
+        border: 1px solid #ffffff14;
+        box-shadow: var(--solution-shadow);
+        position: relative;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+
+    .solution-pricing-content:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--solution-shadow-hover);
+    }
+
+
+
+
+    .solution-save-tag {
         position: absolute;
-        top: 0;
-        left: 0;
+        top: 20px;
+        right: 20px;
+        background-color: var(--solution-primary-color);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 50px;
+        font-size: 12px;
+        font-weight: bold;
+        z-index: 2;
+    }
+
+    .solution-title {
+        font-size: 28px;
+        font-weight: 500;
+        color: var(--solution-text-dark);
+        margin: 15px 0px 15px 0px !important;
+        letter-spacing: -0.5px;
+        text-align: left;
+    }
+
+    /* Solution Card Image Styling */
+    .solution-card-image-container {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .solution-card-image {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .solution-card-images-wrapper {
+        display: flex;
+        position: relative;
+    }
+
+    .solution-card-images-wrapper .solution-card-image-container:first-child {
+        position: relative;
+        margin-right: -20px;
+        z-index: 1;
+    }
+
+    .solution-card-images-wrapper .solution-card-image-container:last-child {
+        position: relative;
+    }
+
+    /* Solution Package Options */
+    .solution-package-option {
+        display: none;
+    }
+
+    .solution-package-option--active {
+        display: block;
+    }
+
+    /* Solution Payment Options */
+    .solution-payment-option {
+        display: none;
+    }
+
+    .solution-payment-option--active {
+        display: block;
+    }
+
+    .solution-payment-description {
+        font-size: 16px;
+        color: var(--solution-text-light);
+        margin-bottom: 10px !important;
+        text-align: left;
+    }
+
+    .solution-card-description {
+        font-size: 14px;
+        color: var(--solution-text-light);
+        margin-bottom: 10px !important;
+        text-align: left;
+        line-height: 1.6;
+    }
+
+    /* Solution Price Display */
+    .solution-price {
+        display: flex;
+        align-items: baseline;
+        justify-content: flex-start;
+        margin-bottom: 20px;
+        padding: 0;
+        gap: 4px;
+        background: transparent;
+    }
+
+    .solution-currency {
+        font-size: 28px !important;
+        font-weight: 500;
+        color: white;
+    }
+
+    .solution-amount {
+        font-size: 40px !important;
+        font-weight: 600;
+        color: white;
+        line-height: 1;
+    }
+
+    .solution-vat {
+        font-size: 18px !important;
+        color: var(--solution-text-light);
+        font-weight: 500;
+    }
+
+    /* Solution Select Button */
+    .solution-select-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px 0px;
+        background: linear-gradient(135deg, var(--solution-primary-color) 0%, var(--solution-primary-light) 100%);
+        color: white;
+        text-decoration: none;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
         width: 100%;
-        height: 100%;
-        object-fit: cover;
+        transition: all 0.3s ease;
+        border: none;
         cursor: pointer;
-        z-index: 11;
-        pointer-events: auto;
     }
-    
-     @media only screen and (max-width: 600px) {
-    
-    .testimonial-section {
-    flex-wrap: nowrap;
-    justify-content: space-around;
-    overflow-x: scroll;
-    padding-bottom: 20px;
-gap: 0;
- 
-}
- 
-.testimonial-card {
-    min-width: 270px;
-    margin-left: 15px;
-    margin-right: 15px;
-}
- 
- 
-}
-.testimonial-marquee-wrapper {
-  overflow: hidden;
-  position: relative;
-  width: 100%;
-  background: #111; /* optional background */
-  padding: 20px 0;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  touch-action: pan-y;
-}
 
-.testimonial-marquee {
-  display: flex;
-  width: fit-content;
-  padding-left: 15px;
-  will-change: transform;
-}
+    .solution-select-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(68, 203, 198, 0.4);
+        background: linear-gradient(135deg, var(--solution-primary-light) 0%, var(--solution-primary-color) 100%);
+        color: var(--solution-bg-white);
+    }
 
-.testimonial-marquee.transitioning {
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
+    .solution-pricing-content.featured .solution-select-btn {
+        background: linear-gradient(135deg, var(--solution-primary-color) 0%, var(--solution-primary-light) 100%);
+        box-shadow: 0 8px 20px rgba(68, 203, 198, 0.3);
+    }
 
-/* Cards layout inside marquee */
-.testimonial-section {
-  display: flex;
-  gap: 20px;
-  flex-shrink: 0;
-}
+    /* Animated Hand Icon */
+    .solution-hand-icon {
+        position: absolute;
+        left: 26px;
+        top: 46%;
+        transform: translateY(-50%);
+        font-size: 24px;
+        animation: pointingHand 2s ease-in-out infinite;
+    }
 
-.testimonial-card {
-  flex: 0 0 auto;
-  width: 330px;
-  margin-right: 0;
-  margin-left: 0;
-}
+    @keyframes pointingHand {
 
-/* On small screen — ensure responsiveness */
-@media only screen and (max-width: 600px) {
-.testimonial-section {
-padding-bottom: 0px; 
-gap: 0;
-}
-.testimonial-marquee-wrapper {
-padding: 20px 0px 0px 0px ;
-}
-  .testimonial-marquee {
-    animation-duration: 80s;
-  }
-  .testimonial-card {
-    width: 270px;
-  }
-}
+        0%,
+        100% {
+            transform: translateY(-50%) translateX(0px);
+        }
 
-
-        </style>
-    
-    
-    
-  <div class="testimonial-marquee-wrapper">
-  <div class="testimonial-marquee">
-    <!-- Duplicate content twice for seamless infinite scroll -->
-    <div class="testimonial-section marquee-track">
-      <div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/APH-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/APH%20ED%20Barlow.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>ED Barlow</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">APH</p>
-         </div>
-     </div>
- 
-
-<div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/Lachlan-McInnes-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Lachlan%20Mcinnes%20Group%20Testimonial.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>ED Barlow</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Lachlan McInnes</p>
-         </div>
-     </div>
-
-
-<div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/VACA-Services-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Alex%20Slater%20VACA%20Services.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Alex Slater</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">VACA Services</p>
-         </div>
-     </div>
+        50% {
+            transform: translateY(-50%) translateX(8px);
+        }
+    }
 
 
 
-<div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/Origin-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Origin%20Stephen%20Dunn%20testimonial.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Stephen Dunn</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Origin Gas, Plumbing and Heating Ltd</p>
-         </div>
-     </div>
-
- 
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-1.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ALL-SOLAR-AD.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Jesse Burgess</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">All Solar</p>
-         </div>
-     </div>
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-22.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Phill-Kitson-Ad.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Phill Kitson</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Gastek Home Assist</p>
-         </div>
-     </div>
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-3.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ash-hale-ads-video-demo.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Ashley Hale</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Hale Heating</p>
-         </div>
-     </div>
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-4.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Tristan-Ad.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Tristan Spence</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">TRS Cooling</p>
-         </div>
-     </div>
- 
-  <div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/APH-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/APH%20ED%20Barlow.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>ED Barlow</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">APH</p>
-         </div>
-     </div>
- 
-
-<div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/Lachlan-McInnes-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Lachlan%20Mcinnes%20Group%20Testimonial.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>ED Barlow</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Lachlan McInnes</p>
-         </div>
-     </div>
-
-
-<div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/VACA-Services-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Alex%20Slater%20VACA%20Services.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Alex Slater</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">VACA Services</p>
-         </div>
-     </div>
 
 
 
-<div class="testimonial-card">
-         <div class="video-container">
-            <img src="/wp-content/uploads/Origin-testimonial-thumbnail.webp" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-public.b-cdn.net/client-testimonials/Origin%20Stephen%20Dunn%20testimonial.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Stephen Dunn</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Origin Gas, Plumbing and Heating Ltd</p>
-         </div>
-     </div>
 
- 
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-1.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ALL-SOLAR-AD.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Jesse Burgess</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">All Solar</p>
-         </div>
-     </div>
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-22.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Phill-Kitson-Ad.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Phill Kitson</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Gastek Home Assist</p>
-         </div>
-     </div>
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-3.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/ash-hale-ads-video-demo.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Ashley Hale</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">Hale Heating</p>
-         </div>
-     </div>
-     <div class="testimonial-card">
-         <div class="video-container">
-            <img src="https://webuildtrades.com/wp-content/uploads/thumbnail-4.png" class="thumbnail">
-             <video class="testimonialVideo" src="https://wbt-video.b-cdn.net/client-testimonials/Tristan-Ad.mp4" preload="metadata"></video>
-             <button class="playPauseBtn play-button">
-                 <i class="fa-solid fa-circle-play"></i>
-             </button>
-         </div>
-         <div class="testimonial-info">
-             <h3>Tristan Spence</h3>
-             <!-- <p class="position">Operations Director</p> -->
-             <p class="company">TRS Cooling</p>
-         </div>
-     </div>
 
-</div>
+
+
+
+
+
+
+
+
+
+    /* Responsive Design */
+    @media (max-width: 640px) {
+
+        .solution-pricing-content-inner{
+            padding: 20px !important;
+        }
+        
+    p.solution-limited-time-offer {
+
+            top: -34px !important;
+
+        }
+
+        .featured{
+            margin-top: 30px !important;
+            padding: 0 !important;
+        }
+
+     
+
+        .solution-pricing-info-container {
+            grid-template-columns: 1fr; /* Stack items vertically */
+            gap: 30px;
+        }
+
+        .solution-pricing-content {
+            padding: 25px; /* Slightly reduced padding */
+            width: 100%;
+            margin-bottom: 0; /* Remove margin-bottom to avoid double spacing */
+        }
+
+   
+        .solution-title {
+            font-size: 26px; /* Slightly reduced font size */
+            margin-bottom: 10px; /* Adjusted margin */
+        }
+
+        .solution-amount {
+            font-size: 40px !important; /* Kept consistent */
+        }
+
+        .solution-currency {
+            font-size: 22px !important; /* Slightly reduced font size */
+        }
+
+        .solution-vat {
+            font-size: 16px !important; /* Slightly reduced font size */
+        }
+
+        .solution-tab,
+        .solution-payment-tab {
+            font-size: 12px !important; /* Adjusted font size */
+            padding: 10px 10px; /* Adjusted padding */
+        }
+
+        .solution-select-btn {
+            padding: 12px 0px; /* Adjusted padding */
+            font-size: 16px; /* Slightly reduced font size */
+        }
+
+        .solution-hand-icon {
+            font-size: 20px; /* Slightly reduced font size */
+            left: 18px; /* Adjusted position */
+        }
+
+        .solution-price {
+            margin-bottom: 15px;
+        }
+    }
+
+    /* Additional adjustments for smaller mobile devices (e.g., iPhone SE) */
+    @media (max-width: 400px) {
+        .solution-payment-tabs {
+            padding: 8px; /* Reduce padding */
+            margin-bottom: 30px !important;
+            position: sticky;
+            top: 10px;
+            z-index: 11111111;
+        }
+
+        .solution-payment-tab {
+            font-size: 12px !important; /* Further reduce font size */
+            padding: 8px 8px; /* Further reduce padding */
+        }
+        
+        .solution-pricing-content {
+            padding: 20px; /* Reduce padding for content cards */
+        }
+
+        .solution-title {
+            font-size: 22px; /* Further reduce title font size */
+        }
+
+        .solution-amount {
+            font-size: 36px !important; /* Further reduce amount font size */
+        }
+
+        .solution-currency {
+            font-size: 20px !important; /* Further reduce currency font size */
+        }
+
+        .solution-select-btn {
+            font-size: 16px; /* Further reduce button font size */
+            padding: 12px 0px; /* Further reduce button padding */
+        }
+
+        .solution-hand-icon {
+            font-size: 18px; /* Further reduce hand icon size */
+            left: 15px; /* Adjust hand icon position */
+        }
+    }
+
+
+
+
+    /* Print Styles */
+    @media print {
+
+        .solution-tabs {
+            display: none;
+        }
+    }
+
+
+
+
+
+</style>
+
+<div class="solution-pricing-container" id="price-table">
+    <div class="solution-pricing-card">
+        <!-- Payment Type Tabs -->
+        <div class="solution-payment-tabs">
+            <button class="solution-payment-tab solution-payment-tab--active" data-payment-type="single">
+                One Time Payment
+            </button>
+            <button class="solution-payment-tab" data-payment-type="split">
+                Split Payment
+            </button>
+        </div>
+
+        <div class="solution-pricing-info-container">
+
+            <!-- Dominate Package -->
+            <div class="solution-pricing-content">
+                <div class="solution-card-image-container">
+                    <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon" class="solution-card-image">
+                </div>
+                <h5 class="solution-title">Dominate Package</h5>
+                <p class="solution-card-description">A complete marketing solution with SEO, social media management, and exclusive masterminds built to position your trade business as the market leader.</p>
+
+                <!-- Dominate Single Payment -->
+                <div class="solution-payment-option solution-payment-option--active" data-payment="single">
+                    <p class="solution-payment-description">One Payment Of</p>
+                    <div class="solution-price">
+                        <span class="solution-amount">£30,000</span>
+                        <span class="solution-vat">+VAT</span>
+                    </div>
+                    <a href="https://link.fastpaydirect.com/payment-link/68877b43ddc6a633e6c5986c" class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                        SELECT PLAN
+                    </a>
+                </div>
+
+                <!-- Dominate Split Payment -->
+                <div class="solution-payment-option" data-payment="split">
+                    <p class="solution-payment-description">12 Payments Of</p>
+                    <div class="solution-price">
+                        <span class="solution-amount">£2,500</span>
+                        <span class="solution-vat">+VAT</span>
+                    </div>
+                    <a href="https://link.fastpaydirect.com/payment-link/676552b691c50c7b0eb4c373" class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                        SELECT PLAN
+                    </a>
+                </div>
+            </div>
+
+            <!-- TBS Package -->
+            <div class="solution-pricing-content">
+                <div class="solution-card-image-container">
+                    <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon" class="solution-card-image">
+                </div>
+                <h5 class="solution-title">Trades Business School</h5>
+                <p class="solution-card-description">A 16-week program with expert coaching, step-by-step systems, and a paid partnership opportunity to help you streamline operations and build a sellable business.</p>
+
+                <!-- TBS Single Payment -->
+                <div class="solution-payment-option solution-payment-option--active" data-payment="single">
+                    <p class="solution-payment-description">One Payment Of</p>
+                    <div class="solution-price">
+                        <span class="solution-amount">£18,000</span>
+                        <span class="solution-vat">+VAT</span>
+                    </div>
+                    <a href="https://link.fastpaydirect.com/payment-link/679878677ec5af95a19d677e" class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                        SELECT PLAN
+                    </a>
+                </div>
+
+                <!-- TBS Split Payment -->
+                <div class="solution-payment-option" data-payment="split">
+                    <p class="solution-payment-description">12 Payments Of</p>
+                    <div class="solution-price">
+                        <span class="solution-amount">£1,500</span>
+                        <span class="solution-vat">+VAT</span>
+                    </div>
+                    <a href="https://link.fastpaydirect.com/payment-link/68876eb2eba110c5ab8dee14" class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                        SELECT PLAN
+                    </a>
+                </div>
+            </div>
+
+            <!-- WBT X TBS Package -->
+            <div class="solution-pricing-content featured">
+                <p class="solution-limited-time-offer"> LIMITED TIME OFFER </p>
+                <div class="solution-pricing-content-inner">
+                <div class="solution-save-tag">SAVE 12.5%</div>
+                <div class="solution-card-images-wrapper">
+                    <div class="solution-card-image-container">
+                        <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon" class="solution-card-image">
+                    </div>
+                    <div class="solution-card-image-container">
+                        <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon" class="solution-card-image">
+                    </div>
+                </div>
+                <h5 class="solution-title">WBT x TBS Package</h5>
+                <p class="solution-card-description">A powerful combo of business coaching and full-scale marketing systemise operations, scale growth, and dominate your trade niche from every angle.</p>
+                
+                <!-- WBT X TBS Single Payment -->
+                <div class="solution-payment-option solution-payment-option--active" data-payment="single">
+                    <p class="solution-payment-description">One Payment Of</p>
+                    <div class="solution-price">
+                        <span class="solution-amount">£42,000</span>
+                        <span class="solution-vat">+VAT</span>
+                    </div>
+                    <a href="https://link.fastpaydirect.com/payment-link/68877d4dde64cd3066619214" class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                        SELECT PLAN
+                    </a>
+               
+                </div>
+
+                <!-- WBT X TBS Split Payment -->
+                <div class="solution-payment-option" data-payment="split">
+                    <p class="solution-payment-description">12 Payments Of</p>
+                    <div class="solution-price">
+                        <span class="solution-amount">£3,500</span>
+                        <span class="solution-vat">+VAT</span>
+                    </div>
+                    <a href="https://link.fastpaydirect.com/payment-link/68877daaddc6a67f18c59876" class="solution-select-btn" draggable="false">
+                        <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉" src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
+                        SELECT PLAN
+                    </a>
+                </div>
+            </div>
+            </div>
+
+
+            </div>
+
+        </div>
+
+
+
+
+
+
     </div>
-  </div>
 </div>
-    </div>
-    <div class="testimonial-section marquee-track">
-        <div class="testimonial-section">
- 
- 
 
-    
-    
-<script>
-    const videos = document.querySelectorAll('.testimonialVideo');
-    const playPauseButtons = document.querySelectorAll('.playPauseBtn');
-    const testimonialCards = document.querySelectorAll('.testimonial-card');
-    const thumbnails = document.querySelectorAll('.thumbnail');
-    const marquee = document.querySelector('.testimonial-marquee');
-    const marqueeWrapper = document.querySelector('.testimonial-marquee-wrapper');
-    
-    let isHovering = false;
-    let scrollInterval;
-    let currentCardIndex = 0;
-    let isDragging = false;
-    let startX = 0;
-    let currentX = 0;
-    let dragStartPosition = 0;
-    let isVideoPlaying = false;
-    
-    // Function to get current card width based on screen size
-    function getCardWidth() {
-        return window.innerWidth <= 600 ? 270 : 330; // 270px on mobile, 330px on desktop
-    }
-    
-    // Function to get current gap based on screen size
-    function getGap() {
-        return window.innerWidth <= 600 ? 20 : 20; // 20px gap on both mobile and desktop
-    }
-    
-    // Function to calculate exact position for a given card index
-    function getCardPosition(index) {
-        const cardWidth = getCardWidth();
-        const gap = getGap();
-        return index * (cardWidth + gap);
-    }
-    
-    // Pause marquee on hover
-    marqueeWrapper.addEventListener('mouseenter', () => {
-        if (!isDragging) {
-            isHovering = true;
-            marquee.classList.add('paused');
-        }
-    });
-    
-    marqueeWrapper.addEventListener('mouseleave', () => {
-        if (!isDragging) {
-            isHovering = false;
-            marquee.classList.remove('paused');
-        }
-    });
-    
-    // Mouse drag events
-    marqueeWrapper.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', endDrag);
-    
-    // Touch events for mobile
-    marqueeWrapper.addEventListener('touchstart', startDrag);
-    document.addEventListener('touchmove', drag);
-    document.addEventListener('touchend', endDrag);
-    
-    // Prevent default touch behavior only when dragging
-    marqueeWrapper.addEventListener('touchstart', (e) => {
-        // Don't prevent default if clicking on a button or video
-        if (e.target.closest('.playPauseBtn') || e.target.closest('video')) {
-            return;
-        }
-        e.preventDefault();
-    }, { passive: false });
-    
-    marqueeWrapper.addEventListener('touchmove', (e) => {
-        if (isDragging) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
-    // Add pointer events to prevent drag interference
-    document.addEventListener('mousedown', (e) => {
-        // If clicking on any element inside the marquee that's not a button or video, allow drag
-        if (e.target.closest('.testimonial-marquee-wrapper') && 
-            !e.target.closest('.playPauseBtn') && 
-            !e.target.closest('video')) {
-            // This will allow the mousedown event to bubble up to the wrapper
-            return;
-        }
-    });
-    
-    // Snapping scroll functionality
-    function startSnappingScroll() {
-        scrollInterval = setInterval(() => {
-            if (!isHovering && !isVideoPlaying && !isDragging) {
-                // Add transition for auto-scroll
-                marquee.classList.add('transitioning');
-                
-                // Move to the next card
-                currentCardIndex++;
-                
-                // Calculate the exact position for this card
-                const scrollPosition = getCardPosition(currentCardIndex);
-                marquee.style.transform = `translateX(-${scrollPosition}px)`;
-                
-                // Reset when we reach the end (assuming 8 cards per set)
-                if (currentCardIndex >= 8) {
-                    currentCardIndex = 0;
-                    marquee.style.transform = `translateX(0px)`;
-                }
-                
-                // Remove transition after animation
-                setTimeout(() => {
-                    marquee.classList.remove('transitioning');
-                }, 300);
-            }
-        }, 8000); // Move every 8 seconds
-    }
-    
-    // Initialize snapping scroll
-    startSnappingScroll();
-    
-    // Handle window resize to recalculate card widths
-    window.addEventListener('resize', () => {
-        // Clear existing interval
-        clearInterval(scrollInterval);
-        
-        // Reset position to prevent jumping
-        currentCardIndex = 0;
-        marquee.style.transform = `translateX(0px)`;
-        
-        // Restart with new card dimensions
-        startSnappingScroll();
-    });
-    
-    // Drag functions
-    function startDrag(e) {
-        // Don't start drag if clicking on a button or video
-        if (e.target.closest('.playPauseBtn') || e.target.closest('video')) {
-            return;
-        }
-        
-        // Ensure we're clicking within the marquee wrapper
-        if (!e.target.closest('.testimonial-marquee-wrapper')) {
-            return;
-        }
-        
-        isDragging = true;
-        isHovering = false;
-        marquee.classList.add('paused');
-        marquee.classList.remove('transitioning'); // Remove transition during drag
-        
-        // Get the starting position
-        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-        startX = clientX;
-        currentX = clientX;
-        
-        // Get current transform position
-        const transform = window.getComputedStyle(marquee).transform;
-        if (transform && transform !== 'none') {
-            const matrix = new DOMMatrix(transform);
-            dragStartPosition = Math.abs(matrix.m41);
-        } else {
-            dragStartPosition = 0;
-        }
-        
-        // Change cursor to grabbing
-        marqueeWrapper.style.cursor = 'grabbing';
-        marqueeWrapper.style.userSelect = 'none';
-        
-        // Prevent text selection on mobile
-        e.preventDefault();
-    }
-    
-    function drag(e) {
-        if (!isDragging) return;
-        
-        e.preventDefault();
-        
-        // Get current position
-        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-        currentX = clientX;
-        
-        // Calculate drag distance
-        const dragDistance = startX - currentX;
-        const newPosition = Math.max(0, dragStartPosition + dragDistance);
-        
-        // Apply the transform immediately without transition
-        requestAnimationFrame(() => {
-            marquee.style.transform = `translateX(-${newPosition}px)`;
-        });
-    }
-    
-    function endDrag(e) {
-        if (!isDragging) return;
-        
-        isDragging = false;
-        marqueeWrapper.style.cursor = 'grab';
-        marqueeWrapper.style.userSelect = 'auto';
-        
-        // Add transition for snapping
-        marquee.classList.add('transitioning');
-        
-        // Calculate which card we should snap to
-        const transform = window.getComputedStyle(marquee).transform;
-        let currentPosition = 0;
-        if (transform && transform !== 'none') {
-            const matrix = new DOMMatrix(transform);
-            currentPosition = Math.abs(matrix.m41);
-        }
-        
-        const cardWidth = getCardWidth();
-        const gap = getGap();
-        const totalCardWidth = cardWidth + gap;
-        
-        // Calculate velocity for momentum
-        const dragDistance = startX - currentX;
-        const velocity = Math.abs(dragDistance) > 50 ? Math.sign(dragDistance) : 0;
-        
-        // Find the closest card index with velocity consideration
-        let targetIndex = Math.round(currentPosition / totalCardWidth);
-        
-        // Add velocity influence
-        if (velocity !== 0) {
-            targetIndex += velocity;
-        }
-        
-        // Limit to valid range
-        currentCardIndex = Math.max(0, Math.min(targetIndex, 7)); // Limit to 0-7
-        
-        // Snap to the closest card
-        const snapPosition = getCardPosition(currentCardIndex);
-        marquee.style.transform = `translateX(-${snapPosition}px)`;
-        
-        // Remove transition class after animation
-        setTimeout(() => {
-            marquee.classList.remove('transitioning');
-        }, 300);
-        
-        // Resume auto-scroll after a delay
-        setTimeout(() => {
-            if (!isHovering && !isVideoPlaying) {
-                marquee.classList.remove('paused');
-            }
-        }, 1000);
-    }
- 
-    playPauseButtons.forEach((button, index) => {
-        const video = videos[index];
-        const card = testimonialCards[index];
-        const thumbnail = thumbnails[index];
-        const testimonialInfo = card.querySelector('.testimonial-info');
- 
-        button.addEventListener('click', () => {
-            if (video.paused) {
-                video.play();
-                button.innerHTML = '<i class="fa-solid fa-circle-pause"></i>'; // Show the pause icon
-                thumbnail.style.display = 'none'; // Hide the thumbnail when playing
-                testimonialInfo.style.display = 'none'; // Hide the testimonial info when playing
-                card.classList.add('playing'); // Add 'playing' class to hide the button when not hovered
-            } else {
-                video.pause();
-                button.innerHTML = '<i class="fa-solid fa-circle-play"></i>'; // Show the play icon
-                testimonialInfo.style.display = 'flex'; // Show the testimonial info when paused
-                card.classList.remove('playing'); // Remove 'playing' class to show the button when paused
-            }
-        });
- 
-        video.addEventListener('play', () => {
-            card.classList.add('playing');
-            thumbnail.style.display = 'none';
-            testimonialInfo.style.display = 'none'; // Hide the testimonial info when playing
-            isVideoPlaying = true;
-        });
- 
-        video.addEventListener('pause', () => {
-            card.classList.remove('playing');
-            button.innerHTML = '<i class="fa-solid fa-circle-play"></i>';
-            testimonialInfo.style.display = 'flex'; // Show the testimonial info when paused
-            // Check if any other video is playing
-            isVideoPlaying = Array.from(videos).some(v => !v.paused);
-        });
- 
-        video.addEventListener('ended', () => {
-            card.classList.remove('playing');
-            button.innerHTML = '<i class="fa-solid fa-circle-play"></i>';
-            testimonialInfo.style.display = 'flex'; // Show the testimonial info when video ends
-            // Check if any other video is playing
-            isVideoPlaying = Array.from(videos).some(v => !v.paused);
-        });
-    });
-</script>
-</body>
-</html>
+<script src="test.js"></script>

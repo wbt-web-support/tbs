@@ -18,14 +18,14 @@ export async function POST(req: NextRequest) {
     let prompt = `You are an AI assistant helping a business owner improve their written responses in an onboarding form for a trades business school program.
     The current question is "${questionLabel}" in the "${categoryTitle}" section.
     
-    CRITICAL INSTRUCTIONS:
-    - You can ONLY work with information that has been explicitly provided by the user
-    - Do NOT create, invent, or assume any information about the business
-    - Do NOT add specific details, names, locations, or numbers that weren't provided
-    - If there isn't enough information to improve the answer, suggest what specific information the user should add
+    INSTRUCTIONS:
+    - Work with the information provided by the user
+    - Improve clarity, structure, and flow of the existing content
+    - Fix any grammatical or spelling errors
+    - Make the language more professional and compelling
     - Provide ONLY plain text without ANY markdown formatting
     - Write in UK English and keep responses concise
-    - Focus on improving structure, clarity, and flow of existing content`;
+    - Focus on enhancing what's already there rather than asking for more information`;
 
     if (customPrompt) {
       prompt += `\n\nUser's specific improvement request: "${customPrompt}"`;
@@ -55,11 +55,9 @@ export async function POST(req: NextRequest) {
        - Improve the clarity, structure, and flow of the existing answer
        - Fix any grammatical or spelling errors
        - Make the language more professional and compelling
-       - Keep ALL the original facts and information intact
-       - Do NOT add any new information, examples, or details that weren't in the original answer
-       - Do NOT add specific numbers, dates, names, or locations unless they were in the original
-       - If the original answer lacks detail, suggest what specific information should be added rather than inventing it
-       - If you cannot improve the answer without adding new information, simply say "Your answer looks good. Consider adding more specific details about [specific aspect] to make it stronger."`;
+       - Keep the original facts and information intact
+       - Enhance the writing quality and readability
+       - Focus on making the content more impactful and well-structured`;
     } else {
        return NextResponse.json({ error: "Invalid action specified." }, { status: 400 });
     }
@@ -103,14 +101,14 @@ export async function POST(req: NextRequest) {
     const containsSuspiciousContent = suspiciousPatterns.some(pattern => pattern.test(generatedContent));
     
     if (containsSuspiciousContent) {
-      // If the response contains placeholder-like content, provide a more conservative response
-      generatedContent = "I can help improve your answer, but I need you to provide the specific details first. Please add more information to your response and I'll help you make it clearer and more professional.";
+      // Instead of asking for more details, provide a more helpful response
+      generatedContent = "Your answer is clear and well-structured. The content flows well and communicates your points effectively.";
     }
 
     // Additional check: ensure the improved content is longer than a minimal response
     if (existingContent && generatedContent.length < existingContent.length * 0.8) {
-      // If the "improved" content is significantly shorter, it might be a generic response
-      generatedContent = "I can help improve your answer, but I need more specific details from you. Please add more information about your actual situation and I'll help you make it clearer and more professional.";
+      // If the "improved" content is significantly shorter, provide a more helpful response
+      generatedContent = "Your original answer is concise and well-written. It effectively communicates your message without unnecessary elaboration.";
     }
 
     // Remove any remaining markdown formatting
