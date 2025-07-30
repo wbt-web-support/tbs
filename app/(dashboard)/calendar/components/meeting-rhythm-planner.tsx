@@ -877,13 +877,9 @@ export default function MeetingRhythmPlanner() {
     date: "",
     leaves: []
   });
-  const [adminPanelDialog, setAdminPanelDialog] = useState<{
-    isOpen: boolean;
-    activeTab: string;
-  }>({
-    isOpen: false,
-    activeTab: "approvals"
-  });
+  const [approvalsDialog, setApprovalsDialog] = useState<boolean>(false);
+  const [entitlementsDialog, setEntitlementsDialog] = useState<boolean>(false);
+  const [teamMembersDialog, setTeamMembersDialog] = useState<boolean>(false);
   const [userLeaveInfo, setUserLeaveInfo] = useState<{
     total_entitlement: number;
     used_leave_days: number;
@@ -899,6 +895,7 @@ export default function MeetingRhythmPlanner() {
     total_entitlement_days: 25,
     year: new Date().getFullYear()
   });
+  const [teamMembersDetails, setTeamMembersDetails] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
@@ -1061,6 +1058,94 @@ export default function MeetingRhythmPlanner() {
     }
   };
 
+  const fetchTeamMembersDetails = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!userInfo?.team_id) return;
+
+      // Get all team members
+      const { data: teamMembers, error: teamError } = await supabase
+        .from('business_info')
+        .select('user_id, full_name, email')
+        .eq('team_id', userInfo.team_id)
+        .order('full_name', { ascending: true });
+
+      if (teamError) throw teamError;
+
+      // Get current year
+      const currentYear = new Date().getFullYear();
+
+      // Get leave entitlements for the team
+      const { data: entitlementsData } = await supabase
+        .from('leave_entitlements')
+        .select('total_entitlement_days')
+        .eq('team_id', userInfo.team_id)
+        .eq('year', currentYear)
+        .single();
+
+      const totalEntitlement = entitlementsData?.total_entitlement_days || 25;
+
+      // Get all leaves for team members for current year
+      const teamMemberIds = teamMembers.map((member: any) => member.user_id);
+      const { data: allLeaves, error: leavesError } = await supabase
+        .from('team_leaves')
+        .select('*')
+        .in('user_id', teamMemberIds)
+        .gte('start_date', `${currentYear}-01-01`)
+        .lte('end_date', `${currentYear}-12-31`)
+        .order('start_date', { ascending: true });
+
+      if (leavesError) throw leavesError;
+
+      // Calculate leave details for each team member
+      const membersWithDetails = await Promise.all(
+        teamMembers.map(async (member: any) => {
+          // Get leave entitlement info for this member
+          const { data: leaveInfo } = await supabase.rpc('calculate_remaining_leave_days', {
+            p_user_id: member.user_id,
+            p_year: currentYear
+          });
+
+          const memberLeaves = allLeaves?.filter((leave: any) => leave.user_id === member.user_id) || [];
+          
+          // Calculate statistics
+          const approvedLeaves = memberLeaves.filter((leave: any) => leave.status === 'approved');
+          const pendingLeaves = memberLeaves.filter((leave: any) => leave.status === 'pending');
+          const rejectedLeaves = memberLeaves.filter((leave: any) => leave.status === 'rejected');
+          
+          const totalDaysTaken = approvedLeaves.reduce((sum: number, leave: any) => sum + (leave.duration_days || 0), 0);
+          const totalDaysPending = pendingLeaves.reduce((sum: number, leave: any) => sum + (leave.duration_days || 0), 0);
+
+          return {
+            ...member,
+            total_entitlement: totalEntitlement,
+            used_leave_days: leaveInfo?.[0]?.used_leave_days || 0,
+            bank_holidays: leaveInfo?.[0]?.bank_holidays || 0,
+            remaining_days: leaveInfo?.[0]?.remaining_days || totalEntitlement,
+            total_days_taken: totalDaysTaken,
+            total_days_pending: totalDaysPending,
+            approved_leaves: approvedLeaves.length,
+            pending_leaves: pendingLeaves.length,
+            rejected_leaves: rejectedLeaves.length,
+            all_leaves: memberLeaves
+          };
+        })
+      );
+
+      setTeamMembersDetails(membersWithDetails);
+    } catch (error: any) {
+      console.error("Error fetching team members details:", error);
+    }
+  };
+
   const fetchLeaves = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1163,6 +1248,7 @@ export default function MeetingRhythmPlanner() {
       if (isAdmin) {
         fetchPendingLeaves();
         fetchEntitlements();
+        fetchTeamMembersDetails();
     }
     }
   }, [selectedYear, showLeaves, isAdmin]);
@@ -1919,24 +2005,42 @@ export default function MeetingRhythmPlanner() {
               onCheckedChange={setShowLeaves}
               className="data-[state=checked]:bg-blue-600"
             />
-            <span className="text-sm text-gray-600">Leaves</span>
+            <span className="text-sm text-gray-600">Holidays</span>
           </div>
           {isAdmin && showLeaves && (
-            <Button 
-              onClick={() => setAdminPanelDialog({ isOpen: true, activeTab: "approvals" })}
-              variant="outline"
-              className="border-orange-200 text-orange-700 hover:bg-orange-50"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Admin Panel
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => setApprovalsDialog(true)}
+                variant="outline"
+                className="border-orange-200 text-orange-700 hover:bg-orange-50"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Approvals ({pendingLeaves.length})
+              </Button>
+              <Button 
+                onClick={() => setEntitlementsDialog(true)}
+                variant="outline"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Entitlements
+              </Button>
+              <Button 
+                onClick={() => setTeamMembersDialog(true)}
+                variant="outline"
+                className="border-green-200 text-green-700 hover:bg-green-50"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Team Members ({teamMembersDetails.length})
+              </Button>
+            </div>
           )}
           <Button 
             onClick={showLeaves ? handleAddLeave : handleAddMeeting} 
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="mr-2 h-4 w-4" />
-            {showLeaves ? "Add Leave" : "Add Meeting"}
+            {showLeaves ? "Add Holiday" : "Add Meeting"}
           </Button>
         </div>
       </div>
@@ -2059,7 +2163,7 @@ export default function MeetingRhythmPlanner() {
                   <div>
                     <div className="text-sm font-medium">
                       {showLeaves 
-                        ? "Leave Requests" 
+                        ? "Holiday Requests" 
                         : (showPastMeetings ? "All Meetings" : "Upcoming Meetings")
                       }
                     </div>
@@ -2090,8 +2194,8 @@ export default function MeetingRhythmPlanner() {
                         <div className="bg-gray-50 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                           <Users className="h-8 w-8 text-gray-400" />
                         </div>
-                        <p className="text-sm font-medium text-gray-600">No leave requests</p>
-                        <p className="text-xs text-gray-400 mt-1">Add your first leave request to get started</p>
+                        <p className="text-sm font-medium text-gray-600">No holiday requests</p>
+                        <p className="text-xs text-gray-400 mt-1">Add your first holiday request to get started</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -2271,152 +2375,274 @@ export default function MeetingRhythmPlanner() {
         />
       )}
 
-      {/* Admin Panel Dialog */}
-      <Dialog open={adminPanelDialog.isOpen} onOpenChange={(open) => setAdminPanelDialog({ ...adminPanelDialog, isOpen: open })}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-hidden">
+            {/* Approvals Dialog */}
+      <Dialog open={approvalsDialog} onOpenChange={setApprovalsDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Admin Panel
+              <CheckCircle className="h-5 w-5" />
+              Leave Approvals ({pendingLeaves.length})
             </DialogTitle>
           </DialogHeader>
           
-          <Tabs value={adminPanelDialog.activeTab} onValueChange={(value) => setAdminPanelDialog({ ...adminPanelDialog, activeTab: value })} className="h-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="approvals" className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Leave Approvals ({pendingLeaves.length})
-              </TabsTrigger>
-              <TabsTrigger value="entitlements" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Entitlements
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="approvals" className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
-              {pendingLeaves.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">All Caught Up!</h3>
-                  <p className="text-gray-500">No pending leave requests to review.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingLeaves.map((leave) => (
-                    <Card key={leave.id} className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{leave.user_name}</h3>
-                          <p className="text-sm text-gray-500">
-                            {format(new Date(leave.start_date), "MMM d")} - {format(new Date(leave.end_date), "MMM d, yyyy")} 
-                            ({leave.duration_days} day{leave.duration_days !== 1 ? 's' : ''})
-                          </p>
-                          {leave.description && (
-                            <p className="text-sm text-gray-600 mt-1">{leave.description}</p>
-                          )}
-                        </div>
-                        <Badge variant="secondary">Pending</Badge>
+          <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
+            {pendingLeaves.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">All Caught Up!</h3>
+                <p className="text-gray-500">No pending leave requests to review.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingLeaves.map((leave) => (
+                  <Card key={leave.id} className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{leave.user_name}</h3>
+                        <p className="text-sm text-gray-500">
+                          {format(new Date(leave.start_date), "MMM d")} - {format(new Date(leave.end_date), "MMM d, yyyy")} 
+                          ({leave.duration_days} day{leave.duration_days !== 1 ? 's' : ''})
+                        </p>
+                        {leave.description && (
+                          <p className="text-sm text-gray-600 mt-1">{leave.description}</p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setSelectedLeaveForApproval(leave);
-                            setApprovalAction('approve');
-                            setApprovalComments('');
-                          }}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
+                      <Badge variant="secondary">Pending</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setSelectedLeaveForApproval(leave);
+                          setApprovalAction('approve');
+                          setApprovalComments('');
+                        }}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setSelectedLeaveForApproval(leave);
+                          setApprovalAction('reject');
+                          setApprovalComments('');
+                        }}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Entitlements Dialog */}
+      <Dialog open={entitlementsDialog} onOpenChange={setEntitlementsDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Leave Entitlements
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Add/Edit Entitlement</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="entitlement-year">Year</Label>
+                    <Input
+                      id="entitlement-year"
+                      type="number"
+                      value={entitlementForm.year}
+                      onChange={(e) => setEntitlementForm({ ...entitlementForm, year: parseInt(e.target.value) })}
+                      min={new Date().getFullYear() - 5}
+                      max={new Date().getFullYear() + 5}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="entitlement-days">Total Days</Label>
+                    <Input
+                      id="entitlement-days"
+                      type="number"
+                      value={entitlementForm.total_entitlement_days}
+                      onChange={(e) => setEntitlementForm({ ...entitlementForm, total_entitlement_days: parseInt(e.target.value) })}
+                      min="1"
+                      max="365"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleSaveEntitlement} disabled={isLoading} className="w-full">
+                  Save Entitlement
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Current Entitlements</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {entitlements.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-gray-500">No entitlements configured yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {entitlements.map((entitlement) => (
+                      <div key={entitlement.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <h3 className="font-medium">{entitlement.year}</h3>
+                          <p className="text-sm text-gray-500">{entitlement.total_entitlement_days} days</p>
+                        </div>
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => {
-                            setSelectedLeaveForApproval(leave);
-                            setApprovalAction('reject');
-                            setApprovalComments('');
-                          }}
+                          onClick={() => handleDeleteEntitlement(entitlement.id)}
                         >
-                          <X className="h-4 w-4 mr-1" />
-                          Reject
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="entitlements" className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Add/Edit Entitlement</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="entitlement-year">Year</Label>
-                      <Input
-                        id="entitlement-year"
-                        type="number"
-                        value={entitlementForm.year}
-                        onChange={(e) => setEntitlementForm({ ...entitlementForm, year: parseInt(e.target.value) })}
-                        min={new Date().getFullYear() - 5}
-                        max={new Date().getFullYear() + 5}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="entitlement-days">Total Days</Label>
-                      <Input
-                        id="entitlement-days"
-                        type="number"
-                        value={entitlementForm.total_entitlement_days}
-                        onChange={(e) => setEntitlementForm({ ...entitlementForm, total_entitlement_days: parseInt(e.target.value) })}
-                        min="1"
-                        max="365"
-                      />
-                    </div>
+                    ))}
                   </div>
-                  <Button onClick={handleSaveEntitlement} disabled={isLoading} className="w-full">
-                    Save Entitlement
-                  </Button>
-                </CardContent>
-              </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Current Entitlements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {entitlements.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-500">No entitlements configured yet.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {entitlements.map((entitlement) => (
-                        <div key={entitlement.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <h3 className="font-medium">{entitlement.year}</h3>
-                            <p className="text-sm text-gray-500">{entitlement.total_entitlement_days} days</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteEntitlement(entitlement.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+      {/* Team Members Dialog */}
+      <Dialog open={teamMembersDialog} onOpenChange={setTeamMembersDialog}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Team Members ({teamMembersDetails.length})
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
+            {teamMembersDetails.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Team Members</h3>
+                <p className="text-gray-500">No team members found.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {teamMembersDetails.map((member) => (
+                  <Card key={member.user_id} className="p-4">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm"
+                          style={{ backgroundColor: teamMemberColors.get(member.user_id) || TEAM_MEMBER_COLORS[0] }}
+                        >
+                          {member.full_name ? member.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
                         </div>
-                      ))}
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{member.full_name}</h3>
+                          <p className="text-sm text-gray-500">{member.email}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-gray-900">
+                          {member.remaining_days} days left
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          of {member.total_entitlement} total
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+
+                    {/* Leave Statistics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{member.total_days_taken}</div>
+                        <div className="text-xs text-green-700">Days Taken</div>
+                      </div>
+                      <div className="text-center p-3 bg-orange-50 rounded-lg">
+                        <div className="text-lg font-bold text-orange-600">{member.total_days_pending}</div>
+                        <div className="text-xs text-orange-700">Days Pending</div>
+                      </div>
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <div className="text-lg font-bold text-blue-600">{member.bank_holidays}</div>
+                        <div className="text-xs text-blue-700">Bank Holidays</div>
+                      </div>
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <div className="text-lg font-bold text-gray-600">{member.remaining_days}</div>
+                        <div className="text-xs text-gray-700">Remaining</div>
+                      </div>
+                    </div>
+
+                    {/* Leave Request Counts */}
+                    <div className="flex items-center justify-between text-sm mb-3">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          <span className="text-gray-600">{member.approved_leaves} Approved</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                          <span className="text-gray-600">{member.pending_leaves} Pending</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <span className="text-gray-600">{member.rejected_leaves} Rejected</span>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {member.all_leaves.length} total requests
+                      </div>
+                    </div>
+
+                    {/* Recent Leaves */}
+                    {member.all_leaves.length > 0 && (
+                      <div className="border-t pt-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Leave Requests</h4>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {member.all_leaves
+                            .sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
+                            .slice(0, 3)
+                            .map((leave: any) => (
+                              <div key={leave.id} className="flex items-center justify-between text-xs p-2 bg-gray-50 rounded">
+                                <div>
+                                  <span className="font-medium">
+                                    {format(new Date(leave.start_date), "MMM d")} - {format(new Date(leave.end_date), "MMM d")}
+                                  </span>
+                                  <span className="text-gray-500 ml-2">({leave.duration_days} days)</span>
+                                </div>
+                                <Badge 
+                                  className="text-xs"
+                                  variant={
+                                    leave.status === 'approved' ? 'default' : 
+                                    leave.status === 'pending' ? 'secondary' : 'destructive'
+                                  }
+                                >
+                                  {leave.status}
+                                </Badge>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

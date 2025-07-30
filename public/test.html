@@ -85,11 +85,16 @@
 
     .solution-pricing-content-inner {
         padding: 30px;
-        border-radius: 20px;
+        border-radius: 15px;
         border: solid 4px #44cbc6;
         z-index: 1111;
         position: relative;
         background: #101318;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        justify-content: space-between;
     }
 
     .solution-payment-tab {
@@ -175,12 +180,20 @@
         margin: 0 auto;
     }
 
+    .solution-card-list {
+        padding-left: 18px !important;
+        font-size: 14px;
+        color: var(--solution-text-light);
+        margin-bottom: 10px !important;
+        text-align: left;
+        line-height: 1.6;
+    }
 
 
     /* Solution Pricing Content */
     .solution-pricing-content {
         padding: 30px 30px;
-        background: #ffffff08;
+        background: #101318;
         border-radius: 15px;
         border: 1px solid #ffffff14;
         box-shadow: var(--solution-shadow);
@@ -535,8 +548,18 @@
                         class="solution-card-image">
                 </div>
                 <h5 class="solution-title">Dominate Package</h5>
-                <p class="solution-card-description">A complete marketing solution with SEO, social media management,
-                    and exclusive masterminds built to position your trade business as the market leader.</p>
+
+                <ul class="solution-card-list">
+                    <li>Paid Ads Improvements</li>
+                    <li>A.I. Powered SEO Dominance</li>
+                    <li>Omni-Channel Marketing</li>
+                    <li>Conversion Rate Optimisation</li>
+                    <li>A.I. Driven Funnel Upgrades</li>
+                    <li>Retargeting & Retention Upgrades</li>
+                    <li>Monthly Strategy Session & Support</li>
+                    <li>New Exclusivity Agreements</li>
+
+                </ul>
 
                 <!-- Dominate Single Payment -->
                 <div class="solution-payment-option" data-payment="single">
@@ -569,24 +592,34 @@
                 </div>
             </div>
 
-              <!-- WBT X TBS Package -->
-              <div class="solution-pricing-content featured">
+            <!-- WBT X TBS Package -->
+            <div class="solution-pricing-content featured">
                 <p class="solution-limited-time-offer"> LIMITED TIME OFFER </p>
                 <div class="solution-pricing-content-inner">
-                    <div class="solution-save-tag">SAVE 12.5%</div>
-                    <div class="solution-card-images-wrapper">
-                        <div class="solution-card-image-container">
-                            <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon"
-                                class="solution-card-image">
+
+                    <div class="first-half">
+
+                        <div class="solution-save-tag">SAVE 12.5%</div>
+                        <div class="solution-card-images-wrapper">
+                            <div class="solution-card-image-container">
+                                <img src="https://webuildtrades.com/wp-content/uploads/wbt.png" alt="WBT Icon"
+                                    class="solution-card-image">
+                            </div>
+                            <div class="solution-card-image-container">
+                                <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon"
+                                    class="solution-card-image">
+                            </div>
                         </div>
-                        <div class="solution-card-image-container">
-                            <img src="https://webuildtrades.com/wp-content/uploads/tbs.png" alt="TBS Icon"
-                                class="solution-card-image">
-                        </div>
+                        <h5 class="solution-title">WBT x TBS Package</h5>
+                        <p class="solution-card-description">The Ultimate Trades Growth Package includes both the Trades
+                            Business School and Dominate programs giving you everything you need to systemise your
+                            business operations and supercharge growth with A.I. powered marketing and sales strategies.
+                        </p>
+
+
+
+
                     </div>
-                    <h5 class="solution-title">WBT x TBS Package</h5>
-                    <p class="solution-card-description">A powerful combo of business coaching and full-scale marketing
-                        systemise operations, scale growth, and dominate your trade niche from every angle.</p>
 
                     <!-- WBT X TBS Single Payment -->
                     <div class="solution-payment-option" data-payment="single">
@@ -611,13 +644,17 @@
                             <span class="solution-amount">£3,500</span>
                             <span class="solution-vat">+VAT</span>
                         </div>
+
+
                         <a href="https://link.fastpaydirect.com/payment-link/68877daaddc6a67f18c59876"
                             class="solution-select-btn" draggable="false">
                             <span class="solution-hand-icon"><img draggable="false" role="img" class="emoji" alt="👉"
                                     src="https://s.w.org/images/core/emoji/16.0.1/svg/1f449.svg"></span>
                             SELECT PLAN
                         </a>
+
                     </div>
+
                 </div>
             </div>
 
@@ -628,8 +665,20 @@
                         class="solution-card-image">
                 </div>
                 <h5 class="solution-title">Trades Business School</h5>
-                <p class="solution-card-description">A 16-week program with expert coaching, step-by-step systems, and a
-                    paid partnership opportunity to help you streamline operations and build a sellable business.</p>
+
+                <ul class="solution-card-list">
+
+                    <li>3-1 Onboarding Strategy Session</li>
+                    <li>Growth & Fulfilment Machines</li>
+                    <li>Business Battle Plan</li>
+                    <li>Chain of Command (Org Chart)</li>
+                    <li>Tactical Playbooks (SOP's)</li>
+                    <li>CEO KPI Dashboard</li>
+                    <li>Fortnightly Zoom Q&A (12 Months)</li>
+                    <li>Quarterly 1-1's</li>
+
+                </ul>
+
 
                 <!-- TBS Single Payment -->
                 <div class="solution-payment-option" data-payment="single">
@@ -662,7 +711,7 @@
                 </div>
             </div>
 
-          
+
 
         </div>
     </div>
