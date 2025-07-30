@@ -239,8 +239,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-background flex flex-col transform transition-transform duration-200 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className="flex h-16 items-center justify-between px-6 border-b">
-          <h1 className="text-lg font-semibold text-gray-900">Command HQ</h1>
+        <div className="flex h-16 items-center justify-center px-6 border-b">
+          <img src="/logo.png" alt="Command HQ" className="h-10 mr-2" />
           <button 
             onClick={onClose}
             className="lg:hidden p-2 hover:bg-gray-100 rounded-md"

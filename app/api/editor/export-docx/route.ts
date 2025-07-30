@@ -15,7 +15,16 @@ import {
   WidthType,
   LevelFormat,
   NumberFormat,
-  convertInchesToTwip
+  convertInchesToTwip,
+  Tab,
+  TabStopType,
+  TabStopPosition,
+  PageNumber,
+  Header,
+  Footer,
+  ExternalHyperlink,
+  UnderlineType,
+  ShadingType
 } from 'docx';
 import { JSDOM } from 'jsdom';
 
@@ -35,6 +44,29 @@ async function getUserId(req: NextRequest) {
   }
 }
 
+function extractDocumentTitle(html: string): string {
+  const dom = new JSDOM(html);
+  const doc = dom.window.document;
+  
+  // Look for the first h1, h2, or p element with meaningful content
+  const selectors = ['h1', 'h2', 'p'];
+  
+  for (const selector of selectors) {
+    const element = doc.querySelector(selector);
+    if (element && element.textContent && element.textContent.trim().length > 0) {
+      const text = element.textContent.trim();
+      // Clean up the text for filename use
+      return text
+        .replace(/[^a-zA-Z0-9\s\-_]/g, '') // Remove special characters except spaces, hyphens, underscores
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .trim()
+        .substring(0, 50); // Limit to 50 characters
+    }
+  }
+  
+  return 'document'; // Fallback
+}
+
 function parseHTMLToDocxElements(html: string) {
   const dom = new JSDOM(html);
   const doc = dom.window.document;
@@ -46,7 +78,12 @@ function parseHTMLToDocxElements(html: string) {
     if (node.nodeType === node.TEXT_NODE) {
       const text = node.textContent?.trim();
       if (text) {
-        results.push(new TextRun({ text }));
+        results.push(new TextRun({ 
+          text,
+          font: 'Calibri',
+          size: 24, // 12pt
+          color: '2F2F2F'
+        }));
       }
       return results;
     }
@@ -58,22 +95,52 @@ function parseHTMLToDocxElements(html: string) {
       switch (tagName) {
         case 'h1':
           results.push(new Paragraph({
-            text: element.textContent || '',
+            children: [
+              new TextRun({
+                text: element.textContent || '',
+                bold: true,
+                size: 36, // 18pt
+                color: '1F4E79',
+                font: 'Calibri'
+              })
+            ],
             heading: HeadingLevel.HEADING_1,
+            spacing: { before: 480, after: 240 }, // 24pt before, 12pt after
+            alignment: AlignmentType.LEFT,
           }));
           break;
 
         case 'h2':
           results.push(new Paragraph({
-            text: element.textContent || '',
+            children: [
+              new TextRun({
+                text: element.textContent || '',
+                bold: true,
+                size: 32, // 16pt
+                color: '2E5984',
+                font: 'Calibri'
+              })
+            ],
             heading: HeadingLevel.HEADING_2,
+            spacing: { before: 360, after: 180 }, // 18pt before, 9pt after
+            alignment: AlignmentType.LEFT,
           }));
           break;
 
         case 'h3':
           results.push(new Paragraph({
-            text: element.textContent || '',
+            children: [
+              new TextRun({
+                text: element.textContent || '',
+                bold: true,
+                size: 28, // 14pt
+                color: '3A6EA5',
+                font: 'Calibri'
+              })
+            ],
             heading: HeadingLevel.HEADING_3,
+            spacing: { before: 300, after: 120 }, // 15pt before, 6pt after
+            alignment: AlignmentType.LEFT,
           }));
           break;
 
@@ -81,8 +148,18 @@ function parseHTMLToDocxElements(html: string) {
         case 'h5':
         case 'h6':
           results.push(new Paragraph({
-            text: element.textContent || '',
+            children: [
+              new TextRun({
+                text: element.textContent || '',
+                bold: true,
+                size: 26, // 13pt
+                color: '4A7CBE',
+                font: 'Calibri'
+              })
+            ],
             heading: HeadingLevel.HEADING_4,
+            spacing: { before: 240, after: 120 }, // 12pt before, 6pt after
+            alignment: AlignmentType.LEFT,
           }));
           break;
 
@@ -92,7 +169,12 @@ function parseHTMLToDocxElements(html: string) {
             if (child.nodeType === child.TEXT_NODE) {
               const text = child.textContent?.trim();
               if (text) {
-                textRuns.push(new TextRun({ text }));
+                textRuns.push(new TextRun({ 
+                  text,
+                  font: 'Calibri',
+                  size: 24, // 12pt
+                  color: '2F2F2F'
+                }));
               }
             } else if (child.nodeType === child.ELEMENT_NODE) {
               const childElement = child as Element;
@@ -103,39 +185,112 @@ function parseHTMLToDocxElements(html: string) {
                 switch (childTagName) {
                   case 'strong':
                   case 'b':
-                    textRuns.push(new TextRun({ text, bold: true }));
+                    textRuns.push(new TextRun({ 
+                      text, 
+                      bold: true,
+                      font: 'Calibri',
+                      size: 24,
+                      color: '2F2F2F'
+                    }));
                     break;
                   case 'em':
                   case 'i':
-                    textRuns.push(new TextRun({ text, italics: true }));
+                    textRuns.push(new TextRun({ 
+                      text, 
+                      italics: true,
+                      font: 'Calibri',
+                      size: 24,
+                      color: '2F2F2F'
+                    }));
                     break;
                   case 'u':
-                    textRuns.push(new TextRun({ text, underline: { type: "single" } }));
+                    textRuns.push(new TextRun({ 
+                      text, 
+                      underline: { type: UnderlineType.SINGLE },
+                      font: 'Calibri',
+                      size: 24,
+                      color: '2F2F2F'
+                    }));
                     break;
                   case 's':
                   case 'strike':
-                    textRuns.push(new TextRun({ text, strike: true }));
+                    textRuns.push(new TextRun({ 
+                      text, 
+                      strike: true,
+                      font: 'Calibri',
+                      size: 24,
+                      color: '2F2F2F'
+                    }));
                     break;
                   case 'code':
-                    textRuns.push(new TextRun({ text, font: 'Courier New' }));
+                    textRuns.push(new TextRun({ 
+                      text, 
+                      font: 'Consolas',
+                      size: 22, // 11pt
+                      color: '2F2F2F',
+                      shading: { type: ShadingType.CLEAR, color: 'F5F5F5' }
+                    }));
+                    break;
+                  case 'a':
+                    const href = childElement.getAttribute('href');
+                    if (href) {
+                      textRuns.push(new TextRun({ 
+                        text,
+                        font: 'Calibri',
+                        size: 24,
+                        color: '0563C1',
+                        underline: { type: UnderlineType.SINGLE }
+                      }));
+                    } else {
+                      textRuns.push(new TextRun({ 
+                        text,
+                        font: 'Calibri',
+                        size: 24,
+                        color: '2F2F2F'
+                      }));
+                    }
                     break;
                   default:
-                    textRuns.push(new TextRun({ text }));
+                    textRuns.push(new TextRun({ 
+                      text,
+                      font: 'Calibri',
+                      size: 24,
+                      color: '2F2F2F'
+                    }));
                 }
               }
             }
           });
           
           if (textRuns.length > 0) {
-            results.push(new Paragraph({ children: textRuns }));
+            results.push(new Paragraph({ 
+              children: textRuns,
+              spacing: { before: 120, after: 120 }, // 6pt before and after
+              alignment: AlignmentType.JUSTIFIED,
+              indent: { firstLine: 0 }
+            }));
           }
           break;
 
         case 'ul':
           element.querySelectorAll('li').forEach((li, index) => {
             results.push(new Paragraph({
-              text: li.textContent || '',
-              bullet: { level: 0 },
+              children: [
+                new TextRun({
+                  text: '• ',
+                  font: 'Calibri',
+                  size: 24,
+                  color: '2F2F2F'
+                }),
+                new TextRun({
+                  text: li.textContent || '',
+                  font: 'Calibri',
+                  size: 24,
+                  color: '2F2F2F'
+                })
+              ],
+              spacing: { before: 60, after: 60 }, // 3pt before and after
+              indent: { left: convertInchesToTwip(0.25), hanging: convertInchesToTwip(0.25) }
             }));
           });
           break;
@@ -143,23 +298,47 @@ function parseHTMLToDocxElements(html: string) {
         case 'ol':
           element.querySelectorAll('li').forEach((li, index) => {
             results.push(new Paragraph({
-              text: li.textContent || '',
-              numbering: {
-                reference: 'default-numbering',
-                level: 0,
-              },
+              children: [
+                new TextRun({
+                  text: `${index + 1}. `,
+                  font: 'Calibri',
+                  size: 24,
+                  color: '2F2F2F',
+                  bold: true
+                }),
+                new TextRun({
+                  text: li.textContent || '',
+                  font: 'Calibri',
+                  size: 24,
+                  color: '2F2F2F'
+                })
+              ],
+              spacing: { before: 60, after: 60 }, // 3pt before and after
+              indent: { left: convertInchesToTwip(0.25), hanging: convertInchesToTwip(0.25) }
             }));
           });
           break;
 
         case 'blockquote':
           results.push(new Paragraph({
-            text: element.textContent || '',
-            spacing: { before: 200, after: 200 },
+            children: [
+              new TextRun({
+                text: element.textContent || '',
+                font: 'Calibri',
+                size: 22, // 11pt
+                color: '666666',
+                italics: true
+              })
+            ],
+            spacing: { before: 240, after: 240 }, // 12pt before and after
             border: {
-              left: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC' },
+              left: { style: BorderStyle.SINGLE, size: 8, color: 'CCCCCC' },
+              top: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+              right: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' }
             },
-            indent: { left: 720 }, // 0.5 inch
+            indent: { left: convertInchesToTwip(0.5) },
+            shading: { type: ShadingType.CLEAR, color: 'F9F9F9' }
           }));
           break;
 
@@ -170,8 +349,23 @@ function parseHTMLToDocxElements(html: string) {
             tr.querySelectorAll('td, th').forEach(cell => {
               const isHeader = cell.tagName.toLowerCase() === 'th';
               cells.push(new TableCell({
-                children: [new Paragraph({ text: cell.textContent || '' })],
-                shading: isHeader ? { fill: 'F2F2F2' } : undefined,
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: cell.textContent || '',
+                        font: 'Calibri',
+                        size: isHeader ? 26 : 24, // 13pt for headers, 12pt for content
+                        color: isHeader ? 'FFFFFF' : '2F2F2F',
+                        bold: isHeader
+                      })
+                    ],
+                    spacing: { before: 120, after: 120 },
+                    alignment: AlignmentType.LEFT
+                  })
+                ],
+                shading: isHeader ? { type: ShadingType.CLEAR, color: '2E5984' } : { type: ShadingType.CLEAR, color: 'FFFFFF' },
+                margins: { top: 120, bottom: 120, left: 120, right: 120 }
               }));
             });
             tableRows.push(new TableRow({ children: cells }));
@@ -181,6 +375,15 @@ function parseHTMLToDocxElements(html: string) {
             results.push(new Table({
               rows: tableRows,
               width: { size: 100, type: WidthType.PERCENTAGE },
+              margins: { top: 240, bottom: 240, left: 0, right: 0 },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                left: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                right: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' }
+              }
             }));
           }
           break;
@@ -188,9 +391,9 @@ function parseHTMLToDocxElements(html: string) {
         case 'hr':
           results.push(new Paragraph({
             children: [],
-            spacing: { before: 200, after: 200 },
+            spacing: { before: 360, after: 360 }, // 18pt before and after
             border: {
-              bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+              bottom: { style: BorderStyle.SINGLE, size: 2, color: '2E5984' },
             },
           }));
           break;
@@ -227,13 +430,113 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No content provided' }, { status: 400 });
     }
 
+    // Extract document title from content
+    const documentTitle = extractDocumentTitle(content);
+    
     // Parse HTML content to DOCX elements
     const docxElements = parseHTMLToDocxElements(content);
+
+    // Create document header
+    const header = new Header({
+      children: [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Business Plan Document",
+              font: 'Calibri',
+              size: 20, // 10pt
+              color: '666666',
+              italics: true
+            }),
+            new Tab(),
+            new TextRun({
+              children: [PageNumber.CURRENT],
+              font: 'Calibri',
+              size: 20,
+              color: '666666'
+            }),
+            new TextRun({
+              text: " of ",
+              font: 'Calibri',
+              size: 20,
+              color: '666666'
+            }),
+            new TextRun({
+              children: [PageNumber.TOTAL_PAGES],
+              font: 'Calibri',
+              size: 20,
+              color: '666666'
+            })
+          ],
+          tabStops: [
+            {
+              type: TabStopType.RIGHT,
+              position: TabStopPosition.MAX
+            }
+          ]
+        })
+      ]
+    });
+
+    // Create document footer
+    const footer = new Footer({
+      children: [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Generated on ",
+              font: 'Calibri',
+              size: 18, // 9pt
+              color: '999999'
+            }),
+            new TextRun({
+              text: new Date().toLocaleDateString(),
+              font: 'Calibri',
+              size: 18,
+              color: '999999'
+            }),
+            new Tab(),
+            new TextRun({
+              text: "We Build Trades",
+              font: 'Calibri',
+              size: 18,
+              color: '999999',
+              bold: true
+            })
+          ],
+          tabStops: [
+            {
+              type: TabStopType.RIGHT,
+              position: TabStopPosition.MAX
+            }
+          ]
+        })
+      ]
+    });
 
     // Create the document
     const doc = new Document({
       sections: [{
-        properties: {},
+        properties: {
+          page: {
+            margin: {
+              top: convertInchesToTwip(1),
+              right: convertInchesToTwip(1),
+              bottom: convertInchesToTwip(1),
+              left: convertInchesToTwip(1)
+            },
+            size: {
+              width: convertInchesToTwip(8.5),
+              height: convertInchesToTwip(11)
+            }
+          }
+        },
+        headers: {
+          default: header
+        },
+        footers: {
+          default: footer
+        },
         children: docxElements,
       }],
       numbering: {
@@ -259,8 +562,9 @@ export async function POST(req: NextRequest) {
     // Generate the DOCX file
     const buffer = await Packer.toBuffer(doc);
 
-    // Create filename
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9]/g, '_');
+    // Create filename using extracted title or fallback to provided filename
+    const titleForFilename = documentTitle !== 'document' ? documentTitle : filename;
+    const sanitizedFilename = titleForFilename.replace(/[^a-zA-Z0-9\s\-_]/g, '_').replace(/\s+/g, '_');
     const finalFilename = `${sanitizedFilename}_${new Date().toISOString().split('T')[0]}.docx`;
 
     return new NextResponse(buffer, {
