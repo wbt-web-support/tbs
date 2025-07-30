@@ -63,7 +63,8 @@ import {
   Plus,
   X,
   Sparkles,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCallback, useState, useEffect, useRef } from 'react';
@@ -86,6 +87,7 @@ export interface ReusableTiptapEditorProps {
   onSave?: (content: string) => Promise<void>;
   isReadOnly?: boolean;
   editorClassName?: string;
+  showExportButton?: boolean;
 }
 
 export default function ReusableTiptapEditor({ 
@@ -102,7 +104,8 @@ export default function ReusableTiptapEditor({
   autoSaveDelay = 1000,
   onSave,
   isReadOnly = false,
-  editorClassName
+  editorClassName,
+  showExportButton = true
 }: ReusableTiptapEditorProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
@@ -117,6 +120,7 @@ export default function ReusableTiptapEditor({
   const [floatingInputPosition, setFloatingInputPosition] = useState({ x: 0, y: 0 });
   const [showFloatingInput, setShowFloatingInput] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [exportingDocx, setExportingDocx] = useState(false);
 
   // Menu commands for keyboard navigation
   const menuCommands = [
@@ -337,9 +341,61 @@ export default function ReusableTiptapEditor({
   // Update editor content when the prop changes
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content, false);
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
+
+  // DOCX Export Function
+  const handleExportDocx = useCallback(async () => {
+    if (!editor || exportingDocx) return;
+
+    setExportingDocx(true);
+    
+    try {
+      const htmlContent = editor.getHTML();
+      
+      // Generate a filename based on the first heading or use a default
+      let filename = 'document';
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          filename = node.textContent.slice(0, 50).replace(/[^a-zA-Z0-9]/g, '_');
+          return true;
+        }
+        return false;
+      });
+
+      const response = await fetch('/api/editor/export-docx', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: htmlContent,
+          filename: filename,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export DOCX');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${filename}_${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('DOCX export failed:', error);
+      alert('Failed to export DOCX. Please try again.');
+    } finally {
+      setExportingDocx(false);
+    }
+  }, [editor, exportingDocx]);
 
   const addImage = useCallback(() => {
     if (editor) {
@@ -1113,6 +1169,29 @@ export default function ReusableTiptapEditor({
                   variant="toolbar"
                 />
               </div>
+
+              <div className="w-px h-6 bg-gray-300" />
+
+              {/* Export */}
+              {showExportButton && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportDocx}
+                    disabled={exportingDocx || aiLoading}
+                    className="h-9 px-3"
+                    title="Export as DOCX"
+                  >
+                    {exportingDocx ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    <span className="ml-1 text-xs">DOCX</span>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
