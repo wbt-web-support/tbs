@@ -33,6 +33,7 @@ import {
   ClipboardList,
   CreditCard,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -107,6 +108,11 @@ const navigationSections: NavigationSection[] = [
         name: "Playbooks",
         href: "/playbook-planner",
         icon: BookText,
+      },
+      {
+        name: "Update Content",
+        href: "/update",
+        icon: RefreshCw,
       },
     ],
   },

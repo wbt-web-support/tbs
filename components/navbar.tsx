@@ -138,6 +138,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                       Integrations
                   </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem>
+                  <Link href="/update" className="w-full text-left flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Update Content
+                  </Link>
+              </DropdownMenuItem>
               {/* <DropdownMenuItem>
                   <Link href="/zapier-mappings" className="w-full text-left flex items-center gap-2">
                       <Settings className="h-4 w-4" />
