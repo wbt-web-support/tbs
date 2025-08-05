@@ -121,6 +121,63 @@ export default function BattlePlanPage() {
     }
   };
 
+  // History management functions
+  const handleSaveHistory = async (content: string, historyId: string) => {
+    if (!battlePlanData?.id) return;
+    
+    try {
+      // Save to history table
+      const { error } = await supabase
+        .from("document_history")
+        .insert({
+          document_id: historyId,
+          document_type: 'business_plan',
+          content: content,
+          user_id: battlePlanData.user_id,
+          created_at: new Date().toISOString()
+        });
+        
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error saving history:", error);
+      throw error;
+    }
+  };
+
+  const handleLoadHistory = async (historyId: string): Promise<string[]> => {
+    if (!battlePlanData?.id) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from("document_history")
+        .select("content")
+        .eq("document_id", historyId)
+        .eq("document_type", "business_plan")
+        .order("created_at", { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      
+      return data?.map(item => item.content) || [];
+    } catch (error) {
+      console.error("Error loading history:", error);
+      return [];
+    }
+  };
+
+  const handleRestoreHistory = async (content: string, historyId: string) => {
+    if (!battlePlanData?.id) return;
+    
+    try {
+      // Update the main document with restored content
+      await handleSaveBusinessPlanContent(content);
+      setBusinessPlanContent(content);
+    } catch (error) {
+      console.error("Error restoring history:", error);
+      throw error;
+    }
+  };
+
   // Handlers to collect data from children
   const handleDetailsChange = (data: { mission: string; vision: string }) => setDetailsData(data);
   const handleBusinessPlanContentChange = (content: string) => setBusinessPlanContent(content);
@@ -374,6 +431,12 @@ export default function BattlePlanPage() {
                 autoSaveDelay={2000}
                 className="border-0"
                 editorClassName="prose prose-lg prose-slate max-w-none focus:outline-none min-h-[600px] px-6 py-8"
+                enableHistory={true}
+                historyId={battlePlanData?.id}
+                onSaveHistory={handleSaveHistory}
+                onLoadHistory={handleLoadHistory}
+                onRestoreHistory={handleRestoreHistory}
+                showHistoryButton={true}
               />
             </div>
           </Card>

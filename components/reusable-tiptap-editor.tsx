@@ -64,7 +64,10 @@ import {
   X,
   Sparkles,
   FileText,
-  Download
+  Download,
+  History,
+  RotateCcw,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCallback, useState, useEffect, useRef } from 'react';
@@ -88,6 +91,13 @@ export interface ReusableTiptapEditorProps {
   isReadOnly?: boolean;
   editorClassName?: string;
   showExportButton?: boolean;
+  // History feature props
+  enableHistory?: boolean;
+  historyId?: string;
+  onSaveHistory?: (content: string, historyId: string) => Promise<void>;
+  onLoadHistory?: (historyId: string) => Promise<string[]>;
+  onRestoreHistory?: (content: string, historyId: string) => Promise<void>;
+  showHistoryButton?: boolean;
 }
 
 export default function ReusableTiptapEditor({ 
@@ -105,7 +115,14 @@ export default function ReusableTiptapEditor({
   onSave,
   isReadOnly = false,
   editorClassName,
-  showExportButton = true
+  showExportButton = true,
+  // History feature props
+  enableHistory = false,
+  historyId,
+  onSaveHistory,
+  onLoadHistory,
+  onRestoreHistory,
+  showHistoryButton = true
 }: ReusableTiptapEditorProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
@@ -121,6 +138,11 @@ export default function ReusableTiptapEditor({
   const [showFloatingInput, setShowFloatingInput] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [exportingDocx, setExportingDocx] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [historyList, setHistoryList] = useState<Array<{content: string, timestamp: string}>>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [savingHistory, setSavingHistory] = useState(false);
+  const historyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Menu commands for keyboard navigation
   const menuCommands = [
@@ -322,6 +344,26 @@ export default function ReusableTiptapEditor({
             setSavingStatus('idle');
           }
         }, autoSaveDelay);
+      }
+      
+      // History saving logic
+      if (enableHistory && onSaveHistory && historyId) {
+        // Clear existing history timeout
+        if (historyTimeoutRef.current) {
+          clearTimeout(historyTimeoutRef.current);
+        }
+        
+        // Debounce history save (longer delay than auto-save)
+        historyTimeoutRef.current = setTimeout(async () => {
+          try {
+            setSavingHistory(true);
+            await onSaveHistory(html, historyId);
+          } catch (error) {
+            console.error('History save failed:', error);
+          } finally {
+            setSavingHistory(false);
+          }
+        }, (autoSaveDelay || 1000) + 2000); // Save history 2 seconds after content save
       }
       
       // Always call onChange for immediate updates
@@ -593,6 +635,42 @@ export default function ReusableTiptapEditor({
     }
   }, [editor, aiLoading]);
 
+  // History Functions
+  const handleLoadHistory = useCallback(async () => {
+    if (!enableHistory || !onLoadHistory || !historyId) return;
+    
+    try {
+      setLoadingHistory(true);
+      const history = await onLoadHistory(historyId);
+      const formattedHistory = history.map((content, index) => ({
+        content,
+        timestamp: new Date(Date.now() - (history.length - index - 1) * 60000).toLocaleString()
+      }));
+      setHistoryList(formattedHistory);
+      setShowHistoryPanel(true);
+    } catch (error) {
+      console.error('Failed to load history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [enableHistory, onLoadHistory, historyId]);
+
+  const handleRestoreHistory = useCallback(async (content: string) => {
+    if (!enableHistory || !onRestoreHistory || !historyId || !editor) return;
+    
+    try {
+      await onRestoreHistory(content, historyId);
+      editor.commands.setContent(content);
+      onChange(content);
+      setShowHistoryPanel(false);
+      
+      // Show success message (you can replace with toast)
+      console.log('History restored successfully');
+    } catch (error) {
+      console.error('Failed to restore history:', error);
+    }
+  }, [enableHistory, onRestoreHistory, historyId, editor, onChange]);
+
   const handleToolbarAI = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format') => {
     await handleAIAction(action, false);
   }, [handleAIAction]);
@@ -736,11 +814,14 @@ export default function ReusableTiptapEditor({
     };
   }, [showFloatingMenu, showFloatingInput, bubbleMenuMode]);
 
-  // Cleanup save timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+      }
+      if (historyTimeoutRef.current) {
+        clearTimeout(historyTimeoutRef.current);
       }
     };
   }, []);
@@ -776,32 +857,6 @@ export default function ReusableTiptapEditor({
               </div>
             </div>
             <div className="flex flex-wrap gap-2 items-center">
-              {/* Document Actions */}
-              <div className="flex items-center gap-1 mr-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().undo().run()}
-                  disabled={!editor?.can().undo() || aiLoading}
-                  className="h-9 px-3"
-                  title="Undo (Ctrl+Z)"
-                >
-                  <Undo className="h-4 w-4 mr-1" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().redo().run()}
-                  disabled={!editor?.can().redo() || aiLoading}
-                  className="h-9 px-3"
-                  title="Redo (Ctrl+Y)"
-                >
-                  <Redo className="h-4 w-4 mr-1" />
-                </Button>
-              </div>
-
-              <div className="w-px h-6 bg-gray-300" />
-
               {/* Headings */}
               <div className="flex items-center gap-1">
                 <select
@@ -1090,30 +1145,6 @@ export default function ReusableTiptapEditor({
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-gray-300" />
-
-              {/* Subscript/Superscript */}
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleSubscript().run()}
-                  className={cn("h-9 w-9 p-0", editor.isActive('subscript') && "bg-blue-100 text-blue-700")}
-                  title="Subscript"
-                >
-                  <SubscriptIcon className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleSuperscript().run()}
-                  className={cn("h-9 w-9 p-0", editor.isActive('superscript') && "bg-blue-100 text-blue-700")}
-                  title="Superscript"
-                >
-                  <SuperscriptIcon className="h-4 w-4" />
-                </Button>
-              </div>
-
               {/* Text Colors */}
               <div className="relative">
                 <Button
@@ -1172,25 +1203,49 @@ export default function ReusableTiptapEditor({
 
               <div className="w-px h-6 bg-gray-300" />
 
-              {/* Export */}
-              {showExportButton && (
+              {/* History */}
+              {enableHistory && showHistoryButton && (
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleExportDocx}
-                    disabled={exportingDocx || aiLoading}
+                    onClick={handleLoadHistory}
+                    disabled={loadingHistory || aiLoading}
                     className="h-9 px-3"
-                    title="Export as DOCX"
+                    title="View History"
                   >
-                    {exportingDocx ? (
+                    {loadingHistory ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Download className="h-4 w-4" />
+                      <History className="h-4 w-4" />
                     )}
-                    <span className="ml-1 text-xs">DOCX</span>
+                    <span className="ml-1 text-xs">History</span>
                   </Button>
                 </div>
+              )}
+
+              {/* Export */}
+              {showExportButton && (
+                <>
+                  <div className="w-px h-6 bg-gray-300" />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleExportDocx}
+                      disabled={exportingDocx || aiLoading}
+                      className="h-9 px-3"
+                      title="Export as DOCX"
+                    >
+                      {exportingDocx ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      <span className="ml-1 text-xs">DOCX</span>
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -1616,6 +1671,75 @@ export default function ReusableTiptapEditor({
           </div>
         )}
       </div>
+
+      {/* History Panel */}
+      {showHistoryPanel && enableHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-3/4 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Document History</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistoryPanel(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* History List */}
+            <div className="flex-1 overflow-auto p-4">
+              {historyList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>No history available</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyList.map((item, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Clock className="h-4 w-4" />
+                          <span>{item.timestamp}</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleRestoreHistory(item.content)}
+                          className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Restore
+                        </Button>
+                      </div>
+                      <div 
+                        className="text-sm text-gray-700 bg-gray-50 p-3 rounded border max-h-24 overflow-hidden"
+                        dangerouslySetInnerHTML={{ 
+                          __html: item.content.length > 200 
+                            ? item.content.substring(0, 200) + '...' 
+                            : item.content 
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <p className="text-xs text-gray-500 text-center">
+                History is automatically saved as you type. Click "Restore" to revert to a previous version.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer Stats */}
       {editor && showStatusBar && (

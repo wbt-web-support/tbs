@@ -84,6 +84,67 @@ export default function PlaybookEditPage() {
     }
   };
 
+  // History management functions
+  const handleSaveHistory = async (content: string, historyId: string) => {
+    if (!playbook) return;
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
+      // Save to history table
+      const { error } = await supabase
+        .from("document_history")
+        .insert({
+          document_id: historyId,
+          document_type: 'playbook',
+          content: content,
+          user_id: user.id,
+          created_at: new Date().toISOString()
+        });
+        
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error saving history:", error);
+      throw error;
+    }
+  };
+
+  const handleLoadHistory = async (historyId: string): Promise<string[]> => {
+    if (!playbook) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from("document_history")
+        .select("content")
+        .eq("document_id", historyId)
+        .eq("document_type", "playbook")
+        .order("created_at", { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      
+      return data?.map(item => item.content) || [];
+    } catch (error) {
+      console.error("Error loading history:", error);
+      return [];
+    }
+  };
+
+  const handleRestoreHistory = async (content: string, historyId: string) => {
+    if (!playbook) return;
+    
+    try {
+      // Update the main document with restored content
+      await handleAutoSave(content);
+      setContent(content);
+    } catch (error) {
+      console.error("Error restoring history:", error);
+      throw error;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -170,6 +231,16 @@ export default function PlaybookEditPage() {
           editorHeight="100%"
           autoSave={true}
           autoSaveDelay={1000}
+          showToolbar={true}
+          showBubbleMenu={true}
+          showSlashCommands={true}
+          showStatusBar={true}
+          enableHistory={true}
+          historyId={playbook?.id}
+          onSaveHistory={handleSaveHistory}
+          onLoadHistory={handleLoadHistory}
+          onRestoreHistory={handleRestoreHistory}
+          showHistoryButton={true}
         />
       </div>
     </div>
