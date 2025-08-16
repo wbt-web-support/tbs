@@ -829,6 +829,34 @@ const LeaveSummaryDialog = ({ isOpen, onClose, date, leaves, teamMemberColors, o
                           }
                         })()}
                       </p>
+                      
+                      {/* Status Section */}
+                      <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                        <div className="text-xs text-gray-600 font-medium mb-1">Status</div>
+                        <div className="text-xs text-gray-700">
+                          {leave.current_leave_balance > 0 ? 
+                            `${leave.current_leave_balance} days left` : 
+                            leave.current_leave_balance === 0 ? 
+                              'Leave completed' : 
+                              'Calculating...'
+                          }
+                        </div>
+                        
+                        {/* Status indicators */}
+                        {leave.current_leave_balance === leave.duration_days && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                            <span className="text-xs text-blue-600 font-medium">About to take leave</span>
+                          </div>
+                        )}
+                        
+                        {leave.current_leave_balance === 0 && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <span className="text-xs text-green-600 font-medium">Completed</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1209,14 +1237,48 @@ export default function MeetingRhythmPlanner() {
 
       if (error) throw error;
       
-      // Map user names to leaves and assign colors
-      const leavesWithNames = data?.map((leave: any) => {
-        const teamMember = teamMembers.find((member: any) => member.user_id === leave.user_id);
-        return {
-          ...leave,
-          user_name: teamMember?.full_name || 'Unknown User'
-        };
-      }) || [];
+              // Map user names to leaves and assign colors, including leave balance
+        const leavesWithNames = await Promise.all(data?.map(async (leave: any) => {
+          const teamMember = teamMembers.find((member: any) => member.user_id === leave.user_id);
+          
+          // Get leave entitlements for the team
+          const { data: entitlementsData } = await supabase
+            .from('leave_entitlements')
+            .select('total_entitlement_days')
+            .eq('team_id', userInfo.team_id)
+            .eq('year', selectedYear)
+            .single();
+          
+          const totalEntitlement = entitlementsData?.total_entitlement_days || 25;
+          
+          // Calculate remaining days for this specific leave
+          const currentDate = new Date();
+          const leaveStartDate = new Date(leave.start_date);
+          const leaveEndDate = new Date(leave.end_date);
+          
+          let remainingDays = 0;
+          
+          if (currentDate < leaveStartDate) {
+            // Leave hasn't started yet - show full duration
+            remainingDays = leave.duration_days;
+          } else if (currentDate >= leaveStartDate && currentDate <= leaveEndDate) {
+            // Leave is ongoing - calculate remaining days
+            const oneDay = 24 * 60 * 60 * 1000; // milliseconds in a day
+            const daysFromStart = Math.floor((currentDate.getTime() - leaveStartDate.getTime()) / oneDay);
+            remainingDays = Math.max(0, leave.duration_days - daysFromStart);
+          } else {
+            // Leave has ended - show 0 days remaining
+            remainingDays = 0;
+          }
+          
+          return {
+            ...leave,
+            user_name: teamMember?.full_name || 'Unknown User',
+            current_leave_balance: remainingDays,
+            total_entitlement: totalEntitlement,
+            is_over_limit: remainingDays < 0
+          };
+        }) || []);
       
       // Create color mapping for team members
       const colorMap = new Map<string, string>();
@@ -2032,6 +2094,23 @@ export default function MeetingRhythmPlanner() {
               >
                 <Users className="mr-2 h-4 w-4" />
                 Team Members ({teamMembersDetails.length})
+                {teamMembersDetails.length > 0 && (
+                  <div className="ml-2 flex items-center gap-1">
+                    <span className="text-xs">•</span>
+                    <span className="text-xs">
+                      {teamMembersDetails.filter(m => m.remaining_days < 0).length > 0 && (
+                        <span className="text-red-600 font-medium">
+                          {teamMembersDetails.filter(m => m.remaining_days < 0).length} over limit
+                        </span>
+                      )}
+                      {teamMembersDetails.filter(m => m.remaining_days <= 5 && m.remaining_days >= 0).length > 0 && (
+                        <span className="text-orange-600 font-medium">
+                          {teamMembersDetails.filter(m => m.remaining_days <= 5 && m.remaining_days >= 0).length} low balance
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
               </Button>
             </div>
           )}
@@ -2045,13 +2124,27 @@ export default function MeetingRhythmPlanner() {
         </div>
       </div>
       
-      {/* Leave Entitlement Summary - Only show when in leave mode */}
+      {/* Enhanced Leave Entitlement Summary - Only show when in leave mode */}
       {showLeaves && userLeaveInfo && (
-        <Card className="border-0 bg-blue-50">
+        <Card className={`border-0 ${
+          userLeaveInfo.remaining_days < 0 ? 'bg-red-50 border-red-200' : 
+          userLeaveInfo.remaining_days <= 5 ? 'bg-orange-50 border-orange-200' : 
+          'bg-blue-50 border-blue-200'
+        }`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center text-gray-700">
               <Calendar className="mr-2 h-4 w-4 text-blue-500" />
               Your Leave Entitlement ({new Date().getFullYear()})
+              {userLeaveInfo.remaining_days < 0 && (
+                <Badge variant="destructive" className="ml-2 text-xs">
+                  Over Limit
+                </Badge>
+              )}
+              {userLeaveInfo.remaining_days <= 5 && userLeaveInfo.remaining_days >= 0 && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  Low Balance
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -2069,10 +2162,36 @@ export default function MeetingRhythmPlanner() {
                 <div className="text-xs text-gray-600">Bank Holidays</div>
               </div>
               <div className="text-center">
-                <div className={`text-lg font-bold ${userLeaveInfo.remaining_days < 5 ? 'text-red-600' : 'text-green-600'}`}>
-                  {userLeaveInfo.remaining_days}
+                <div className={`text-lg font-bold ${
+                  userLeaveInfo.remaining_days < 0 ? 'text-red-600' : 
+                  userLeaveInfo.remaining_days <= 5 ? 'text-orange-600' : 
+                  'text-green-600'
+                }`}>
+                  {userLeaveInfo.remaining_days < 0 ? Math.abs(userLeaveInfo.remaining_days) : userLeaveInfo.remaining_days}
                 </div>
-                <div className="text-xs text-gray-600">Remaining</div>
+                <div className="text-xs text-gray-600">
+                  {userLeaveInfo.remaining_days < 0 ? 'Days Over' : 'Remaining'}
+                </div>
+              </div>
+            </div>
+            
+            {/* Leave Progress Bar */}
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Leave Usage</span>
+                <span>{Math.round(((userLeaveInfo.total_entitlement - userLeaveInfo.remaining_days) / userLeaveInfo.total_entitlement) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    userLeaveInfo.remaining_days < 0 ? 'bg-red-500' : 
+                    userLeaveInfo.remaining_days <= 5 ? 'bg-orange-500' : 
+                    'bg-green-500'
+                  }`}
+                  style={{ 
+                    width: `${Math.min(100, Math.max(0, ((userLeaveInfo.total_entitlement - userLeaveInfo.remaining_days) / userLeaveInfo.total_entitlement) * 100))}%` 
+                  }}
+                ></div>
               </div>
             </div>
           </CardContent>
@@ -2169,6 +2288,20 @@ export default function MeetingRhythmPlanner() {
                     </div>
                     <div className="text-xs text-gray-500 font-normal">
                       {showLeaves ? `${leaves.length} total` : `${getFilteredMeetings().length} scheduled`}
+                      {showLeaves && leaves.length > 0 && (
+                        <div className="text-xs text-gray-500 font-normal mt-1">
+                          {leaves.filter(l => l.is_over_limit).length > 0 && (
+                            <span className="text-red-500 font-medium">
+                              {leaves.filter(l => l.is_over_limit).length} over limit
+                            </span>
+                          )}
+                          {leaves.filter(l => l.current_leave_balance <= 5 && l.current_leave_balance >= 0).length > 0 && (
+                            <span className="text-orange-500 font-medium">
+                              {leaves.filter(l => l.current_leave_balance <= 5 && l.current_leave_balance >= 0).length} low balance
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardTitle>
@@ -2249,6 +2382,35 @@ export default function MeetingRhythmPlanner() {
                                       <span className="text-xs text-white/80">•</span>
                                       <span className="text-xs text-white/80">{leave.duration_days} day(s)</span>
                                     </div>
+                                    
+                                    {/* Status Section */}
+                                    <div className="mt-2 p-2 bg-white/10 rounded-lg">
+                                      <div className="text-xs text-white/70 font-medium mb-1">Status</div>
+                                      <div className="text-xs text-white/80">
+                                        {leave.current_leave_balance > 0 ? 
+                                          `${leave.current_leave_balance} days left` : 
+                                          leave.current_leave_balance === 0 ? 
+                                            'Leave completed' : 
+                                            'Calculating...'
+                                        }
+                                      </div>
+                                      
+                                      {/* Status indicators */}
+                                      {leave.current_leave_balance === leave.duration_days && (
+                                        <div className="flex items-center gap-1 mt-1">
+                                          <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                          <span className="text-xs text-white font-medium">About to take leave</span>
+                                        </div>
+                                      )}
+                                      
+                                      {leave.current_leave_balance === 0 && (
+                                        <div className="flex items-center gap-1 mt-1">
+                                          <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                                          <span className="text-xs text-green-200 font-medium">Completed</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
                                     {leave.description && (
                                       <p className="text-xs leading-relaxed line-clamp-2 text-white/80 mt-2">
                                         {leave.description}
@@ -2541,9 +2703,43 @@ export default function MeetingRhythmPlanner() {
                 <p className="text-gray-500">No team members found.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {teamMembersDetails.map((member) => (
+              <>
+                {/* Team Leave Summary */}
+                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {teamMembersDetails.reduce((sum, member) => sum + Math.max(0, member.remaining_days), 0)}
+                        </div>
+                        <div className="text-sm text-blue-700">Total Days Available</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {teamMembersDetails.reduce((sum, member) => sum + member.total_days_taken, 0)}
+                        </div>
+                        <div className="text-sm text-green-700">Total Days Taken</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {teamMembersDetails.reduce((sum, member) => sum + member.total_days_pending, 0)}
+                        </div>
+                        <div className="text-sm text-orange-700">Total Days Pending</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {teamMembersDetails.filter(member => member.remaining_days < 0).length}
+                        </div>
+                        <div className="text-sm text-red-700">Members Over Limit</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <div className="space-y-4">
+                  {teamMembersDetails.map((member) => (
                   <Card key={member.user_id} className="p-4">
+                    {/* Enhanced Leave Balance Header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div
@@ -2557,33 +2753,123 @@ export default function MeetingRhythmPlanner() {
                           <p className="text-sm text-gray-500">{member.email}</p>
                         </div>
                       </div>
+                      
+                      {/* Enhanced Leave Balance Display */}
                       <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {member.remaining_days} days left
+                        <div className="flex items-center gap-2 mb-1">
+                          {member.remaining_days < 0 ? (
+                            <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                          ) : member.remaining_days <= 5 ? (
+                            <div className="w-3 h-3 rounded-full bg-orange-500 animate-pulse"></div>
+                          ) : (
+                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                          )}
+                          <div className={`text-lg font-bold ${
+                            member.remaining_days < 0 ? 'text-red-600' : 
+                            member.remaining_days <= 5 ? 'text-orange-600' : 
+                            'text-green-600'
+                          }`}>
+                            {member.remaining_days < 0 ? Math.abs(member.remaining_days) : member.remaining_days}
+                          </div>
+                          <div className={`text-sm font-medium ${
+                            member.remaining_days < 0 ? 'text-red-600' : 
+                            member.remaining_days <= 5 ? 'text-orange-600' : 
+                            'text-gray-900'
+                          }`}>
+                            {member.remaining_days < 0 ? 'days over' : 'days left'}
+                          </div>
                         </div>
                         <div className="text-xs text-gray-500">
                           of {member.total_entitlement} total
                         </div>
+                        
+                        {/* Leave Balance Status Badge */}
+                        <div className="mt-2">
+                          <Badge 
+                            variant={
+                              member.remaining_days < 0 ? 'destructive' : 
+                              member.remaining_days <= 5 ? 'secondary' : 
+                              'default'
+                            }
+                            className="text-xs"
+                          >
+                            {member.remaining_days < 0 ? 'Over Limit' : 
+                             member.remaining_days <= 5 ? 'Low Balance' : 
+                             'Good Balance'}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Leave Statistics */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                    {/* Leave Progress Bar */}
+                    <div className="mb-4">
+                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>Leave Usage</span>
+                        <span>{Math.round(((member.total_entitlement - member.remaining_days) / member.total_entitlement) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            member.remaining_days < 0 ? 'bg-red-500' : 
+                            member.remaining_days <= 5 ? 'bg-orange-500' : 
+                            'bg-green-500'
+                          }`}
+                          style={{ 
+                            width: `${Math.min(100, Math.max(0, ((member.total_entitlement - member.remaining_days) / member.total_entitlement) * 100))}%` 
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* Enhanced Leave Statistics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
                         <div className="text-lg font-bold text-green-600">{member.total_days_taken}</div>
                         <div className="text-xs text-green-700">Days Taken</div>
+                        <div className="text-xs text-green-600 mt-1">
+                          {Math.round((member.total_days_taken / member.total_entitlement) * 100)}%
+                        </div>
                       </div>
-                      <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
                         <div className="text-lg font-bold text-orange-600">{member.total_days_pending}</div>
                         <div className="text-xs text-orange-700">Days Pending</div>
+                        <div className="text-xs text-orange-600 mt-1">
+                          {Math.round((member.total_days_pending / member.total_entitlement) * 100)}%
+                        </div>
                       </div>
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <div className="text-lg font-bold text-blue-600">{member.bank_holidays}</div>
                         <div className="text-xs text-blue-700">Bank Holidays</div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          {Math.round((member.bank_holidays / member.total_entitlement) * 100)}%
+                        </div>
                       </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <div className="text-lg font-bold text-gray-600">{member.remaining_days}</div>
-                        <div className="text-xs text-gray-700">Remaining</div>
+                      <div className={`text-center p-3 rounded-lg border ${
+                        member.remaining_days < 0 ? 'bg-red-50 border-red-200' : 
+                        member.remaining_days <= 5 ? 'bg-orange-50 border-orange-200' : 
+                        'bg-gray-50 border-gray-200'
+                      }`}>
+                        <div className={`text-lg font-bold ${
+                          member.remaining_days < 0 ? 'text-red-600' : 
+                          member.remaining_days <= 5 ? 'text-orange-600' : 
+                          'text-gray-600'
+                        }`}>
+                          {member.remaining_days < 0 ? Math.abs(member.remaining_days) : member.remaining_days}
+                        </div>
+                        <div className={`text-xs ${
+                          member.remaining_days < 0 ? 'text-red-700' : 
+                          member.remaining_days <= 5 ? 'text-orange-700' : 
+                          'text-gray-700'
+                        }`}>
+                          {member.remaining_days < 0 ? 'Days Over' : 'Remaining'}
+                        </div>
+                        <div className={`text-xs mt-1 ${
+                          member.remaining_days < 0 ? 'text-red-600' : 
+                          member.remaining_days <= 5 ? 'text-orange-600' : 
+                          'text-gray-600'
+                        }`}>
+                          {Math.round((Math.max(0, member.remaining_days) / member.total_entitlement) * 100)}%
+                        </div>
                       </div>
                     </div>
 
@@ -2640,7 +2926,8 @@ export default function MeetingRhythmPlanner() {
                     )}
                   </Card>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </div>
         </DialogContent>

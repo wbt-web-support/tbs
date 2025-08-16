@@ -108,12 +108,7 @@ const navigationSections: NavigationSection[] = [
         name: "Playbooks",
         href: "/playbook-planner",
         icon: BookText,
-      },
-      {
-        name: "Update Content",
-        href: "/update",
-        icon: RefreshCw,
-      },
+      }
     ],
   },
   {
