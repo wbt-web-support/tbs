@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Play, Pause, Phone, PhoneOff, X, Bug, ExternalLink, Plus, MessageSquare, Trash2, Edit2, Check, Sidebar, SidebarOpen, Menu, Bot, Sparkles, Paperclip } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import DOMPurify from "dompurify";
 import { AudioVisualizer } from "./audio-visualizer";
 import { Input } from "@/components/ui/input";
 import { useEffectOnce } from 'react-use';
@@ -2279,7 +2280,7 @@ export function RealtimeChatGemini({
                 onClick={fetchDebugData}
                 disabled={isLoading}
                 title="Show model context debug data"
-                className="mr-2"
+                className="mr-2 hidden"
               >
                 <Bug className="h-4 w-4 mr-1" />
                 <span className="text-xs">Debug Data</span>
@@ -2405,41 +2406,55 @@ export function RealtimeChatGemini({
                             <>
                               {/* Render text (without images) */}
                               <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert text-white" : "text-gray-800"} !text-[15px] sm:!text-[16px]`}>
-                                <ReactMarkdown
-                                  components={{
-                                    h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
-                                    h2: ({children}) => <h2 className="text-lg font-bold mb-2 mt-4">{children}</h2>,
-                                    h3: ({children}) => <h3 className="text-base font-bold mb-1 mt-3">{children}</h3>,
-                                    p: ({ children }) => <p className="mb-2 last:mb-0 text-gray-800">{children}</p>,
-                                    ul: ({children}) => <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>,
-                                    ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>,
-                                    li: ({children}) => <li className="mb-1">{children}</li>,
-                                    img: () => null, // Don't render images inline
-                                    a: ({ href, children }) => (
-                                      <a href={href} className={`${message.role === "user" ? "text-blue-100" : "text-blue-500"} hover:underline`} target="_blank" rel="noopener noreferrer">
-                                        {children}
-                                      </a>
-                                    ),
-                                    code: ({ children }) => (
-                                      <code className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded px-1 py-0.5 text-sm`}>
-                                        {children}
-                                      </code>
-                                    ),
-                                    pre: ({ children }) => (
-                                      <pre className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded p-2 text-sm overflow-x-auto my-2`}>
-                                        {children}
-                                      </pre>
-                                    ),
-                                    blockquote: ({ children }) => (
-                                      <blockquote className={`border-l-2 ${message.role === "user" ? "border-blue-300" : "border-gray-300"} pl-3 italic my-2`}>
-                                        {children}
-                                      </blockquote>
-                                    ),
-                                    hr: () => <hr className="my-3 border-t border-gray-200" />
-                                  }}
-                                >
-                                  {textOnly}
-                                </ReactMarkdown>
+                                {/* Check if content contains HTML and render accordingly */}
+                                {textOnly.includes('<a href=') || textOnly.includes('<a href="') ? (
+                                  <div 
+                                    dangerouslySetInnerHTML={{ 
+                                      __html: DOMPurify.sanitize(textOnly, {
+                                        ALLOWED_TAGS: ['a', 'p', 'br', 'strong', 'em', 'u', 'i', 'b'],
+                                        ALLOWED_ATTR: ['href', 'target', 'rel'],
+                                        ALLOW_DATA_ATTR: false
+                                      })
+                                    }}
+                                    className="space-y-2 [&>a]:text-blue-500 text-gray-800 [&>a]:hover:underline [&>a]:transition-colors [&>p]:mb-2 [&>p]:last:mb-0"
+                                  />
+                                ) : (
+                                  <ReactMarkdown
+                                    components={{
+                                      h1: ({children}) => <h1 className="text-xl font-bold mb-2 border-b pb-1">{children}</h1>,
+                                      h2: ({children}) => <h2 className="text-lg font-bold mb-2 mt-4">{children}</h2>,
+                                      h3: ({children}) => <h3 className="text-base font-bold mb-1 mt-3">{children}</h3>,
+                                      p: ({ children }) => <p className="mb-2 last:mb-0 text-gray-800">{children}</p>,
+                                      ul: ({children}) => <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>,
+                                      ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>,
+                                      li: ({children}) => <li className="mb-1">{children}</li>,
+                                      img: () => null, // Don't render images inline
+                                      a: ({ href, children }) => (
+                                        <a href={href} className={`${message.role === "user" ? "text-blue-100" : "text-blue-500"} hover:underline`} target="_blank" rel="noopener noreferrer">
+                                          {children}
+                                        </a>
+                                      ),
+                                      code: ({ children }) => (
+                                        <code className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded px-1 py-0.5 text-sm`}>
+                                          {children}
+                                        </code>
+                                      ),
+                                      pre: ({ children }) => (
+                                        <pre className={`${message.role === "user" ? "bg-blue-400/30" : "bg-gray-100"} rounded p-2 text-sm overflow-x-auto my-2`}>
+                                          {children}
+                                        </pre>
+                                      ),
+                                      blockquote: ({ children }) => (
+                                        <blockquote className={`border-l-2 ${message.role === "user" ? "border-blue-300" : "border-gray-300"} pl-3 italic my-2`}>
+                                          {children}
+                                        </blockquote>
+                                      ),
+                                      hr: () => <hr className="my-3 border-t border-gray-200" />
+                                    }}
+                                  >
+                                    {textOnly}
+                                  </ReactMarkdown>
+                                )}
                               </div>
                               {/* Render images below, side by side */}
                               {imageUrls.length > 0 && (

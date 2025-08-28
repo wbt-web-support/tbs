@@ -430,39 +430,56 @@ export default function InviteClientContent() {
                         Playbooks Owned
                       </FormLabel>
                       <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
-                        {playbooks.map((playbook) => (
-                          <FormField
-                            key={playbook.id}
-                            control={form.control}
-                            name="playbook_ids"
-                            render={({ field }) => {
-                              return (
-                                <FormItem
-                                  key={playbook.id}
-                                  className="flex flex-row items-start space-x-3 space-y-0"
-                                >
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(playbook.id)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...(field.value || []), playbook.id])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== playbook.id
+                        {playbooks.length > 0 ? (
+                          playbooks.map((playbook) => (
+                            <FormField
+                              key={playbook.id}
+                              control={form.control}
+                              name="playbook_ids"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem
+                                    key={playbook.id}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(playbook.id)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), playbook.id])
+                                            : field.onChange(
+                                                field.value?.filter(
+                                                  (value) => value !== playbook.id
+                                                )
                                               )
-                                            )
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm font-normal">
-                                    {playbook.name}
-                                  </FormLabel>
-                                </FormItem>
-                              )
-                            }}
-                          />
-                        ))}
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                      {playbook.name}
+                                    </FormLabel>
+                                  </FormItem>
+                                )
+                              }}
+                            />
+                          ))
+                        ) : (
+                          <div className="text-center py-4">
+                            <BookOpen className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-gray-500 text-sm mb-2">No playbooks available</p>
+                            <p className="text-gray-400 text-xs mb-3">Please create a playbook first to assign it to users</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push('/playbook-planner')}
+                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            >
+                              Create Playbook
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <FormMessage />
                     </FormItem>

@@ -10,11 +10,6 @@ import {
   Search, 
   User, 
   UserPlus, 
-  Plus, 
-  Building,
-  Mail, 
-  Phone,
-  CreditCard,
   Eye,
   MoreHorizontal,
   KeyRound,
@@ -40,11 +35,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -185,7 +177,7 @@ export default function UserManagementPage() {
       }
       
       // Get unique team IDs
-      const teamIds = Array.from(new Set(profiles.map(p => p.team_id).filter(Boolean)));
+      const teamIds = Array.from(new Set(profiles.map((p: any) => p.team_id).filter(Boolean)));
       
       // Fetch team admin information
       let teamAdmins: any[] = [];
@@ -203,10 +195,10 @@ export default function UserManagementPage() {
       }
       
       // Merge profiles with team admin info
-      const profilesWithTeamAdmin = profiles.map(profile => ({
+      const profilesWithTeamAdmin = profiles.map((profile: any) => ({
         ...profile,
         team_admin: profile.team_id 
-          ? teamAdmins.find(admin => admin.user_id === profile.team_id) || null
+          ? teamAdmins.find((admin: any) => admin.user_id === profile.team_id) || null
           : null
       }));
       
@@ -271,7 +263,7 @@ export default function UserManagementPage() {
       if (benefitsError) throw benefitsError;
 
       // Transform data to include claim status
-      const formattedTimeline = timeline?.map(item => ({
+      const formattedTimeline = timeline?.map((item: any) => ({
         id: item.id,
         event_name: item.event_name,
         week_number: item.week_number,
@@ -280,7 +272,7 @@ export default function UserManagementPage() {
         completion_date: item.user_timeline_claims.length > 0 ? item.user_timeline_claims[0].completion_date : null,
       })) || [];
 
-      const formattedChecklist = checklist?.map(item => ({
+      const formattedChecklist = checklist?.map((item: any) => ({
         id: item.id,
         checklist_item: item.checklist_item,
         description: item.description,
@@ -288,7 +280,7 @@ export default function UserManagementPage() {
         completion_date: item.user_checklist_claims.length > 0 ? item.user_checklist_claims[0].completion_date : null,
       })) || [];
 
-      const formattedBenefits = benefits?.map(item => ({
+      const formattedBenefits = benefits?.map((item: any) => ({
         id: item.id,
         benefit_title: item.benefit_title,
         benefit_description: item.benefit_description,
@@ -601,81 +593,7 @@ export default function UserManagementPage() {
                 </div>
               </div>
               
-              <div className="space-y-5">
-                <h3 className="font-medium text-sm text-blue-600">Payment Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_option">Payment Option</Label>
-                    <CustomDropdown
-                      options={[
-                        { value: "FULL", label: "Full Payment" },
-                        { value: "6_MONTH_SPLIT", label: "6 Month Split" },
-                      ]}
-                      value={newUserForm.payment_option}
-                      onChange={(value) => handleSelectChange("payment_option", value)}
-                      placeholder="Select payment option"
-                    />
-      </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_remaining">Payment Remaining (EX VAT)</Label>
-                    <Input
-                      id="payment_remaining"
-                      name="payment_remaining"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newUserForm.payment_remaining.toString()}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-          </div>
               
-              <div className="space-y-5">
-                <h3 className="font-medium text-sm text-blue-600">Setup Information</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="command_hq_link">Command HQ Link</Label>
-                    <Input
-                      id="command_hq_link"
-                      name="command_hq_link"
-                      placeholder="https://..."
-                      value={newUserForm.command_hq_link}
-                      onChange={handleInputChange}
-                    />
-          </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="command_hq_created">Command HQ Created</Label>
-                      <Switch
-                        id="command_hq_created"
-                        checked={newUserForm.command_hq_created}
-                        onCheckedChange={(checked) => handleSwitchChange("command_hq_created", checked)}
-                      />
-          </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="gd_folder_created">GD Folder Created</Label>
-                      <Switch
-                        id="gd_folder_created"
-                        checked={newUserForm.gd_folder_created}
-                        onCheckedChange={(checked) => handleSwitchChange("gd_folder_created", checked)}
-                      />
-          </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="meeting_scheduled">3-1 Meeting Scheduled</Label>
-                      <Switch
-                        id="meeting_scheduled"
-                        checked={newUserForm.meeting_scheduled}
-                        onCheckedChange={(checked) => handleSwitchChange("meeting_scheduled", checked)}
-                      />
-                    </div>
-                  </div>
-                </div>
-          </div>
           </div>
             
             <DialogFooter>

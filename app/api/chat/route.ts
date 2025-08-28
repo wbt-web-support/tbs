@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getResponseWithContext } from '@/lib/contextual-llm';
+
+// Dynamic import to prevent build-time evaluation
+let getResponseWithContext: any = null;
 
 export async function POST(request: NextRequest) {
   try {
+    // Dynamic import to prevent build-time evaluation
+    if (!getResponseWithContext) {
+      const module = await import('@/lib/contextual-llm');
+      getResponseWithContext = module.getResponseWithContext;
+    }
+
     const { messages, conversationId, relevantMessages } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
