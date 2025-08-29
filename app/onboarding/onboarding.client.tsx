@@ -183,11 +183,13 @@ interface SOPLink {
 function BusinessOwnersRepeater({ 
   value, 
   onChange, 
-  required 
+  required,
+  fieldId
 }: { 
   value: BusinessOwner[]; 
   onChange: (owners: BusinessOwner[]) => void; 
   required: boolean;
+  fieldId: string;
 }) {
   const addOwner = () => {
     const newOwner: BusinessOwner = {
@@ -209,7 +211,7 @@ function BusinessOwnersRepeater({
   };
 
   return (
-    <div className="space-y-4">
+    <div id={fieldId} className="space-y-4">
       {value.map((owner, index) => (
         <div key={owner.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -258,18 +260,18 @@ function BusinessOwnersRepeater({
         Add Business Owner
       </Button>
       
-                            {required && value.length === 0 && (
-                        <p className="text-red-500 text-sm flex items-center gap-1">
-                          <X className="h-4 w-4" />
-                          At least one business owner is required
-                        </p>
-                      )}
-                      {required && value.length > 0 && !value.every((owner: any) => owner.fullName && owner.role) && (
-                        <p className="text-red-500 text-sm flex items-center gap-1">
-                          <X className="h-4 w-4" />
-                          Please fill in all business owner names and roles
-                        </p>
-                      )}
+      {required && value.length === 0 && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          At least one business owner is required
+        </p>
+      )}
+      {required && value.length > 0 && !value.every((owner: any) => owner.fullName && owner.role) && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          Please fill in all business owner names and roles
+        </p>
+      )}
     </div>
   );
 }
@@ -278,11 +280,13 @@ function BusinessOwnersRepeater({
 function CompetitorsRepeater({ 
   value, 
   onChange, 
-  required 
+  required,
+  fieldId
 }: { 
   value: Competitor[]; 
   onChange: (competitors: Competitor[]) => void; 
   required: boolean;
+  fieldId: string;
 }) {
   const addCompetitor = () => {
     const newCompetitor: Competitor = {
@@ -303,7 +307,7 @@ function CompetitorsRepeater({
   };
 
   return (
-    <div className="space-y-4">
+    <div id={fieldId} className="space-y-4">
       {value.map((competitor, index) => (
         <div key={competitor.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex-1">
@@ -359,11 +363,13 @@ function CompetitorsRepeater({
 function EmployeesRepeater({ 
   value, 
   onChange, 
-  required 
+  required,
+  fieldId
 }: { 
   value: Employee[]; 
   onChange: (employees: Employee[]) => void; 
   required: boolean;
+  fieldId: string;
 }) {
   const addEmployee = () => {
     const newEmployee: Employee = {
@@ -386,7 +392,7 @@ function EmployeesRepeater({
   };
 
   return (
-    <div className="space-y-4">
+    <div id={fieldId} className="space-y-4">
       {value.map((employee, index) => (
         <div key={employee.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -466,11 +472,13 @@ function EmployeesRepeater({
 function SOPLinksRepeater({
   value,
   onChange,
-  required
+  required,
+  fieldId
 }: {
   value: SOPLink[];
   onChange: (links: SOPLink[]) => void;
   required: boolean;
+  fieldId: string;
 }) {
   const addLink = () => {
     const newLink: SOPLink = {
@@ -492,7 +500,7 @@ function SOPLinksRepeater({
   };
 
   return (
-    <div className="space-y-4">
+    <div id={fieldId} className="space-y-4">
       {value.map((link, index) => (
         <div key={link.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2365,28 +2373,37 @@ export default function OnboardingClient() {
     if (!firstInvalidField) {
       setCurrentCategory((prev) => Math.min(prev + 1, categories.length - 1));
     } else {
-      // Scroll to the first invalid field
-      const fieldElement = document.getElementById(firstInvalidField.name);
-      if (fieldElement) {
-        fieldElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center',
-          inline: 'nearest'
-        });
-        
-        // Focus on the field after a short delay to ensure scrolling completes
-        setTimeout(() => {
-          fieldElement.focus();
-          // Also set it as the focused question for AI assistant
-          setCurrentFocusedQuestion(firstInvalidField.name);
-        }, 500);
-      }
+      // Use enhanced scrolling for better error visibility
+      scrollToFieldWithEnhancedError(firstInvalidField.name, invalidFieldError);
 
       toast({
         title: "Incomplete Field",
         description: invalidFieldError,
         variant: "destructive",
       });
+    }
+  };
+
+  // Enhanced error display and scrolling for subcategory fields
+  const scrollToFieldWithEnhancedError = (fieldName: string, errorMessage: string) => {
+    const fieldElement = document.getElementById(fieldName);
+    if (fieldElement) {
+      // Add a temporary highlight class for better visibility
+      fieldElement.classList.add('ring-2', 'ring-red-500', 'ring-opacity-50');
+      
+      // Scroll to the field
+      fieldElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+      });
+      
+      // Remove highlight after scrolling and focus
+      setTimeout(() => {
+        fieldElement.classList.remove('ring-2', 'ring-red-500', 'ring-opacity-50');
+        fieldElement.focus();
+        setCurrentFocusedQuestion(fieldName);
+      }, 1000);
     }
   };
 
@@ -2491,25 +2508,8 @@ export default function OnboardingClient() {
       if (!firstInvalidField) {
         setCurrentCategory(index);
       } else {
-        // Find the first invalid field in the current section and scroll to it
-        if (firstInvalidField) {
-          // Scroll to the first invalid field
-          const fieldElement = document.getElementById(firstInvalidField.name);
-          if (fieldElement) {
-            fieldElement.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'nearest'
-            });
-            
-            // Focus on the field after a short delay to ensure scrolling completes
-            setTimeout(() => {
-              fieldElement.focus();
-              // Also set it as the focused question for AI assistant
-              setCurrentFocusedQuestion(firstInvalidField.name);
-            }, 500);
-          }
-        }
+        // Use enhanced scrolling for better error visibility
+        scrollToFieldWithEnhancedError(firstInvalidField.name, invalidFieldError);
 
         toast({
           title: "Incomplete Field",
@@ -2601,22 +2601,8 @@ export default function OnboardingClient() {
     }
 
     if (firstInvalidField) {
-      // Scroll to the first invalid field
-      const fieldElement = document.getElementById(firstInvalidField.name);
-      if (fieldElement) {
-        fieldElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center',
-          inline: 'nearest'
-        });
-        
-        // Focus on the field after a short delay to ensure scrolling completes
-        setTimeout(() => {
-          fieldElement.focus();
-          // Also set it as the focused question for AI assistant
-          setCurrentFocusedQuestion(firstInvalidField.name);
-        }, 500);
-      }
+      // Use enhanced scrolling for better error visibility
+      scrollToFieldWithEnhancedError(firstInvalidField.name, invalidFieldError);
 
       toast({
         title: "Incomplete Field",
@@ -2919,6 +2905,7 @@ export default function OnboardingClient() {
                                     form.setValue(fieldName, owners, { shouldValidate: true });
                                   }}
                                   required={q.required}
+                                  fieldId={q.name}
                                 />
                             ) : q.type === 'competitors-repeater' ? (
                                 <CompetitorsRepeater
@@ -2927,6 +2914,7 @@ export default function OnboardingClient() {
                                     form.setValue(fieldName, competitors, { shouldValidate: true });
                                   }}
                                   required={q.required}
+                                  fieldId={q.name}
                                 />
                             ) : q.type === 'employees-repeater' ? (
                                 <EmployeesRepeater
@@ -2935,6 +2923,7 @@ export default function OnboardingClient() {
                                     form.setValue(fieldName, employees, { shouldValidate: true });
                                   }}
                                   required={q.required}
+                                  fieldId={q.name}
                                 />
                             ) : q.type === 'date-picker' ? (
                                 <DatePicker
@@ -2953,6 +2942,7 @@ export default function OnboardingClient() {
                                     form.setValue(fieldName, links, { shouldValidate: true });
                                   }}
                                   required={q.required}
+                                  fieldId={q.name}
                                 />
                             ) : q.name === 'main_office_physical_address_full' ? (
                               <UkAddressFields
@@ -3005,7 +2995,7 @@ export default function OnboardingClient() {
                               
 
                               
-                                 {form.formState.errors[fieldName] && (
+                                 {form.formState.errors[fieldName] && form.formState.errors[fieldName]?.message && (
                                 <p className="text-red-500 text-sm flex items-center gap-1">
                                   <X className="h-4 w-4" />
                                   {form.formState.errors[fieldName]?.message}
