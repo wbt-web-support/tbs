@@ -84,7 +84,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
         <div className="flex-1 flex items-center gap-4">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-md"
+            className="lg:hidden p-1 hover:bg-gray-100 rounded-md"
           >
             <Menu className="h-5 w-5" />
           </button>

@@ -114,37 +114,37 @@ export default function ContactInfo() {
   const setupProgressPercentage = (completedSetupCount / statusItems.length) * 100;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
 
    {/* Profile Card */}
-   <Card className="p-6 border-blue-100 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-blue-50 rounded-full -mt-20 -mr-20 opacity-30" />
+   <Card className="p-4 sm:p-6 border-blue-100 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-32 h-32 sm:w-40 sm:h-40 bg-blue-50 rounded-full -mt-16 -mr-16 sm:-mt-20 sm:-mr-20 opacity-30" />
         
-        <div className="flex flex-col md:flex-row md:items-center gap-6">
-          <Avatar className="h-24 w-24 border-2 border-blue-100">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-2 border-blue-100 mx-auto sm:mx-0">
             <AvatarImage
               src={businessInfo.profile_picture_url || undefined}
               alt={businessInfo.full_name}
             />
-            <AvatarFallback className="text-xl bg-blue-100 text-blue-600">
+            <AvatarFallback className="text-lg sm:text-xl bg-blue-100 text-blue-600">
               {initials}
             </AvatarFallback>
           </Avatar>
           
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-2xl font-semibold">{businessInfo.full_name}</h2>
-              <Badge variant="outline" className="capitalize bg-blue-50 border-blue-200 text-blue-700">
+          <div className="space-y-2 text-center sm:text-left">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <h2 className="text-xl sm:text-2xl font-semibold">{businessInfo.full_name}</h2>
+              <Badge variant="outline" className="capitalize bg-blue-50 border-blue-200 text-blue-700 text-xs sm:text-sm">
                 {businessInfo.role}
               </Badge>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
               <BriefcaseBusiness className="w-4 h-4 text-blue-600" />
-              <p className="text-muted-foreground">{businessInfo.business_name}</p>
+              <p className="text-muted-foreground text-sm sm:text-base">{businessInfo.business_name}</p>
             </div>
             
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center justify-center sm:justify-start gap-2 text-xs sm:text-sm">
               <FileText className="w-4 h-4 text-blue-600" />
               <span>ID: {businessInfo.id.substring(0, 8)}...</span>
             </div>
@@ -153,50 +153,50 @@ export default function ContactInfo() {
       </Card>
 
       {/* Contact Details */}
-      <div className="space-y-4">
-        <h3 className="font-semibold flex items-center gap-2">
-          <User className="w-5 h-5 text-blue-600" />
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="font-semibold flex items-center gap-2 text-base sm:text-lg">
+          <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
           <span>Contact Details</span>
         </h3>
         
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="p-4 hover:-sm transition- duration-200 border-blue-100">
-            <div className="flex items-center space-x-4">
-              <div className="p-2.5 rounded-lg bg-blue-50">
-                <Mail className="w-5 h-5 text-blue-600" />
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
+          <Card className="p-3 sm:p-4 hover:shadow-sm transition-shadow duration-200 border-blue-100">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="p-2 sm:p-2.5 rounded-lg bg-blue-50 flex-shrink-0">
+                <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Email Address</p>
-                <p className="font-medium">{businessInfo.email}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground">Email Address</p>
+                <p className="font-medium text-sm sm:text-base truncate">{businessInfo.email}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4 hover:-sm transition- duration-200 border-blue-100">
-            <div className="flex items-center space-x-4">
-              <div className="p-2.5 rounded-lg bg-blue-50">
-                <Phone className="w-5 h-5 text-blue-600" />
+          <Card className="p-3 sm:p-4 hover:shadow-sm transition-shadow duration-200 border-blue-100">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="p-2 sm:p-2.5 rounded-lg bg-blue-50 flex-shrink-0">
+                <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Phone Number</p>
-                <p className="font-medium">{businessInfo.phone_number}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground">Phone Number</p>
+                <p className="font-medium text-sm sm:text-base truncate">{businessInfo.phone_number}</p>
               </div>
             </div>
           </Card>
 
           {businessInfo.command_hq_link && (
-            <Card className="p-4 hover:-sm transition- duration-200 border-blue-100 md:col-span-2">
-              <div className="flex items-center space-x-4">
-                <div className="p-2.5 rounded-lg bg-blue-50">
-                  <Globe className="w-5 h-5 text-blue-600" />
+            <Card className="p-3 sm:p-4 hover:shadow-sm transition-shadow duration-200 border-blue-100 md:col-span-2">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-2.5 rounded-lg bg-blue-50 flex-shrink-0">
+                  <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Command HQ Link</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Command HQ Link</p>
                   <a
                     href={businessInfo.command_hq_link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium text-blue-600 hover:underline"
+                    className="font-medium text-blue-600 hover:underline text-sm sm:text-base truncate block"
                   >
                     View Command HQ →
                   </a>
@@ -210,44 +210,44 @@ export default function ContactInfo() {
    
 
       {/* Setup Status Card */}
-      <Card className="p-6 border-blue-100 mb-6">
-        <h3 className="font-semibold flex items-center gap-2 mb-4">
-          <BadgeCheck className="w-5 h-5 text-blue-600" />
+      <Card className="p-4 sm:p-6 border-blue-100 mb-4 sm:mb-6">
+        <h3 className="font-semibold flex items-center gap-2 mb-3 sm:mb-4 text-base sm:text-lg">
+          <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
           <span>Setup Progress</span>
         </h3>
         
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <div className="h-2 bg-blue-50 rounded-full mb-2">
             <div 
               className="h-2 bg-blue-600 rounded-full transition-all duration-500"
               style={{ width: `${setupProgressPercentage}%` }}
             ></div>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-xs sm:text-sm">
             <span className="text-muted-foreground">{completedSetupCount} of {statusItems.length} completed</span>
             <span className="font-medium text-blue-700">{Math.round(setupProgressPercentage)}%</span>
           </div>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
           {statusItems.map((item) => (
-            <Card key={item.label} className={`p-4 border ${item.status ? 'border-green-100 bg-green-50/30' : 'border-blue-100'}`}>
-              <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${item.status ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                  <item.icon className="w-4 h-4" />
+            <Card key={item.label} className={`p-3 sm:p-4 border ${item.status ? 'border-green-100 bg-green-50/30' : 'border-blue-100'}`}>
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${item.status ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                  <item.icon className="w-3 h-3 sm:w-4 sm:h-4" />
                 </div>
-                <div>
-                  <p className="font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground mb-2">{item.description}</p>
-                  <div className={`flex items-center text-sm ${item.status ? 'text-green-600' : 'text-muted-foreground'}`}>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm sm:text-base">{item.label}</p>
+                  <p className="text-xs text-muted-foreground mb-1 sm:mb-2">{item.description}</p>
+                  <div className={`flex items-center text-xs sm:text-sm ${item.status ? 'text-green-600' : 'text-muted-foreground'}`}>
                     {item.status ? (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                        <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1" />
                         <span>Completed</span>
                       </>
                     ) : (
                       <>
-                        <Clock className="w-3.5 h-3.5 mr-1" />
+                        <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1" />
                         <span>Pending</span>
                       </>
                     )}

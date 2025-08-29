@@ -1833,22 +1833,22 @@ export default function MeetingRhythmPlanner() {
           </div>
         </CardHeader>
         
-        <CardContent className="p-4 pt-4">
+        <CardContent className="p-2 sm:p-4 pt-4">
           <ScrollArea className="h-full">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 p-1 sm:p-2">
               {months.map((month, monthIndex) => (
                 <Card key={month} className="border overflow-hidden rounded-xl bg-gray-50">
-                  <CardHeader className="py-2 px-3 border-b ">
-                    <h3 className="text-sm font-semibold text-gray-700 tracking-wide">{month}</h3>
+                  <CardHeader className="py-1 sm:py-2 px-2 sm:px-3 border-b">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-700 tracking-wide">{month}</h3>
                   </CardHeader>
-                  <div className="grid grid-cols-7 text-center text-[10px]">
+                  <div className="grid grid-cols-7 text-center text-[8px] sm:text-[10px]">
                     {daysOfWeek.map((day, i) => (
-                      <div key={i} className="p-1 border-b font-semibold text-gray-500">
+                      <div key={i} className="p-0.5 sm:p-1 border-b font-semibold text-gray-500">
                         {day}
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7 gap-1 p-1 text-xs">
+                  <div className="grid grid-cols-7 gap-0.5 sm:gap-1 p-0.5 sm:p-1 text-[8px] sm:text-xs">
                     {/* Add empty cells for days before the 1st of the month */}
                     {(() => {
                       // Get the day of the week for the 1st day of the month (0 = Sunday, 1 = Monday, etc.)
@@ -1860,7 +1860,7 @@ export default function MeetingRhythmPlanner() {
                       
                       // Create empty cells for days before the 1st
                       return Array.from({ length: dayOffset }).map((_, index) => (
-                        <div key={`empty-${index}`} className="aspect-square p-1"></div>
+                        <div key={`empty-${index}`} className="aspect-square p-0.5 sm:p-1"></div>
                       ));
                     })()}
                     
@@ -1908,7 +1908,7 @@ export default function MeetingRhythmPlanner() {
                       return (
                         <div
                           key={day}
-                          className={`aspect-square p-1 relative transition-all rounded-md transform ${!isPastAndEmpty ? 'cursor-pointer hover:opacity-90 hover:scale-105 hover:z-10 border-2 border-transparent hover:border-gray-200' : 'cursor-not-allowed'}`}
+                          className={`aspect-square p-0.5 sm:p-1 relative transition-all rounded-md transform ${!isPastAndEmpty ? 'cursor-pointer hover:opacity-90 hover:scale-105 hover:z-10 border-2 border-transparent hover:border-gray-200' : 'cursor-not-allowed'}`}
                           onClick={() => {
                             // Allow viewing leaves on any date
                             if (showLeaves && dateLeaves.length > 0) {
@@ -1999,7 +1999,7 @@ export default function MeetingRhythmPlanner() {
                             opacity: isWeekendDay || isPastAndEmpty ? 0.7 : 1
                           }}
                         >
-                          <div className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium" style={{
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full text-[10px] sm:text-xs font-medium" style={{
                             color: (mainBankHoliday) || 
                                   (mainMeeting && mainMeeting.meeting_color === "#263238") || 
                                   (!showLeaves && isThursdayDay && dateMeetings.length === 0 && getMeetingTypeColor("weekly_pulse") === "#263238") 
@@ -2051,51 +2051,54 @@ export default function MeetingRhythmPlanner() {
   };
 
   return (
-    <div className="space-y-6 py-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">Meeting Rhythm Planner</h1>
-          <p className="text-sm text-gray-500 mt-1">
+    <div className="space-y-4 sm:space-y-6 py-2 sm:py-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="flex-1">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-900">Meeting Rhythm Planner</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
             Organise your company's meeting schedule and leave requests for the year.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Meetings</span>
+            <span className="text-xs sm:text-sm text-gray-600">Meetings</span>
             <Switch
               checked={showLeaves}
               onCheckedChange={setShowLeaves}
               className="data-[state=checked]:bg-blue-600"
             />
-            <span className="text-sm text-gray-600">Holidays</span>
+            <span className="text-xs sm:text-sm text-gray-600">Holidays</span>
           </div>
           {isAdmin && showLeaves && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button 
                 onClick={() => setApprovalsDialog(true)}
                 variant="outline"
-                className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                size="sm"
+                className="border-orange-200 text-orange-700 hover:bg-orange-50 text-xs"
               >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Approvals ({pendingLeaves.length})
+                <CheckCircle className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Approvals</span> ({pendingLeaves.length})
               </Button>
               <Button 
                 onClick={() => setEntitlementsDialog(true)}
                 variant="outline"
-                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                size="sm"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50 text-xs"
               >
-                <Settings className="mr-2 h-4 w-4" />
-                Entitlements
+                <Settings className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Entitlements</span>
               </Button>
               <Button 
                 onClick={() => setTeamMembersDialog(true)}
                 variant="outline"
-                className="border-green-200 text-green-700 hover:bg-green-50"
+                size="sm"
+                className="border-green-200 text-green-700 hover:bg-green-50 text-xs"
               >
-                <Users className="mr-2 h-4 w-4" />
-                Team Members ({teamMembersDetails.length})
+                <Users className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Team</span> ({teamMembersDetails.length})
                 {teamMembersDetails.length > 0 && (
-                  <div className="ml-2 flex items-center gap-1">
+                  <div className="ml-1 sm:ml-2 flex items-center gap-1">
                     <span className="text-xs">•</span>
                     <span className="text-xs">
                       {teamMembersDetails.filter(m => m.remaining_days < 0).length > 0 && (
@@ -2116,9 +2119,10 @@ export default function MeetingRhythmPlanner() {
           )}
           <Button 
             onClick={showLeaves ? handleAddLeave : handleAddMeeting} 
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+            size="sm"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
             {showLeaves ? "Add Holiday" : "Add Meeting"}
           </Button>
         </div>
@@ -2206,7 +2210,7 @@ export default function MeetingRhythmPlanner() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-2 sm:gap-4">
             {!showLeaves && MEETING_TYPES.map((type) => (
               <div 
                 key={type.id} 
@@ -2216,7 +2220,7 @@ export default function MeetingRhythmPlanner() {
                   className="w-4 h-4 rounded-sm mr-2" 
                   style={{ backgroundColor: type.color }}
                 />
-                <span className="text-xs text-gray-700">{type.name}</span>
+                <span className="text-xs text-gray-700 truncate">{type.name}</span>
               </div>
             ))}
             {showLeaves && (
@@ -2226,7 +2230,7 @@ export default function MeetingRhythmPlanner() {
                   className="w-4 h-4 rounded-sm mr-2" 
                   style={{ backgroundColor: LEAVE_TYPE.color }}
                 />
-                <span className="text-xs text-gray-700">{LEAVE_TYPE.name}</span>
+                <span className="text-xs text-gray-700 truncate">{LEAVE_TYPE.name}</span>
               </div>
                 {/* Show team member initials if available */}
                 {Array.from(teamMemberColors.entries()).map(([userId, color]) => {
@@ -2240,7 +2244,7 @@ export default function MeetingRhythmPlanner() {
                       >
                         {leave.user_name ? leave.user_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
                       </div>
-                      <span className="text-xs text-gray-700">{leave.user_name}</span>
+                      <span className="text-xs text-gray-700 truncate">{leave.user_name}</span>
                     </div>
                   ) : null;
                 })}
@@ -2251,14 +2255,14 @@ export default function MeetingRhythmPlanner() {
                 className="w-4 h-4 rounded-sm mr-2" 
                 style={{ backgroundColor: BANK_HOLIDAY_TYPE.color }}
               />
-              <span className="text-xs text-gray-700">{BANK_HOLIDAY_TYPE.name}</span>
+              <span className="text-xs text-gray-700 truncate">{BANK_HOLIDAY_TYPE.name}</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Calendar Section - Left side (3/4 width) */}
         <div className="lg:col-span-3">
           {isLoading && !isDialogOpen ? (

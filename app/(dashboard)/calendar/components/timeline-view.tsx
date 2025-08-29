@@ -142,29 +142,29 @@ export default function TimelineView({ events, loading, onEventUpdate }: Timelin
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-2">
-        <CalendarClock className="w-5 h-5 text-blue-600" />
-        <h2 className="text-xl font-semibold">Implementation Timeline</h2>
+        <CalendarClock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+        <h2 className="text-lg sm:text-xl font-semibold">Implementation Timeline</h2>
       </div>
       
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {Object.entries(eventsByWeek)
           .sort(([a], [b]) => parseInt(a) - parseInt(b))
           .map(([week, weekEvents]) => (
-            <div key={week} className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-800 border-b pb-2">
+            <div key={week} className="space-y-3 sm:space-y-4">
+              <h3 className="text-base sm:text-lg font-medium text-gray-800 border-b pb-2">
                 Week {week}
               </h3>
               <div className="space-y-3">
                 {weekEvents.map((event) => (
-                  <Card key={event.id} className={`p-4 transition-all duration-200 ${
+                  <Card key={event.id} className={`p-3 sm:p-4 transition-all duration-200 ${
                     event.is_completed 
                       ? 'bg-green-50 border-green-200' 
                       : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'
                   }`}>
-                    <div className="flex items-start gap-4">
-                      <div className="pt-1">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="pt-1 flex-shrink-0">
                         <button
                           onClick={() => toggleCompletion(event)}
                           disabled={updating === event.id}
@@ -175,37 +175,37 @@ export default function TimelineView({ events, loading, onEventUpdate }: Timelin
                           }`}
                         >
                           {updating === event.id ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                           ) : event.is_completed ? (
-                            <CheckCircle2 className="w-5 h-5" />
+                            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           ) : (
-                            <Circle className="w-5 h-5" />
+                            <Circle className="w-4 h-4 sm:w-5 sm:h-5" />
                           )}
                         </button>
                       </div>
                       
-                      <div className="flex-grow">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <h4 className={`font-medium ${
+                      <div className="flex-grow min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <h4 className={`font-medium text-sm sm:text-base ${
                               event.is_completed ? 'text-green-800 line-through' : 'text-gray-900'
                             }`}>
                               {event.event_name}
                             </h4>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                               <span className="flex items-center gap-1">
-                                <CalendarClock className="w-4 h-4" />
+                                <CalendarClock className="w-3 h-3 sm:w-4 sm:h-4" />
                                 {formatDate(event.scheduled_date)}
                               </span>
                               {event.duration_minutes && (
                                 <span className="flex items-center gap-1">
-                                  <Clock className="w-4 h-4" />
+                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                                   {formatDuration(event.duration_minutes)}
                                 </span>
                               )}
                             </div>
                             {event.description && (
-                              <p className="text-sm text-gray-600 mt-2">
+                              <p className="text-xs sm:text-sm text-gray-600 mt-2">
                                 {event.description}
                               </p>
                             )}
@@ -222,7 +222,7 @@ export default function TimelineView({ events, loading, onEventUpdate }: Timelin
                               variant="outline"
                               size="sm"
                               onClick={() => window.open(event.meeting_link!, '_blank')}
-                              className="ml-4"
+                              className="w-full sm:w-auto sm:ml-4 text-xs sm:text-sm"
                             >
                               Join Meeting
                             </Button>

@@ -2253,15 +2253,15 @@ export function RealtimeChatGemini({
                 onClick={() => setMobileInstancesPanelOpen(true)}
                 className="rounded-lg mr-2"
               >
-                <Menu className="h-5 w-5" />
+                <Sidebar className="h-5 w-5" />
+                
               </Button>
             )}
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-            <Sparkles className="h-5 w-5" />
+            <div className="hidden md:flex h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
+            <Sparkles className="h-5 w-5 " />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-gray-800">AI Assistant</h2>
-              <p className="text-xs text-gray-500">Trades Business School</p>
             </div>
             {isLoadingHistory && (
               <div className="flex items-center gap-2">
@@ -2377,7 +2377,7 @@ export function RealtimeChatGemini({
                 key={index}
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
-                <div className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"} w-full max-w-[75%] sm:max-w-[90%]`}>
+                <div className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"} w-full max-w-[90%]`}>
                   <div
                     className={`rounded-2xl px-4 py-2 sm:px-5 sm:py-3 flex flex-col w-fit break-words ${
                       message.role === "user"
@@ -2503,7 +2503,7 @@ export function RealtimeChatGemini({
             {/* Bot typing indicator placeholder with glowing lines */}
             {showBotTyping && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col ">
+                <div className="max-w-[90%] rounded-2xl px-5 py-3 flex flex-col ">
                   <div className="flex flex-col gap-1.5 w-36">
                     <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
                     <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>

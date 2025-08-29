@@ -361,7 +361,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           </Card>
 
           {/* Triggering Events and Ending Events - Two column layout */}
-          <div className="grid grid-cols-12 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Triggering Event */}
             <div className="col-span-5">
               <Card className="overflow-hidden border-gray-200 h-full">

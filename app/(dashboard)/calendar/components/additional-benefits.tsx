@@ -99,11 +99,11 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
  
       
       <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {todoItems.map((item) => {
             const ItemIcon = getItemIcon(item.benefit_name);
             return (
@@ -111,35 +111,35 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
                 key={item.id}
                 className="transform transition-all duration-300 hover:translate-y-[-2px]"
               >
-                <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 overflow-hidden group relative border-l-4 border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30">
+                <Card className="p-4 sm:p-6 h-full hover:shadow-lg transition-all duration-300 overflow-hidden group relative border-l-4 border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30">
                   
-                  <div className="relative z-10 space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-full bg-blue-100 text-blue-600 shadow-sm">
-                        <ItemIcon className="w-6 h-6" />
+                  <div className="relative z-10 space-y-3 sm:space-y-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="p-2 sm:p-3 rounded-full bg-blue-100 text-blue-600 shadow-sm flex-shrink-0">
+                        <ItemIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
                       
-                      <div className="flex-grow space-y-3">
+                      <div className="flex-grow space-y-2 sm:space-y-3 min-w-0">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-lg text-gray-800">{item.benefit_name}</h3>
+                          <h3 className="font-semibold text-base sm:text-lg text-gray-800 truncate">{item.benefit_name}</h3>
                           
                         </div>
                         
                         {item.notes && (
-                          <p className="text-sm text-gray-600 leading-relaxed">{item.notes}</p>
+                          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">{item.notes}</p>
                         )}
                       </div>
                     </div>
                     
                     {item.iframe && (
-                      <div className="pt-4 border-t border-gray-200">
+                      <div className="pt-3 sm:pt-4 border-t border-gray-200">
                         <Button
                           onClick={() => openIframeModal(item.iframe!)}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200 flex items-center gap-2"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200 flex items-center gap-2 text-xs sm:text-sm"
                         >
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                           <span>Book Your Call</span>
-                          <ExternalLink className="w-4 h-4" />
+                          <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                       </div>
                     )}
@@ -155,7 +155,7 @@ export default function TodoList({ todoItems, loading, teamId }: TodoListProps) 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden">
       
-          <div className="flex-1 overflow-auto p-4 pt-0">
+          <div className="flex-1 overflow-auto p-2 sm:p-4 pt-0">
             {selectedIframe && (
               <div 
                 className="w-full bg-white rounded-lg overflow-auto"

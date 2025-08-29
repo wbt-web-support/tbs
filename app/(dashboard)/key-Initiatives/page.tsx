@@ -150,7 +150,7 @@ export default function KeyInitiativesPage() {
 
       if (error) throw error;
 
-      const processedInitiatives = initiativesData?.map(initiative => ({
+      const processedInitiatives = initiativesData?.map((initiative: { key_initiative_departments: any[]; }) => ({
         ...initiative,
         departments: initiative.key_initiative_departments?.map((kid: any) => kid.departments) || [],
         key_initiative_departments: undefined, // Remove this from the final object
@@ -467,7 +467,7 @@ export default function KeyInitiativesPage() {
 
   return (
     <div className="max-w-full mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Key Initiatives</h1>
           <p className="text-sm text-gray-500 mt-1">

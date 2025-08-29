@@ -203,7 +203,7 @@ export default function ChqTimelinePage() {
 
   return (
     <div className={`flex-1 transition-all duration-300 ease-in-out ${
-      activeTab === 'progress' ? 'p-0' : 'p-8'
+      activeTab === 'progress' ? 'p-0' : 'p-2 sm:p-4 md:p-6 lg:p-8'
     }`}>
       {/* Header - Hidden when Progress tab is active */}
       <div className={`transition-all duration-300 ease-in-out ${
@@ -211,10 +211,10 @@ export default function ChqTimelinePage() {
           ? 'opacity-0 -translate-y-4 h-0 overflow-hidden' 
           : 'opacity-100 translate-y-0 h-auto'
       }`}>
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Calendar</h1>
-            <p className="text-sm text-gray-500 mt-1">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
+          <div className="flex-1">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900">Calendar</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Track your Command HQ implementation progress and milestones
             </p>
           </div>
@@ -226,39 +226,38 @@ export default function ChqTimelinePage() {
         value={activeTab}
         onValueChange={setActiveTab}
         className={`transition-all duration-300 ease-in-out ${
-          activeTab === 'progress' ? '' : 'space-y-4'
+          activeTab === 'progress' ? '' : 'space-y-2 sm:space-y-4'
         }`}
       >
-        <TabsList className={`bg-background border-b border-t rounded-none w-full justify-start h-10 p-0 gap-6 transition-all duration-300 ${
+        <TabsList className={`bg-background border-b border-t rounded-none w-full justify-start h-10 p-0 gap-2 sm:gap-6 transition-all duration-300 overflow-x-auto ${
           activeTab === 'progress' 
-            ? 'sticky top-0 z-10 bg-white shadow-sm px-8' 
+            ? 'sticky top-0 z-10 bg-white shadow-sm px-2 sm:px-8' 
             : ''
         }`}>
           <TabsTrigger 
             value="calendar" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
           >
             Calendar
           </TabsTrigger>
           <TabsTrigger 
             value="timeline" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
           >
             Timeline
           </TabsTrigger>
           <TabsTrigger 
             value="progress"
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
           >
             Progress
           </TabsTrigger>
           <TabsTrigger 
             value="benefits"
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
           >
             To Do List
           </TabsTrigger>
-
         </TabsList>
 
         {/* All content is always mounted, just hidden with CSS */}
@@ -266,7 +265,7 @@ export default function ChqTimelinePage() {
           {/* Calendar Tab */}
           <div 
             className={`${activeTab === 'calendar' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-4'
+              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
             }`}
           >
             <MeetingRhythmPlanner />
@@ -275,7 +274,7 @@ export default function ChqTimelinePage() {
           {/* Timeline Tab */}
           <div 
             className={`${activeTab === 'timeline' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-4'
+              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
             }`}
           >
             <TimelineView 
@@ -288,7 +287,7 @@ export default function ChqTimelinePage() {
           {/* Todo List Tab */}
           <div 
             className={`${activeTab === 'benefits' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-4'
+              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
             }`}
           >
             <TodoList 
@@ -298,23 +297,17 @@ export default function ChqTimelinePage() {
             />
           </div>
 
-
-
-          {/* Progress Tab */}
-          <div 
-            className={`${activeTab === 'progress' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' 
-                ? 'h-full flex-1' 
-                : 'space-y-4'
-            }`}
-          >
-            <CourseProgress />
-          </div>
+          {/* Progress Tab - Only render when active to prevent video autoplay */}
+          {activeTab === 'progress' && (
+            <div className="h-full flex-1">
+              <CourseProgress />
+            </div>
+          )}
 
           {/* Contact Tab */}
           <div 
             className={`${activeTab === 'contact' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-4'
+              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
             }`}
           >
             <ContactInfo />

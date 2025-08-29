@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Play, Pause, Phone, PhoneOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { AudioVisualizer } from "./audio-visualizer";
 
 interface Message {
   role: "user" | "assistant";
@@ -976,7 +975,6 @@ export function RealtimeChatGemini() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-gray-800">Bot</h2>
-            <p className="text-xs text-gray-500">Trades Business School</p>
           </div>
           {isLoadingHistory && (
             <div className="flex items-center gap-2">
@@ -1098,7 +1096,7 @@ export function RealtimeChatGemini() {
             {/* Bot typing indicator placeholder with glowing lines */}
             {showBotTyping && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800  border border-gray-100">
+                <div className="max-w-[90%] md:max-w-[75%] rounded-2xl px-5 py-3 flex flex-col bg-white text-gray-800  border border-gray-100">
                   <div className="flex flex-col gap-1.5 w-36">
                     <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
                     <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
@@ -1136,11 +1134,7 @@ export function RealtimeChatGemini() {
 
       {/* Input Area */}
       <div className="p-4 border-t bg-white/80 backdrop-blur-sm rounded-b-xl">
-        {isRecording && (
-          <div className="mb-3">
-            <AudioVisualizer isRecording={isRecording} stream={audioStream} />
-          </div>
-        )}
+       
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <Button
             variant="ghost"

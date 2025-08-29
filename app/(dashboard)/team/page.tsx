@@ -194,7 +194,7 @@ export default function ChainOfCommandPage() {
 
   return (
     <div className="max-w-full mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Team</h1>
           <p className="text-sm text-gray-500 mt-1">
