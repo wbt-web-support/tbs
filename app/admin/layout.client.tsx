@@ -18,6 +18,7 @@ import {
   MessageSquare,
   BarChart3,
   BookOpen,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -71,7 +72,7 @@ const navigationSections = [
         icon: Users,
       },
       {
-        name: "Chatbot Instructions",
+        name: "AI Assistant Instructions",
         href: "/admin/instructions", 
         icon: MessageSquare,
       },
@@ -84,6 +85,16 @@ const navigationSections = [
         name: "Prompts",
         href: "/admin/prompt",
         icon: BookOpen,
+      }
+    ]
+  },
+  {
+    title: "Support",
+    items: [
+      {
+        name: "Help Center",
+        href: "/help",
+        icon: HelpCircle,
       }
     ]
   }

@@ -34,6 +34,7 @@ import {
   CreditCard,
   FileText,
   RefreshCw,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -170,6 +171,17 @@ const navigationSections: NavigationSection[] = [
         name: "AI Assistant",
         href: "/chat",
         icon: Sparkles,
+        disabled: false,
+      },
+    ],
+  },
+  {
+    title: "Support",
+    items: [
+      {
+        name: "Help Center",
+        href: "/help",
+        icon: HelpCircle,
         disabled: false,
       },
     ],

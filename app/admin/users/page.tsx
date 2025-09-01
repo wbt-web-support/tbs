@@ -110,6 +110,7 @@ interface NewUserForm {
   gd_folder_created: boolean;
   meeting_scheduled: boolean;
   role: string;
+  google_review_link: string;
   wbt_onboarding: string;
   wbt_onboarding_type: 'file' | 'url' | '';
   selectedFile: File | null;
@@ -149,6 +150,7 @@ export default function UserManagementPage() {
     gd_folder_created: false,
     meeting_scheduled: false,
     role: "admin",
+    google_review_link: "",
     wbt_onboarding: "",
     wbt_onboarding_type: "",
     selectedFile: null,
@@ -412,6 +414,7 @@ export default function UserManagementPage() {
         gd_folder_created: false,
         meeting_scheduled: false,
         role: "admin",
+        google_review_link: "",
         wbt_onboarding: "",
         wbt_onboarding_type: "",
         selectedFile: null,
@@ -709,6 +712,18 @@ export default function UserManagementPage() {
                       onChange={handleInputChange}
                     />
                   </div>
+                  
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="google_review_link">Google Review Link</Label>
+                    <Input
+                      id="google_review_link"
+                      name="google_review_link"
+                      type="url"
+                      placeholder="https://g.page/r/..."
+                      value={newUserForm.google_review_link}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                 </div>
               </div>
               
@@ -716,7 +731,6 @@ export default function UserManagementPage() {
                 <h3 className="font-medium text-sm text-blue-600">WBT Onboarding Data</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="wbt_onboarding_type">Onboarding Data Type</Label>
                     <div className="flex gap-4">
                       <label className="flex items-center space-x-2">
                         <input

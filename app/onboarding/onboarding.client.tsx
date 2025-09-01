@@ -312,7 +312,7 @@ function CompetitorsRepeater({
         <div key={competitor.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Competitor {index + 1}
+              Competitor name or competitor website ({index + 1})
             </label>
             <Input
               value={competitor.name}
@@ -1133,9 +1133,9 @@ function OnboardingHeader({ userName }: { userName: string }) {
 
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild className="flex items-center gap-2">
-            <Link href="/help">
+            <Link href="/help" target="_blank" rel="noopener noreferrer">
               <HelpCircle className="h-4 w-4" />
-              Need Help?
+              Complete Help Guide
             </Link>
           </Button>
           <div className="text-sm text-gray-600">
