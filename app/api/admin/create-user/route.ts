@@ -26,6 +26,8 @@ interface CreateUserRequest {
   gd_folder_created: boolean;
   meeting_scheduled: boolean;
   role: string;
+  wbt_onboarding: string;
+  wbt_onboarding_type: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
         gd_folder_created: userData.gd_folder_created,
         meeting_scheduled: userData.meeting_scheduled,
         role: userData.role,
+        wbt_onboarding: userData.wbt_onboarding || '',
       });
 
     if (businessError) {

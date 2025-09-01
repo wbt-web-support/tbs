@@ -1270,7 +1270,8 @@ function FloatingAIAssistant({
   onAcceptContent,
   isMobile = false,
   isOpen = true,
-  onToggle
+  onToggle,
+  wbtOnboardingData
 }: {
   focusedQuestion: string | null;
   form: any;
@@ -1279,6 +1280,7 @@ function FloatingAIAssistant({
   isMobile?: boolean;
   isOpen?: boolean;
   onToggle?: () => void;
+  wbtOnboardingData: string;
 }) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -1432,6 +1434,7 @@ function FloatingAIAssistant({
           customPrompt: promptToUse + " Please provide a plain text response without any markdown formatting, asterisks, or special characters.",
           existingContent: action === 'improve' ? existingGeneratedContent || currentValue : undefined,
           action,
+          wbtOnboardingData,
         }),
       });
 
@@ -1668,7 +1671,7 @@ function FloatingAIAssistant({
               ) : (
                 /* Suggestion Mode Interface */
                 <div className="space-y-4">
-                  {wordCount > 0 && wordCount < 10 ? (
+                  {wordCount > 0 && wordCount < 5 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-6">
                       <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
                         <FileText className="h-9 w-9 text-blue-600" />
@@ -1816,12 +1819,14 @@ function MobileAIAssistant({
   focusedQuestion,
   form,
   categories,
-  onClose
+  onClose,
+  wbtOnboardingData
 }: {
   focusedQuestion: string | null;
   form: any;
   categories: any[];
   onClose: () => void;
+  wbtOnboardingData: string;
 }) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -1909,6 +1914,7 @@ function MobileAIAssistant({
           customPrompt: promptToUse + " Please provide a plain text response without any markdown formatting, asterisks, or special characters.",
           existingContent: currentValue,
           action: currentValue ? 'improve' : 'generate',
+          wbtOnboardingData,
         }),
       });
 
@@ -1961,7 +1967,7 @@ function MobileAIAssistant({
 
   return (
     <div className="lg:hidden mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-      {wordCount > 0 && wordCount < 10 ? (
+      {wordCount > 0 && wordCount < 5 ? (
         <div className="flex flex-col items-center py-6 px-4">
           <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center mb-4 shadow-sm">
             <FileText className="h-6 w-6 text-blue-600" />
@@ -2202,6 +2208,7 @@ export default function OnboardingClient() {
   const [mobileAiOpen, setMobileAiOpen] = useState<{[key: string]: boolean}>({});
   const [desktopAiOpen, setDesktopAiOpen] = useState(true); // Desktop AI assistant starts open
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [wbtOnboardingData, setWbtOnboardingData] = useState<string>("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -2276,7 +2283,7 @@ export default function OnboardingClient() {
         if (dataToSave.current_employees_and_roles_responsibilities && Array.isArray(dataToSave.current_employees_and_roles_responsibilities)) {
           dataToSave.current_employees_and_roles_responsibilities = dataToSave.current_employees_and_roles_responsibilities
             .filter((employee: any) => employee && employee.name && employee.role)
-            .map((employee: any) => `${employee.name} (${employee.role})${employee.responsibilities ? ` - ${employee.responsibilities}` : ''}`)
+            .map((employee: any) => `${employee.name} (${employee.role}) - ${employee.responsibilities || 'No responsibilities specified'}`)
             .join(', ');
 // Convert SOP links array to string format for backward compatibility
         if (dataToSave.documented_systems_or_sops_links && Array.isArray(dataToSave.documented_systems_or_sops_links)) {
@@ -2369,52 +2376,29 @@ export default function OnboardingClient() {
 
         // Convert legacy string format to new array format for employees
         if (typeof onboardingData.current_employees_and_roles_responsibilities === 'string') {
-          // Parse the string format and convert to new array format
+          // Parse the old string format and convert to new array format
           const employeesString = onboardingData.current_employees_and_roles_responsibilities;
-          console.log('Parsing employees string:', employeesString);
           if (employeesString.trim()) {
-            // Parse formats like "John Smith (Operations Manager) - Managing daily operations, Jane Doe (Sales Director)"
+            // Try to parse comma-separated format like "John Smith (Operations Manager), Jane Doe (Sales Director)"
             const employees = employeesString.split(',').map((employee: string, index: number) => {
               const trimmed = employee.trim();
-              console.log('Processing employee:', trimmed);
-              
-              // First try to match the new format with responsibilities: "Name (Role) - Responsibilities"
-              const newFormatMatch = trimmed.match(/^(.+?)\s*\((.+?)\)\s*-\s*(.+)$/);
-              if (newFormatMatch) {
-                const parsed = {
+              const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+              if (match) {
+                return {
                   id: `legacy-employee-${index}`,
-                  name: newFormatMatch[1].trim(),
-                  role: newFormatMatch[2].trim(),
-                  responsibilities: newFormatMatch[3].trim()
-                };
-                console.log('Parsed with new format:', parsed);
-                return parsed;
-              }
-              
-              // Then try the old format without responsibilities: "Name (Role)"
-              const oldFormatMatch = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
-              if (oldFormatMatch) {
-                const parsed = {
-                  id: `legacy-employee-${index}`,
-                  name: oldFormatMatch[1].trim(),
-                  role: oldFormatMatch[2].trim(),
+                  name: match[1].trim(),
+                  role: match[2].trim(),
                   responsibilities: ''
                 };
-                console.log('Parsed with old format:', parsed);
-                return parsed;
+              } else {
+                return {
+                  id: `legacy-employee-${index}`,
+                  name: trimmed,
+                  role: '',
+                  responsibilities: ''
+                };
               }
-              
-              // If no pattern matches, treat as just a name
-              const parsed = {
-                id: `legacy-employee-${index}`,
-                name: trimmed,
-                role: '',
-                responsibilities: ''
-              };
-              console.log('Parsed as name only:', parsed);
-              return parsed;
             });
-            console.log('Final parsed employees:', employees);
             onboardingData.current_employees_and_roles_responsibilities = employees;
           } else {
             onboardingData.current_employees_and_roles_responsibilities = [];
@@ -2483,6 +2467,27 @@ export default function OnboardingClient() {
       }
     };
     fetchUserName();
+  }, []);
+
+  // Fetch WBT onboarding data on mount
+  useEffect(() => {
+    const fetchWbtOnboardingData = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('business_info')
+          .select('wbt_onboarding')
+          .eq('user_id', user.id)
+          .single();
+        if (data && data.wbt_onboarding) {
+          setWbtOnboardingData(data.wbt_onboarding);
+        } else if (error) {
+          console.error("Error fetching WBT onboarding data:", error);
+        }
+      }
+    };
+    fetchWbtOnboardingData();
   }, []);
 
   const handleStartOnboarding = () => {
@@ -2822,7 +2827,7 @@ export default function OnboardingClient() {
     if (dataToSubmit.current_employees_and_roles_responsibilities && Array.isArray(dataToSubmit.current_employees_and_roles_responsibilities)) {
       dataToSubmit.current_employees_and_roles_responsibilities = dataToSubmit.current_employees_and_roles_responsibilities
         .filter((employee: any) => employee && employee.name && employee.role)
-        .map((employee: any) => `${employee.name} (${employee.role})${employee.responsibilities ? ` - ${employee.responsibilities}` : ''}`)
+        .map((employee: any) => `${employee.name} (${employee.role})`)
         .join(', ');
     }
 
@@ -3225,6 +3230,7 @@ export default function OnboardingClient() {
                                               ...prev,
                                               [q.name]: false
                                             }))}
+                                            wbtOnboardingData={wbtOnboardingData}
                                           />
                                         </div>
                                       </div>
@@ -3308,6 +3314,7 @@ export default function OnboardingClient() {
                           onAcceptContent={handleAiContentAccept}
                           isOpen={desktopAiOpen}
                           onToggle={() => setDesktopAiOpen(!desktopAiOpen)}
+                          wbtOnboardingData={wbtOnboardingData}
                         />
                       </div>
                     )}

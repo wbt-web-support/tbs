@@ -12,7 +12,7 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function POST(req: NextRequest) {
   try {
-    const { currentFormValues, questionName, questionLabel, categoryTitle, customPrompt, existingContent, action } = await req.json();
+    const { currentFormValues, questionName, questionLabel, categoryTitle, customPrompt, existingContent, action, wbtOnboardingData } = await req.json();
 
     // Build the prompt for the AI
     let prompt = `You are an AI assistant helping a business owner improve their written responses in an onboarding form for a trades business school program.
@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
     - Write in UK English and keep responses appropriately detailed
     - Focus on enhancing what's already there without adding made-up information
     - If you cannot improve the content meaningfully, return the original content exactly as provided`;
+    
+    // Include WBT onboarding data as context if available
+    if (wbtOnboardingData && wbtOnboardingData.trim() !== '') {
+      prompt += `\n\nWBT ONBOARDING CONTEXT (use this information to better understand the business and provide more relevant improvements):\n${wbtOnboardingData}\n\nIMPORTANT: Use this WBT onboarding context to better understand the business's specific situation, but do not reference it directly in your response. Use it only to inform how you improve the existing content.`;
+    }
 
     if (customPrompt) {
       prompt += `\n\nUser's specific improvement request: "${customPrompt}"`;

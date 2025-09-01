@@ -13,7 +13,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Helper function to get user ID from request
 async function getUserId(req: Request) {
-  try {
+  try { 
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     return session?.user?.id; 
@@ -1123,7 +1123,12 @@ function prepareUserContext(userData: any) {
 🔍 Onboarding Status:
 - Command HQ: ${info.command_hq_created ? 'Created ✅' : 'Not Created ❌'}
 - Google Drive Folder: ${info.gd_folder_created ? 'Created ✅' : 'Not Created ❌'}
-- Meeting Scheduled: ${info.meeting_scheduled ? 'Yes ✅' : 'No ❌'}`);
+- Meeting Scheduled: ${info.meeting_scheduled ? 'Yes ✅' : 'No ❌'}
+
+📚 WBT Onboarding Data:
+${info.wbt_onboarding && info.wbt_onboarding.trim() !== '' 
+  ? `- WBT Onboarding: ${info.wbt_onboarding}`
+  : '- WBT Onboarding: Not provided'}`);
   }
 
   // Format team members information

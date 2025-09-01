@@ -13,6 +13,8 @@ import {
   Eye,
   MoreHorizontal,
   KeyRound,
+  FileText,
+  X,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
@@ -108,6 +110,10 @@ interface NewUserForm {
   gd_folder_created: boolean;
   meeting_scheduled: boolean;
   role: string;
+  wbt_onboarding: string;
+  wbt_onboarding_type: 'file' | 'url' | '';
+  selectedFile: File | null;
+  extractedContent: string;
 }
 
 export default function UserManagementPage() {
@@ -127,7 +133,9 @@ export default function UserManagementPage() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
   const [showTeamMembers, setShowTeamMembers] = useState(false);
+  const [showFullContent, setShowFullContent] = useState(false);
   const [newUserForm, setNewUserForm] = useState<NewUserForm>({
     email: "",
     password: "",
@@ -141,6 +149,10 @@ export default function UserManagementPage() {
     gd_folder_created: false,
     meeting_scheduled: false,
     role: "admin",
+    wbt_onboarding: "",
+    wbt_onboarding_type: "",
+    selectedFile: null,
+    extractedContent: "",
   });
   const supabase = createClient();
   
@@ -336,6 +348,22 @@ export default function UserManagementPage() {
       return;
     }
 
+    // Validate WBT onboarding data
+    if (!newUserForm.wbt_onboarding_type) {
+      toast.error("Please select WBT onboarding data type (PDF file or URL)");
+      return;
+    }
+
+    if (newUserForm.wbt_onboarding_type === 'file' && !newUserForm.extractedContent) {
+      toast.error("Please upload and extract a PDF file for WBT onboarding data");
+      return;
+    }
+
+    if (newUserForm.wbt_onboarding_type === 'url' && !newUserForm.extractedContent) {
+      toast.error("Please provide a PDF URL and extract the content for WBT onboarding data");
+      return;
+    }
+
     try {
       setIsCreatingUser(true);
 
@@ -345,6 +373,12 @@ export default function UserManagementPage() {
         throw new Error("No session token available");
       }
 
+      // Prepare user data with extracted PDF content
+      const userData = {
+        ...newUserForm,
+        wbt_onboarding: newUserForm.extractedContent
+      };
+
       // Use the admin API to create user (this won't log in as the new user)
       const response = await fetch('/api/admin/create-user', {
         method: 'POST',
@@ -352,7 +386,7 @@ export default function UserManagementPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify(newUserForm)
+        body: JSON.stringify(userData)
       });
 
       const result = await response.json();
@@ -378,6 +412,10 @@ export default function UserManagementPage() {
         gd_folder_created: false,
         meeting_scheduled: false,
         role: "admin",
+        wbt_onboarding: "",
+        wbt_onboarding_type: "",
+        selectedFile: null,
+        extractedContent: "",
       });
       
       // Refresh users list
@@ -410,6 +448,87 @@ export default function UserManagementPage() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewUserForm(prev => ({
+        ...prev,
+        selectedFile: file,
+        extractedContent: ""
+      }));
+    }
+  };
+
+  const handleExtractFile = async () => {
+    if (!newUserForm.selectedFile) return;
+
+    try {
+      setIsExtractingPdf(true);
+      const formData = new FormData();
+      formData.append('file', newUserForm.selectedFile);
+
+      const response = await fetch('/api/extract/pdf', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to extract PDF content');
+      }
+
+      const result = await response.json();
+      
+      // Store the extracted text content (keep original file info)
+      setNewUserForm(prev => ({
+        ...prev,
+        wbt_onboarding: `File: ${prev.selectedFile?.name || 'PDF File'}`,
+        extractedContent: result.content
+      }));
+
+      toast.success('PDF content extracted successfully');
+    } catch (error) {
+      console.error('Error extracting PDF:', error);
+      toast.error('Failed to extract PDF content');
+    } finally {
+      setIsExtractingPdf(false);
+    }
+  };
+
+  const handleExtractUrl = async () => {
+    if (!newUserForm.wbt_onboarding) return;
+
+    try {
+      setIsExtractingPdf(true);
+      const response = await fetch('/api/extract/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url: newUserForm.wbt_onboarding })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to extract PDF content from URL');
+      }
+
+      const result = await response.json();
+      
+      // Store the extracted text content (keep original URL)
+      setNewUserForm(prev => ({
+        ...prev,
+        wbt_onboarding: prev.wbt_onboarding, // Keep the original URL
+        extractedContent: result.content
+      }));
+
+      toast.success('PDF content extracted from URL successfully');
+    } catch (error) {
+      console.error('Error extracting PDF from URL:', error);
+      toast.error('Failed to extract PDF content from URL. Please check the URL and try again.');
+    } finally {
+      setIsExtractingPdf(false);
+    }
   };
 
   // Separate regular users from team members
@@ -582,14 +701,229 @@ export default function UserManagementPage() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="phone_number">Phone Number</Label>
-          <Input
+                    <Input
                       id="phone_number"
                       name="phone_number"
                       placeholder="+1 (555) 555-5555"
                       value={newUserForm.phone_number}
                       onChange={handleInputChange}
-          />
-        </div>
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-5">
+                <h3 className="font-medium text-sm text-blue-600">WBT Onboarding Data</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="wbt_onboarding_type">Onboarding Data Type</Label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="wbt_onboarding_type"
+                          value="file"
+                          checked={newUserForm.wbt_onboarding_type === 'file'}
+                          onChange={(e) => handleSelectChange('wbt_onboarding_type', e.target.value)}
+                          className="text-blue-600"
+                        />
+                        <span className="text-sm">PDF File</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="wbt_onboarding_type"
+                          value="url"
+                          checked={newUserForm.wbt_onboarding_type === 'url'}
+                          onChange={(e) => handleSelectChange('wbt_onboarding_type', e.target.value)}
+                          className="text-blue-600"
+                        />
+                        <span className="text-sm">PDF URL</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {newUserForm.wbt_onboarding_type === 'file' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="wbt_onboarding_file">Upload PDF File</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="wbt_onboarding_file"
+                          name="wbt_onboarding_file"
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => handleFileSelect(e)}
+                          className="cursor-pointer flex-1"
+                          disabled={isExtractingPdf}
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleExtractFile}
+                          disabled={!newUserForm.selectedFile || isExtractingPdf}
+                          size="sm"
+                          className="whitespace-nowrap"
+                        >
+                          {isExtractingPdf ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              Extracting...
+                            </>
+                          ) : (
+                            <>Extract</>
+                          )}
+                        </Button>
+                      </div>
+                      {isExtractingPdf && (
+                        <div className="flex items-center gap-2 text-sm text-blue-600">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Extracting PDF content...
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Upload a PDF file and click Extract to get the content for AI training.
+                      </p>
+                      {newUserForm.selectedFile && (
+                        <div className="flex items-center gap-2 text-sm text-blue-600">
+                          <FileText className="w-4 h-4" />
+                          Selected: {newUserForm.selectedFile.name}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                                                          onClick={() => {
+                                setNewUserForm(prev => ({
+                                  ...prev,
+                                  selectedFile: null,
+                                  extractedContent: ""
+                                }));
+                              }}
+                            className="h-6 px-2 text-xs"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {newUserForm.extractedContent && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-sm text-green-800 font-medium">PDF Content Extracted Successfully</p>
+                          <div className="mt-2 space-y-2">
+                            <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                              <p className="text-xs text-blue-700 font-medium">Source:</p>
+                              <p className="text-xs text-blue-600">
+                                {newUserForm.wbt_onboarding}
+                              </p>
+                            </div>
+                           
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowFullContent(true)}
+                            >
+                              View Full Content
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setNewUserForm(prev => ({
+                                  ...prev,
+                                  extractedContent: ""
+                                }));
+                              }}
+                            >
+                              Clear Content
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {newUserForm.wbt_onboarding_type === 'url' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="wbt_onboarding">PDF URL</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="wbt_onboarding"
+                          name="wbt_onboarding"
+                          type="url"
+                          placeholder="https://example.com/document.pdf"
+                          value={newUserForm.wbt_onboarding}
+                          onChange={handleInputChange}
+                          disabled={isExtractingPdf}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleExtractUrl}
+                          disabled={!newUserForm.wbt_onboarding || isExtractingPdf}
+                          size="sm"
+                          className="whitespace-nowrap"
+                        >
+                          {isExtractingPdf ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              Extracting...
+                            </>
+                          ) : (
+                            <>Extract</>
+                          )}
+                        </Button>
+                      </div>
+                      {isExtractingPdf && (
+                        <div className="flex items-center gap-2 text-sm text-blue-600">
+                          <div className="flex items-center gap-2 text-sm text-blue-600">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Extracting PDF content from URL...
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Enter a PDF URL and click Extract to get the content for AI training.
+                      </p>
+                      {newUserForm.extractedContent && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-sm text-green-800 font-medium">PDF Content Extracted Successfully</p>
+                          <div className="mt-2 space-y-2">
+                            <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                              <p className="text-xs text-blue-700 font-medium">Source:</p>
+                              <p className="text-xs text-blue-600">
+                                {newUserForm.wbt_onboarding}
+                              </p>
+                            </div>
+                            
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowFullContent(true)}
+                            >
+                              View Full Content
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setNewUserForm(prev => ({
+                                  ...prev,
+                                  extractedContent: ""
+                                }));
+                              }}
+                            >
+                              Clear Content
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -606,12 +940,17 @@ export default function UserManagementPage() {
               </Button>
               <Button 
                 onClick={handleCreateUser}
-                disabled={isCreatingUser}
+                disabled={isCreatingUser || isExtractingPdf}
               >
                 {isCreatingUser ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating...
+                  </>
+                ) : isExtractingPdf ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Extracting PDF...
                   </>
                 ) : (
                   <>Create User</>
@@ -620,7 +959,46 @@ export default function UserManagementPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-          </div>
+        
+        {/* Full Content Modal */}
+        <Dialog open={showFullContent} onOpenChange={setShowFullContent}>
+          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>WBT Onboarding Content</DialogTitle>
+              <DialogDescription>
+                Full extracted content from the PDF for AI training purposes.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="mt-4 space-y-4">
+              {/* Source Information */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-800 mb-2">Source Information:</p>
+                <p className="text-sm text-blue-700">
+                  {newUserForm.wbt_onboarding_type === 'file' 
+                    ? `File: ${newUserForm.selectedFile?.name || 'PDF File'}`
+                    : `URL: ${newUserForm.wbt_onboarding}`
+                  }
+                </p>
+              </div>
+              
+              {/* Extracted Content */}
+              <div className="p-4 bg-gray-50 rounded-lg border">
+                <p className="text-sm font-medium text-gray-800 mb-2">Extracted Content:</p>
+                <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono max-h-96 overflow-y-auto">
+                  {newUserForm.extractedContent}
+                </pre>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button onClick={() => setShowFullContent(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <Card className="p-4">
         <div className="flex items-center gap-4 mb-6">
