@@ -2276,7 +2276,7 @@ export default function OnboardingClient() {
         if (dataToSave.current_employees_and_roles_responsibilities && Array.isArray(dataToSave.current_employees_and_roles_responsibilities)) {
           dataToSave.current_employees_and_roles_responsibilities = dataToSave.current_employees_and_roles_responsibilities
             .filter((employee: any) => employee && employee.name && employee.role)
-            .map((employee: any) => `${employee.name} (${employee.role})`)
+            .map((employee: any) => `${employee.name} (${employee.role})${employee.responsibilities ? ` - ${employee.responsibilities}` : ''}`)
             .join(', ');
 // Convert SOP links array to string format for backward compatibility
         if (dataToSave.documented_systems_or_sops_links && Array.isArray(dataToSave.documented_systems_or_sops_links)) {
@@ -2369,29 +2369,52 @@ export default function OnboardingClient() {
 
         // Convert legacy string format to new array format for employees
         if (typeof onboardingData.current_employees_and_roles_responsibilities === 'string') {
-          // Parse the old string format and convert to new array format
+          // Parse the string format and convert to new array format
           const employeesString = onboardingData.current_employees_and_roles_responsibilities;
+          console.log('Parsing employees string:', employeesString);
           if (employeesString.trim()) {
-            // Try to parse comma-separated format like "John Smith (Operations Manager), Jane Doe (Sales Director)"
+            // Parse formats like "John Smith (Operations Manager) - Managing daily operations, Jane Doe (Sales Director)"
             const employees = employeesString.split(',').map((employee: string, index: number) => {
               const trimmed = employee.trim();
-              const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
-              if (match) {
-                return {
+              console.log('Processing employee:', trimmed);
+              
+              // First try to match the new format with responsibilities: "Name (Role) - Responsibilities"
+              const newFormatMatch = trimmed.match(/^(.+?)\s*\((.+?)\)\s*-\s*(.+)$/);
+              if (newFormatMatch) {
+                const parsed = {
                   id: `legacy-employee-${index}`,
-                  name: match[1].trim(),
-                  role: match[2].trim(),
-                  responsibilities: ''
+                  name: newFormatMatch[1].trim(),
+                  role: newFormatMatch[2].trim(),
+                  responsibilities: newFormatMatch[3].trim()
                 };
-              } else {
-                return {
-                  id: `legacy-employee-${index}`,
-                  name: trimmed,
-                  role: '',
-                  responsibilities: ''
-                };
+                console.log('Parsed with new format:', parsed);
+                return parsed;
               }
+              
+              // Then try the old format without responsibilities: "Name (Role)"
+              const oldFormatMatch = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+              if (oldFormatMatch) {
+                const parsed = {
+                  id: `legacy-employee-${index}`,
+                  name: oldFormatMatch[1].trim(),
+                  role: oldFormatMatch[2].trim(),
+                  responsibilities: ''
+                };
+                console.log('Parsed with old format:', parsed);
+                return parsed;
+              }
+              
+              // If no pattern matches, treat as just a name
+              const parsed = {
+                id: `legacy-employee-${index}`,
+                name: trimmed,
+                role: '',
+                responsibilities: ''
+              };
+              console.log('Parsed as name only:', parsed);
+              return parsed;
             });
+            console.log('Final parsed employees:', employees);
             onboardingData.current_employees_and_roles_responsibilities = employees;
           } else {
             onboardingData.current_employees_and_roles_responsibilities = [];
@@ -2799,7 +2822,7 @@ export default function OnboardingClient() {
     if (dataToSubmit.current_employees_and_roles_responsibilities && Array.isArray(dataToSubmit.current_employees_and_roles_responsibilities)) {
       dataToSubmit.current_employees_and_roles_responsibilities = dataToSubmit.current_employees_and_roles_responsibilities
         .filter((employee: any) => employee && employee.name && employee.role)
-        .map((employee: any) => `${employee.name} (${employee.role})`)
+        .map((employee: any) => `${employee.name} (${employee.role})${employee.responsibilities ? ` - ${employee.responsibilities}` : ''}`)
         .join(', ');
     }
 
