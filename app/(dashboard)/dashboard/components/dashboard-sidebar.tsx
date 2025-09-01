@@ -2,7 +2,7 @@ import AIInsights from './ai-insights';
 import CustomerReviewsSummary from './customer-reviews-summary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { Sparkles, UsersRound, BookOpen, Calendar } from 'lucide-react';
+import { Sparkles, UsersRound, BookOpen, Calendar, BookOpen as BookOpenIcon } from 'lucide-react';
 
 interface DashboardSidebarProps {
   adminProfile: {
@@ -58,6 +58,17 @@ export default function DashboardSidebar({ adminProfile, customerReviewsLoading 
                     <Calendar className='h-5 w-5 text-purple-600' />
                   </div>
                   <h3 className='font-semibold text-gray-900'>Calendar</h3>
+                </div>
+              </div>
+            </Link>
+            {/* Modules */}
+            <Link href="/modules" className='block'>
+              <div className='p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-green-300 transition-all cursor-pointer group'>
+                <div className='flex items-center gap-3'>
+                  <div className='p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors'>
+                    <BookOpenIcon className='h-5 w-5 text-green-600' />
+                  </div>
+                  <h3 className='font-semibold text-gray-900'>Modules</h3>
                 </div>
               </div>
             </Link>

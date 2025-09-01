@@ -80,6 +80,11 @@ const navigationSections: NavigationSection[] = [
         icon: Calendar,
       },
       {
+        name: "Modules",
+        href: "/modules",
+        icon: BookOpen,
+      },
+      {
         name: "Team",
         href: "/team",
         icon: Users,

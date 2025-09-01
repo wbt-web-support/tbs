@@ -78,8 +78,6 @@ type ModuleProgress = {
   completed_at?: string;
 };
 
-// Removed CourseEnrollment type - no longer needed
-
 type VideoPlayerProps = {
   videoUrl: string;
   videoType: string;
@@ -126,7 +124,7 @@ const VideoPlayer = ({ videoUrl, videoType, lessonTitle, onProgress, onComplete 
   );
 };
 
-export default function CourseProgress() {
+export default function ModulesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<CourseModule[]>([]);
@@ -360,21 +358,21 @@ export default function CourseProgress() {
 
   // Show course selection only if there are multiple courses and no course is selected
   if (courses.length > 1 && (!selectedCourse || modules.length === 0)) {
-          return (
-        <div className="p-6">
-          <div className="max-w-6xl">
-            <div className="text-left mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Course</h1>
-              <p className="text-lg text-gray-600">Select a course to start your learning journey</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((course) => (
-                <Card 
-                  key={course.id} 
-                  className="cursor-pointer transition-all hover:shadow-lg border-2 border-gray-200 hover:border-blue-300"
-                  onClick={() => loadCourseContent(course)}
-                >
+    return (
+      <div className="p-6">
+        <div className="max-w-6xl">
+          <div className="text-left mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Course</h1>
+            <p className="text-lg text-gray-600">Select a course to start your learning journey</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course) => (
+              <Card 
+                key={course.id} 
+                className="cursor-pointer transition-all hover:shadow-lg border-2 border-gray-200 hover:border-blue-300"
+                onClick={() => loadCourseContent(course)}
+              >
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -402,8 +400,6 @@ export default function CourseProgress() {
               </Card>
             ))}
           </div>
-          
-
         </div>
       </div>
     );
@@ -438,18 +434,18 @@ export default function CourseProgress() {
             {/* Video Player - Large and Prominent */}
             <div className="bg-gray-50 relative">
               <div className="max-w-7xl mx-auto">
-              <VideoPlayer
-                videoUrl={selectedLesson.video_url}
-                videoType={selectedLesson.video_type}
-                lessonTitle={selectedLesson.title}
-                onProgress={(currentTime, duration) => {
-                  const percentage = (currentTime / duration) * 100;
-                  updateLessonProgress(selectedLesson.id, percentage, currentTime);
-                }}
-                onComplete={() => {
-                  markLessonComplete(selectedLesson.id);
-                }}
-              />
+                <VideoPlayer
+                  videoUrl={selectedLesson.video_url}
+                  videoType={selectedLesson.video_type}
+                  lessonTitle={selectedLesson.title}
+                  onProgress={(currentTime, duration) => {
+                    const percentage = (currentTime / duration) * 100;
+                    updateLessonProgress(selectedLesson.id, percentage, currentTime);
+                  }}
+                  onComplete={() => {
+                    markLessonComplete(selectedLesson.id);
+                  }}
+                />
               </div>
             </div>
 
@@ -457,7 +453,7 @@ export default function CourseProgress() {
             <div className="max-w-7xl mx-auto w-full px-6 py-8">
               {/* Lesson Header */}
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-8">
-              <div className="flex-1">
+                <div className="flex-1">
                   <h1 className="text-3xl font-bold text-gray-900 mb-3">{selectedLesson.title}</h1>
                   <div className="flex items-center gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-1">
@@ -470,31 +466,31 @@ export default function CourseProgress() {
                       </Badge>
                     </div>
                   </div>
-              </div>
-              
-              <div className="flex gap-3">
-                {getLessonProgress(selectedLesson.id)?.is_completed ? (
-                  <Button 
-                    onClick={() => updateLessonProgress(selectedLesson.id, 0, 0, false)}
-                    variant="outline"
+                </div>
+                
+                <div className="flex gap-3">
+                  {getLessonProgress(selectedLesson.id)?.is_completed ? (
+                    <Button 
+                      onClick={() => updateLessonProgress(selectedLesson.id, 0, 0, false)}
+                      variant="outline"
                       className="border-green-200 text-green-700 hover:bg-green-50"
-                  >
+                    >
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={() => markLessonComplete(selectedLesson.id)}
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={() => markLessonComplete(selectedLesson.id)}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-6"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
                       Mark Complete
-                  </Button>
-                )}
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Description */}
-            {selectedLesson.description && (
+              {/* Description */}
+              {selectedLesson.description && (
                 <div className="prose prose-lg max-w-none">
                   <div 
                     className="text-gray-700 leading-relaxed flex flex-col gap-3"
@@ -505,8 +501,8 @@ export default function CourseProgress() {
                       __html: selectedLesson.description.replace(/<br\s*\/?>/gi, '<br style="margin-bottom: 1em;">') 
                     }}
                   />
-              </div>
-            )}
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -533,7 +529,7 @@ export default function CourseProgress() {
         isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0" // Slide in/out on mobile
       )}>
         <div className="flex flex-col h-full">
-        {/* Course Header */}
+          {/* Course Header */}
           <div className="py-3 px-4 border-b border-gray-100 flex-shrink-0 bg-blue-50">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -568,7 +564,6 @@ export default function CourseProgress() {
             </div>
             
             <div className="space-y-3">
-              
               <div className="relative">
                 <Progress value={calculateCourseProgress()} className="h-1 bg-white" />
                 <div className="absolute inset-0 bg-blue-500 rounded-full" 
@@ -578,35 +573,35 @@ export default function CourseProgress() {
                 <span>{lessons.filter(l => getLessonProgress(l.id)?.is_completed).length} of {lessons.length} lessons complete</span>
                 <span>{Math.round((lessons.filter(l => getLessonProgress(l.id)?.is_completed).length / lessons.length) * 100) || 0}%</span>
               </div>
+            </div>
           </div>
-        </div>
 
-        {/* Modules and Lessons */}
-        <ScrollArea className="flex-1 h-0">
+          {/* Modules and Lessons */}
+          <ScrollArea className="flex-1 h-0">
             <div className="py-0">
-            {modules.map((module, moduleIndex) => {
-              const moduleLessons = lessons
-                .filter(l => l.module_id === module.id)
-                .sort((a, b) => a.order_index - b.order_index);
-              
-              const moduleProgressData = getModuleProgress(module.id);
-              const isExpanded = expandedModules.has(module.id);
-              const completedCount = moduleLessons.filter(l => getLessonProgress(l.id)?.is_completed).length;
-              const totalDuration = moduleLessons.reduce((acc, lesson) => acc + (lesson.video_duration_seconds || 0), 0);
+              {modules.map((module, moduleIndex) => {
+                const moduleLessons = lessons
+                  .filter(l => l.module_id === module.id)
+                  .sort((a, b) => a.order_index - b.order_index);
+                
+                const moduleProgressData = getModuleProgress(module.id);
+                const isExpanded = expandedModules.has(module.id);
+                const completedCount = moduleLessons.filter(l => getLessonProgress(l.id)?.is_completed).length;
+                const totalDuration = moduleLessons.reduce((acc, lesson) => acc + (lesson.video_duration_seconds || 0), 0);
                 const moduleProgressPercentage = moduleLessons.length > 0 ? (completedCount / moduleLessons.length) * 100 : 0;
-              
-              return (
+                
+                return (
                   <div key={module.id} className="mb-0">
-                  {/* Module Header */}
-                  <button
-                    onClick={() => toggleModule(module.id)}
+                    {/* Module Header */}
+                    <button
+                      onClick={() => toggleModule(module.id)}
                       className="w-full flex items-center justify-between p-4 bg-gray-100 hover:bg-gray-50 transition-colors text-left border-gray-200 border-t border-b"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
+                    >
+                      <div className="flex items-center gap-3 flex-1">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                           <span className="text-sm font-semibold text-blue-700">{moduleIndex + 1}</span>
                         </div>
-                      <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 text-sm">{module.title}</h3>
                           <div className="flex items-center gap-3 mt-1">
                             <p className="text-xs text-gray-500">
@@ -614,47 +609,46 @@ export default function CourseProgress() {
                             </p>
                             <p className="text-xs text-gray-500">
                               {totalDuration > 0 ? formatDuration(totalDuration) : '0min'}
-                        </p>
-                      </div>
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center justify-center flex-shrink-0">
-                        {isExpanded ? (
+                          {isExpanded ? (
                             <ChevronUp className="h-4 w-4 text-gray-500" />
-                        ) : (
+                          ) : (
                             <ChevronDown className="h-4 w-4 text-gray-500" />
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
 
-                  {/* Lessons */}
-                  {isExpanded && (
+                    {/* Lessons */}
+                    {isExpanded && (
                       <div className="">
-                      {moduleLessons.map((lesson, lessonIndex) => {
-                        const lessonProgressData = getLessonProgress(lesson.id);
-                        const isUnlocked = isLessonUnlocked(lesson);
-                        const isSelected = selectedLesson?.id === lesson.id;
-                        
-                        return (
-                          <button
-                            key={lesson.id}
-                            onClick={() => {
-                              if (isUnlocked) {
-                                setSelectedLesson(lesson);
-                                // Close sidebar on mobile after lesson selection
-                                setIsSidebarOpen(false);
-                              }
-                            }}
-                            className={cn(
+                        {moduleLessons.map((lesson, lessonIndex) => {
+                          const lessonProgressData = getLessonProgress(lesson.id);
+                          const isUnlocked = isLessonUnlocked(lesson);
+                          const isSelected = selectedLesson?.id === lesson.id;
+                          
+                          return (
+                            <button
+                              key={lesson.id}
+                              onClick={() => {
+                                if (isUnlocked) {
+                                  setSelectedLesson(lesson);
+                                  // Close sidebar on mobile after lesson selection
+                                  setIsSidebarOpen(false);
+                                }
+                              }}
+                              className={cn(
                                 "w-full flex items-center gap-3 p-3 text-left transition-all",
-                              isSelected 
+                                isSelected 
                                   ? "bg-blue-100 border-blue-200 shadow-sm" 
                                   : "hover:bg-gray-50 border-gray-100 hover:border-gray-200",
-                              !isUnlocked && "opacity-50 cursor-not-allowed"
-                            )}
-                          >
-                            
-                            <div className="flex-1 min-w-0">
+                                !isUnlocked && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              <div className="flex-1 min-w-0">
                                 <h4 className={cn(
                                   " text-sm",
                                   isSelected ? "text-blue-900" : "text-gray-900"
@@ -667,30 +661,27 @@ export default function CourseProgress() {
                                 </div>
                               </div>
 
-                            <div className="flex items-center justify-center flex-shrink-0">
-                              {lessonProgressData?.is_completed ? (
-                                <CheckCircle2 className="w-6 h-6 text-green-600" />
-                              ) : isUnlocked ? (
-                                <PlayCircle className="w-6 h-6 text-blue-600" />
-                              ) : (
-                                <Lock className="w-6 h-6 text-gray-400" />
-                              )}
-                            </div>
-                            
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
+                              <div className="flex items-center justify-center flex-shrink-0">
+                                {lessonProgressData?.is_completed ? (
+                                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+                                ) : isUnlocked ? (
+                                  <PlayCircle className="w-6 h-6 text-blue-600" />
+                                ) : (
+                                  <Lock className="w-6 h-6 text-gray-400" />
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
         </div>
       </div>
-
-
     </div>
   );
-} 
+}

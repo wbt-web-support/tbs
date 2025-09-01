@@ -142,7 +142,7 @@ function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className
 interface Question {
   name: string;
   label: string;
-  type: 'input' | 'textarea' | 'business-owners-repeater' | 'competitors-repeater' | 'employees-repeater' | 'date-picker' | 'sop-links-repeater';
+  type: 'input' | 'textarea' | 'business-owners-repeater' | 'competitors-repeater' | 'employees-repeater' | 'date-picker' | 'sop-links-repeater' | 'revenue-input' | 'profit-margin-input';
   placeholder?: string;
   inputType?: string;
   required: boolean;
@@ -640,7 +640,7 @@ const RevenueInput = React.forwardRef<HTMLInputElement, { value: string; onChang
       if (!val) return '';
       const num = val.replace(/[^\d]/g, '');
       if (!num) return '';
-      return '£' + Number(num).toLocaleString();
+      return Number(num).toLocaleString();
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -650,18 +650,24 @@ const RevenueInput = React.forwardRef<HTMLInputElement, { value: string; onChang
     };
 
     return (
-      <Input
-        id={id}
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        value={formatNumber(value)}
-        onChange={handleChange}
-        required={required}
-        placeholder={placeholder ? `£${placeholder}` : '£0'}
-        autoComplete="off"
-        ref={ref}
-      />
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <span className="text-gray-500 text-base">£</span>
+        </div>
+        <Input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={formatNumber(value)}
+          onChange={handleChange}
+          required={required}
+          placeholder={placeholder || "Enter amount"}
+          autoComplete="off"
+          className="pl-8"
+          ref={ref}
+        />
+      </div>
     );
   }
 );
@@ -675,7 +681,7 @@ const PercentageInput = React.forwardRef<HTMLInputElement, { value: string; onCh
       if (!val) return '';
       // Remove leading zeros
       const num = val.replace(/^0+(?!\.)/, '');
-      return num ? num + '%' : '';
+      return num || '';
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -690,22 +696,134 @@ const PercentageInput = React.forwardRef<HTMLInputElement, { value: string; onCh
     };
 
     return (
-      <Input
-        id={id}
-        type="text"
-        inputMode="decimal"
-        pattern="[0-9.]*"
-        value={formatNumber(value)}
-        onChange={handleChange}
-        required={required}
-        placeholder={placeholder ? `${placeholder}%` : '0%'}
-        autoComplete="off"
-        ref={ref}
-      />
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <span className="text-gray-500 text-base">%</span>
+        </div>
+        <Input
+          id={id}
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9.]*"
+          value={formatNumber(value)}
+          onChange={handleChange}
+          required={required}
+          placeholder={placeholder || "Enter percentage"}
+          autoComplete="off"
+          className="pl-8"
+          ref={ref}
+        />
+      </div>
     );
   }
 );
 PercentageInput.displayName = 'PercentageInput';
+
+// Revenue Input with Not Sure Option
+function RevenueInputWithChoice({
+  value,
+  onChange,
+  required,
+  fieldId
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  required: boolean;
+  fieldId: string;
+}) {
+  const isNotSure = value === 'not_sure';
+
+  return (
+    <div className="space-y-3">
+      {!isNotSure && (
+        <RevenueInput
+          id={fieldId}
+          value={isNotSure ? '' : value}
+          onChange={onChange}
+          required={required}
+          placeholder="Enter annual revenue"
+        />
+      )}
+      
+      {isNotSure ? (
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <span className="text-blue-800 font-medium">Not sure</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange('')}
+            className="h-6 w-6 p-0 hover:bg-blue-100"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onChange('not_sure')}
+          className="w-full"
+        >
+          Not sure
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// Profit Margin Input with Not Sure Option
+function ProfitMarginInputWithChoice({
+  value,
+  onChange,
+  required,
+  fieldId
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  required: boolean;
+  fieldId: string;
+}) {
+  const isNotSure = value === 'not_sure';
+
+  return (
+    <div className="space-y-3">
+      {!isNotSure && (
+        <PercentageInput
+          id={fieldId}
+          value={isNotSure ? '' : value}
+          onChange={onChange}
+          required={required}
+          placeholder="Enter profit margin"
+        />
+      )}
+      
+      {isNotSure ? (
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <span className="text-blue-800 font-medium">Not sure</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange('')}
+            className="h-6 w-6 p-0 hover:bg-blue-100"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onChange('not_sure')}
+          className="w-full"
+        >
+          Not sure
+        </Button>
+      )}
+    </div>
+  );
+}
 
 // Highly descriptive schema for AI training
 const formSchema = z.object({
@@ -731,8 +849,8 @@ const formSchema = z.object({
     role: z.string().min(1, "Role is required"),
     responsibilities: z.string().min(1, "Responsibilities are required")
   })),
-  last_full_year_annual_revenue_amount: z.string().min(1, "Please enter annual revenue"),
-  current_profit_margin_percentage: z.string().min(1, "Please enter profit margin"),
+  last_full_year_annual_revenue_amount: z.string().min(1, "Please select annual revenue or 'not sure'"),
+  current_profit_margin_percentage: z.string().min(1, "Please select profit margin or 'not sure'"),
   company_long_term_vision_statement: z.string().min(2, "Please provide your company's vision"),
 
   // War Machine Vision
@@ -740,7 +858,7 @@ const formSchema = z.object({
   definition_of_success_in_5_10_20_years: z.string().optional(),
   additional_income_streams_or_investments_needed: z.string().optional(),
   focus_on_single_business_or_multiple_long_term: z.string().optional(),
-  personal_skills_knowledge_networks_to_develop: z.string().optional(),
+
 
   // Products and Services
   business_overview_for_potential_investor: z.string().optional(),
@@ -753,7 +871,7 @@ const formSchema = z.object({
 
   // Sales & Customer Journey
   detailed_sales_process_from_first_contact_to_close: z.string().optional(),
-  structured_follow_up_process_for_unconverted_leads: z.string().optional(),
+
   customer_experience_and_fulfillment_process: z.string().optional(),
 
   // Operations & Systems
@@ -868,8 +986,7 @@ const questions: Question[] = [
     name: 'last_full_year_annual_revenue_amount',
     label: "What is your companies Annual Revenue?",
     description: "This helps us tailor our recommendations to your business size",
-    type: 'input',
-    placeholder: "Enter annual revenue",
+    type: 'revenue-input',
     required: true,
     aiAssist: false,
     icon: PoundSterling,
@@ -878,8 +995,7 @@ const questions: Question[] = [
     name: 'current_profit_margin_percentage',
     label: "What is your companies current profit margin percentage?",
     description: "Understanding your profitability helps us focus on the right areas",
-    type: 'input',
-    placeholder: "Enter profit margin (%)",
+    type: 'profit-margin-input',
     required: true,
     aiAssist: false,
     icon: TrendingUp,
@@ -888,10 +1004,10 @@ const questions: Question[] = [
 
   // War Machine Vision
   { name: 'ultimate_long_term_goal_for_business_owner', label: 'What is your ultimate long-term goal? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false, aiAssist: true, icon: Target, description: 'Define your ultimate business destination' },
-  { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 5, 10, and 20 years?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'Paint a picture of your future success' },
+  { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 1, 3, and 5 years?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'Paint a picture of your future success' },
   { name: 'additional_income_streams_or_investments_needed', label: "If your current business isn't enough to reach this goal, what other income streams, investments, or businesses might be needed?", type: 'textarea', required: false, aiAssist: true, icon: PoundSterling, description: 'Think beyond your current business model' },
   { name: 'focus_on_single_business_or_multiple_long_term', label: 'Do you see yourself focusing on one business long-term, or do you want to build a group of companies?', type: 'textarea', required: false, aiAssist: true, icon: Building, description: 'Single focus or empire building?' },
-  { name: 'personal_skills_knowledge_networks_to_develop', label: 'What personal skills, knowledge, or networks do you think you would need to develop to build your War Machine successfully?', type: 'textarea', required: false, aiAssist: true, icon: Users, description: 'Identify your growth areas' },
+
 
   // Products and Services
   { name: 'business_overview_for_potential_investor', label: 'Please give a short overview of what your business does as if you were explaining it to a potential investor.', type: 'textarea', required: false, aiAssist: true, icon: FileText, description: 'Your elevator pitch for investors' },
@@ -904,11 +1020,11 @@ const questions: Question[] = [
 
   // Sales & Customer Journey
   { name: 'detailed_sales_process_from_first_contact_to_close', label: 'What does your sales process look like? (From first contact to closed deal - please be as detailed as possible)', type: 'textarea', required: false, aiAssist: true, icon: TrendingUp, description: 'Map out your complete sales journey' },
-  { name: 'structured_follow_up_process_for_unconverted_leads', label: "Do you have a structured follow-up process for leads that don't convert immediately?", type: 'textarea', required: false, aiAssist: true, icon: RefreshCw, description: 'How do you nurture prospects?' },
+
   { name: 'customer_experience_and_fulfillment_process', label: 'How do you ensure customers have a great experience with your business? (From closed deal to completing the job - please be as detailed as possible as to the fulfilment process)', type: 'textarea', required: false, aiAssist: true, icon: Users, description: 'Detail your customer success process' },
 
   // Operations & Systems
-  { name: 'documented_systems_or_sops_links', label: 'Do you currently have documented systems or SOPs in place? (If so, please share link to them below so we can review before your 3-1 kick-off meeting).', type: 'sop-links-repeater', required: false, aiAssist: true, icon: FileText, description: 'Share your existing documentation' },
+  { name: 'documented_systems_or_sops_links', label: 'Do you currently have documented systems or SOPs in place? (If so, please share link to them below so we can review before your kick-off meeting).', type: 'sop-links-repeater', required: false, aiAssist: true, icon: FileText, description: 'Share your existing documentation' },
   { name: 'software_and_tools_used_for_operations', label: 'What software or tools are you currently using for operations? (E.g., CRM, job management, accounting, etc.)', type: 'textarea', required: false, aiAssist: false, icon: Settings, description: 'List your current tech stack' },
   { name: 'team_structure_and_admin_sales_marketing_roles', label: 'Do you have a team that handles admin, sales, or marketing, or are you doing most of it yourself?', type: 'textarea', required: false, aiAssist: false, icon: Users, description: 'Understand your current team structure' },
   { name: 'regular_team_meetings_frequency_attendees_agenda', label: 'Do you currently hold regular team meetings? If so, how often do they happen, who attends, and do you follow a set agenda?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'How does your team communicate?' },
@@ -935,7 +1051,7 @@ const categories = [
     id: 'war-machine',
     title: 'Company Vision',
     description: 'Your long-term business goals and vision',
-    questions: questions.slice(12, 17),
+    questions: questions.slice(12, 16),
     color: 'purple',
     icon: Target
   },
@@ -943,7 +1059,7 @@ const categories = [
     id: 'products-services',
     title: 'Products and Services',
     description: 'Details about your business offerings',
-    questions: questions.slice(17, 24),
+    questions: questions.slice(16, 23),
     color: 'green',
     icon: Users
   },
@@ -951,7 +1067,7 @@ const categories = [
     id: 'sales-customer',
     title: 'Sales & Customer Journey',
     description: 'Your sales process and customer experience',
-    questions: questions.slice(24, 27),
+    questions: questions.slice(23, 25),
     color: 'orange',
     icon: TrendingUp
   },
@@ -959,7 +1075,7 @@ const categories = [
     id: 'operations',
     title: 'Operations & Systems',
     description: 'Your business operations and systems',
-    questions: questions.slice(27, 33),
+    questions: questions.slice(25, 31),
     color: 'red',
     icon: Settings
   },
@@ -967,7 +1083,7 @@ const categories = [
     id: 'final-section',
     title: 'Final Section',
     description: 'Final thoughts and expectations',
-    questions: questions.slice(33, 36),
+    questions: questions.slice(31, 34),
     color: 'indigo',
     icon: Sparkles
   }
@@ -1038,7 +1154,7 @@ function OnboardingHeader({ userName }: { userName: string }) {
 }
 
 function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console.log("Getting started...") }: { userEmail?: string; onStart?: () => void }) {
-  const firstName = userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1);
+  const firstName = userEmail.split('@')[0].split(' ')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].split(' ')[0].slice(1);
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-0">
@@ -1047,7 +1163,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
         <div className="mb-8">
           <div className="flex items-center gap-3">
            
-            <span className="text-sm text-gray-500 font-medium">Trades business School</span>
+            <span className="text-sm text-gray-500 font-medium">Trades Business School</span>
           </div>
         </div>
 
@@ -1069,8 +1185,13 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                 </div>
               </div>
 
-              <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-              Let's set up your personalised workspace in your Command HQ. This will become the digital brain of your business.
+              <p className="text-base text-gray-600 mb-6 leading-relaxed">
+              Let’s set up your personalised workspace inside Command HQ. This is where your company’s Digital Brain will live, and it’s designed to become one of the most valuable tools in your business.
+              
+              <br />
+              <br />
+              The information you share in this onboarding questionnaire will be used to train your AI. Here are a few things to keep in mind:
+
               </p>
 
               {/* Enhanced features grid */}
@@ -1080,8 +1201,8 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                     <Sparkles size={20} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">AI Enhancement</h3>
-                    <p className="text-sm text-gray-600">Write your thoughts first, then let AI help improve and expand them.</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">AI Can Help</h3>
+                    <p className="text-sm text-gray-600">Start by writing your thoughts. The AI will help improve, expand, and structure them.</p>
                   </div>
                 </div>
 
@@ -1090,8 +1211,8 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                     <Settings size={20} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Detailed Information</h3>
-                    <p className="text-sm text-gray-600">Take your time as this information will be used to train your AI.</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">Be Detailed</h3>
+                    <p className="text-sm text-gray-600">The more context you give, the smarter your AI becomes. Don’t rush this.</p>
                   </div>
                 </div>
 
@@ -1101,7 +1222,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Setup Time</h3>
-                    <p className="text-sm text-gray-600">Estimated 30-45 minutes</p>
+                    <p className="text-sm text-gray-600">This will take around 30 to 60 minutes. You can save your progress at any point.</p>
                   </div>
                 </div>
               </div>
@@ -1114,7 +1235,7 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
                   </Button>
                   <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
                     <Clock size={14} />
-                    Estimated time: 3-5 minutes
+                    Estimated time: 30-60 minutes
                   </p>
                 </div>
 
@@ -1212,39 +1333,65 @@ function FloatingAIAssistant({
   // Auto-scroll functionality removed since we now use editable content instead of chat history
 
   // Generate smart suggestions based on question type - only for improving existing content
+  // Helper function to extract short label from suggestion
+  const getSuggestionLabel = (suggestion: string) => {
+    if (suggestion.includes('competitive analysis structure')) return 'Improve competitive analysis';
+    if (suggestion.includes('comparison clarity')) return 'Enhance comparison clarity';
+    if (suggestion.includes('competitive positioning')) return 'Strengthen positioning';
+    if (suggestion.includes('vision more compelling')) return 'Make vision more compelling';
+    if (suggestion.includes('clarity to the goals')) return 'Add clarity to goals';
+    if (suggestion.includes('impact statement')) return 'Improve impact statement';
+    if (suggestion.includes('process description')) return 'Streamline process description';
+    if (suggestion.includes('flow clarity')) return 'Improve flow clarity';
+    if (suggestion.includes('step-by-step structure')) return 'Enhance step structure';
+    if (suggestion.includes('organizational structure')) return 'Clarify org structure';
+    if (suggestion.includes('role descriptions')) return 'Improve role descriptions';
+    if (suggestion.includes('responsibility clarity')) return 'Enhance responsibility clarity';
+    if (suggestion.includes('financial clarity')) return 'Improve financial clarity';
+    if (suggestion.includes('metrics explanation')) return 'Enhance metrics explanation';
+    if (suggestion.includes('performance description')) return 'Strengthen performance';
+    if (suggestion.includes('customer journey')) return 'Improve customer journey';
+    if (suggestion.includes('service description')) return 'Enhance service description';
+    if (suggestion.includes('value proposition')) return 'Strengthen value proposition';
+    if (suggestion.includes('writing structure')) return 'Improve structure';
+    if (suggestion.includes('clarity and flow')) return 'Enhance clarity';
+    if (suggestion.includes('message impact')) return 'Strengthen impact';
+    return suggestion.split('.')[0]; // Fallback to first sentence
+  };
+
   const getSmartSuggestions = () => {
     if (!currentQuestion || !hasContent) return [];
 
     const suggestions = [];
     
     if (currentQuestion.name.includes('competitor')) {
-      suggestions.push("Improve the competitive analysis structure");
-      suggestions.push("Enhance the comparison clarity");
-      suggestions.push("Strengthen the competitive positioning");
+      suggestions.push("Rewrite with better competitive analysis structure. Focus on specific competitors, their strengths/weaknesses, and how you differentiate. Return only the improved content.");
+      suggestions.push("Enhance the comparison clarity. Make the competitive landscape clearer with specific examples and positioning. Return only the improved content.");
+      suggestions.push("Strengthen the competitive positioning. Emphasize your unique advantages over competitors more clearly. Return only the improved content.");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
-      suggestions.push("Make the vision more compelling");
-      suggestions.push("Add clarity to the goals");
-      suggestions.push("Improve the impact statement");
+      suggestions.push("Make the vision more compelling and inspiring. Add specific, measurable outcomes and emotional impact. Return only the improved content.");
+      suggestions.push("Add clarity to the goals. Make them more specific, measurable, and time-bound. Return only the improved content.");
+      suggestions.push("Improve the impact statement. Make it more powerful and results-focused. Return only the improved content.");
     } else if (currentQuestion.name.includes('sales') || currentQuestion.name.includes('process')) {
-      suggestions.push("Streamline the process description");
-      suggestions.push("Improve the flow clarity");
-      suggestions.push("Enhance the step-by-step structure");
+      suggestions.push("Streamline the process description. Make each step clear and actionable with specific details. Return only the improved content.");
+      suggestions.push("Improve the flow clarity. Organize the steps in logical order with clear transitions. Return only the improved content.");
+      suggestions.push("Enhance the step-by-step structure. Break down into numbered steps with specific actions. Return only the improved content.");
     } else if (currentQuestion.name.includes('team') || currentQuestion.name.includes('employee')) {
-      suggestions.push("Clarify the organizational structure");
-      suggestions.push("Improve role descriptions");
-      suggestions.push("Enhance responsibility clarity");
+      suggestions.push("Clarify the organizational structure. Make roles and reporting lines clearer. Return only the improved content.");
+      suggestions.push("Improve role descriptions. Add specific responsibilities and qualifications for each position. Return only the improved content.");
+      suggestions.push("Enhance responsibility clarity. Define who does what more specifically. Return only the improved content.");
     } else if (currentQuestion.name.includes('revenue') || currentQuestion.name.includes('profit')) {
-      suggestions.push("Improve the financial clarity");
-      suggestions.push("Enhance the metrics explanation");
-      suggestions.push("Strengthen the performance description");
+      suggestions.push("Improve the financial clarity. Add specific numbers, percentages, and trends. Return only the improved content.");
+      suggestions.push("Enhance the metrics explanation. Explain how you track and measure these financial indicators. Return only the improved content.");
+      suggestions.push("Strengthen the performance description. Add context about growth trends and benchmarks. Return only the improved content.");
     } else if (currentQuestion.name.includes('customer') || currentQuestion.name.includes('client')) {
-      suggestions.push("Improve customer journey clarity");
-      suggestions.push("Enhance service description");
-      suggestions.push("Strengthen value proposition");
+      suggestions.push("Improve customer journey clarity. Map out each touchpoint from awareness to retention. Return only the improved content.");
+      suggestions.push("Enhance service description. Add specific benefits and outcomes customers receive. Return only the improved content.");
+      suggestions.push("Strengthen value proposition. Clearly articulate why customers choose you over alternatives. Return only the improved content.");
     } else {
-      suggestions.push("Improve the writing structure");
-      suggestions.push("Enhance clarity and flow");
-      suggestions.push("Strengthen the message impact");
+      suggestions.push("Improve the writing structure. Organize ideas more logically with clear flow. Return only the improved content.");
+      suggestions.push("Enhance clarity and flow. Make the language more concise and easier to understand. Return only the improved content.");
+      suggestions.push("Strengthen the message impact. Make the content more persuasive and compelling. Return only the improved content.");
     }
 
     return suggestions;
@@ -1540,7 +1687,7 @@ function FloatingAIAssistant({
                       {/* Quick Actions - Clean Pills */}
                       <div className="space-y-2">
                         <button
-                          onClick={() => handleGenerateContent('improve', 'Rewrite the existing content in a better way, it is very important to ensure the core message and details are retained and dont make it lengthy keep it short and concise.')}
+                          onClick={() => handleGenerateContent('improve', 'Rewrite and improve the existing content. Keep the same core meaning but make it more professional, clear, and compelling. Do not provide feedback or commentary - only return the improved content itself. Keep it concise and impactful.')}
                           disabled={isLoading}
                           className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/80 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group bg-white shadow-sm hover:shadow-md"
                         >
@@ -1577,7 +1724,7 @@ function FloatingAIAssistant({
                               </div>
                               <div className="flex-1">
                                 <span className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
-                                  {suggestion}
+                                  {getSuggestionLabel(suggestion)}
                                 </span>
                               </div>
                             </div>
@@ -1682,6 +1829,21 @@ function MobileAIAssistant({
 
   const currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
 
+  // Helper function to extract short label from suggestion (mobile version)
+  const getSuggestionLabel = (suggestion: string) => {
+    if (suggestion.includes('competitive analysis structure')) return 'Improve competitive analysis';
+    if (suggestion.includes('comparison clarity')) return 'Enhance comparison clarity';
+    if (suggestion.includes('vision more compelling')) return 'Make vision more compelling';
+    if (suggestion.includes('clarity to the goals')) return 'Add clarity to goals';
+    if (suggestion.includes('process description')) return 'Streamline process description';
+    if (suggestion.includes('flow clarity')) return 'Improve flow clarity';
+    if (suggestion.includes('financial clarity')) return 'Improve financial clarity';
+    if (suggestion.includes('metrics explanation')) return 'Enhance metrics explanation';
+    if (suggestion.includes('writing structure')) return 'Improve structure';
+    if (suggestion.includes('clarity and flow')) return 'Enhance clarity';
+    return suggestion.split('.')[0]; // Fallback to first sentence
+  };
+
   // Generate smart suggestions based on question type - only for improving existing content
   const getSmartSuggestions = () => {
     if (!currentQuestion) return [];
@@ -1704,20 +1866,20 @@ function MobileAIAssistant({
     const suggestions = [];
     
     if (currentQuestion.name.includes('competitor')) {
-      suggestions.push("Improve the competitive analysis structure");
-      suggestions.push("Enhance the comparison clarity");
+      suggestions.push("Rewrite with better competitive analysis structure. Focus on specific competitors and how you differentiate. Return only the improved content.");
+      suggestions.push("Enhance the comparison clarity. Make the competitive landscape clearer with specific examples. Return only the improved content.");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
-      suggestions.push("Make the vision more compelling");
-      suggestions.push("Add clarity to the goals");
+      suggestions.push("Make the vision more compelling and inspiring. Add specific, measurable outcomes. Return only the improved content.");
+      suggestions.push("Add clarity to the goals. Make them more specific and time-bound. Return only the improved content.");
     } else if (currentQuestion.name.includes('sales') || currentQuestion.name.includes('process')) {
-      suggestions.push("Streamline the process description");
-      suggestions.push("Improve the flow clarity");
+      suggestions.push("Streamline the process description. Make each step clear and actionable. Return only the improved content.");
+      suggestions.push("Improve the flow clarity. Organize steps in logical order. Return only the improved content.");
     } else if (currentQuestion.name.includes('revenue') || currentQuestion.name.includes('profit')) {
-      suggestions.push("Improve the financial clarity");
-      suggestions.push("Enhance the metrics explanation");
+      suggestions.push("Improve the financial clarity. Add specific numbers and trends. Return only the improved content.");
+      suggestions.push("Enhance the metrics explanation. Explain how you track these indicators. Return only the improved content.");
     } else {
-      suggestions.push("Improve the writing structure");
-      suggestions.push("Enhance clarity and flow");
+      suggestions.push("Improve the writing structure. Organize ideas more logically. Return only the improved content.");
+      suggestions.push("Enhance clarity and flow. Make the language more concise. Return only the improved content.");
     }
 
     return suggestions.slice(0, 2); // Only show 2 suggestions for mobile
@@ -1826,7 +1988,7 @@ function MobileAIAssistant({
           {/* Compact suggestions */}
           <div className="space-y-2 mb-3">
             <button
-              onClick={() => handleGenerateContent('Rewrite the existing content in a more better way.')}
+              onClick={() => handleGenerateContent('Rewrite and improve the existing content. Make it more professional, clear, and compelling while keeping the same core meaning. Do not provide feedback or commentary - only return the improved content itself. Keep it concise.')}
               disabled={isLoading}
               className="w-full text-left p-2 rounded border border-blue-200 bg-white hover:bg-blue-50 transition-colors disabled:opacity-50 text-sm"
             >
@@ -1839,7 +2001,7 @@ function MobileAIAssistant({
                 disabled={isLoading}
                 className="w-full text-left p-2 rounded border border-blue-200 bg-white hover:bg-blue-50 transition-colors disabled:opacity-50 text-sm"
               >
-                {suggestion}
+                {getSuggestionLabel(suggestion)}
               </button>
             ))}
           </div>
@@ -2061,7 +2223,7 @@ export default function OnboardingClient() {
       definition_of_success_in_5_10_20_years: "",
       additional_income_streams_or_investments_needed: "",
       focus_on_single_business_or_multiple_long_term: "",
-      personal_skills_knowledge_networks_to_develop: "",
+
       business_overview_for_potential_investor: "",
       description_of_target_customers_for_investor: "",
       list_of_things_going_right_in_business: "",
@@ -2070,7 +2232,7 @@ export default function OnboardingClient() {
       list_of_things_confusing_in_business: "",
       plans_to_expand_services_or_locations: "",
       detailed_sales_process_from_first_contact_to_close: "",
-      structured_follow_up_process_for_unconverted_leads: "",
+
       customer_experience_and_fulfillment_process: "",
       documented_systems_or_sops_links: [],
       software_and_tools_used_for_operations: "",
@@ -2954,24 +3116,20 @@ export default function OnboardingClient() {
                                 required={q.required}
                                 ref={el => {}}
                               />
-                            ) : q.name === 'last_full_year_annual_revenue_amount' ? (
-                              <RevenueInput
-                                id={q.name}
-                                value={form.getValues(fieldName) as string || ''}
-                                onChange={(val) => form.setValue(fieldName, val, { shouldValidate: true })}
-                                required={q.required}
-                                placeholder={q.placeholder}
-                                ref={el => {}}
-                              />
-                            ) : q.name === 'current_profit_margin_percentage' ? (
-                              <PercentageInput
-                                id={q.name}
-                                value={form.getValues(fieldName) as string || ''}
-                                onChange={(val) => form.setValue(fieldName, val, { shouldValidate: true })}
-                                required={q.required}
-                                placeholder={q.placeholder}
-                                ref={el => {}}
-                              />
+                            ) : q.type === 'revenue-input' ? (
+                                <RevenueInputWithChoice
+                                  value={form.getValues(fieldName) as string || ''}
+                                  onChange={(val) => form.setValue(fieldName, val, { shouldValidate: true })}
+                                  required={q.required}
+                                  fieldId={q.name}
+                                />
+                            ) : q.type === 'profit-margin-input' ? (
+                                <ProfitMarginInputWithChoice
+                                  value={form.getValues(fieldName) as string || ''}
+                                  onChange={(val) => form.setValue(fieldName, val, { shouldValidate: true })}
+                                  required={q.required}
+                                  fieldId={q.name}
+                                />
                             ) : q.type === 'input' ? (
                                 <Input
                                   id={q.name}

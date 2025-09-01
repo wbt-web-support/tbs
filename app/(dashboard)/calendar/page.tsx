@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TimelineView from "./components/timeline-view";
 import TodoList from "./components/additional-benefits";
 import ContactInfo from "./components/contact-info";
-import CourseProgress from "./components/course-progress";
 import { createClient } from "@/utils/supabase/client";
 import MeetingRhythmPlanner from "./components/meeting-rhythm-planner";
 
@@ -64,17 +63,31 @@ export default function ChqTimelinePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("calendar");
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [hasTimelineEvents, setHasTimelineEvents] = useState<boolean | null>(null);
   const [dataFetched, setDataFetched] = useState({
     timeline: false,
     todos: false,
-    progress: false,
     contact: false
   });
   const supabase = createClient();
 
   useEffect(() => {
-    // No need to fetch timeline data immediately since calendar is now the default tab
+    checkTimelineExists();
   }, []);
+
+  const checkTimelineExists = async () => {
+    try {
+      const { count, error } = await supabase
+        .from("chq_timeline")
+        .select("*", { count: "exact", head: true });
+
+      if (error) throw error;
+      setHasTimelineEvents((count || 0) > 0);
+    } catch (error) {
+      console.error("Error checking timeline events:", error);
+      setHasTimelineEvents(false);
+    }
+  };
 
   // Fetch data based on active tab to implement lazy loading
   useEffect(() => {
@@ -89,7 +102,7 @@ export default function ChqTimelinePage() {
           fetchTodoItems();
         }
         break;
-      // We can add other cases for progress and contact tabs if needed
+      // We can add other cases for contact tab if needed
     }
   }, [activeTab, dataFetched]);
 
@@ -202,15 +215,9 @@ export default function ChqTimelinePage() {
   };
 
   return (
-    <div className={`flex-1 transition-all duration-300 ease-in-out ${
-      activeTab === 'progress' ? 'p-0' : 'p-2 sm:p-4 md:p-6 lg:p-8'
-    }`}>
-      {/* Header - Hidden when Progress tab is active */}
-      <div className={`transition-all duration-300 ease-in-out ${
-        activeTab === 'progress' 
-          ? 'opacity-0 -translate-y-4 h-0 overflow-hidden' 
-          : 'opacity-100 translate-y-0 h-auto'
-      }`}>
+    <div className="flex-1 transition-all duration-300 ease-in-out p-2 sm:p-4 md:p-6 lg:p-8">
+      {/* Header */}
+      <div className="transition-all duration-300 ease-in-out opacity-100 translate-y-0 h-auto">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
           <div className="flex-1">
             <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900">Calendar</h1>
@@ -225,33 +232,23 @@ export default function ChqTimelinePage() {
         defaultValue="calendar" 
         value={activeTab}
         onValueChange={setActiveTab}
-        className={`transition-all duration-300 ease-in-out ${
-          activeTab === 'progress' ? '' : 'space-y-2 sm:space-y-4'
-        }`}
+        className="transition-all duration-300 ease-in-out space-y-2 sm:space-y-4"
       >
-        <TabsList className={`bg-background border-b border-t rounded-none w-full justify-start h-10 p-0 gap-2 sm:gap-6 transition-all duration-300 overflow-x-auto ${
-          activeTab === 'progress' 
-            ? 'sticky top-0 z-10 bg-white shadow-sm px-2 sm:px-8' 
-            : ''
-        }`}>
+        <TabsList className="bg-background border-b border-t rounded-none w-full justify-start h-10 p-0 gap-2 sm:gap-6 transition-all duration-300 overflow-x-auto">
           <TabsTrigger 
             value="calendar" 
             className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
           >
             Calendar
           </TabsTrigger>
-          <TabsTrigger 
-            value="timeline" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
-          >
-            Timeline
-          </TabsTrigger>
-          <TabsTrigger 
-            value="progress"
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
-          >
-            Progress
-          </TabsTrigger>
+          {hasTimelineEvents && (
+            <TabsTrigger 
+              value="timeline" 
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
+            >
+              Timeline
+            </TabsTrigger>
+          )}
           <TabsTrigger 
             value="benefits"
             className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
@@ -264,31 +261,27 @@ export default function ChqTimelinePage() {
         <div className="relative">
           {/* Calendar Tab */}
           <div 
-            className={`${activeTab === 'calendar' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
-            }`}
+            className={`${activeTab === 'calendar' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
           >
             <MeetingRhythmPlanner />
           </div>
 
           {/* Timeline Tab */}
-          <div 
-            className={`${activeTab === 'timeline' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
-            }`}
-          >
-            <TimelineView 
-              events={timelineEvents}
-              loading={loading}
-              onEventUpdate={handleTimelineEventUpdate}
-            />
-          </div>
+          {hasTimelineEvents && (
+            <div 
+              className={`${activeTab === 'timeline' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
+            >
+              <TimelineView 
+                events={timelineEvents}
+                loading={loading}
+                onEventUpdate={handleTimelineEventUpdate}
+              />
+            </div>
+          )}
 
           {/* Todo List Tab */}
           <div 
-            className={`${activeTab === 'benefits' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
-            }`}
+            className={`${activeTab === 'benefits' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
           >
             <TodoList 
               todoItems={todoItems}
@@ -297,18 +290,9 @@ export default function ChqTimelinePage() {
             />
           </div>
 
-          {/* Progress Tab - Only render when active to prevent video autoplay */}
-          {activeTab === 'progress' && (
-            <div className="h-full flex-1">
-              <CourseProgress />
-            </div>
-          )}
-
           {/* Contact Tab */}
           <div 
-            className={`${activeTab === 'contact' ? 'block' : 'hidden'} ${
-              activeTab === 'progress' ? 'hidden' : 'space-y-2 sm:space-y-4'
-            }`}
+            className={`${activeTab === 'contact' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
           >
             <ContactInfo />
           </div>

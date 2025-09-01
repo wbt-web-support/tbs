@@ -51,7 +51,7 @@ const navigationSections = [
         icon: Clock,
       },
       {
-        name: "Course Management", 
+        name: "Modules", 
         href: "/admin/courses",
         icon: BookOpen,
       },

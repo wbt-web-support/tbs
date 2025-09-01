@@ -10,6 +10,10 @@ import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent } from '@/components/ui/card';
 import IntegrationsDashboard from '@/app/(dashboard)/dashboard/components/integrations-dashboard';
 import { trackActivity } from '@/utils/points';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Sparkles, MessageCircle, BarChart3, BookOpen, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 
 interface BusinessInfo {
@@ -47,8 +51,12 @@ export default function NewDashboard() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Welcome popup state
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+
   const supabase = createClient();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const getGreetingMessage = () => {
     const hour = new Date().getHours();
@@ -348,9 +356,32 @@ export default function NewDashboard() {
     setTimeout(() => setRefreshing(false), 2000);
   };
 
+  // Navigation handlers for welcome popup
+  const handleNavigateToChat = () => {
+    setShowWelcomePopup(false);
+    router.push('/chat');
+  };
+
+  const handleNavigateToModules = () => {
+    setShowWelcomePopup(false);
+    router.push('/modules');
+  };
+
+  const handleExploreDashboard = () => {
+    setShowWelcomePopup(false);
+    // Stay on dashboard
+  };
+
   useEffect(() => {
     checkConnectionStatus();
     setupGreeting();
+    
+    // Check if user just completed onboarding
+    if (searchParams.get('onboarding') === 'completed') {
+      setShowWelcomePopup(true);
+      // Clean up URL parameter
+      window.history.replaceState({}, '', window.location.pathname);
+    }
     
     // Track daily login for gamification
     trackActivity.dailyLogin().then(pointsAwarded => {
@@ -358,7 +389,7 @@ export default function NewDashboard() {
         console.log('🎉 Daily login points awarded!');
       }
     }).catch(console.error);
-  }, []);
+  }, [searchParams]);
 
   // Start staggered loading when connection status is ready
   useEffect(() => {
@@ -377,6 +408,95 @@ export default function NewDashboard() {
           onClose={() => setShowAccountModal(false)}
           onPropertySelected={handlePropertySelected}
         />
+
+        {/* Welcome Popup for Onboarding Completion */}
+        <Dialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-10">
+            {/* Hero Section */}
+            <div className="relative">
+              <DialogHeader className="text-left pt-6 relative">
+                <DialogTitle className="text-3xl font-bold">
+                  Welcome to your Command HQ!
+                </DialogTitle>
+                <div className="flex items-center justify-left gap-2 text-lg text-gray-600">
+                  <span>Your business transformation starts here</span>
+                  <Sparkles className="h-5 w-5 text-yellow-500 animate-pulse" />
+                </div>
+              </DialogHeader>
+            </div>
+
+            <div className="space-y-6">
+              <div className="text-left space-y-3">
+                <p className="text-gray-600 leading-relaxed">
+                  Thank you for providing your answers. This is now the main dashboard of your Command HQ. 
+                  Everything that you just wrote inside of your onboarding questionnaire will now be fed to AI to improve it.
+                </p>
+              </div>
+
+              {/* Action Options */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900 text-left mb-2">What would you like to do first?</h3>
+                {/* Chat with AI Assistant */}
+                <button
+                  onClick={handleNavigateToChat}
+                  className="w-full group p-4 rounded-xl border-2 border-gray-200 hover:border-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                      <MessageCircle className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 group-hover:text-blue-900">Chat with AI Assistant</h4>
+                      <p className="text-sm text-gray-600 group-hover:text-blue-700">Get instant help and insights for your business</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                </button>
+
+                {/* Explore Dashboard */}
+                <button
+                  onClick={handleExploreDashboard}
+                  className="w-full group p-4 rounded-xl border-2 border-gray-200 hover:border-green-300 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-green-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                      <BarChart3 className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 group-hover:text-green-900">Explore Analytics Dashboard</h4>
+                      <p className="text-sm text-gray-600 group-hover:text-green-700">View your business metrics and performance insights</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                </button>
+
+                {/* Go Through Modules */}
+                <button
+                  onClick={handleNavigateToModules}
+                  className="w-full group p-4 rounded-xl border-2 border-gray-200 hover:border-purple-300 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50 transition-all duration-300 text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                      <BookOpen className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 group-hover:text-purple-900">Go Through Modules</h4>
+                      <p className="text-sm text-gray-600 group-hover:text-purple-700">Start your learning journey with structured business modules</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                </button>
+              </div>
+
+              {/* Footer */}
+              <div className="text-left pt-4 border-t border-gray-100">
+                <p className="text-xs text-gray-500">
+                  You can access all these features anytime from your Command HQ
+                </p>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Environment Variables Checker */}
         <EnvironmentChecker />

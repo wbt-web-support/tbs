@@ -18,14 +18,19 @@ export async function POST(req: NextRequest) {
     let prompt = `You are an AI assistant helping a business owner improve their written responses in an onboarding form for a trades business school program.
     The current question is "${questionLabel}" in the "${categoryTitle}" section.
     
-    INSTRUCTIONS:
-    - Work with the information provided by the user
+    CRITICAL INSTRUCTIONS:
+    - You MUST rewrite and improve the user's existing content
+    - Do NOT provide feedback, commentary, or analysis about the content
+    - Do NOT say things like "Your answer is clear" or "The content is well-written"
+    - Do NOT provide suggestions - just return the improved version
+    - ONLY return the actual improved content, nothing else
     - Improve clarity, structure, and flow of the existing content
     - Fix any grammatical or spelling errors
     - Make the language more professional and compelling
     - Provide ONLY plain text without ANY markdown formatting
-    - Write in UK English and keep responses concise
-    - Focus on enhancing what's already there rather than asking for more information`;
+    - Write in UK English and keep responses appropriately detailed
+    - Focus on enhancing what's already there without adding made-up information
+    - If you cannot improve the content meaningfully, return the original content exactly as provided`;
 
     if (customPrompt) {
       prompt += `\n\nUser's specific improvement request: "${customPrompt}"`;
@@ -51,13 +56,7 @@ export async function POST(req: NextRequest) {
       }
       
              prompt += `\n\nCURRENT ANSWER TO IMPROVE: "${existingContent}"`;
-       prompt += `\n\nIMPROVEMENT TASK:
-       - Improve the clarity, structure, and flow of the existing answer
-       - Fix any grammatical or spelling errors
-       - Make the language more professional and compelling
-       - Keep the original facts and information intact
-       - Enhance the writing quality and readability
-       - Focus on making the content more impactful and well-structured`;
+       prompt += `\n\nTASK: Rewrite the above content to make it better. Return ONLY the improved version without any additional commentary, feedback, or meta-analysis. Do not explain what you changed or provide suggestions. Just give me the improved content directly.`;
     } else {
        return NextResponse.json({ error: "Invalid action specified." }, { status: 400 });
     }
@@ -78,37 +77,54 @@ export async function POST(req: NextRequest) {
     const response = result.response;
     let generatedContent = response.text();
 
-    // Safety checks: ensure the response doesn't contain made-up information
+    // Safety checks: ensure the response doesn't contain made-up information (reduced to avoid false positives)
     const suspiciousPatterns = [
-      /\[.*\]/g, // Placeholder brackets
-      /Example:/gi,
-      /e\.g\./gi,
-      /For example/gi,
-      /ABC Company/gi,
-      /XYZ Limited/gi,
-      /123 Main Street/gi,
-      /\$\d+/g, // Specific dollar amounts
-      /£\d+/g, // Specific pound amounts
-      /\d{4}-\d{2}-\d{2}/g, // Specific dates
-      /\d{3}-\d{3}-\d{4}/g, // Phone numbers
-      /\d{5} \d{6}/g, // UK phone numbers
-      /\.co\.uk|\.com/g, // Specific domains
-      /such as/gi, // Often leads to made-up examples
-      /including/gi, // Often leads to made-up lists
-      /typically/gi, // Often leads to assumptions
+      /\[.*INSERT.*\]/gi, // Only catch obvious placeholder brackets
+      /ABC Company|XYZ Limited|123 Main Street/gi, // Only obvious placeholder companies/addresses
+      /example\.com|test\.co\.uk/gi, // Only obvious test domains
+      /\$999,999|\$100,000|\$50,000/g, // Only round/obvious fake numbers
+      /£999,999|£100,000|£50,000/g, // Only round/obvious fake numbers
+      /2025-01-01|1990-01-01/g, // Only obvious fake dates
     ];
 
     const containsSuspiciousContent = suspiciousPatterns.some(pattern => pattern.test(generatedContent));
     
-    if (containsSuspiciousContent) {
-      // Instead of asking for more details, provide a more helpful response
-      generatedContent = "Your answer is clear and well-structured. The content flows well and communicates your points effectively.";
+    // Check for meta-feedback responses that we want to avoid
+    const metaFeedbackPatterns = [
+      /your.*answer.*is.*clear/gi,
+      /your.*content.*is.*well/gi,
+      /your.*original.*answer/gi,
+      /the.*content.*flows.*well/gi,
+      /effectively.*communicates/gi,
+      /well-structured/gi,
+      /concise.*and.*well-written/gi,
+    ];
+    
+    const containsMetaFeedback = metaFeedbackPatterns.some(pattern => pattern.test(generatedContent));
+    
+    if (containsSuspiciousContent || containsMetaFeedback) {
+      // If suspicious content or meta-feedback detected, try again with stronger instructions
+      const cleanupPrompt = `${prompt}\n\nSTRICT REQUIREMENT: You must rewrite the content, not comment on it. Do not say "your answer is..." or "the content is...". Just rewrite and improve the actual content.`;
+      try {
+        const cleanupResult = await model.generateContent(cleanupPrompt);
+        generatedContent = cleanupResult.response.text();
+      } catch (error) {
+        // If cleanup fails, return original content
+        generatedContent = existingContent;
+      }
     }
 
     // Additional check: ensure the improved content is longer than a minimal response
-    if (existingContent && generatedContent.length < existingContent.length * 0.8) {
-      // If the "improved" content is significantly shorter, provide a more helpful response
-      generatedContent = "Your original answer is concise and well-written. It effectively communicates your message without unnecessary elaboration.";
+    if (existingContent && generatedContent.length < existingContent.length * 0.5) {
+      // If the "improved" content is significantly shorter, try again with more specific instructions
+      const expandPrompt = `${prompt}\n\nThe content is too brief. Please expand and improve the existing content while maintaining its core message. Make it more detailed and professional.`;
+      try {
+        const expandResult = await model.generateContent(expandPrompt);
+        generatedContent = expandResult.response.text();
+      } catch (error) {
+        // If expansion fails, return the original content
+        generatedContent = existingContent;
+      }
     }
 
     // Remove any remaining markdown formatting
