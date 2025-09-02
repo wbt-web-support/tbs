@@ -23,6 +23,7 @@ const dashboardPages = [
   '/quarterly-sprint-canvas',
   '/sop',
   '/triage-planner',
+  '/ai-onboarding',
 ]
 
 export async function middleware(request: NextRequest) {

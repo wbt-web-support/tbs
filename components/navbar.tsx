@@ -15,7 +15,7 @@ import {
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2, Database } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2, Database, Brain } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
 interface NavbarProps {
@@ -31,6 +31,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const [showSopNotification, setShowSopNotification] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [aiOnboardingCompleted, setAiOnboardingCompleted] = useState(false);
   const sopButtonRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -55,6 +56,19 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           setUserRole(businessInfo.role);
           if (businessInfo.role !== 'admin' && businessInfo.role !== 'super_admin') {
             setUserPermissions(businessInfo.permissions?.pages || []);
+          }
+        }
+
+        // Check AI onboarding status
+        if (user) {
+          const { data: aiQuestions } = await supabase
+            .from('ai_onboarding_questions')
+            .select('is_completed')
+            .eq('user_id', user.id);
+          
+          if (aiQuestions && aiQuestions.length > 0) {
+            const allCompleted = aiQuestions.every(q => q.is_completed);
+            setAiOnboardingCompleted(allCompleted);
           }
         }
       }
@@ -96,6 +110,16 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-blue-700 hover:to-blue-900 hover:text-white from-blue-600 to-blue-800 text-white">
                 <Sparkles className="h-4 w-4" />
                 <span>AI Assistant</span>
+              </Button>
+            </Link>
+          )}
+
+          {/* AI Onboarding Button - Only show if not completed */}
+          {!aiOnboardingCompleted && (
+            <Link href="/ai-onboarding">
+              <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-green-700 hover:to-green-900 hover:text-white from-green-600 to-green-800 text-white">
+                <Brain className="h-4 w-4" />
+                <span>AI Insights</span>
               </Button>
             </Link>
           )}
