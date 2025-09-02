@@ -16,11 +16,12 @@ import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling, Globe } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SubmissionLoader } from "./components/submission-loader";
+import { CompetitorInfoModal } from "./components/CompetitorInfoModal";
 
 // Animated AI Blob Component
 function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className?: string; isActive?: boolean }) {
@@ -162,6 +163,21 @@ interface BusinessOwner {
 interface Competitor {
   id: string;
   name: string;
+  scrapedInfo?: CompetitorInfo;
+}
+
+// Competitor Info interface
+interface CompetitorInfo {
+  companyName: string;
+  companyOverview: string;
+  mainProducts: string;
+  targetMarket: string;
+  keyStrengths: string;
+  competitivePosition: string;
+  businessModel: string;
+  websiteUrl: string;
+  scrapedAt: string;
+  rawAnalysis: string;
 }
 
 // Employee interface
@@ -281,13 +297,27 @@ function CompetitorsRepeater({
   value, 
   onChange, 
   required,
-  fieldId
+  fieldId,
+  form
 }: { 
   value: Competitor[]; 
   onChange: (competitors: Competitor[]) => void; 
   required: boolean;
   fieldId: string;
+  form: any;
 }) {
+  const [scrapingStates, setScrapingStates] = useState<{[key: string]: boolean}>({});
+  const [competitorInfoModal, setCompetitorInfoModal] = useState<{
+    isOpen: boolean;
+    competitorInfo: CompetitorInfo | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    competitorInfo: null,
+    isLoading: false
+  });
+  
+
   const addCompetitor = () => {
     const newCompetitor: Competitor = {
       id: Date.now().toString(),
@@ -306,20 +336,263 @@ function CompetitorsRepeater({
     ));
   };
 
+  const isUrl = (text: string) => {
+    if (!text || text.trim() === '') return false;
+    try {
+      const url = new URL(text);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const scrapeCompetitorWebsite = async (competitor: Competitor) => {
+    if (!isUrl(competitor.name)) {
+      return;
+    }
+
+    setScrapingStates(prev => ({ ...prev, [competitor.id]: true }));
+    setCompetitorInfoModal({
+      isOpen: true,
+      competitorInfo: null,
+      isLoading: true
+    });
+
+    try {
+      // Get current form values to provide business context
+      const currentFormValues = form.getValues();
+      
+      // Extract key business information for context
+      const businessContext = {
+        'Company Name': currentFormValues.company_name_official_registered || '',
+        'Business Type': currentFormValues.business_overview_for_potential_investor || '',
+        'Target Customers': currentFormValues.description_of_target_customers_for_investor || '',
+        'Services': currentFormValues.business_overview_for_potential_investor || '',
+        'Location': currentFormValues.main_office_physical_address_full || '',
+        'Revenue': currentFormValues.last_full_year_annual_revenue_amount || '',
+        'Profit Margin': currentFormValues.current_profit_margin_percentage || '',
+        'Company Vision': currentFormValues.company_long_term_vision_statement || '',
+        'Business Model': currentFormValues.business_overview_for_potential_investor || ''
+      };
+
+      const response = await fetch('/api/gemini/scrape-competitor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          competitorUrl: competitor.name,
+          businessContext
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error scraping website: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the competitor with scraped info
+        onChange(value.map(c => 
+          c.id === competitor.id 
+            ? { ...c, scrapedInfo: data.data }
+            : c
+        ));
+
+        // Save competitor data to database immediately
+        try {
+          const saveResponse = await fetch('/api/onboarding/save-competitor-data', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              competitorData: {
+                [competitor.id]: {
+                  name: competitor.name,
+                  scrapedInfo: data.data,
+                  scrapedAt: new Date().toISOString()
+                }
+              }
+            }),
+          });
+
+          if (!saveResponse.ok) {
+            console.warn('Failed to save competitor data to database:', await saveResponse.text());
+          } else {
+            console.log('✅ Competitor data saved to database');
+          }
+        } catch (saveError) {
+          console.warn('Error saving competitor data to database:', saveError);
+        }
+
+        setCompetitorInfoModal({
+          isOpen: true,
+          competitorInfo: data.data,
+          isLoading: false
+        });
+      } else {
+        throw new Error(data.error || 'Failed to scrape website');
+      }
+    } catch (error) {
+      console.error('Error scraping competitor website:', error);
+      
+      // Show error in modal
+      const errorInfo = {
+        companyName: "Analysis Failed",
+        companyOverview: "Unable to retrieve information",
+        mainProducts: "Information unavailable",
+        targetMarket: "Information unavailable",
+        keyStrengths: "Information unavailable",
+        competitivePosition: "Information unavailable",
+        businessModel: "Information unavailable",
+        websiteUrl: competitor.name,
+        scrapedAt: new Date().toISOString(),
+        rawAnalysis: `Error analyzing website: ${error instanceof Error ? error.message : 'Unknown error'}
+
+This could be due to:
+• Website requiring authentication
+• Website blocking automated access
+• Website being temporarily unavailable
+• Invalid or inaccessible URL
+
+Please try again later or verify the website URL is correct and publicly accessible.`
+      };
+
+      setCompetitorInfoModal({
+        isOpen: true,
+        competitorInfo: errorInfo,
+        isLoading: false
+      });
+
+      // Save error state to database for tracking
+      try {
+        await fetch('/api/onboarding/save-competitor-data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            competitorData: {
+              [competitor.id]: {
+                name: competitor.name,
+                scrapedInfo: errorInfo,
+                scrapedAt: new Date().toISOString(),
+                error: true
+              }
+            }
+          }),
+        });
+      } catch (saveError) {
+        console.warn('Error saving competitor error state to database:', saveError);
+      }
+    } finally {
+      setScrapingStates(prev => ({ ...prev, [competitor.id]: false }));
+    }
+  };
+
+  const showCompetitorInfo = (competitor: Competitor) => {
+    if (competitor.scrapedInfo) {
+      setCompetitorInfoModal({
+        isOpen: true,
+        competitorInfo: competitor.scrapedInfo,
+        isLoading: false
+      });
+    }
+  };
+
   return (
     <div id={fieldId} className="space-y-4">
+      {/* Analysis Summary - Only show if there are URL-based competitors */}
+      {value.filter(c => isUrl(c.name)).length > 0 && (
+       <div className="flex items-center gap-2 text-xs text-blue-600">
+       <span>
+         {value.filter(c => c.scrapedInfo).length} of {value.filter(c => isUrl(c.name)).length} analyzed
+       </span>
+       <div className="w-16 h-1 bg-blue-200 rounded-full overflow-hidden">
+         <div 
+           className="h-full bg-blue-600 transition-all duration-300"
+           style={{ 
+             width: `${value.filter(c => isUrl(c.name)).length > 0 ? (value.filter(c => c.scrapedInfo).length / value.filter(c => isUrl(c.name)).length) * 100 : 0}%` 
+           }}
+         ></div>
+       </div>
+     </div>
+      )}
+
       {value.map((competitor, index) => (
         <div key={competitor.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Competitor name or competitor website ({index + 1})
+              Competitor name or website ({index + 1})
             </label>
             <Input
               value={competitor.name}
               onChange={(e) => updateCompetitor(competitor.id, e.target.value)}
-              placeholder="e.g. ABC Company Ltd (similar services, same target market)"
+              placeholder="e.g. https://example.com (for AI analysis) or ABC Company Ltd"
               className="w-full"
             />
+
+            
+            {/* AI Analysis Section - Only show for URL inputs */}
+            {isUrl(competitor.name) ? (
+              <>
+                {/* Action buttons for URL inputs */}
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => scrapeCompetitorWebsite(competitor)}
+                    disabled={scrapingStates[competitor.id]}
+                    className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    {scrapingStates[competitor.id] ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="h-4 w-4" />
+                        Analyze Website
+                      </>
+                    )}
+                  </Button>
+                  
+                  {competitor.scrapedInfo && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => showCompetitorInfo(competitor)}
+                      className="flex items-center gap-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <FileText className="h-4 w-4" />
+                      View Analysis
+                    </Button>
+                  )}
+                </div>
+
+                {/* Analysis status indicator */}
+                {competitor.scrapedInfo && (
+                  <div className="flex items-center gap-2 mt-2 text-xs">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-green-600 font-medium">Website analyzed</span>
+                    <span className="text-gray-500">
+                      {new Date(competitor.scrapedInfo.scrapedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Show message for non-URL inputs */
+              <div className="mt-2 text-xs text-gray-500">
+                💡 Enter a website URL to enable AI-powered competitor analysis
+              </div>
+            )}
           </div>
           <Button
             type="button"
@@ -343,18 +616,19 @@ function CompetitorsRepeater({
         Add Competitor
       </Button>
       
-      {required && value.length === 0 && (
-        <p className="text-red-500 text-sm flex items-center gap-1">
-          <X className="h-4 w-4" />
-          At least one competitor is required
-        </p>
-      )}
-      {required && value.length > 0 && !value.every((competitor: any) => competitor.name) && (
-        <p className="text-red-500 text-sm flex items-center gap-1">
-          <X className="h-4 w-4" />
-          Please fill in all competitor names
-        </p>
-      )}
+      {/* Validation errors are handled by React Hook Form automatically */}
+
+      {/* Competitor Info Modal */}
+      <CompetitorInfoModal
+        isOpen={competitorInfoModal.isOpen}
+        onClose={() => setCompetitorInfoModal({
+          isOpen: false,
+          competitorInfo: null,
+          isLoading: false
+        })}
+        competitorInfo={competitorInfoModal.competitorInfo}
+        isLoading={competitorInfoModal.isLoading}
+      />
     </div>
   );
 }
@@ -2275,8 +2549,16 @@ export default function OnboardingClient() {
         if (dataToSave.main_competitors_list_and_reasons && Array.isArray(dataToSave.main_competitors_list_and_reasons)) {
           dataToSave.main_competitors_list_and_reasons = dataToSave.main_competitors_list_and_reasons
             .filter((competitor: any) => competitor && competitor.name)
-            .map((competitor: any) => competitor.name)
-            .join(', ');
+            .map((competitor: any) => {
+              // If competitor has scraped info, include it in the data
+              if (competitor.scrapedInfo) {
+                return {
+                  name: competitor.name,
+                  scrapedInfo: competitor.scrapedInfo
+                };
+              }
+              return competitor.name;
+            });
         }
 
         // Convert employees array to string format for backward compatibility
@@ -2320,11 +2602,11 @@ export default function OnboardingClient() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
-        .from('company_onboarding')
-        .select('onboarding_data')
-        .eq('user_id', user.id)
-        .single();
+          const { data } = await supabase
+      .from('company_onboarding')
+      .select('onboarding_data, competitor_data')
+      .eq('user_id', user.id)
+      .single();
       if (data && data.onboarding_data) {
         // Convert legacy string format to new array format for business owners
         const onboardingData = { ...data.onboarding_data } as any;
@@ -2372,6 +2654,42 @@ export default function OnboardingClient() {
           } else {
             onboardingData.main_competitors_list_and_reasons = [];
           }
+        } else if (Array.isArray(onboardingData.main_competitors_list_and_reasons)) {
+          // Handle new format with scraped info
+          onboardingData.main_competitors_list_and_reasons = onboardingData.main_competitors_list_and_reasons.map((competitor: any, index: number) => {
+            if (typeof competitor === 'string') {
+              return {
+                id: `competitor-${index}`,
+                name: competitor
+              };
+            } else if (competitor && typeof competitor === 'object') {
+              return {
+                id: `competitor-${index}`,
+                name: competitor.name || '',
+                scrapedInfo: competitor.scrapedInfo || undefined
+              };
+            }
+            return {
+              id: `competitor-${index}`,
+              name: ''
+            };
+          });
+        }
+
+        // Merge competitor data from competitor_data column if available
+        if (data.competitor_data && typeof data.competitor_data === 'object') {
+          const competitorData = data.competitor_data;
+          
+          // Update competitors with scraped info from competitor_data column
+          onboardingData.main_competitors_list_and_reasons = onboardingData.main_competitors_list_and_reasons.map((competitor: any) => {
+            if (competitor.id && competitorData[competitor.id]) {
+              return {
+                ...competitor,
+                scrapedInfo: competitorData[competitor.id].scrapedInfo
+              };
+            }
+            return competitor;
+          });
         }
 
         // Convert legacy string format to new array format for employees
@@ -2815,12 +3133,27 @@ export default function OnboardingClient() {
         .join(', ');
     }
 
-    // Convert competitors array to string format for backward compatibility
+    // Prepare competitor data for both onboarding_data and competitor_data columns
+    let competitorDataForDatabase: Record<string, any> = {};
     if (dataToSubmit.main_competitors_list_and_reasons && Array.isArray(dataToSubmit.main_competitors_list_and_reasons)) {
       dataToSubmit.main_competitors_list_and_reasons = dataToSubmit.main_competitors_list_and_reasons
         .filter((competitor: any) => competitor && competitor.name)
-        .map((competitor: any) => competitor.name)
-        .join(', ');
+        .map((competitor: any) => {
+          // If competitor has scraped info, include it in the data
+          if (competitor.scrapedInfo && competitor.id) {
+            // Store in competitor_data column for detailed analysis
+            competitorDataForDatabase[competitor.id] = {
+              name: competitor.name,
+              scrapedInfo: competitor.scrapedInfo,
+              scrapedAt: competitor.scrapedInfo.scrapedAt || new Date().toISOString()
+            };
+            return {
+              name: competitor.name,
+              scrapedInfo: competitor.scrapedInfo
+            };
+          }
+          return competitor.name;
+        });
     }
 
     // Convert employees array to string format for backward compatibility
@@ -2863,6 +3196,7 @@ export default function OnboardingClient() {
           .from('company_onboarding')
           .update({
             onboarding_data: dataToSubmit,
+            competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
             updated_at: new Date().toISOString()
           })
@@ -2876,6 +3210,7 @@ export default function OnboardingClient() {
           .insert({
             user_id: user.id,
             onboarding_data: dataToSubmit,
+            competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
           });
         console.log('✅ Successfully created onboarding record');
@@ -3105,6 +3440,7 @@ export default function OnboardingClient() {
                                   }}
                                   required={q.required}
                                   fieldId={q.name}
+                                  form={form}
                                 />
                             ) : q.type === 'employees-repeater' ? (
                                 <EmployeesRepeater
