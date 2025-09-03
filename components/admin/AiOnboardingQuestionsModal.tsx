@@ -402,7 +402,7 @@ const AiOnboardingQuestionsModal: React.FC<AiOnboardingQuestionsModalProps> = ({
           {questionAnswers.length > 0 ? (
             <div className="space-y-4">
               {questionAnswers.map((qa, index) => (
-                <div key={index} className="bg-white rounded-lg px-5 py-4 border border-gray-200 hover:border-gray-300 transition-colors">
+                <div key={index} className="bg-gray-50 rounded-lg px-5 py-4 border border-gray-200 hover:border-gray-300 transition-colors">
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <div className="flex-1">
@@ -415,7 +415,7 @@ const AiOnboardingQuestionsModal: React.FC<AiOnboardingQuestionsModalProps> = ({
                         <h3 className="text-sm font-semibold mb-3 text-black">
                           {qa.question}
                         </h3>
-                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="">
                           {qa.answer === 'Not answered yet' ? (
                             <p className="text-sm text-gray-500 italic">
                               {qa.answer}

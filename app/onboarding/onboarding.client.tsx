@@ -2697,15 +2697,26 @@ export default function OnboardingClient() {
           // Parse the old string format and convert to new array format
           const employeesString = onboardingData.current_employees_and_roles_responsibilities;
           if (employeesString.trim()) {
-            // Try to parse comma-separated format like "John Smith (Operations Manager), Jane Doe (Sales Director)"
+            // Try to parse comma-separated format like "Neeraj (Devv) - Develop site"
             const employees = employeesString.split(',').map((employee: string, index: number) => {
               const trimmed = employee.trim();
-              const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
-              if (match) {
+              // Try to match format: "Name (Role) - Responsibilities"
+              const fullMatch = trimmed.match(/^(.+?)\s*\((.+?)\)\s*-\s*(.+)$/);
+              if (fullMatch) {
                 return {
                   id: `legacy-employee-${index}`,
-                  name: match[1].trim(),
-                  role: match[2].trim(),
+                  name: fullMatch[1].trim(),
+                  role: fullMatch[2].trim(),
+                  responsibilities: fullMatch[3].trim()
+                };
+              }
+              // Fallback to old format: "Name (Role)"
+              const roleMatch = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+              if (roleMatch) {
+                return {
+                  id: `legacy-employee-${index}`,
+                  name: roleMatch[1].trim(),
+                  role: roleMatch[2].trim(),
                   responsibilities: ''
                 };
               } else {
@@ -3160,7 +3171,7 @@ export default function OnboardingClient() {
     if (dataToSubmit.current_employees_and_roles_responsibilities && Array.isArray(dataToSubmit.current_employees_and_roles_responsibilities)) {
       dataToSubmit.current_employees_and_roles_responsibilities = dataToSubmit.current_employees_and_roles_responsibilities
         .filter((employee: any) => employee && employee.name && employee.role)
-        .map((employee: any) => `${employee.name} (${employee.role})`)
+        .map((employee: any) => `${employee.name} (${employee.role}) - ${employee.responsibilities || 'No responsibilities specified'}`)
         .join(', ');
     }
 
