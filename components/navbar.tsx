@@ -114,17 +114,19 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             )}
 
             {/* Welcome Popup Button - For testing purposes */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="bg-transparent border-none"
-              onClick={() => {
-                // Dispatch a custom event that the dashboard can listen to
-                window.dispatchEvent(new CustomEvent('openWelcomePopup'));
-              }}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
+            {!aiOnboardingCompleted && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="bg-transparent border-none"
+                onClick={() => {
+                  // Dispatch a custom event that the dashboard can listen to
+                  window.dispatchEvent(new CustomEvent('openWelcomePopup'));
+                }}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         
         <div className="flex items-center gap-5">

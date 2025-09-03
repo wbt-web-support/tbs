@@ -53,6 +53,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import OnboardingDataModal from "@/components/admin/OnboardingDataModal"; // Added import
+import AiOnboardingQuestionsModal from "@/components/admin/AiOnboardingQuestionsModal"; // Added import
 
 // Types
 interface UserProfile {
@@ -228,6 +229,9 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [onboardingData, setOnboardingData] = useState<any>(null);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [loadingOnboardingData, setLoadingOnboardingData] = useState(true);
+  const [aiOnboardingData, setAiOnboardingData] = useState<any>(null);
+  const [isAiOnboardingModalOpen, setIsAiOnboardingModalOpen] = useState(false);
+  const [loadingAiOnboardingData, setLoadingAiOnboardingData] = useState(true);
 
   // Load user data
   useEffect(() => {
@@ -268,6 +272,43 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       // This prevents showing "Loading data..." indefinitely if the main user object hasn't loaded its user_id.
       setLoadingOnboardingData(false); 
       setOnboardingData(null);
+    }
+  }, [user?.user_id, supabase]); // Depend on user.user_id and supabase client
+
+  useEffect(() => {
+    const fetchAiOnboardingData = async () => {
+      if (user?.user_id) { // Check if user and user.user_id are available
+        setLoadingAiOnboardingData(true);
+        // supabase client is already defined at component scope
+        const { data, error } = await supabase
+          .from("ai_onboarding_questions")
+          .select("questions_data, is_completed") // Fetching the specific fields
+          .eq("user_id", user.user_id) // Use user.user_id
+          .single();
+
+        if (error && error.code !== "PGRST116") { // PGRST116 means no rows found
+          console.error("Error fetching AI onboarding data:", error);
+          toast.error("Failed to load AI onboarding data.");
+          setAiOnboardingData(null);
+        } else {
+          setAiOnboardingData(data); // Store the whole data object
+        }
+        setLoadingAiOnboardingData(false);
+      } else {
+        // If no user.user_id, it means no onboarding data can be fetched for this relation yet, or user is not loaded
+        setLoadingAiOnboardingData(false); // Set to false as we are not fetching
+        setAiOnboardingData(null);
+      }
+    };
+
+    // Only attempt to fetch if user.user_id is present
+    if (user?.user_id) {
+      fetchAiOnboardingData();
+    } else {
+      // If user or user.user_id is not yet available, reflect that we're not actively loading onboarding data for a non-existent/unidentified user.
+      // This prevents showing "Loading data..." indefinitely if the main user object hasn't loaded its user_id.
+      setLoadingAiOnboardingData(false); 
+      setAiOnboardingData(null);
     }
   }, [user?.user_id, supabase]); // Depend on user.user_id and supabase client
 
@@ -834,6 +875,24 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   ) : (
                     <p className="text-muted-foreground">No onboarding data submitted.</p>
                   )}
+                  
+                  {/* AI Onboarding Questions Button */}
+                  <div className="mt-3">
+                    {loadingAiOnboardingData ? (
+                      <p className="text-muted-foreground text-sm">Loading AI data...</p>
+                    ) : aiOnboardingData && aiOnboardingData.questions_data ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setIsAiOnboardingModalOpen(true)}
+                      >
+                        View AI Onboarding Questions
+                      </Button>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No AI onboarding questions.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </Card>
@@ -852,12 +911,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                     </div>
                     <div className="text-sm text-muted-foreground">Days Active</div>
                   </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {user.role === 'super_admin' ? 'Super' : user.role === 'admin' ? 'Admin' : 'User'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Role Level</div>
-                  </div>
+                  
                 </div>
               </div>
             </Card>
@@ -1003,12 +1057,19 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* Add the Modal component here, within the main return structure */}
+      {/* Add the Modal components here, within the main return structure */}
       <OnboardingDataModal
         isOpen={isOnboardingModalOpen}
         onClose={() => setIsOnboardingModalOpen(false)}
         data={onboardingData?.onboarding_data} // Pass the actual JSONB data
         companyName={user?.business_name || "Company"} // Changed from userName to companyName, using business_name
+      />
+
+      <AiOnboardingQuestionsModal
+        isOpen={isAiOnboardingModalOpen}
+        onClose={() => setIsAiOnboardingModalOpen(false)}
+        data={aiOnboardingData?.questions_data} // Pass the actual JSONB data
+        companyName={user?.business_name || "Company"} // Using business_name
       />
 
     </div>

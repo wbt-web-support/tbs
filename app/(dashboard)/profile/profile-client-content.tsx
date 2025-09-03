@@ -458,7 +458,7 @@ export function ProfileClientContent({ user, initialBusinessInfo, userRole, team
                           placeholder="Enter phone number"
                         />
                       </div>
-                      <div className="space-y-1.5 sm:col-span-2">
+                      <div className="space-y-1.5 sm:col-span-2 hidden">
                         <Label htmlFor="google_review_link" className="text-sm font-medium text-gray-700">Google Review Link</Label>
                         <Input
                           id="google_review_link"
@@ -479,7 +479,7 @@ export function ProfileClientContent({ user, initialBusinessInfo, userRole, team
                 </div>
                 {/* Read-only fields - Only show for company profile */} 
                 {type === 'company' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 pt-4 border-t border-gray-100">
+                  <div className="hidden grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 pt-4 border-t border-gray-100">
                      <div className="space-y-1.5">
                        <Label className="text-sm font-medium text-gray-700 block">Payment Option</Label>
                        <p className="text-sm text-gray-800 h-10 flex items-center px-3 rounded-md bg-gray-50 border border-gray-200">
