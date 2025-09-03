@@ -12,7 +12,7 @@ import IntegrationsDashboard from '@/app/(dashboard)/dashboard/components/integr
 import { trackActivity } from '@/utils/points';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Sparkles, MessageCircle, BarChart3, BookOpen, ArrowRight } from 'lucide-react';
+import { CheckCircle, CheckCircle2, Sparkles, MessageCircle, BarChart3, BookOpen, ArrowRight, Brain } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 
@@ -391,6 +391,19 @@ export default function NewDashboard() {
     }).catch(console.error);
   }, [searchParams]);
 
+  // Listen for custom event to open welcome popup
+  useEffect(() => {
+    const handleOpenWelcomePopup = () => {
+      setShowWelcomePopup(true);
+    };
+
+    window.addEventListener('openWelcomePopup', handleOpenWelcomePopup);
+    
+    return () => {
+      window.removeEventListener('openWelcomePopup', handleOpenWelcomePopup);
+    };
+  }, []);
+
   // Start staggered loading when connection status is ready
   useEffect(() => {
     if (!loading) {
@@ -411,10 +424,15 @@ export default function NewDashboard() {
 
         {/* Welcome Popup for Onboarding Completion */}
         <Dialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-10">
+          <DialogContent className="sm:max-w-5xl max-h-[96vh] overflow-y-auto p-10">
             {/* Hero Section */}
-            <div className="relative">
-              <DialogHeader className="text-left pt-6 relative">
+            
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Main Actions */}
+              <div className="space-y-6">
+              <div className="relative">
+              <DialogHeader className="text-left relative">
                 <DialogTitle className="text-3xl font-bold">
                   Welcome to your Command HQ!
                 </DialogTitle>
@@ -424,75 +442,125 @@ export default function NewDashboard() {
                 </div>
               </DialogHeader>
             </div>
+                <div className="text-left space-y-3">
+                  <p className="text-gray-600 leading-relaxed">
+                    Thank you for providing your answers. This is now the main dashboard of your Command HQ. 
+                    Everything that you just wrote inside of your onboarding questionnaire will now be fed to AI to improve it.
+                  </p>
+                </div>
 
-            <div className="space-y-6">
-              <div className="text-left space-y-3">
-                <p className="text-gray-600 leading-relaxed">
-                  Thank you for providing your answers. This is now the main dashboard of your Command HQ. 
-                  Everything that you just wrote inside of your onboarding questionnaire will now be fed to AI to improve it.
-                </p>
+                {/* Action Options */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-900 text-left mb-2">What would you like to do first?</h3>
+                  {/* Chat with AI Assistant */}
+                  <button
+                    onClick={handleNavigateToChat}
+                    className="w-full p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                        <MessageCircle className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="font-medium text-gray-900">Chat with AI Assistant</span>
+                    </div>
+                  </button>
+
+                  {/* Explore Dashboard */}
+                  <button
+                    onClick={handleExploreDashboard}
+                    className="w-full p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-green-600 flex items-center justify-center">
+                        <BarChart3 className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="font-medium text-gray-900">Explore Analytics Dashboard</span>
+                    </div>
+                  </button>
+
+                  {/* Go Through Modules */}
+                  <button
+                    onClick={handleNavigateToModules}
+                    className="w-full p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-purple-600 flex items-center justify-center">
+                        <BookOpen className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="font-medium text-gray-900">Go Through Modules</span>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Footer */}
+                <div className="text-left pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    You can access all these features anytime from your Command HQ
+                  </p>
+                </div>
               </div>
 
-              {/* Action Options */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-gray-900 text-left mb-2">What would you like to do first?</h3>
-                {/* Chat with AI Assistant */}
-                <button
-                  onClick={handleNavigateToChat}
-                  className="w-full group p-4 rounded-xl border-2 border-gray-200 hover:border-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                      <MessageCircle className="h-6 w-6 text-white" />
+              {/* Right Column - AI Onboarding Section */}
+              <div className="space-y-6">
+                <div className="bg-gray-50 rounded-2xl p-6 border border-blue-100 h-full flex flex-col justify-between">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-3 mb-4">
+                     <div className="h-16 w-16 rounded-xl bg-blue-600 flex items-center justify-center">
+                       <Brain className="h-8 w-8 text-white" />
+                     </div>
+                     <div>
+                       <h3 className="text-xl font-semibold text-gray-900">AI Personalisation</h3>
+                       <p className="text-sm text-blue-600 font-medium">Answer a few questions to improve your AI experience</p>
+                     </div>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 group-hover:text-blue-900">Chat with AI Assistant</h4>
-                      <p className="text-sm text-gray-600 group-hover:text-blue-700">Get instant help and insights for your business</p>
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-300" />
-                  </div>
-                </button>
+                   <div className="space-y-4">
+                     <p className="text-gray-700 leading-relaxed">
+                       Help us understand your business better by answering a few targeted questions. This will enable our AI to provide you with:
+                     </p>
+                     
+                     <div className="space-y-3">
+                       <div className="flex items-center gap-3">
+                         <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                         <span className="text-base text-gray-700">Personalised business recommendations</span>
+                       </div>
+                       <div className="flex items-center gap-3">
+                         <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                         <span className="text-base text-gray-700">Industry-specific insights and strategies</span>
+                       </div>
+                       <div className="flex items-center gap-3">
+                         <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                         <span className="text-base text-gray-700">Tailored growth opportunities</span>
+                       </div>
+                       <div className="flex items-center gap-3">
+                         <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                         <span className="text-base text-gray-700">Customised action plans</span>
+                       </div>
+                     </div>
 
-                {/* Explore Dashboard */}
-                <button
-                  onClick={handleExploreDashboard}
-                  className="w-full group p-4 rounded-xl border-2 border-gray-200 hover:border-green-300 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-green-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                      <BarChart3 className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 group-hover:text-green-900">Explore Analytics Dashboard</h4>
-                      <p className="text-sm text-gray-600 group-hover:text-green-700">View your business metrics and performance insights</p>
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all duration-300" />
+                   
                   </div>
-                </button>
-
-                {/* Go Through Modules */}
-                <button
-                  onClick={handleNavigateToModules}
-                  className="w-full group p-4 rounded-xl border-2 border-gray-200 hover:border-purple-300 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50 transition-all duration-300 text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                      <BookOpen className="h-6 w-6 text-white" />
+                   </div>
+                   
+                  <div className="pt-4">
+                                             <button
+                         onClick={() => {
+                           setShowWelcomePopup(false);
+                           router.push('/ai-onboarding');
+                         }}
+                         className="w-full group p-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-200"
+                       >
+                         <div className="flex items-center justify-center gap-3">
+                           <span>Start AI Personalisation</span>
+                           <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                         </div>
+                       </button>
+                       <div className="text-left mt-4 text-xs text-gray-500">
+                  <p>This step takes only 2-5 minutes and significantly improves your AI experience</p>
+                </div>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 group-hover:text-purple-900">Go Through Modules</h4>
-                      <p className="text-sm text-gray-600 group-hover:text-purple-700">Start your learning journey with structured business modules</p>
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all duration-300" />
-                  </div>
-                </button>
-              </div>
+                </div>
 
-              {/* Footer */}
-              <div className="text-left pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-500">
-                  You can access all these features anytime from your Command HQ
-                </p>
+               
               </div>
             </div>
           </DialogContent>
