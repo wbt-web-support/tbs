@@ -50,10 +50,32 @@ Business Information:
       `.trim();
     }
 
+    // Add detailed competitor analysis if available
+    let competitorAnalysis = '';
+    if (onboardingData.competitor_data && Object.keys(onboardingData.competitor_data).length > 0) {
+      competitorAnalysis = '\n\nDetailed Competitor Analysis:\n';
+      Object.values(onboardingData.competitor_data).forEach((competitor: any) => {
+        if (competitor && competitor.scrapedInfo) {
+          const info = competitor.scrapedInfo;
+          competitorAnalysis += `
+Competitor: ${info.companyName || competitor.name || 'Unknown'}
+- Company Overview: ${info.companyOverview || 'Not available'}
+- Main Products/Services: ${info.mainProducts || 'Not available'}
+- Target Market: ${info.targetMarket || 'Not available'}
+- Key Strengths: ${info.keyStrengths || 'Not available'}
+- Competitive Position: ${info.competitivePosition || 'Not available'}
+- Business Model: ${info.businessModel || 'Not available'}
+- Website: ${info.websiteUrl || 'Not available'}
+- Analysis Date: ${info.scrapedAt || 'Not available'}
+          `.trim() + '\n';
+        }
+      });
+    }
+
     // Create AI prompt for generating questions
     const prompt = `Based on this business information, generate 8-10 personalized questions to help understand the business better and provide strategic guidance.
 
-${businessContext}
+${businessContext}${competitorAnalysis}
 
 Generate questions that:
 1. Are specific to this business's situation and industry

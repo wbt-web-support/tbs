@@ -526,12 +526,12 @@ Please try again later or verify the website URL is correct and publicly accessi
         <div key={competitor.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Competitor name or website ({index + 1})
+              Competitor website ({index + 1})
             </label>
             <Input
               value={competitor.name}
               onChange={(e) => updateCompetitor(competitor.id, e.target.value)}
-              placeholder="e.g. https://example.com (for AI analysis) or ABC Company Ltd"
+              placeholder="e.g. https://example.com"
               className="w-full"
             />
 
@@ -589,8 +589,16 @@ Please try again later or verify the website URL is correct and publicly accessi
               </>
             ) : (
               /* Show message for non-URL inputs */
-              <div className="mt-2 text-xs text-gray-500">
-                💡 Enter a website URL to enable AI-powered competitor analysis
+              <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-md">
+                {competitor.name ? (
+                  <>
+                    <span className="text-orange-600">⚠️ This doesn't appear to be a website URL.</span>
+                    <br />
+                    <span className="text-blue-600">💡 If you add a website URL (like https://example.com), we can analyze it to get detailed competitor insights using AI.</span>
+                  </>
+                ) : (
+                  <span className="text-blue-600">💡 Add a website URL (like https://example.com) and we can analyze it to get detailed competitor insights using AI.</span>
+                )}
               </div>
             )}
           </div>
@@ -971,7 +979,7 @@ const PercentageInput = React.forwardRef<HTMLInputElement, { value: string; onCh
 
     return (
       <div className="relative">
-        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
           <span className="text-gray-500 text-base">%</span>
         </div>
         <Input
@@ -984,7 +992,7 @@ const PercentageInput = React.forwardRef<HTMLInputElement, { value: string; onCh
           required={required}
           placeholder={placeholder || "Enter percentage"}
           autoComplete="off"
-          className="pl-8"
+          className="pr-8"
           ref={ref}
         />
       </div>
@@ -1009,17 +1017,27 @@ function RevenueInputWithChoice({
 
   return (
     <div className="space-y-3">
-      {!isNotSure && (
-        <RevenueInput
-          id={fieldId}
-          value={isNotSure ? '' : value}
-          onChange={onChange}
-          required={required}
-          placeholder="Enter annual revenue"
-        />
-      )}
-      
-      {isNotSure ? (
+      {!isNotSure ? (
+        <div className="flex gap-3 items-start">
+          <div className="flex-1 max-w-xs">
+            <RevenueInput
+              id={fieldId}
+              value={value}
+              onChange={onChange}
+              required={required}
+              placeholder="Enter annual revenue"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onChange('not_sure')}
+            className="whitespace-nowrap"
+          >
+            Not sure
+          </Button>
+        </div>
+      ) : (
         <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
           <span className="text-blue-800 font-medium">Not sure</span>
           <Button
@@ -1032,15 +1050,6 @@ function RevenueInputWithChoice({
             <X className="h-4 w-4" />
           </Button>
         </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onChange('not_sure')}
-          className="w-full"
-        >
-          Not sure
-        </Button>
       )}
     </div>
   );
@@ -1062,17 +1071,27 @@ function ProfitMarginInputWithChoice({
 
   return (
     <div className="space-y-3">
-      {!isNotSure && (
-        <PercentageInput
-          id={fieldId}
-          value={isNotSure ? '' : value}
-          onChange={onChange}
-          required={required}
-          placeholder="Enter profit margin"
-        />
-      )}
-      
-      {isNotSure ? (
+      {!isNotSure ? (
+        <div className="flex gap-3 items-start">
+          <div className="flex-1 max-w-xs">
+            <PercentageInput
+              id={fieldId}
+              value={value}
+              onChange={onChange}
+              required={required}
+              placeholder="Enter profit margin"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onChange('not_sure')}
+            className="whitespace-nowrap"
+          >
+            Not sure
+          </Button>
+        </div>
+      ) : (
         <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
           <span className="text-blue-800 font-medium">Not sure</span>
           <Button
@@ -1085,15 +1104,6 @@ function ProfitMarginInputWithChoice({
             <X className="h-4 w-4" />
           </Button>
         </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onChange('not_sure')}
-          className="w-full"
-        >
-          Not sure
-        </Button>
       )}
     </div>
   );
@@ -1240,7 +1250,7 @@ const questions: Question[] = [
   },
   {
     name: 'main_competitors_list_and_reasons',
-    label: "Who are your main competitors? (Please list 3-5 with a reason to why you have chose them).",
+    label: "Who are your main competitors?",
     description: "Understanding your competitive landscape helps us position your business better",
     type: 'competitors-repeater',
     required: true,
@@ -3240,13 +3250,36 @@ export default function OnboardingClient() {
         i === 2 ? { ...step, done: true } : step
       ));
 
-      // Small delay before redirect
+      // Small delay before showing calendar step
       await new Promise(resolve => setTimeout(resolve, 500));
 
       toast({ title: "Success", description: "Your company information has been saved successfully!" });
       
-      // Add URL parameter to indicate fresh onboarding completion
-      router.push('/dashboard?onboarding=completed');
+      // Prepare parameters for discovery call page
+      const formValues = form.getValues();
+      const businessOwners = formValues.list_of_business_owners_full_names;
+      const primaryOwner = businessOwners && businessOwners.length > 0 ? businessOwners[0] : null;
+      
+      // Split full name into first and last name
+      let firstName = '';
+      let lastName = '';
+      if (primaryOwner && primaryOwner.fullName) {
+        const nameParts = primaryOwner.fullName.trim().split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+      }
+      
+      // Build URL with parameters
+      const params = new URLSearchParams();
+      if (firstName) params.append('first_name', firstName);
+      if (lastName) params.append('last_name', lastName);
+      if (formValues.primary_company_email_address) params.append('email', formValues.primary_company_email_address);
+      if (formValues.primary_company_phone_number) params.append('phone', formValues.primary_company_phone_number);
+      
+      const discoveryCallUrl = `/discovery-call${params.toString() ? `?${params.toString()}` : ''}`;
+      
+      // Redirect to discovery call page with parameters
+      router.push(discoveryCallUrl);
       router.refresh();
     } catch (error) {
       toast({ title: "Error", description: "Failed to save your information. Please try again.", variant: "destructive" });
@@ -3259,6 +3292,7 @@ export default function OnboardingClient() {
   const handleAiContentAccept = (questionName: string, content: string) => {
     form.setValue(questionName as keyof z.infer<typeof formSchema>, content, { shouldValidate: true });
   };
+
 
   const currentQuestions = categories[currentCategory].questions;
 

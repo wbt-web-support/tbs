@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, CheckCircle, ArrowRight, Brain, Target, Users, TrendingUp, Building, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { tr } from 'date-fns/locale';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface AIQuestion {
   id: string;
@@ -57,6 +58,8 @@ export default function AIOnboardingPage() {
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [loaderStartTime, setLoaderStartTime] = useState<number | null>(null);
   const [generatingStartTime, setGeneratingStartTime] = useState<number | null>(null);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [unansweredQuestions, setUnansweredQuestions] = useState<AIQuestion[]>([]);
   
   const { toast } = useToast();
   const router = useRouter();
@@ -207,10 +210,36 @@ export default function AIOnboardingPage() {
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
+    
+    // Update the question's completion status immediately
+    setQuestions(prev => prev.map(q => 
+      q.id === questionId 
+        ? { ...q, is_completed: value.trim() !== '', user_answer: value }
+        : q
+    ));
+  };
+
+  const checkUnansweredQuestions = () => {
+    const unanswered = questions.filter(q => {
+      const answer = answers[q.id];
+      return !answer || answer.trim() === '';
+    });
+    return unanswered;
+  };
+
+  const handleSubmitClick = () => {
+    const unanswered = checkUnansweredQuestions();
+    if (unanswered.length > 0) {
+      setUnansweredQuestions(unanswered);
+      setShowSubmitDialog(true);
+    } else {
+      saveAnswers();
+    }
   };
 
   const saveAnswers = async () => {
     setIsSaving(true);
+    setShowSubmitDialog(false);
     try {
       const answersToSave = Object.entries(answers).map(([questionId, answer]) => ({
         questionId,
@@ -237,6 +266,15 @@ export default function AIOnboardingPage() {
             title: "AI Onboarding Complete!",
             description: "You've completed all the AI-generated questions.",
           });
+          // Redirect to dashboard after successful completion
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 2000);
+        } else {
+          // Redirect to dashboard even if not all questions completed
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 1500);
         }
         
         // Refresh questions to update completion status
@@ -574,7 +612,7 @@ export default function AIOnboardingPage() {
                </Button>
              ) : (
               <Button
-                onClick={saveAnswers}
+                onClick={handleSubmitClick}
                 disabled={isSaving}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
@@ -596,21 +634,73 @@ export default function AIOnboardingPage() {
 
         {/* Question Navigation Dots */}
         <div className="flex justify-center mt-12 gap-2">
-          {questions.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentQuestionIndex(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentQuestionIndex
-                  ? 'bg-blue-600'
-                  : questions[index].is_completed
-                  ? 'bg-green-500'
-                  : 'bg-slate-300'
-              }`}
-            />
-          ))}
+          {questions.map((question, index) => {
+            const hasAnswer = answers[question.id] && answers[question.id].trim() !== '';
+            return (
+              <button
+                key={index}
+                onClick={() => setCurrentQuestionIndex(index)}
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  index === currentQuestionIndex
+                    ? 'bg-blue-600'
+                    : hasAnswer
+                    ? 'bg-green-500'
+                    : 'bg-slate-300'
+                }`}
+              />
+            );
+          })}
         </div>
       </div>
+
+      {/* Confirmation Dialog for Unanswered Questions */}
+      <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+        <AlertDialogContent className="max-w-2xl border-0 shadow-2xl">
+          <AlertDialogHeader className="pb-0">
+            <div className="flex items-center gap-3 mb-2">
+            
+              <AlertDialogTitle className="text-xl text-slate-900 font-semibold">
+                Unanswered Questions
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-base text-slate-600 leading-relaxed"> 
+              You have <span className="font-semibold text-amber-600">{unansweredQuestions.length}</span> unanswered question{unansweredQuestions.length !== 1 ? 's' : ''}. 
+              Do you want to submit your responses anyway?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          {/* List of Unanswered Questions */}
+          <div className="overflow-y-auto px-1">
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <h4 className="text-sm font-medium text-slate-700 mb-3">Questions to complete:</h4>
+              <ul className="space-y-3">
+                {unansweredQuestions.map((question, index) => (
+                  <li key={question.id} className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-slate-300 rounded-full flex items-center justify-center text-xs font-medium text-slate-600">
+                      {index + 1}
+                    </div>
+                    <p className="text-sm text-slate-700 leading-relaxed flex-1">
+                      {question.question_text}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          
+          <AlertDialogFooter className="pt-4 border-t border-slate-200">
+            <AlertDialogCancel className="border-slate-300 text-slate-700 hover:bg-slate-50">
+              Go Back
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={saveAnswers} 
+              className="bg-green-600 hover:bg-green-700 text-white font-medium px-6"
+            >
+              Submit Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
