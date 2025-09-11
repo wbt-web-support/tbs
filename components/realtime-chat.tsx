@@ -703,7 +703,7 @@ export function RealtimeChat() {
     }
   }, [audioContext, isAudioPlaybackEnabled]);
 
-  // Function to create a new session optimized with RAG for the current query
+  // Function to create a new session optimised with RAG for the current query
   const createSessionWithRAG = async (userQuery: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -733,7 +733,7 @@ export function RealtimeChat() {
       // Return the token rather than setting it directly
       return data.client_secret.value;
     } catch (error) {
-      setError("Failed to optimize response for your query. Please try again.");
+      setError("Failed to optimise response for your query. Please try again.");
       throw error;
     }
   };
@@ -808,7 +808,7 @@ export function RealtimeChat() {
       })
       .catch(error => {
         console.error("Error creating RAG session:", error);
-        setError("Failed to optimize response for your query. Please try again.");
+        setError("Failed to optimise response for your query. Please try again.");
         setIsLoading(false);
       });
   };

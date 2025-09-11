@@ -428,7 +428,7 @@ export default function BottomSection({
                                   <SelectItem value="Reprioritized">
                                     <div className="flex items-center">
                                       <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
-                                      Reprioritized
+                                      Reprioritised
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="Accomplished">

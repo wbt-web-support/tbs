@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, ExternalLink, Edit, Save, X, Code, Hand, ZoomIn, Camera, Upload, Image, FileCode2, Check, SwitchCamera, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
@@ -44,10 +45,19 @@ export default function FulfillmentMachinePage() {
   const [mainActiveTab, setMainActiveTab] = useState("details");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     fetchMachineData();
   }, []);
+
+  // Handle URL parameter for initial tab
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'design') {
+      setMainActiveTab('design');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (machineData) {

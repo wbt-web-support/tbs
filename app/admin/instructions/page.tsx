@@ -73,7 +73,7 @@ export default async function InstructionsPage({
               {activeCount} Active
             </div>
             <div className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-xs font-medium">
-              {priorityCount} Prioritized
+              {priorityCount} Prioritised
             </div>
           </div>
           <Link href="/admin/instructions/new">

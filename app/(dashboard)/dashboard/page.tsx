@@ -9,6 +9,7 @@ import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
 import { Card, CardContent } from '@/components/ui/card';
 import IntegrationsDashboard from '@/app/(dashboard)/dashboard/components/integrations-dashboard';
+import DashboardActionSection from '@/app/(dashboard)/dashboard/components/dashboard-action-section';
 import { trackActivity } from '@/utils/points';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,9 @@ export default function NewDashboard() {
 
   // Welcome popup state
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  
+  // AI onboarding completion state
+  const [aiOnboardingCompleted, setAiOnboardingCompleted] = useState(false);
 
   const supabase = createClient();
   const searchParams = useSearchParams();
@@ -60,9 +64,9 @@ export default function NewDashboard() {
 
   const getGreetingMessage = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
   };
 
   const setupGreeting = async () => {
@@ -103,6 +107,25 @@ export default function NewDashboard() {
       setGreetingName('there');
     } finally {
       setIsGreetingLoading(false);
+    }
+  };
+
+  const checkAIOnboardingStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: aiQuestions } = await supabase
+        .from('ai_onboarding_questions')
+        .select('is_completed')
+        .eq('user_id', user.id);
+      
+      if (aiQuestions && aiQuestions.length > 0) {
+        const allCompleted = aiQuestions.every((q: { is_completed: any; }) => q.is_completed);
+        setAiOnboardingCompleted(allCompleted);
+      }
+    } catch (error) {
+      console.error("Error checking AI onboarding status:", error);
     }
   };
 
@@ -372,9 +395,18 @@ export default function NewDashboard() {
     // Stay on dashboard
   };
 
+  const handleUploadFulfillmentDesign = () => {
+    router.push('/fulfillment-machine?tab=design');
+  };
+
+  const handleUploadGrowthDesign = () => {
+    router.push('/growth-machine?tab=design');
+  };
+
   useEffect(() => {
     checkConnectionStatus();
     setupGreeting();
+    checkAIOnboardingStatus();
     
     // Check if user just completed onboarding
     if (searchParams.get('onboarding') === 'completed') {
@@ -624,8 +656,22 @@ export default function NewDashboard() {
               </CardContent>
             </Card>
           )}
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
+              {/* Dashboard Action Section */}
+              <DashboardActionSection
+                onNavigateToChat={handleNavigateToChat}
+                onNavigateToModules={handleNavigateToModules}
+                onStartAIPersonalization={() => {
+                  setShowWelcomePopup(false);
+                  router.push('/ai-onboarding');
+                }}
+                onUploadFulfillmentDesign={handleUploadFulfillmentDesign}
+                onUploadGrowthDesign={handleUploadGrowthDesign}
+                isAIOnboardingCompleted={aiOnboardingCompleted}
+              />
+              
               <IntegrationsDashboard 
                 isConnected={isConnected}
                 hasPropertySelected={hasPropertySelected}
