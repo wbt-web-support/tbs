@@ -233,7 +233,7 @@ export default function BattlePlanPage() {
 
       setGeneratedData(result.data);
       setEditMode(true); // Enter edit mode after AI generates content
-      toast.success("AI has generated your Business Plan content!");
+      toast.success("AI assistant has created your business plan! Review and save when ready.");
       
     } catch (err: any) {
       console.error('Error generating content:', err);
@@ -295,7 +295,7 @@ export default function BattlePlanPage() {
       await fetchBattlePlanData();
       setGeneratedData(null);
       
-      toast.success("Generated content saved successfully!");
+      toast.success("AI-generated content saved to your business plan!");
       
     } catch (err: any) {
       console.error('Error saving generated content:', err);
@@ -329,17 +329,23 @@ export default function BattlePlanPage() {
         )}
       </div>
 
-      {/* Compact AI Generation Section */}
-      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg mb-5">
+      {/* AI Assistant Section */}
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg mb-5">
         <div className="flex items-center space-x-3">
-          <div>
-            <h3 className="text-sm font-medium text-indigo-800">AI Business Plan Generator</h3>
-            <p className="text-xs text-indigo-600 mt-1">
-              Analyse company data and generate your strategic business plan
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
+            <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+              We've analysed your company data and our AI assistant can help create your strategic business plan. 
+              You can also write it manually if you prefer.
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 ml-4">
           {generatedData && (
             <Button
               size="sm"
@@ -347,17 +353,17 @@ export default function BattlePlanPage() {
               onClick={handleSaveGeneratedContent}
             >
               <Save className="h-3 w-3 mr-1" />
-              Save
+              Save AI Content
             </Button>
           )}
           <Button
             size="sm"
-            className="h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleGenerateWithAI}
             disabled={generating}
           >
             {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            {generatedData ? 'Regenerate' : 'Generate'}
+            {generating ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Create This'}
           </Button>
         </div>
       </div>

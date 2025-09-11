@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Edit, Settings, Sparkles } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Edit, Settings, Sparkles, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
@@ -716,7 +716,7 @@ export default function GrowthEngineLibraryPage() {
             ) : (
               <Sparkles className="h-4 w-4 mr-2" />
             )}
-            {isGenerating ? 'Generating...' : 'AI Generate'}
+            {isGenerating ? 'AI Working...' : 'Let AI Help Create Playbooks'}
           </Button>
           {generatedPlaybooks.length > 0 && (
             <Button 

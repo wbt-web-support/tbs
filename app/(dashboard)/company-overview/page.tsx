@@ -128,7 +128,7 @@ export default function TriagePlannerPage() {
 
       setGeneratedData(result.data);
       setEditMode(true); // Enter edit mode after AI generates content
-      toast.success("AI has generated your Company Overview content!");
+      toast.success("AI assistant has filled out your company overview! Review and save when ready.");
       
     } catch (err: any) {
       console.error('Error generating content:', err);
@@ -165,7 +165,7 @@ export default function TriagePlannerPage() {
       await fetchPlannerData();
       setGeneratedData(null);
       setEditMode(false); // Exit edit mode after saving generated content
-      toast.success("Generated content saved successfully!");
+      toast.success("AI-generated content saved to your company overview!");
       
     } catch (err: any) {
       console.error('Error saving generated content:', err);
@@ -244,17 +244,23 @@ export default function TriagePlannerPage() {
         )}
       </div>
 
-      {/* Compact AI Generation Section */}
-      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg mb-5">
+      {/* AI Assistant Section */}
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg mb-5">
         <div className="flex items-center space-x-3">
-          <div>
-            <h3 className="text-sm font-medium text-indigo-800">AI Company Overview Generator</h3>
-            <p className="text-xs text-indigo-600 mt-1">
-              Analyse company data and generate your comprehensive company overview
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
+            <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+              We've analysed your company data and our AI assistant can help fill out your company overview. 
+              You can also complete it manually if you prefer.
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 ml-4">
           {generatedData && (
             <Button
               size="sm"
@@ -267,17 +273,17 @@ export default function TriagePlannerPage() {
               ) : (
                 <Save className="h-3 w-3 mr-1" />
               )}
-              {savingGenerated ? 'Saving...' : 'Save'}
+              {savingGenerated ? 'Saving...' : 'Save AI Content'}
             </Button>
           )}
           <Button
             size="sm"
-            className="h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleGenerateWithAI}
             disabled={generating}
           >
             {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            {generatedData ? 'Regenerate' : 'Generate'}
+            {generating ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Fill This'}
           </Button>
         </div>
       </div>

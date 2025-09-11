@@ -601,28 +601,10 @@ export default function NewDashboard() {
         {/* Environment Variables Checker */}
         <EnvironmentChecker />
 
-        {/* Initial Loading State - Show Skeleton */}
-        {loading && (
-          <div className="space-y-0">
-            {/* Greeting Skeleton */}
-            <Card className="bg-transparent border-none">
-              <CardContent className="p-0">
-                <div className="flex justify-between items-start flex-col md:flex-row gap-4">
-                  <div className="flex-1 space-y-3">
-                    <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-80"></div>
-                    <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-96"></div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-          </div>
-        )}
-
         {/* Always show the dashboard grid and sidebar */}
         <div className="">
           {/* Greeting Section */}
-          {isGreetingLoading ? (
+          {(loading || isGreetingLoading) ? (
             <Card className="bg-transparent border-none">
               <CardContent className="p-0">
                 <div className="flex justify-between items-start flex-col md:flex-row gap-4">

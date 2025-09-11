@@ -200,7 +200,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
         setActionsActivities(Array.isArray(result.data.actionsactivities) ? result.data.actionsactivities.filter((item: any) => item && item.value && item.value.trim() !== '') : []);
         setEditMode(true);
       }
-      toast.success("AI has mapped out your Fulfillment Machine process!");
+      toast.success("AI assistant has mapped out your fulfilment process! Review and save when ready.");
     } catch (err: any) {
       setError(err.message || 'Failed to map your Fulfillment Machine process');
       toast.error(err.message || 'Failed to map your Fulfillment Machine process');
@@ -285,17 +285,23 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
         )}
       </div>
 
-      {/* Compact AI Generation Section */}
-      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg">
+      {/* AI Assistant Section */}
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
         <div className="flex items-center space-x-3">
-          <div>
-            <h3 className="text-sm font-medium text-purple-800">AI Fulfillment Machine Generator</h3>
-            <p className="text-xs text-purple-600 mt-1">
-              Analyse company data and map your fulfillment process
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
+            <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+              We've analysed your company data and our AI assistant can help map your fulfilment process. 
+              You can also create it manually if you prefer.
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 ml-4">
           {generatedData && (
             <Button
               size="sm"
@@ -304,17 +310,17 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
               disabled={saving}
             >
               {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-              Save
+              Save AI Content
             </Button>
           )}
           <Button
             size="sm"
-            className="h-8 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+            className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleGenerateWithAI}
             disabled={generating}
           >
             {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            {generatedData ? 'Regenerate' : 'Generate'}
+            {generating ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Map This'}
           </Button>
         </div>
       </div>
