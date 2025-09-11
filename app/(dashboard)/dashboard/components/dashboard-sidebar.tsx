@@ -16,6 +16,7 @@ export default function DashboardSidebar({ adminProfile, customerReviewsLoading 
   return (
     <div className="space-y-6">
       {/* Quick Links Grid */}
+      <div className='sidebar-quick-links'>
           <div className='grid grid-cols-2 gap-4'>
             {/* AI Assistant */}
             <Link href="/chat" className='block'>
@@ -73,15 +74,19 @@ export default function DashboardSidebar({ adminProfile, customerReviewsLoading 
               </div>
             </Link>
           </div>
-       
+      </div>
       {/* AI Insights */}
-      <AIInsights />
+      <div className="sidebar-ai-insights">
+        <AIInsights />
+      </div>
 
       {/* Customer Reviews Summary */}
-      <CustomerReviewsSummary 
-        businessName={adminProfile?.business_name || ''}
-        googleReviewLink={adminProfile?.google_review_link}
-      />
+      <div className="sidebar-reviews-summary">
+        <CustomerReviewsSummary 
+          businessName={adminProfile?.business_name || ''}
+          googleReviewLink={adminProfile?.google_review_link}
+        />
+      </div>
     </div>
   );
 } 

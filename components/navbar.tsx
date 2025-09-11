@@ -131,7 +131,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
         
         <div className="flex items-center gap-5">
           {(isAdmin || userPermissions.includes('chat')) && (
-            <Link href="/chat">
+            <Link href="/chat" className="header-ai-assistant">
               <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-blue-700 hover:to-blue-900 hover:text-white from-blue-600 to-blue-800 text-white">
                 <Sparkles className="h-4 w-4" />
                 <span>AI Assistant</span>
@@ -143,7 +143,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full header-profile-button">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={profilePicture || ''} alt={user?.email || ""} />
                   <AvatarFallback className="bg-blue-100 text-blue-900">

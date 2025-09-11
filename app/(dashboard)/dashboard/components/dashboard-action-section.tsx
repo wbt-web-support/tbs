@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MessageCircle, BookOpen, ArrowRight, Brain, Upload, TrendingUp } from "lucide-react";
+import { MessageCircle, BookOpen, ArrowRight, Brain, Upload, TrendingUp, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface DashboardActionSectionProps {
@@ -11,6 +11,7 @@ interface DashboardActionSectionProps {
   onStartAIPersonalization?: () => void;
   onUploadFulfillmentDesign?: () => void;
   onUploadGrowthDesign?: () => void;
+  onStartTour?: () => void;
   isAIOnboardingCompleted?: boolean;
 }
 
@@ -20,6 +21,7 @@ export default function DashboardActionSection({
   onStartAIPersonalization,
   onUploadFulfillmentDesign,
   onUploadGrowthDesign,
+  onStartTour,
   isAIOnboardingCompleted = false
 }: DashboardActionSectionProps) {
   const router = useRouter();
@@ -65,6 +67,12 @@ export default function DashboardActionSection({
     }
   };
 
+  const handleStartTour = () => {
+    if (onStartTour) {
+      onStartTour();
+    }
+  };
+
   // Don't render the section if AI onboarding is completed (no tasks to show)
   if (isAIOnboardingCompleted) {
     return null;
@@ -85,6 +93,27 @@ export default function DashboardActionSection({
 
           {/* Action Options */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
+            
+            {/* Take Dashboard Tour - First Option */}
+            <button
+              onClick={handleStartTour}
+              className="p-4 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-left group"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-600 flex items-center justify-center group-hover:bg-emerald-700 transition-colors">
+                    <MapPin className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-medium text-slate-900 block text-sm">Take Dashboard Tour</span>
+                  </div>
+                  <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Get a guided walkthrough of all dashboard features and learn how to make the most of your Command HQ.
+                </p>
+              </div>
+            </button>
             {/* Chat with AI Assistant */}
             <button
               onClick={handleNavigateToChat}

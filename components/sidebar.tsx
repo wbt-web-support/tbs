@@ -266,7 +266,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 p-4 overflow-y-auto">
+        <nav className="flex-1 p-4 overflow-y-auto sidebar-navigation">
           {isLoading ? (
              <div className="flex justify-center items-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -325,7 +325,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
         
         {/* Important Links - Fixed at bottom */}
-        <div className="p-4 border-t mt-auto">
+        <div className="p-4 border-t mt-auto sidebar-important-links">
           <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider mb-3">
             Important Links
           </h2>

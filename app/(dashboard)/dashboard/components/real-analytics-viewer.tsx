@@ -180,7 +180,7 @@ export default function RealAnalyticsViewer({
 
   // --- Always show the top bar (header) ---
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 google-analytics-section">
       {/* Header with Popup Buttons - Staggered */}
       {!showHeader ? (
         <div className="flex items-center justify-between">

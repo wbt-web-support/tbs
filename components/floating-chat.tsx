@@ -404,7 +404,7 @@ export function FloatingChat() {
       {shouldShowChatUI && (
         <>
           {/* The floating button with dropdown indicator */}
-          <div className="fixed bottom-4 right-4 z-50">
+          <div className="fixed bottom-4 right-4 z-50 floating-ai-assistant">
             <Button
               onClick={handleChatButtonClick}
               disabled={isLoadingInstances}

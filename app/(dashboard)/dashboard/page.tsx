@@ -13,8 +13,9 @@ import DashboardActionSection from '@/app/(dashboard)/dashboard/components/dashb
 import { trackActivity } from '@/utils/points';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, CheckCircle2, Sparkles, MessageCircle, BarChart3, BookOpen, ArrowRight, Brain } from 'lucide-react';
+import { CheckCircle, CheckCircle2, Sparkles, MessageCircle, BarChart3, BookOpen, ArrowRight, Brain, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import DashboardTour from '@/app/(dashboard)/dashboard/components/dashboard-tour';
 
 
 interface BusinessInfo {
@@ -57,6 +58,11 @@ export default function NewDashboard() {
   
   // AI onboarding completion state
   const [aiOnboardingCompleted, setAiOnboardingCompleted] = useState(false);
+  
+  // Tour state
+  const [showTour, setShowTour] = useState(false);
+  const [hasCompletedTour, setHasCompletedTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   const supabase = createClient();
   const searchParams = useSearchParams();
@@ -392,7 +398,10 @@ export default function NewDashboard() {
 
   const handleExploreDashboard = () => {
     setShowWelcomePopup(false);
-    // Stay on dashboard
+    // Start dashboard tour
+    setTimeout(() => {
+      handleStartTour();
+    }, 300);
   };
 
   const handleUploadFulfillmentDesign = () => {
@@ -403,10 +412,30 @@ export default function NewDashboard() {
     router.push('/growth-machine?tab=design');
   };
 
+  const handleStartTour = () => {
+    setTourStep(0); // Reset to first step
+    setShowTour(true);
+  };
+
+  const handleCloseTour = () => {
+    setShowTour(false);
+  };
+
+  const handleCompleteTour = () => {
+    setShowTour(false);
+    setTourStep(0); // Reset for next time
+    setHasCompletedTour(true);
+    localStorage.setItem('dashboardTourCompleted', 'true');
+  };
+
   useEffect(() => {
     checkConnectionStatus();
     setupGreeting();
     checkAIOnboardingStatus();
+    
+    // Check if user has completed the tour before
+    const tourCompleted = localStorage.getItem('dashboardTourCompleted');
+    setHasCompletedTour(!!tourCompleted);
     
     // Check if user just completed onboarding
     if (searchParams.get('onboarding') === 'completed') {
@@ -484,6 +513,20 @@ export default function NewDashboard() {
                 {/* Action Options */}
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold text-gray-900 text-left mb-2">What would you like to do first?</h3>
+                  
+                  {/* Take Dashboard Tour - First Option */}
+                  <button
+                    onClick={handleExploreDashboard}
+                    className="w-full p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-green-600 flex items-center justify-center">
+                        <BarChart3 className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="font-medium text-gray-900">Take Dashboard Tour</span>
+                    </div>
+                  </button>
+
                   {/* Chat with AI Assistant */}
                   <button
                     onClick={handleNavigateToChat}
@@ -494,19 +537,6 @@ export default function NewDashboard() {
                         <MessageCircle className="h-4 w-4 text-white" />
                       </div>
                       <span className="font-medium text-gray-900">Chat with AI Assistant</span>
-                    </div>
-                  </button>
-
-                  {/* Explore Dashboard */}
-                  <button
-                    onClick={handleExploreDashboard}
-                    className="w-full p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-green-600 flex items-center justify-center">
-                        <BarChart3 className="h-4 w-4 text-white" />
-                      </div>
-                      <span className="font-medium text-gray-900">Explore Analytics Dashboard</span>
                     </div>
                   </button>
 
@@ -620,10 +650,21 @@ export default function NewDashboard() {
             <Card className="bg-transparent border-none shadow-none">
               <CardContent className="p-0">
                 <div className="flex justify-between items-start flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                      {getGreetingMessage()}, {greetingName.split(' ')[0]} 👋
-                    </h1>
+                  <div className="flex-1 welcome-greeting">
+                    <div className="flex items-center justify-between mb-2">
+                      <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+                        {getGreetingMessage()}, {greetingName.split(' ')[0]} 👋
+                      </h1>
+                      <Button
+                        onClick={handleStartTour}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        Take Tour
+                      </Button>
+                    </div>
                     <p className="text-gray-600 mb-4">
                       {currentUserRole === 'admin'
                         ? "Here's your Google Analytics overview to help you understand your website performance and make data-driven decisions for your business growth."
@@ -642,7 +683,8 @@ export default function NewDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               {/* Dashboard Action Section */}
-              <DashboardActionSection
+              <div className="action-section">
+                <DashboardActionSection
                 onNavigateToChat={handleNavigateToChat}
                 onNavigateToModules={handleNavigateToModules}
                 onStartAIPersonalization={() => {
@@ -651,10 +693,13 @@ export default function NewDashboard() {
                 }}
                 onUploadFulfillmentDesign={handleUploadFulfillmentDesign}
                 onUploadGrowthDesign={handleUploadGrowthDesign}
+                onStartTour={handleStartTour}
                 isAIOnboardingCompleted={aiOnboardingCompleted}
-              />
+                />
+              </div>
               
-              <IntegrationsDashboard 
+              <div>
+                <IntegrationsDashboard 
                 isConnected={isConnected}
                 hasPropertySelected={hasPropertySelected}
                 connectedProperty={connectedProperty}
@@ -666,9 +711,10 @@ export default function NewDashboard() {
                 adminProfile={adminProfile}
                 customerReviewsLoading={customerReviewsLoading}
                 refreshKey={refreshKey}
-              />
+                />
+              </div>
             </div>
-            <div>
+            <div className="dashboard-sidebar">
               <DashboardSidebar
                 adminProfile={adminProfile}
                 customerReviewsLoading={customerReviewsLoading}
@@ -676,6 +722,15 @@ export default function NewDashboard() {
             </div>
           </div>
         </div>
+        
+        {/* Dashboard Tour */}
+        <DashboardTour
+          isOpen={showTour}
+          onClose={handleCloseTour}
+          onComplete={handleCompleteTour}
+          initialStep={tourStep}
+          onStepChange={setTourStep}
+        />
       </div>
     </div>
   );

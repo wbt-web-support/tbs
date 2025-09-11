@@ -94,7 +94,7 @@ export default function IntegrationsDashboard(props: IntegrationsDashboardProps)
   }, [availableTabs, activeTab]);
 
   return (
-    <Tabs value={activeTab ?? undefined} onValueChange={setActiveTab} className="w-full">
+    <Tabs value={activeTab ?? undefined} onValueChange={setActiveTab} className="w-full analytics-tabs">
       <TabsList className={`grid w-full bg-white border p-2 border-gray-200 h-full ${
         availableTabs.length === 1 ? 'grid-cols-1' :
         availableTabs.length === 2 ? 'grid-cols-2' :
