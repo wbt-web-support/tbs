@@ -2,6 +2,7 @@ import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { GoogleAuth } from 'google-auth-library';
 import { AnalyticsData } from '@/types/google-analytics';
 import { createClient } from '@/utils/supabase/server';
+import { saveGoogleAnalyticsData, getLatestGoogleAnalyticsData } from './external-api-data';
 
 interface UserTokens {
   access_token: string;
@@ -107,12 +108,21 @@ export async function fetchAnalyticsData(userId: string, startDate = '30daysAgo'
     
     const { accessToken, propertyId, accountName } = clientData;
     
+    // Check if we have recent data in the database (within last 24 hours)
+    const today = new Date().toISOString().split('T')[0];
+    const { data: latestData } = await getLatestGoogleAnalyticsData(userId, propertyId);
+    
+    if (latestData && latestData.data_date === today && latestData.status === 'success') {
+      console.log('Using cached Google Analytics data from database');
+      return latestData.raw_data as AnalyticsData;
+    }
+    
     // Fetch real data from Google Analytics using the access token
-    console.log('Fetching real GA data for:', accountName);
+    console.log('Fetching fresh GA data for:', accountName);
     
     // For now, return mock data but with real connection info
     const mockData = getMockAnalyticsData();
-    return {
+    const analyticsData = {
       ...mockData,
       // Add some indication this is from the connected account
       topPages: [
@@ -123,6 +133,16 @@ export async function fetchAnalyticsData(userId: string, startDate = '30daysAgo'
         { page: '/chat', pageviews: 260 },
       ]
     };
+    
+    // Save the data to the database
+    const saveResult = await saveGoogleAnalyticsData(userId, propertyId, accountName, analyticsData, today);
+    if (saveResult.success) {
+      console.log('Google Analytics data saved to database');
+    } else {
+      console.error('Failed to save Google Analytics data:', saveResult.error);
+    }
+    
+    return analyticsData;
     
     // Fetch basic metrics
     const [metricsResponse] = await client.runReport({

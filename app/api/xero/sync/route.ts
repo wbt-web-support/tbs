@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { XeroAPI } from '@/lib/xero-api';
+import { saveXeroData } from '@/lib/external-api-data';
+import { XeroKPI } from '@/lib/xero-kpi';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +43,69 @@ export async function POST(request: NextRequest) {
 
     // Get updated connection data
     const updatedConnection = await xeroAPI.getConnection(user.id, connection.tenant_id);
+
+    // Save data to external_api_data table for historical tracking
+    if (updatedConnection) {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Calculate KPIs for the synced data
+        const xeroData = {
+          invoices: updatedConnection.invoices || [],
+          contacts: updatedConnection.contacts || [],
+          accounts: updatedConnection.accounts || [],
+          bank_transactions: updatedConnection.bank_transactions || [],
+        };
+        
+        const kpiEngine = new XeroKPI(xeroData, 'monthly');
+        const kpis = kpiEngine.getAllKPIs();
+        
+        // Prepare data for storage
+        const xeroDataForStorage = {
+          organization: {
+            OrganisationID: connection.tenant_id,
+            Name: connection.organization_name,
+            // Add other organization fields if available
+          },
+          invoices: updatedConnection.invoices || [],
+          contacts: updatedConnection.contacts || [],
+          accounts: updatedConnection.accounts || [],
+          bank_transactions: updatedConnection.bank_transactions || [],
+          kpis: {
+            totalRevenue: kpis.find(k => k.label === 'Total Revenue')?.value || 0,
+            accountsReceivable: kpis.find(k => k.label === 'Accounts Receivable')?.value || 0,
+            averageInvoiceValue: kpis.find(k => k.label === 'Average Invoice Value')?.value || 0,
+            invoiceCount: kpis.find(k => k.label === 'Total Invoices')?.value || 0,
+            customerCount: kpis.find(k => k.label === 'Total Customers')?.value || 0,
+            cashFlow: kpis.find(k => k.label === 'Net Cash Flow')?.value || 0,
+            overdueAmount: kpis.find(k => k.label === 'Overdue Amount')?.value || 0,
+            daysSalesOutstanding: kpis.find(k => k.label === 'Days Sales Outstanding')?.value || 0,
+          },
+          rawApiResponse: {
+            syncTimestamp: new Date().toISOString(),
+            source: 'xero_sync_api'
+          }
+        };
+
+        // Save to external_api_data table
+        const saveResult = await saveXeroData(
+          user.id,
+          connection.tenant_id,
+          connection.organization_name,
+          xeroDataForStorage,
+          today
+        );
+
+        if (saveResult.success) {
+          console.log('Xero data saved to external_api_data table');
+        } else {
+          console.error('Failed to save Xero data to external_api_data table:', saveResult.error);
+        }
+      } catch (saveError) {
+        console.error('Error saving Xero data to external_api_data table:', saveError);
+        // Don't fail the sync if storage fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

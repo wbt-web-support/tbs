@@ -109,9 +109,7 @@ export default function DashboardActionSection({
                   </div>
                   <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Get a guided walkthrough of all dashboard features and learn how to make the most of your Command HQ.
-                </p>
+              
               </div>
             </button>
             {/* Chat with AI Assistant */}
@@ -129,9 +127,7 @@ export default function DashboardActionSection({
                   </div>
                   <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Have your first conversation with the AI assistant to explore its capabilities and get personalized business insights.
-                </p>
+             
               </div>
             </button>
 
@@ -150,9 +146,7 @@ export default function DashboardActionSection({
                   </div>
                   <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Work through the training modules to build your business knowledge and unlock advanced features.
-                </p>
+             
               </div>
             </button>
 
@@ -171,9 +165,7 @@ export default function DashboardActionSection({
                   </div>
                   <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Answer a few questions to personalize your AI experience and get tailored business recommendations.
-                </p>
+             
               </div>
             </button>
 
@@ -188,13 +180,11 @@ export default function DashboardActionSection({
                     <Upload className="h-4 w-4 text-white" />
                   </div>
                   <div className="flex-1">
-                    <span className="font-medium text-slate-900 block text-sm">Upload Fulfillment Design</span>
+                    <span className="font-medium text-slate-900 block text-sm">Upload Fulfilment Design</span>
                   </div>
                   <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Share your fulfillment process design to visualize and optimise your operations.
-                </p>
+            
               </div>
             </button>
 
@@ -213,9 +203,7 @@ export default function DashboardActionSection({
                   </div>
                   <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Share your growth strategy design to map and accelerate your business expansion.
-                </p>
+               
               </div>
             </button>
           </div>

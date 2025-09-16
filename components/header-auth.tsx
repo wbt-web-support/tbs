@@ -24,7 +24,7 @@ export default function AuthButton() {
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
-        setLoading(false);
+        setLoading(false); 
       }
     };
 
@@ -32,7 +32,7 @@ export default function AuthButton() {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event: any, session: { user: any; }) => {
         setUser(session?.user ?? null);
         setLoading(false);
       }

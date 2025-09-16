@@ -143,7 +143,7 @@ export default function DashboardTour({ isOpen, onClose, onComplete, initialStep
           let popoverTop = rect.top + scrollTop;
           let popoverLeft = rect.left + scrollLeft;
 
-          // Special handling for first step - center the modal
+          // Special handling for first step - centre the modal
           if (currentStep === 0) {
             popoverTop = scrollTop + (viewportHeight - popoverHeight) / 2;
             popoverLeft = scrollLeft + (viewportWidth - popoverWidth) / 2;
@@ -214,9 +214,8 @@ export default function DashboardTour({ isOpen, onClose, onComplete, initialStep
           
           if (!isFullyVisible) {
             element.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'nearest',  // Changed from 'center' to 'nearest'
-              inline: 'nearest'  // Changed from 'center' to 'nearest'
+              block: 'nearest',  // Changed from 'centre' to 'nearest'
+              inline: 'nearest'  // Changed from 'centre' to 'nearest'
             });
           }
         }, 100);

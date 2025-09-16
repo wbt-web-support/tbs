@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { saveGoogleAnalyticsData, getGoogleAnalyticsData } from '@/lib/external-api-data';
 
 async function refreshAccessToken(refreshToken: string) {
   const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -296,6 +297,86 @@ export async function GET(request: NextRequest) {
 
     const mainReportData = await mainReportResponse.json();
     const deviceData = deviceDataResponse.ok ? await deviceDataResponse.json() : { rows: [] };
+
+    // Save the data to the database for future use
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Extract metrics from the API response
+      const firstRow = mainReportData.rows?.[0];
+      const metrics = firstRow?.metricValues || [];
+      
+      const analyticsData = {
+        // Core metrics from your dashboard
+        activeUsers: metrics[0] ? parseInt(metrics[0].value) : 0,
+        newUsers: metrics[1] ? parseInt(metrics[1].value) : 0,
+        sessions: metrics[2] ? parseInt(metrics[2].value) : 0,
+        pageViews: metrics[3] ? parseInt(metrics[3].value) : 0,
+        bounceRate: metrics[4] ? parseFloat(metrics[4].value) : 0,
+        averageSessionDuration: metrics[5] ? parseFloat(metrics[5].value) : 0,
+        sessionsPerUser: metrics[6] ? parseFloat(metrics[6].value) : 0,
+        
+        // Legacy fields for backward compatibility
+        totalUsers: metrics[0] ? parseInt(metrics[0].value) : 0,
+        totalSessions: metrics[2] ? parseInt(metrics[2].value) : 0,
+        totalPageviews: metrics[3] ? parseInt(metrics[3].value) : 0,
+        sessionDuration: metrics[5] ? parseFloat(metrics[5].value) : 0,
+        
+        // Additional data
+        topPages: [], // Will be populated from other API calls
+        usersByCountry: [], // Will be populated from other API calls
+        usersByDevice: deviceData.rows?.map((row: any) => ({
+          device: row.dimensionValues?.[0]?.value || '',
+          users: parseInt(row.metricValues?.[0]?.value || '0'),
+        })) || [],
+        dailyUsers: mainReportData.rows?.map((row: any) => ({
+          date: row.dimensionValues?.[0]?.value || '',
+          users: parseInt(row.metricValues?.[0]?.value || '0'),
+        })) || [],
+        
+        // Raw API response for debugging
+        rawApiResponse: {
+          mainReport: mainReportData,
+          deviceData: deviceData,
+          metadata: {
+            propertyId: propertyIdNumber,
+            dateRange: { startDate, endDate },
+            timestamp: new Date().toISOString(),
+            dataSource
+          }
+        }
+      };
+
+      // Extract key metrics for quick access
+      const quickMetrics = {
+        activeUsers: analyticsData.activeUsers,
+        newUsers: analyticsData.newUsers,
+        sessions: analyticsData.sessions,
+        pageViews: analyticsData.pageViews,
+        bounceRate: analyticsData.bounceRate,
+        averageSessionDuration: analyticsData.averageSessionDuration,
+        sessionsPerUser: analyticsData.sessionsPerUser,
+        deviceBreakdown: analyticsData.usersByDevice,
+        dateRange: { startDate, endDate }
+      };
+
+      const saveResult = await saveGoogleAnalyticsData(
+        user.id,
+        propertyIdNumber,
+        tokenData?.account_name || 'Unknown Account',
+        analyticsData,
+        today
+      );
+
+      if (saveResult.success) {
+        console.log('Google Analytics data saved to database');
+      } else {
+        console.error('Failed to save Google Analytics data:', saveResult.error);
+      }
+    } catch (saveError) {
+      console.error('Error saving Google Analytics data to database:', saveError);
+      // Don't fail the request if saving fails
+    }
 
     // Return the data in the format expected by the component
     return NextResponse.json({

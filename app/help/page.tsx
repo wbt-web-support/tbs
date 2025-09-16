@@ -151,7 +151,7 @@ const helpSections: HelpSection[] = [
       {
         id: 'mm-step-3',
         title: 'Manage Course Modules',
-        description: 'Create and organize modules within a course',
+        description: 'Create and organise modules within a course',
         icon: Settings,
         steps: [
           'Click "Manage" on any course card',
@@ -195,7 +195,7 @@ const helpSections: HelpSection[] = [
       {
         id: 'mm-step-6',
         title: 'Manage Lesson Content',
-        description: 'Organize and edit lesson materials',
+        description: 'Organise and edit lesson materials',
         icon: Edit,
         steps: [
           'Use the expandable lessons view in modules',
@@ -236,7 +236,7 @@ const helpSections: HelpSection[] = [
         steps: [
           'From admin dashboard, go to /admin/timeline',
           'Access the Manage Timeline Events page',
-          'View all timeline events organized by week'
+          'View all timeline events organised by week'
         ],
         url: '/admin/timeline'
       },
@@ -376,10 +376,10 @@ const helpSections: HelpSection[] = [
       {
         id: 'im-step-3',
         title: 'Manage AI Assistant Instruction Categories',
-        description: 'Organize AI assistant instructions by categories and priorities',
+        description: 'Organise AI assistant instructions by categories and priorities',
         icon: Settings,
         steps: [
-          'View AI assistant instructions organized by categories',
+          'View AI assistant instructions organised by categories',
           'Use filters to find specific instruction types',
           'Sort by priority (Critical, Very High, High, Normal)',
           'Filter by content type (text, PDF, document, video)',

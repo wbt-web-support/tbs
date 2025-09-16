@@ -175,17 +175,7 @@ const navigationSections: NavigationSection[] = [
       },
     ],
   },
-  {
-    title: "Support",
-    items: [
-      {
-        name: "Help Center",
-        href: "/help",
-        icon: HelpCircle,
-        disabled: false,
-      },
-    ],
-  },
+
 
 ];
 

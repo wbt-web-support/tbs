@@ -16,6 +16,7 @@ import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2, Database, Brain, Eye } from "lucide-react";
+import QuickAccessDropdown from "./quick-access-dropdown";
 import { useEffect, useState, useRef } from "react";
 
 interface NavbarProps {
@@ -130,6 +131,11 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           </div>
         
         <div className="flex items-center gap-5">
+          <QuickAccessDropdown 
+            userPermissions={userPermissions}
+            isAdmin={isAdmin}
+          />
+          
           {(isAdmin || userPermissions.includes('chat')) && (
             <Link href="/chat" className="header-ai-assistant">
               <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-blue-700 hover:to-blue-900 hover:text-white from-blue-600 to-blue-800 text-white">

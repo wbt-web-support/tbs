@@ -195,7 +195,7 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
           </Button>
         </div>
         {insights.context && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             Based on your current business data
           </p>
         )}
