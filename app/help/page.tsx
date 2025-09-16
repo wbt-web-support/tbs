@@ -54,7 +54,9 @@ const helpSections: HelpSection[] = [
         steps: [
           'Go to User Management page',
           'Click "Add User"',
-          'Fill in user details'
+          'Fill in user details',
+          'Securely save the client\'s email and password',
+          'Share credentials with the client'
         ],
         url: '/admin/users',
         fields: [
@@ -69,16 +71,6 @@ const helpSections: HelpSection[] = [
       },
       {
         id: 'step-3',
-        title: 'Before creating the user',
-        description: 'Important reminder for account setup',
-        icon: Shield,
-        steps: [
-          'Securely save the client\'s email and password',
-          'Share credentials with the client'
-        ]
-      },
-      {
-        id: 'step-4',
         title: 'Connect Main Google Analytics Account',
         description: 'Ensure the main analytics account is properly connected',
         icon: BarChart3,
@@ -90,7 +82,7 @@ const helpSections: HelpSection[] = [
         url: '/admin/analytics'
       },
       {
-        id: 'step-5',
+        id: 'step-4',
         title: 'Assign Google Analytics Properties to Clients',
         description: 'Manage user access to analytics properties',
         icon: User,
@@ -103,7 +95,7 @@ const helpSections: HelpSection[] = [
         url: '/admin/analytics'
       },
       {
-        id: 'step-6',
+        id: 'step-5',
         title: 'Review Current Google Analytics Assignments',
         description: 'Verify and manage existing analytics assignments',
         icon: Shield,
@@ -645,23 +637,22 @@ export default function HelpPage() {
           {/* Main Content */}
           <div className="flex-1 max-w-6xl mx-auto">
             {/* Help Content */}
-            <div className="space-y-8">
+            <div className="space-y-20">
               {filteredSections.map((section) => (
-                <Card key={section.id} id={section.id} className="bg-white p-4 shadow-none">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                       
-                        <div>
-                          <CardTitle className="text-3xl">{section.title}</CardTitle>
-                          <CardDescription className="text-base">{section.description}</CardDescription>
-                        </div>
+                <div key={section.id} id={section.id} className="space-y-6">
+                  {/* Section Header - Outside of Card */}
+                  <div className="">
+                    <div className="flex items-center">
+                      <div>
+                        <h2 className="text-3xl font-bold text-gray-900 mb-2">{section.title}</h2>
+                        <p className="text-base text-gray-600">{section.description}</p>
                       </div>
-
                     </div>
-                  </CardHeader>
+                  </div>
 
-                  <CardContent>
+                  {/* Section Items */}
+                  <Card className="bg-white p-4 shadow-none">
+                    <CardContent>
                     <div className="space-y-0">
                       {section.items.map((item) => (
                         <div key={item.id} id={item.id} className="">
@@ -703,21 +694,21 @@ export default function HelpPage() {
                                                               {/* Fields */}
                                 {item.fields && (
                                   <div className="mb-4">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex  items-center">
                                       <FileText className="h-4 w-4 mr-2 text-blue-600" />
                                       Required Fields
                                     </h4>
-                                    <div className="space-y-3">
+                                    <div className="flex flex-col gap-2">
                                       {item.fields.map((field, index) => (
-                                        <div key={index} className="flex items-start p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                          <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3"></div>
-                                          <div className="flex-1">
-                                            <span className="text-sm font-medium text-gray-900 block mb-1">
+                                        <div key={index} className="flex items-start">
+                                          <div className="flex-shrink-0 w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-2"></div>
+                                          <div className="flex-1 min-w-0">
+                                            <span className="text-sm font-medium text-gray-900">
                                               {field.name}
                                             </span>
-                                            <p className="text-sm text-gray-600">
-                                              {field.description}
-                                            </p>
+                                            <span className="text-sm text-gray-600 ml-1">
+                                              - {field.description}
+                                            </span>
                                           </div>
                                         </div>
                                       ))}
@@ -728,11 +719,14 @@ export default function HelpPage() {
                               {/* URL Link */}
                               {item.url && (
                                 <div className="mt-4">
-                                  <a className="text-blue-600 hover:text-blue-700 underline font-bold flex items-center">
-                                    <a href={item.url} className="flex items-center">
-                                      Go to {item.title}
-                                      <ArrowRight className="h-4 w-4 ml-2" />
-                                    </a>
+                                  <a 
+                                    href={item.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-700 underline font-bold flex items-center"
+                                  >
+                                    Go to {item.title}
+                                    <ArrowRight className="h-4 w-4 ml-2" />
                                   </a>
                                 </div>
                               )}
@@ -741,8 +735,9 @@ export default function HelpPage() {
                         </div>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               ))}
             </div>
 

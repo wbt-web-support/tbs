@@ -205,10 +205,14 @@ export default function AdminLayoutClient({
                 <div className="space-y-1">
                   {section.items.map((item) => {
                     const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                    const isHelpCenter = item.href === '/help';
+                    
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
+                        target={isHelpCenter ? "_blank" : undefined}
+                        rel={isHelpCenter ? "noopener noreferrer" : undefined}
                         onClick={() => {
                           // Close sidebar on mobile when clicking a link
                           if (window.innerWidth < 1024) {
