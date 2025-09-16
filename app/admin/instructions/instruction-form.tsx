@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { FileText, Loader2, Trash, Edit2, Save, X, ExternalLink } from "lucide-react";
+import { FileText, Loader2, Trash, Edit2, Save, X, Download, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
@@ -81,6 +81,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
   } : null);
   const [isEditingExtractedContent, setIsEditingExtractedContent] = useState(false);
   const [editedExtractedContent, setEditedExtractedContent] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const supabase = createClient();
   
@@ -396,6 +397,23 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
   
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header with Back Button */}
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push('/admin/instructions')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Instructions
+        </Button>
+        <div className="h-6 w-px bg-gray-300" />
+        <h1 className="text-2xl font-semibold text-gray-900">
+          {instruction ? 'Edit Instruction' : 'Create New Instruction'}
+        </h1>
+      </div>
+      
       <Card className="shadow-sm border-neutral-200">
         <CardHeader className="pb-1" />
         <CardContent className="space-y-8">
@@ -508,8 +526,8 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
               </div>
               {/* Source Section */}
               {contentType !== "text" && (
-                <div className="space-y-4 rounded-lg border p-4 bg-gray-50">
-                  <h3 className="text-sm font-medium">Source Information</h3>
+                 <div className="space-y-4 rounded-lg border p-4 bg-gray-50">
+                  
                   <div className="space-y-2">
                     <Label htmlFor="url" className="text-sm">URL</Label>
                     <div className="flex gap-2">
@@ -533,7 +551,6 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                           </>
                         ) : (
                           <>
-                            <ExternalLink className="h-4 w-4 mr-2" />
                             Extract
                           </>
                         )}
@@ -560,16 +577,19 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                       </p>
                     </div>
                   )}
-                  {contentType === 'loom' && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">
-                        Enter a Loom video URL and click Extract to retrieve the video transcription
-                      </p>
-                      <p className="text-xs font-medium text-blue-600">
-                        Example: https://www.loom.com/share/12345abcde
-                      </p>
-                    </div>
-                  )}
+                   {contentType === 'loom' && (
+                     <div className="space-y-2">
+                       <p className="text-xs text-muted-foreground">
+                         Enter a Loom video URL and click Extract to retrieve the video transcription
+                       </p>
+                       <p className="text-xs font-medium text-blue-600">
+                         Example: https://www.loom.com/share/12345abcde
+                       </p>
+                       <p className="text-xs text-amber-700 font-medium">
+                           Note: Content extraction may take 30-90 seconds depending on video length
+                         </p>
+                     </div>
+                   )}
                 </div>
               )}
             </div>
@@ -590,106 +610,121 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                   <div className="space-y-2 rounded-lg border p-4 bg-gray-50 mt-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-medium">Extracted Content</h3>
-                      <Dialog>
+                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-8">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8"
+                            onClick={() => {
+                              setEditedExtractedContent(extractedContent.extracted_text);
+                              setIsEditingExtractedContent(true);
+                              setIsDialogOpen(true);
+                            }}
+                          >
                             <FileText className="h-4 w-4 mr-2" />
-                            View Full Content
+                            Edit Content
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-3xl">
-                          <DialogHeader>
+                        <DialogContent className="max-w-5xl max-h-[90vh]">
+                          <DialogHeader className="border-b pb-4">
                             <div className="flex items-center justify-between">
-                              <DialogTitle>Extracted Content</DialogTitle>
-                              {!isEditingExtractedContent ? (
+                              <div>
+                                <DialogTitle className="text-2xl font-semibold text-gray-900">Extracted Content</DialogTitle>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  Extracted on {new Date(extractedContent.extraction_date).toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => {
                                     setEditedExtractedContent(extractedContent.extracted_text);
-                                    setIsEditingExtractedContent(true);
+                                    setIsEditingExtractedContent(false);
+                                    setIsDialogOpen(false);
                                   }}
+                                  className="h-9"
                                 >
-                                  <Edit2 className="h-4 w-4 mr-2" />
-                                  Edit Content
+                                  <X className="h-4 w-4 mr-2" />
+                                  Cancel
                                 </Button>
-                              ) : (
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setEditedExtractedContent(extractedContent.extracted_text);
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      setIsSubmitting(true);
+                                      const updatedExtractedContent = {
+                                        ...extractedContent,
+                                        extracted_text: editedExtractedContent
+                                      };
+                                      const { error } = await supabase
+                                        .from("chatbot_instructions")
+                                        .update({
+                                          extraction_metadata: updatedExtractedContent
+                                        })
+                                        .eq("id", instruction?.id);
+                                      if (error) throw error;
+                                      setExtractedContent(updatedExtractedContent);
                                       setIsEditingExtractedContent(false);
-                                    }}
-                                  >
-                                    <X className="h-4 w-4 mr-2" />
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={async () => {
-                                      try {
-                                        setIsSubmitting(true);
-                                        const updatedExtractedContent = {
-                                          ...extractedContent,
-                                          extracted_text: editedExtractedContent
-                                        };
-                                        const { error } = await supabase
-                                          .from("chatbot_instructions")
-                                          .update({
-                                            extraction_metadata: updatedExtractedContent
-                                          })
-                                          .eq("id", instruction?.id);
-                                        if (error) throw error;
-                                        setExtractedContent(updatedExtractedContent);
-                                        setIsEditingExtractedContent(false);
-                                        toast.success("Extracted content updated successfully");
-                                        router.refresh();
-                                      } catch (error) {
-                                        console.error("Error updating extracted content:", error);
-                                        toast.error("Failed to update extracted content");
-                                      } finally {
-                                        setIsSubmitting(false);
-                                      }
-                                    }}
-                                    disabled={isSubmitting}
-                                  >
-                                    {isSubmitting ? (
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    ) : (
-                                      <Save className="h-4 w-4 mr-2 bg-blue-600 text-white hover:bg-blue-700" />
-                                    )}
-                                    Save Changes
-                                  </Button>
-                                </div>
-                              )}
+                                      setIsDialogOpen(false);
+                                      toast.success("Extracted content updated successfully");
+                                      router.refresh();
+                                    } catch (error) {
+                                      console.error("Error updating extracted content:", error);
+                                      toast.error("Failed to update extracted content");
+                                    } finally {
+                                      setIsSubmitting(false);
+                                    }
+                                  }}
+                                  disabled={isSubmitting}
+                                  className="h-9 bg-blue-600 hover:bg-blue-700"
+                                >
+                                  {isSubmitting ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Save className="h-4 w-4 mr-2" />
+                                  )}
+                                  Save Changes
+                                </Button>
+                              </div>
                             </div>
                           </DialogHeader>
-                          <div className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                              Extracted from: {extractedContent.file_name}
-                            </p>
-                            <ScrollArea className="h-[60vh]">
-                              {isEditingExtractedContent ? (
+                          <div className="py-6">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-lg font-medium text-gray-900">Content Editor</Label>
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                  <span>{editedExtractedContent.length} characters</span>
+                                  <span>•</span>
+                                  <span>{editedExtractedContent.split('\n').length} lines</span>
+                                </div>
+                              </div>
+                              <div className="border-2 border-gray-200 rounded-lg overflow-hidden focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
                                 <Textarea
                                   value={editedExtractedContent}
                                   onChange={(e) => setEditedExtractedContent(e.target.value)}
-                                  className="min-h-[60vh] font-mono text-sm"
+                                  className="min-h-[50vh] font-mono text-sm border-0 resize-none focus:ring-0 focus:border-0 p-4"
+                                  placeholder="Edit the extracted content here..."
                                 />
-                              ) : (
-                                <pre className="text-sm whitespace-pre-wrap p-4">
-                                  {extractedContent.extracted_text}
-                                </pre>
-                              )}
-                            </ScrollArea>
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-md">
+                                <span>💡 Tip: You can edit the content directly in this text area</span>
+                                <span>Press Ctrl+S to save (coming soon)</span>
+                              </div>
+                            </div>
                           </div>
                         </DialogContent>
                       </Dialog>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      Source: {extractedContent.file_name}
+                    <p className="text-sm text-muted-foreground">
+                      Extracted on: {new Date(extractedContent.extraction_date).toLocaleDateString()}
                     </p>
                     <p className="text-xs text-muted-foreground line-clamp-2">
                       {extractedContent.extracted_text.substring(0, 150)}...
@@ -723,14 +758,14 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <div className="flex gap-3 ml-auto">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/admin/instructions')} 
-                className="h-10"
-              >
-                Cancel
-              </Button>
+             <div className="flex gap-3 ml-auto">
+               <Button 
+                 variant="outline" 
+                 onClick={() => router.back()} 
+                 className="h-10"
+               >
+                 Cancel
+               </Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={isSubmitting || isProcessing} 

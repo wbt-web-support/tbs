@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, FileText, ArrowRight, HelpCircle, UserPlus, LogIn, User, Shield, BarChart3, BookOpen, Plus, Settings, ChevronUp, Video, Edit, Lock, Clock, Pencil, Trash2, CheckSquare, Users, MessageSquare } from 'lucide-react';
+import { Search, FileText, ArrowRight, HelpCircle, UserPlus, LogIn, User, Shield, BarChart3, BookOpen, Plus, Settings, ChevronUp, Video, Edit, Lock, Clock, Pencil, Trash2, CheckSquare, Users, MessageSquare, X, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ interface HelpSection {
   icon: React.ComponentType<{ className?: string }>;
   color: string;
   items: HelpItem[];
+  videoUrl?: string;
 }
 
 interface HelpItem {
@@ -21,16 +22,82 @@ interface HelpItem {
   title: string;
   description: string;
   icon?: React.ComponentType<{ className?: string }>;
-  steps: string[];
+  steps: (string | { text: string; videoUrl?: string })[];
   url?: string;
-  fields?: { name: string; type: string; required: boolean; description: string }[];
+  videoUrl?: string;
+  fields?: { name: string; type: string; required: boolean; description: string; videoUrl?: string }[];
 }
+
+// Video Popup Component
+interface VideoPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  videoUrl: string;
+  title: string;
+}
+
+const VideoPopup: React.FC<VideoPopupProps> = ({ isOpen, onClose, videoUrl, title }) => {
+  if (!isOpen) return null;
+
+  const getEmbedUrl = (url: string) => {
+    // Handle Loom URLs
+    if (url.includes('loom.com')) {
+      const videoId = url.split('/').pop();
+      return `https://www.loom.com/embed/${videoId}`;
+    }
+    // Handle YouTube URLs
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      const videoId = url.includes('youtu.be') 
+        ? url.split('/').pop()?.split('?')[0]
+        : url.split('v=')[1]?.split('&')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    // Handle Vimeo URLs
+    if (url.includes('vimeo.com')) {
+      const videoId = url.split('/').pop();
+      return `https://player.vimeo.com/video/${videoId}`;
+    }
+    return url;
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="aspect-video">
+          <iframe
+            src={getEmbedUrl(videoUrl)}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const helpSections: HelpSection[] = [
   {
     id: 'user-creation',
     title: 'Steps to Add a New User',
-    description: 'Complete guide for creating new user accounts and setting up analytics',
+    description: 'Complete guide for creating new user accounts and linking analytics accounts',
     icon: UserPlus,
     color: 'gray',
     items: [
@@ -65,44 +132,48 @@ const helpSections: HelpSection[] = [
           { name: 'Full Name', type: 'text', required: true, description: 'User\'s complete name' },
           { name: 'Business Name', type: 'text', required: true, description: 'Company or business name' },
           { name: 'Phone Number', type: 'tel', required: true, description: 'Contact phone number' },
-          { name: 'WBT Onboarding Data', type: 'file/url', required: true, description: 'Attach PDF file or paste PDF URL from client\'s onboarding success email' },
+          { name: 'WBT Onboarding Data', type: 'file/url', required: true, description: 'Attach PDF file or paste PDF URL from client\'s onboarding success email', videoUrl: 'https://www.loom.com/share/a9bd168ee1b84139888171c4afd2056c?sid=dca10436-1803-4e3d-8bd1-d86eba54165e' },
           { name: 'Google Review Link', type: 'url', required: true, description: 'Go to the business Google Maps page, click on the Reviews tab, and copy the URL from the browser address bar' }
         ]
       },
       {
         id: 'step-3',
-        title: 'Connect Main Google Analytics Account',
-        description: 'Ensure the main analytics account is properly connected',
+        title: 'Connect Google Analytics Account',
+        description: 'Ensure the Google Analytics account is properly connected for linking',
         icon: BarChart3,
         steps: [
           'Navigate to /admin/analytics',
-          'Check if the main analytics account is connected',
-          'If not connected, connect it using: Email: websupport@webuildtrades.com'
+          'Check if the Google Analytics account is connected',
+          'If not connected, click "Connect Google Analytics" and use: Email: websupport@webuildtrades.com',
+          'Note: This will be handled by the website team'
         ],
         url: '/admin/analytics'
       },
       {
         id: 'step-4',
-        title: 'Assign Google Analytics Properties to Clients',
-        description: 'Manage user access to analytics properties',
+        title: 'Link Google Analytics Properties to Clients',
+        description: 'Manage user access to analytics properties by linking accounts',
         icon: User,
         steps: [
-          'Click on Manage Assignments',
-          'Confirm that the Assign Google Analytics Properties section appears',
-          'Review the two columns: All Users (clients) and Analytics Properties (available accounts)',
-          'To assign access: Select the user in the left column, Select the analytics account in the right column, Click on Assign Access'
+          'Click on "Manage Linked Accounts"',
+          'Confirm that the "Link Analytics Properties" section appears',
+          'Review the two columns: TBS Platform Users (admin users) and Google Analytics Properties (available accounts)',
+          'To link accounts: Select the user in the left column, Select the analytics property in the right column, Click on "Link Account"',
+          'If you don\'t find the account, request to add it from the website team'
         ],
-        url: '/admin/analytics'
+        url: '/admin/analytics',
+        videoUrl: 'https://www.loom.com/share/dd24f4d881b64110bf0484fb303b14af?sid=1b60c8ed-2300-4fad-9ec6-6f5cce62d095'
       },
       {
         id: 'step-5',
-        title: 'Review Current Google Analytics Assignments',
-        description: 'Verify and manage existing analytics assignments',
+        title: 'Review Linked Analytics Accounts',
+        description: 'Verify and manage existing linked analytics accounts',
         icon: Shield,
         steps: [
-          'Scroll down to the Current Assignments section',
-          'Verify that the assignment appears',
-          'Remove any assignment if necessary'
+          'Scroll down to the "Linked Accounts" section',
+          'Verify that the linked account appears with company name as main heading',
+          'View analytics property details and linking date',
+          'Remove any linked account if necessary using the dropdown menu'
         ],
         url: '/admin/analytics'
       }
@@ -443,6 +514,15 @@ export default function HelpPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<string>('');
   const [activeItem, setActiveItem] = useState<string>('');
+  const [videoPopup, setVideoPopup] = useState<{
+    isOpen: boolean;
+    videoUrl: string;
+    title: string;
+  }>({
+    isOpen: false,
+    videoUrl: '',
+    title: ''
+  });
 
 
   const filteredSections = useMemo(() => {
@@ -547,6 +627,22 @@ export default function HelpPage() {
     return text.replace(regex, '<mark class="bg-blue-200 px-1 rounded">$1</mark>');
   };
 
+  const openVideoPopup = (videoUrl: string, title: string) => {
+    setVideoPopup({
+      isOpen: true,
+      videoUrl,
+      title
+    });
+  };
+
+  const closeVideoPopup = () => {
+    setVideoPopup({
+      isOpen: false,
+      videoUrl: '',
+      title: ''
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 w-full">
       {/* Header */}
@@ -643,8 +739,19 @@ export default function HelpPage() {
                   {/* Section Header - Outside of Card */}
                   <div className="">
                     <div className="flex items-center">
-                      <div>
-                        <h2 className="text-3xl font-bold text-gray-900 mb-2">{section.title}</h2>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h2 className="text-3xl font-bold text-gray-900">{section.title}</h2>
+                          {section.videoUrl && (
+                            <button
+                              onClick={() => openVideoPopup(section.videoUrl!, section.title)}
+                              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors bg-blue-500 rounded text-white"
+                              title="Watch video"
+                            >
+                              <Video className="h-6 w-6 stroke-2" />
+                            </button>
+                          )}
+                        </div>
                         <p className="text-base text-gray-600">{section.description}</p>
                       </div>
                     </div>
@@ -662,9 +769,20 @@ export default function HelpPage() {
                                 {item.icon && (
                                   <item.icon className="h-8 w-8 text-white mr-3 bg-blue-600 rounded-xl p-2" />
                                 )}
-                                <h3 className="text-2xl font-semibold text-gray-900">
-                                  {item.title}
-                                </h3>
+                                <div className="flex items-center gap-3">
+                                  <h3 className="text-2xl font-semibold text-gray-900">
+                                    {item.title}
+                                  </h3>
+                                  {item.videoUrl && (
+                                    <button
+                                      onClick={() => openVideoPopup(item.videoUrl!, item.title)}
+                                      className="p-1.5 bg-blue-500 rounded text-white hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors bg-blue-500 rounded text-white"
+                                      title="Watch video"
+                                    >
+                                      <Video className="h-5 w-5 stroke-2" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <p className="text-gray-600 mb-4" 
                                   dangerouslySetInnerHTML={{ 
@@ -677,17 +795,33 @@ export default function HelpPage() {
                                   Steps to Follow
                                 </h4>
                                 <div className="space-y-3">
-                                  {item.steps.map((step, index) => (
-                                    <div key={index} className="flex items-start">
-                                      <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                                        <span className="text-xs font-medium text-blue-600">{index + 1}</span>
+                                  {item.steps.map((step, index) => {
+                                    const stepText = typeof step === 'string' ? step : step.text;
+                                    const stepVideoUrl = typeof step === 'object' ? step.videoUrl : undefined;
+                                    
+                                    return (
+                                      <div key={index} className="flex items-start">
+                                        <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                                          <span className="text-xs font-medium text-blue-600">{index + 1}</span>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                          <p className="text-sm text-gray-600 flex-1" 
+                                              dangerouslySetInnerHTML={{ 
+                                                __html: highlightSearchTerm(stepText) 
+                                              }} />
+                                          {stepVideoUrl && (
+                                            <button
+                                              onClick={() => openVideoPopup(stepVideoUrl, `Step ${index + 1}: ${stepText}`)}
+                                              className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors flex-shrink-0 bg-blue-500 rounded text-white"
+                                              title="Watch video"
+                                            >
+                                              <Play className="h-4 w-4 stroke-2" />
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
-                                      <p className="text-sm text-gray-600 flex-1" 
-                                          dangerouslySetInnerHTML={{ 
-                                            __html: highlightSearchTerm(step) 
-                                          }} />
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
 
@@ -702,13 +836,24 @@ export default function HelpPage() {
                                       {item.fields.map((field, index) => (
                                         <div key={index} className="flex items-start">
                                           <div className="flex-shrink-0 w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-2"></div>
-                                          <div className="flex-1 min-w-0">
-                                            <span className="text-sm font-medium text-gray-900">
-                                              {field.name}
-                                            </span>
-                                            <span className="text-sm text-gray-600 ml-1">
-                                              - {field.description}
-                                            </span>
+                                          <div className="flex items-start gap-2">
+                                            <div className="flex-1 min-w-0">
+                                              <span className="text-sm font-medium text-gray-900">
+                                                {field.name}
+                                              </span>
+                                              <span className="text-sm text-gray-600 ml-1">
+                                                - {field.description}
+                                              </span>
+                                            </div>
+                                            {field.videoUrl && (
+                                              <button
+                                                onClick={() => openVideoPopup(field.videoUrl!, `${field.name} - ${field.description}`)}
+                                                className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors flex-shrink-0 bg-blue-500 rounded text-white"
+                                                title="Watch video"
+                                              >
+                                                <Play className="h-3 w-3 stroke-2" />
+                                              </button>
+                                            )}
                                           </div>
                                         </div>
                                       ))}
@@ -745,6 +890,14 @@ export default function HelpPage() {
           </div>
         </div>
       </div>
+
+      {/* Video Popup */}
+      <VideoPopup
+        isOpen={videoPopup.isOpen}
+        onClose={closeVideoPopup}
+        videoUrl={videoPopup.videoUrl}
+        title={videoPopup.title}
+      />
     </div>
   );
 }

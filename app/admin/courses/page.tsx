@@ -349,9 +349,6 @@ export default function CourseManagementPage() {
     try {
       let table = '';
       switch (type) {
-        case 'course':
-          table = 'courses';
-          break;
         case 'module':
           table = 'course_modules';
           break;
@@ -370,23 +367,42 @@ export default function CourseManagementPage() {
       toast({ title: `${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully` });
       
       // Refresh appropriate data
-      if (type === 'course') {
-        fetchCourses();
-        setSelectedCourse(null);
-        setCurrentView('courses');
-              } else if (type === 'module') {
+      if (type === 'module') {
+        fetchModules(selectedCourse!.id);
+      } else if (type === 'lesson') {
+        if (currentView === 'lessons') {
+          fetchLessons(selectedModule!.id);
+        } else {
+          // Refresh modules view with updated lessons
           fetchModules(selectedCourse!.id);
-        } else if (type === 'lesson') {
-          if (currentView === 'lessons') {
-            fetchLessons(selectedModule!.id);
-          } else {
-            // Refresh modules view with updated lessons
-            fetchModules(selectedCourse!.id);
-          }
         }
+      }
     } catch (error: any) {
       toast({
         title: "Error deleting",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleCourseStatus = async (courseId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('courses')
+        .update({ is_active: !currentStatus })
+        .eq('id', courseId);
+
+      if (error) throw error;
+      
+      toast({ 
+        title: `Course ${!currentStatus ? 'activated' : 'deactivated'} successfully` 
+      });
+      
+      fetchCourses();
+    } catch (error: any) {
+      toast({
+        title: "Error updating course status",
         description: error.message,
         variant: "destructive",
       });
@@ -553,7 +569,7 @@ export default function CourseManagementPage() {
       {currentView === 'courses' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => (
-            <Card key={course.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card key={course.id} className="">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -595,9 +611,20 @@ export default function CourseManagementPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDelete('course', course.id)}
+                    onClick={() => handleToggleCourseStatus(course.id, course.is_active)}
+                    className={course.is_active ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {course.is_active ? (
+                      <>
+                        <Lock className="h-4 w-4 mr-1" />
+                        Deactivate
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="h-4 w-4 mr-1" />
+                        Activate
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -626,6 +653,26 @@ export default function CourseManagementPage() {
                  <CardContent className="p-6">
                    <div className="flex items-center justify-between">
                      <div className="flex items-center gap-4">
+                       <div className="flex flex-col gap-1">
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => moveItem('module', module.id, 'up')}
+                           disabled={index === 0}
+                           className="h-6 w-6 p-0"
+                         >
+                           <ChevronUp className="h-3 w-3" />
+                         </Button>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => moveItem('module', module.id, 'down')}
+                           disabled={index === modules.length - 1}
+                           className="h-6 w-6 p-0"
+                         >
+                           <ChevronDown className="h-3 w-3" />
+                         </Button>
+                       </div>
                        <div className="bg-blue-100 text-blue-700 rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium">
                          {index + 1}
                        </div>
@@ -653,9 +700,9 @@ export default function CourseManagementPage() {
                          onClick={() => toggleModuleExpansion(module.id)}
                        >
                          {isExpanded ? (
-                           <ChevronDown className="h-4 w-4 mr-1" />
+                           <X className="h-4 w-4 mr-1" />
                          ) : (
-                           <ChevronRight className="h-4 w-4 mr-1" />
+                           <Plus className="h-4 w-4 mr-1" />
                          )}
                          {isExpanded ? 'Hide' : 'Show'} Lessons
                        </Button>
@@ -672,25 +719,6 @@ export default function CourseManagementPage() {
                          <PlayCircle className="h-4 w-4 mr-1" />
                          Manage
                        </Button>
-                       
-                       <div className="flex gap-1">
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => moveItem('module', module.id, 'up')}
-                           disabled={index === 0}
-                         >
-                           <ChevronUp className="h-4 w-4" />
-                         </Button>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => moveItem('module', module.id, 'down')}
-                           disabled={index === modules.length - 1}
-                         >
-                           <ChevronDown className="h-4 w-4" />
-                         </Button>
-                       </div>
                        
                        <Button
                          variant="ghost"
@@ -771,6 +799,9 @@ export default function CourseManagementPage() {
                                      <Badge variant={lesson.is_active ? "default" : "secondary"} className="text-xs">
                                        {lesson.is_active ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
                                      </Badge>
+                                     <span className="text-xs text-gray-500">
+                                       Created {new Date(lesson.created_at).toLocaleDateString()}
+                                     </span>
                                    </div>
                                  </div>
                                </div>
@@ -863,6 +894,9 @@ export default function CourseManagementPage() {
                         <Badge variant={lesson.is_active ? "default" : "secondary"}>
                           {lesson.is_active ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
                         </Badge>
+                        <span className="text-xs text-gray-500">
+                          Created {new Date(lesson.created_at).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1069,6 +1103,11 @@ export default function CourseManagementPage() {
                     placeholder="Enter lesson title"
                     className="text-lg"
                   />
+                  {dialog.mode === 'edit' && formData.created_at && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Created on {new Date(formData.created_at).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
 
                 <div>

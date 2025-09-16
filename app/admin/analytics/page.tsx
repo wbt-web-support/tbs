@@ -228,21 +228,21 @@ export default function AnalyticsManagementPage() {
       });
 
       if (response.ok) {
-        toast.success('Analytics property assigned successfully');
+        toast.success('Analytics account linked successfully');
         setIsAssignDialogOpen(false);
         setSelectedUser('');
         setSelectedAccount('');
         setSelectedProperty('');
         await fetchAssignments();
         await fetchUsers(); // Refresh users list
-        // Keep the assignment view open to allow multiple assignments
+        // Keep the assignment view open to allow multiple links
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Failed to assign property');
+        toast.error(error.message || 'Failed to link account');
       }
     } catch (error) {
-      console.error('Error assigning property:', error);
-      toast.error('Failed to assign property');
+      console.error('Error linking account:', error);
+      toast.error('Failed to link account');
     } finally {
       setAssigning(false);
     }
@@ -250,7 +250,7 @@ export default function AnalyticsManagementPage() {
 
   const handleRemoveAssignment = async (userId: string) => {
     try {
-      console.log('Attempting to remove assignment for user:', userId);
+      console.log('Attempting to unlink account for user:', userId);
       
       const response = await fetch('/api/superadmin/assign-analytics', {
         method: 'DELETE',
@@ -259,29 +259,29 @@ export default function AnalyticsManagementPage() {
       });
 
       if (response.ok) {
-        toast.success('Assignment removed successfully');
+        toast.success('Account unlinked successfully');
         await fetchAssignments();
         await fetchUsers(); // Refresh users list to update status
       } else {
         const error = await response.json();
         console.error('API Error:', error);
-        toast.error(error.message || error.error || 'Failed to remove assignment');
+        toast.error(error.message || error.error || 'Failed to unlink account');
       }
     } catch (error) {
-      console.error('Error removing assignment:', error);
-      toast.error('Network error: Failed to remove assignment');
+      console.error('Error unlinking account:', error);
+      toast.error('Network error: Failed to unlink account');
     }
   };
 
   const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect your Google Analytics account? This will remove all user assignments.')) {
+    if (!confirm('Are you sure you want to disconnect your Google Analytics account? This will unlink all user accounts.')) {
       return;
     }
 
     try {
       setDisconnecting(true);
       
-      // First remove all assignments
+      // First unlink all accounts
       for (const assignment of assignments) {
         await handleRemoveAssignment(assignment.assigned_user_id);
       }
@@ -319,25 +319,14 @@ export default function AnalyticsManagementPage() {
   const getUnassignedUsers = () => {
     const assignedUserIds = assignments.map(a => a.assigned_user_id);
     return users.filter(user => {
-      // Exclude superadmins from assignment logic
-      if (user.role === 'super_admin') {
+      // Only include admin users
+      if (user.role !== 'admin') {
         return false;
       }
       
       // Filter out already assigned users
       if (assignedUserIds.includes(user.user_id)) {
         return false;
-      }
-      
-      // Filter out team members if their admin is already assigned
-      if (user.role !== 'admin' && user.team_id) {
-        const teamAdmin = users.find(u => 
-          u.team_id === user.team_id && 
-          u.role === 'admin'
-        );
-        if (teamAdmin && assignedUserIds.includes(teamAdmin.user_id)) {
-          return false;
-        }
       }
       
       return true;
@@ -357,17 +346,8 @@ export default function AnalyticsManagementPage() {
   };
 
   const isUserBlockedByTeam = (user: UserProfile) => {
-    if (user.role === 'admin' || !user.team_id) {
-      return false;
-    }
-    
-    const assignedUserIds = assignments.map(a => a.assigned_user_id);
-    const teamAdmin = users.find(u => 
-      u.team_id === user.team_id && 
-      u.role === 'admin'
-    );
-    
-    return teamAdmin && assignedUserIds.includes(teamAdmin.user_id);
+    // Since we only show admin users, no team blocking logic is needed
+    return false;
   };
 
   const getInitials = (name?: string) => {
@@ -518,7 +498,7 @@ export default function AnalyticsManagementPage() {
                     onClick={() => setShowAssignmentView(true)}
                   >
                     <Users className="h-4 w-4 mr-2" />
-                    Manage Assignments
+                    Manage Linked Accounts
                   </Button>
                 </div>
               </div>
@@ -533,10 +513,10 @@ export default function AnalyticsManagementPage() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <UserCheck className="h-5 w-5 text-blue-600" />
-                      Assign Analytics Properties
+                      Link Analytics Properties
                     </CardTitle>
                     <CardDescription>
-                      Select users and properties to grant analytics access
+                      Select users and properties to link analytics accounts
                     </CardDescription>
                   </div>
                   <Button 
@@ -553,14 +533,17 @@ export default function AnalyticsManagementPage() {
                   {/* Users Column */}
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-medium text-sm text-gray-700 flex items-center gap-2 mb-2">
-                        <Users className="h-4 w-4" />
-                        All Users ({users.filter(u => u.role !== 'super_admin').length})
-                      </h3>
+                      <div className="mb-3">
+                        <h3 className="font-medium text-sm text-gray-700 flex items-center gap-2 mb-1">
+                          <Users className="h-4 w-4" />
+                          TBS Platform Users ({users.filter(u => u.role === 'admin').length})
+                        </h3>
+                        <p className="text-xs text-gray-500">Admin users from your TBS platform who can be linked to analytics accounts</p>
+                      </div>
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
-                          placeholder="Search users..."
+                          placeholder="Search TBS users..."
                           className="pl-10 h-9 text-sm"
                           value={userSearchTerm}
                           onChange={(e) => setUserSearchTerm(e.target.value)}
@@ -568,17 +551,17 @@ export default function AnalyticsManagementPage() {
                       </div>
                     </div>
                     <div className="border rounded-lg max-h-96 overflow-y-auto">
-                                            {users.filter(u => u.role !== 'super_admin').length === 0 ? (
+                                            {users.filter(u => u.role === 'admin').length === 0 ? (
                         <div className="p-8 text-center text-gray-500">
                           <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">No users available for assignment</p>
+                          <p className="text-sm">No admin users available for linking</p>
                         </div>
                       ) : (
                           <div className="divide-y">
                             {users
                               .filter(user => {
-                                // Exclude superadmins from the assignment list
-                                if (user.role === 'super_admin') {
+                                // Only show admin users
+                                if (user.role !== 'admin') {
                                   return false;
                                 }
                                 
@@ -591,9 +574,8 @@ export default function AnalyticsManagementPage() {
                               })
                               .map((user) => {
                                 const isAssigned = isUserAssigned(user.user_id);
-                                const isBlocked = isUserBlockedByTeam(user);
                                 const userAssignment = assignments.find(a => a.assigned_user_id === user.user_id);
-                                const canSelect = !isAssigned && !isBlocked;
+                                const canSelect = !isAssigned;
                                 
                                 return (
                                   <div
@@ -604,9 +586,7 @@ export default function AnalyticsManagementPage() {
                                         ? "bg-blue-100 hover:bg-blue-100 border-l-4 border-blue-600" 
                                         : isAssigned 
                                           ? "bg-gray-50 hover:bg-gray-100 opacity-60"
-                                          : isBlocked
-                                            ? "bg-orange-50 hover:bg-orange-100 opacity-70"
-                                            : "hover:bg-gray-50"
+                                          : "hover:bg-gray-50"
                                     )}
                                     onClick={() => canSelect && setSelectedUser(user.user_id)}
                                   >
@@ -617,42 +597,35 @@ export default function AnalyticsManagementPage() {
                                         </AvatarFallback>
                                       </Avatar>
                                       <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <p className="font-semibold text-sm truncate">{user.business_name}</p>
+                                        </div>
+                                        {isAssigned && userAssignment && (
+                                          <p className="text-xs text-blue-600 mb-1 flex items-center gap-1">
+                                            <CheckCircle className="h-3 w-3" />
+                                            Linked to: {userAssignment.property_name}
+                                          </p>
+                                        )}
                                         <div className="flex items-center gap-2">
-                                          <p className="font-medium text-sm truncate">{user.full_name}</p>
+                                          <p className="text-xs text-gray-500 truncate">{user.full_name}</p>
                                           <Badge variant="outline" className="text-xs">
                                             {user.role}
                                           </Badge>
                                         </div>
-                                        <p className="text-xs text-gray-500 truncate">{user.business_name}</p>
-                                        {isAssigned && userAssignment && (
-                                          <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                                            <CheckCircle className="h-3 w-3" />
-                                            Assigned to: {userAssignment.property_name}
-                                          </p>
-                                        )}
-                                        {isBlocked && (
-                                          <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" />
-                                            Team admin already has analytics assigned
-                                          </p>
-                                        )}
                                       </div>
                                       {selectedUser === user.user_id && (
                                         <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
                                       )}
                                       {isAssigned && (
-                                        <Badge variant="outline" className="text-xs">Assigned</Badge>
-                                      )}
-                                      {isBlocked && (
-                                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">In a team</Badge>
+                                        <Badge variant="outline" className="text-xs">Linked</Badge>
                                       )}
                                     </div>
                                   </div>
                                 );
                               })}
                             {users.filter(user => {
-                              // Exclude superadmins
-                              if (user.role === 'super_admin') {
+                              // Only show admin users
+                              if (user.role !== 'admin') {
                                 return false;
                               }
                               
@@ -676,14 +649,17 @@ export default function AnalyticsManagementPage() {
                   {/* Properties Column */}
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-medium text-sm text-gray-700 flex items-center gap-2 mb-2">
-                        <BarChart3 className="h-4 w-4" />
-                        Analytics Properties
-                      </h3>
+                      <div className="mb-3">
+                        <h3 className="font-medium text-sm text-gray-700 flex items-center gap-2 mb-1">
+                          <BarChart3 className="h-4 w-4" />
+                          Google Analytics Properties
+                        </h3>
+                        <p className="text-xs text-gray-500">Available analytics properties from your connected Google Analytics account</p>
+                      </div>
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
-                          placeholder="Search properties..."
+                          placeholder="Search analytics properties..."
                           className="pl-10 h-9 text-sm"
                           value={propertySearchTerm}
                           onChange={(e) => setPropertySearchTerm(e.target.value)}
@@ -749,7 +725,7 @@ export default function AnalyticsManagementPage() {
                                           {isAssigned && propertyAssignment && (
                                             <span className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                                               <CheckCircle className="h-3 w-3" />
-                                              Assigned to: {propertyAssignment.assigned_user?.full_name}
+                                              Linked to: {propertyAssignment.assigned_user?.business_name}
                                             </span>
                                           )}
                                         </div>
@@ -757,7 +733,7 @@ export default function AnalyticsManagementPage() {
                                           <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0 ml-2" />
                                         )}
                                         {isAssigned && (
-                                          <Badge variant="outline" className="text-xs ml-2">Assigned</Badge>
+                                          <Badge variant="outline" className="text-xs ml-2">Linked</Badge>
                                         )}
                                       </div>
                                     </div>
@@ -797,14 +773,14 @@ export default function AnalyticsManagementPage() {
                   <div className="text-sm text-gray-600">
                     {selectedUser && selectedProperty ? (
                       <p>
-                        Ready to assign <span className="font-medium">
+                        Ready to link <span className="font-medium">
                           {getUnassignedUsers().find(u => u.user_id === selectedUser)?.full_name}
                         </span> to <span className="font-medium">
                           {accounts.find(a => a.name === selectedAccount)?.properties.find(p => p.name === selectedProperty)?.displayName}
                         </span>
                       </p>
                     ) : (
-                      <p>Select a user and property to create an assignment</p>
+                      <p>Select a user and property to create a link</p>
                     )}
                   </div>
                   <Button
@@ -815,12 +791,12 @@ export default function AnalyticsManagementPage() {
                     {assigning ? (
                       <>
                         <LoadingSpinner />
-                        <span className="ml-2">Assigning...</span>
+                        <span className="ml-2">Linking...</span>
                       </>
                     ) : (
                       <>
                         <UserCheck className="h-4 w-4 mr-2" />
-                        Assign Access
+                        Link Account
                       </>
                     )}
                   </Button>
@@ -829,20 +805,20 @@ export default function AnalyticsManagementPage() {
             </Card>
           )}
 
-          {/* Assignments */}
+          {/* Linked Accounts */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Current Assignments</CardTitle>
+                  <CardTitle>Linked Accounts</CardTitle>
                   <CardDescription>
-                    {assignments.length} user{assignments.length !== 1 ? 's' : ''} with analytics access
+                    {assignments.length} user{assignments.length !== 1 ? 's' : ''} with linked analytics accounts
                   </CardDescription>
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search assignments..."
+                    placeholder="Search linked accounts..."
                     className="pl-10 w-64"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -855,11 +831,11 @@ export default function AnalyticsManagementPage() {
                 <div className="text-center py-12">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">
-                    {searchTerm ? "No assignments found matching your search." : "No analytics properties assigned yet."}
+                    {searchTerm ? "No linked accounts found matching your search." : "No analytics accounts linked yet."}
                   </p>
                   {!searchTerm && (
                     <p className="text-sm text-gray-400 mt-1">
-                      Click "Assign Property" to get started.
+                      Click "Manage Linked Accounts" to get started.
                     </p>
                   )}
                 </div>
@@ -874,25 +850,24 @@ export default function AnalyticsManagementPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{assignment.assigned_user?.full_name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {assignment.assigned_user?.business_name}
-                            </Badge>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-lg">{assignment.assigned_user?.business_name}</span>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                          <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                             <span className="flex items-center gap-1">
                               <BarChart3 className="h-3 w-3" />
                               {assignment.property_name}
                             </span>
                             <span className="flex items-center gap-1">
-                              <Building className="h-3 w-3" />
-                              {assignment.account_name}
-                            </span>
-                            <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {new Date(assignment.assigned_at).toLocaleDateString()}
                             </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">{assignment.assigned_user?.full_name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              admin
+                            </Badge>
                           </div>
                         </div>
                       </div>
@@ -908,7 +883,7 @@ export default function AnalyticsManagementPage() {
                             className="text-red-600"
                           >
                             <Unlink className="h-4 w-4 mr-2" />
-                            Remove Assignment
+                            Unlink Account
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
