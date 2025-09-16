@@ -241,19 +241,17 @@ export default function ChqTimelinePage() {
           >
             Calendar
           </TabsTrigger>
-          {hasTimelineEvents && (
-            <TabsTrigger 
-              value="timeline" 
-              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
-            >
-              Timeline
-            </TabsTrigger>
-          )}
+          <TabsTrigger 
+            value="timeline" 
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
+          >
+            Timeline
+          </TabsTrigger>
           <TabsTrigger 
             value="benefits"
             className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
           >
-            To Do List
+            Book a Call
           </TabsTrigger>
         </TabsList>
 
@@ -267,17 +265,15 @@ export default function ChqTimelinePage() {
           </div>
 
           {/* Timeline Tab */}
-          {hasTimelineEvents && (
-            <div 
-              className={`${activeTab === 'timeline' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
-            >
-              <TimelineView 
-                events={timelineEvents}
-                loading={loading}
-                onEventUpdate={handleTimelineEventUpdate}
-              />
-            </div>
-          )}
+          <div 
+            className={`${activeTab === 'timeline' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
+          >
+            <TimelineView 
+              events={timelineEvents}
+              loading={loading}
+              onEventUpdate={handleTimelineEventUpdate}
+            />
+          </div>
 
           {/* Todo List Tab */}
           <div 

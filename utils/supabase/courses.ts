@@ -325,4 +325,47 @@ export function isLessonUnlocked(
   return previousLessons.every(l => 
     userProgress.find(p => p.lesson_id === l.id)?.is_completed
   );
+}
+
+// Get user's last accessed lesson for a course
+export async function getLastAccessedLesson(courseId: string): Promise<string | null> {
+  const supabase = createClient();
+  const teamId = await getUserTeamId();
+
+  // Get course enrollment to find last accessed lesson
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('user_course_enrollment')
+    .select('last_accessed_lesson_id')
+    .eq('user_id', teamId)
+    .eq('course_id', courseId)
+    .single();
+
+  if (enrollmentError && enrollmentError.code !== 'PGRST116') {
+    console.error('Error fetching last accessed lesson:', enrollmentError);
+    return null;
+  }
+
+  return enrollment?.last_accessed_lesson_id || null;
+}
+
+// Update course enrollment with last accessed lesson
+export async function updateLastAccessedLesson(courseId: string, lessonId: string) {
+  const supabase = createClient();
+  const teamId = await getUserTeamId();
+
+  const { error } = await supabase
+    .from('user_course_enrollment')
+    .upsert({
+      user_id: teamId,
+      course_id: courseId,
+      last_accessed_lesson_id: lessonId,
+      last_accessed_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id,course_id'
+    });
+
+  if (error) {
+    console.error('Error updating last accessed lesson:', error);
+    throw error;
+  }
 } 

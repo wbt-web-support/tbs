@@ -309,7 +309,7 @@ export default function AdminBenefitsPage() {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Benefit
+                  Add
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">

@@ -108,7 +108,7 @@ export class QuickBooksAPISimplified {
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       return null;
@@ -315,7 +315,7 @@ export class QuickBooksAPISimplified {
       .select('qb_data')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       return { revenue_data: [], cost_data: [], estimates: [] };
@@ -334,7 +334,7 @@ export class QuickBooksAPISimplified {
       .select('current_kpis')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     const currentKPIs = currentData?.current_kpis || {};
     currentKPIs[period] = {
@@ -363,7 +363,7 @@ export class QuickBooksAPISimplified {
       .select('current_kpis')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       return {};

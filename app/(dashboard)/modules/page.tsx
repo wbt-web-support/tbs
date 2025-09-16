@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { getUserTeamId, getTeamLessonProgress, getTeamModuleProgress, updateLessonProgress as updateLessonProgressUtil } from "@/utils/supabase/courses";
+import { getUserTeamId, getTeamLessonProgress, getTeamModuleProgress, updateLessonProgress as updateLessonProgressUtil, getLastAccessedLesson, updateLastAccessedLesson } from "@/utils/supabase/courses";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -29,7 +29,6 @@ import {
   Circle,
   CheckCircle2,
   ChevronUp,
-  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -201,21 +200,40 @@ export default function ModulesPage() {
       if (lessonsError) throw lessonsError;
       setLessons(lessonsData || []);
 
-      // Auto-select first lesson if available and expand first module
+      // Try to restore last accessed lesson, otherwise select first lesson
       if (lessonsData && lessonsData.length > 0) {
-        setSelectedLesson(lessonsData[0]);
-        setExpandedModules(new Set([lessonsData[0].module_id]));
+        try {
+          const lastAccessedLessonId = await getLastAccessedLesson(course.id);
+          const lastAccessedLesson = lastAccessedLessonId 
+            ? lessonsData.find((l: CourseLesson) => l.id === lastAccessedLessonId)
+            : null;
+          
+          if (lastAccessedLesson) {
+            // Restore last accessed lesson
+            setSelectedLesson(lastAccessedLesson);
+            setExpandedModules(new Set([lastAccessedLesson.module_id]));
+          } else {
+            // Fallback to first lesson
+            setSelectedLesson(lessonsData[0]);
+            setExpandedModules(new Set([lessonsData[0].module_id]));
+          }
+        } catch (error) {
+          console.error('Error fetching last accessed lesson:', error);
+          // Fallback to first lesson
+          setSelectedLesson(lessonsData[0]);
+          setExpandedModules(new Set([lessonsData[0].module_id]));
+        }
       } else if (modulesData && modulesData.length > 0) {
         // At least expand the first module to show lessons
         setExpandedModules(new Set([modulesData[0].id]));
       }
 
       // Fetch team progress using utility functions
-      const progressData = await getTeamLessonProgress(lessonsData?.map((l: { id: any; }) => l.id) || []);
+      const progressData = await getTeamLessonProgress(lessonsData?.map((l: CourseLesson) => l.id) || []);
       setUserProgress(progressData);
 
       // Fetch module progress using utility functions
-      const moduleProgressData = await getTeamModuleProgress(modulesData?.map((m: { id: any; }) => m.id) || []);
+      const moduleProgressData = await getTeamModuleProgress(modulesData?.map((m: CourseModule) => m.id) || []);
       setModuleProgress(moduleProgressData);
 
     } catch (error: any) {
@@ -277,6 +295,18 @@ export default function ModulesPage() {
 
   const markLessonComplete = async (lessonId: string) => {
     await updateLessonProgress(lessonId, 100, 0, true);
+    
+    // Auto-advance to next lesson if available
+    if (selectedCourse) {
+      const currentLessonIndex = lessons.findIndex(l => l.id === lessonId);
+      if (currentLessonIndex >= 0 && currentLessonIndex < lessons.length - 1) {
+        const nextLesson = lessons[currentLessonIndex + 1];
+        // Check if next lesson is unlocked before advancing
+        if (isLessonUnlocked(nextLesson)) {
+          await selectLesson(nextLesson);
+        }
+      }
+    }
   };
 
   const formatDuration = (seconds: number): string => {
@@ -326,12 +356,32 @@ export default function ModulesPage() {
     });
   };
 
+  const selectLesson = async (lesson: CourseLesson) => {
+    if (!selectedCourse) return;
+    
+    setSelectedLesson(lesson);
+    // Close sidebar on mobile after lesson selection
+    setIsSidebarOpen(false);
+    
+    // Save the current lesson position for persistence (background operation)
+    try {
+      await updateLastAccessedLesson(selectedCourse.id, lesson.id);
+    } catch (error) {
+      console.error('Error saving lesson position:', error);
+      // Silent error handling - no user feedback needed
+    }
+  };
+
   const calculateCourseProgress = (): number => {
     if (lessons.length === 0) return 0;
     const completedLessons = lessons.filter(lesson => 
       getLessonProgress(lesson.id)?.is_completed
     ).length;
     return (completedLessons / lessons.length) * 100;
+  };
+
+  const calculateTotalCourseTime = (): number => {
+    return lessons.reduce((total, lesson) => total + (lesson.video_duration_seconds || 0), 0);
   };
 
   if (loading) {
@@ -406,7 +456,7 @@ export default function ModulesPage() {
   }
 
   return (
-    <div className="flex w-full min-h-screen bg-gray-50">
+    <div className="flex w-full min-h-screen bg-gray-50 relative">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -552,7 +602,13 @@ export default function ModulesPage() {
                     Back
                   </Button>
                 )}
-                <h2 className="text-xl font-bold text-gray-900">{selectedCourse?.title}</h2>
+                <div className="flex flex-col">
+                  <h2 className="text-xl font-bold text-gray-900">{selectedCourse?.title}</h2>
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <Clock className="h-3 w-3" />
+                    <span>{formatDuration(calculateTotalCourseTime())}</span>
+                  </div>
+                </div>
               </div>
               {/* Close button for mobile */}
               <button
@@ -635,9 +691,7 @@ export default function ModulesPage() {
                               key={lesson.id}
                               onClick={() => {
                                 if (isUnlocked) {
-                                  setSelectedLesson(lesson);
-                                  // Close sidebar on mobile after lesson selection
-                                  setIsSidebarOpen(false);
+                                  selectLesson(lesson);
                                 }
                               }}
                               className={cn(

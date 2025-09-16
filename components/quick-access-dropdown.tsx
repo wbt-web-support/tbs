@@ -101,7 +101,7 @@ export default function QuickAccessDropdown({ userPermissions, isAdmin }: QuickA
             <DropdownMenuItem key={item.name} asChild>
               <Link 
                 href={item.href} 
-                className="w-full text-left flex items-center gap-3 p-2"
+                className="w-full text-left flex items-center gap-3 p-2 cursor-pointer"
                 onClick={() => setDropdownOpen(false)}
               >
                 <div className={`p-2 rounded-lg ${item.bgColor}`}>

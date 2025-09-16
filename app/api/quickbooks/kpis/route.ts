@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
           .select('kpi_history')
           .eq('user_id', userId)
           .eq('status', 'active')
-          .single();
+          .maybeSingle();
         let kpiHistory = kpiRow?.kpi_history || {};
         if (kpiHistory && kpiHistory[periodType] && Array.isArray(kpiHistory[periodType])) {
           history = kpiHistory[periodType];

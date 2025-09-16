@@ -78,13 +78,13 @@ export default function IntegrationsDashboard(props: IntegrationsDashboardProps)
     return () => clearInterval(interval);
   }, []);
 
-  // Determine available tabs
+  // Determine available tabs - show all tabs regardless of connection status
   const availableTabs = [
-    { key: 'google', label: 'Google Analytics', img: 'https://images.icon-icons.com/2699/PNG/512/google_analytics_logo_icon_171061.png', show: true },
-    { key: 'quickbooks', label: 'QuickBooks', img: 'https://cdn.worldvectorlogo.com/logos/quickbooks-2.svg', show: hasQuickBooks },
-    { key: 'servicem8', label: 'ServiceM8', img: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkHIyMlOrJ3yd1XNSsuO8K4eBPUSWxhhAobQ&s', show: hasServiceM8 },
-    { key: 'xero', label: 'Xero', img: 'https://upload.wikimedia.org/wikipedia/en/9/9f/Xero_software_logo.svg', show: hasXero },
-  ].filter(tab => tab.show);
+    { key: 'google', label: 'Google Analytics', img: 'https://images.icon-icons.com/2699/PNG/512/google_analytics_logo_icon_171061.png', connected: props.isConnected && props.hasPropertySelected },
+    { key: 'quickbooks', label: 'QuickBooks', img: 'https://cdn.worldvectorlogo.com/logos/quickbooks-2.svg', connected: hasQuickBooks },
+    { key: 'servicem8', label: 'ServiceM8', img: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkHIyMlOrJ3yd1XNSsuO8K4eBPUSWxhhAobQ&s', connected: hasServiceM8 },
+    { key: 'xero', label: 'Xero', img: 'https://upload.wikimedia.org/wikipedia/en/9/9f/Xero_software_logo.svg', connected: hasXero },
+  ];
 
   // Set default active tab to first available
   useEffect(() => {
@@ -95,48 +95,39 @@ export default function IntegrationsDashboard(props: IntegrationsDashboardProps)
 
   return (
     <Tabs value={activeTab ?? undefined} onValueChange={setActiveTab} className="w-full analytics-tabs">
-      <TabsList className={`grid w-full bg-white border p-2 border-gray-200 h-full ${
-        availableTabs.length === 1 ? 'grid-cols-1' :
-        availableTabs.length === 2 ? 'grid-cols-2' :
-        availableTabs.length === 3 ? 'grid-cols-3' :
-        availableTabs.length === 4 ? 'grid-cols-4' : 'grid-cols-1'
-      }`}>
+      <TabsList className="grid w-full bg-white border p-2 border-gray-200 h-full grid-cols-2 sm:grid-cols-4">
         {availableTabs.map(tab => (
-          <TabsTrigger key={tab.key} value={tab.key} className="flex items-center gap-2">
-            <img src={tab.img} alt={tab.label} className="h-5 w-5 object-contain" />
-            {tab.label}
+          <TabsTrigger key={tab.key} value={tab.key} className="flex items-center gap-2 relative text-xs sm:text-sm">
+            <img src={tab.img} alt={tab.label} className="h-4 w-4 sm:h-5 sm:w-5 object-contain" />
+            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+            {tab.connected && (
+              <div className="absolute -top-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-white"></div>
+            )}
           </TabsTrigger>
         ))}
       </TabsList>
 
-      {availableTabs.some(tab => tab.key === 'google') && (
-        <TabsContent value="google" className="mt-6">
-          <div className="space-y-4">
-            <RealAnalyticsViewer {...props} hasPropertySelected={props.hasPropertySelected} />
-          </div>
-        </TabsContent>
-      )}
-      {availableTabs.some(tab => tab.key === 'quickbooks') && (
-        <TabsContent value="quickbooks" className="mt-6">
-          <div className="space-y-4">
-            <QuickBooksKPIs />
-          </div>
-        </TabsContent>
-      )}
-      {availableTabs.some(tab => tab.key === 'servicem8') && (
-        <TabsContent value="servicem8" className="mt-6">
-          <div className="space-y-4">
-            <ServiceM8KPIs />
-          </div>
-        </TabsContent>
-      )}
-      {availableTabs.some(tab => tab.key === 'xero') && (
-        <TabsContent value="xero" className="mt-6">
-          <div className="space-y-4">
-            <XeroKPIs />
-          </div>
-        </TabsContent>
-      )}
+      <TabsContent value="google" className="mt-6">
+        <div className="space-y-4">
+          <RealAnalyticsViewer {...props} hasPropertySelected={props.hasPropertySelected} />
+        </div>
+      </TabsContent>
+      <TabsContent value="quickbooks" className="mt-6">
+        <div className="space-y-4">
+          <QuickBooksKPIs />
+        </div>
+      </TabsContent>
+      <TabsContent value="servicem8" className="mt-6">
+        <div className="space-y-4">
+          <ServiceM8KPIs />
+        </div>
+      </TabsContent>
+      <TabsContent value="xero" className="mt-6">
+        <div className="space-y-4">
+          <XeroKPIs />
+        </div>
+      </TabsContent>
     </Tabs>
   );
 } 
