@@ -244,59 +244,82 @@ export default function AdminTimelinePage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4">
-        {events.map((event) => (
-          <Card key={event.id} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full">
-                    Week {event.week_number}
-                  </span>
-                  <h3 className="font-medium">{event.event_name}</h3>
-                </div>
-                {event.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {event.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <p>📅 {new Date(event.scheduled_date).toLocaleDateString()}</p>
-                  {event.duration_minutes && (
-                    <p>⏱️ {event.duration_minutes} minutes</p>
-                  )}
-                  {event.meeting_link && (
-                    <a 
-                      href={event.meeting_link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      🔗 Join Meeting
-                    </a>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(event)}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(event.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+      {events.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 px-4">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center">
+              <Plus className="w-8 h-8 text-slate-400" />
             </div>
-          </Card>
-        ))}
-      </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-slate-900">No Timeline Events</h3>
+              <p className="text-slate-600 max-w-md">
+                Get started by creating your first timeline event. Plan your weekly activities and track important milestones.
+              </p>
+            </div>
+            <Button 
+              onClick={() => setIsDialogOpen(true)}
+              className="mt-4"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add First Timeline Event
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {events.map((event) => (
+            <Card key={event.id} className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full">
+                      Week {event.week_number}
+                    </span>
+                    <h3 className="font-medium">{event.event_name}</h3>
+                  </div>
+                  {event.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {event.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <p>📅 {new Date(event.scheduled_date).toLocaleDateString()}</p>
+                    {event.duration_minutes && (
+                      <p>⏱️ {event.duration_minutes} minutes</p>
+                    )}
+                    {event.meeting_link && (
+                      <a 
+                        href={event.meeting_link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        🔗 Join Meeting
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(event)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(event.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 } 

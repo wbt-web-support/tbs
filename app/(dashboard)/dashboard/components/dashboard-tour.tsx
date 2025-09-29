@@ -63,13 +63,7 @@ const tourSteps: TourStep[] = [
     position: 'right',
     icon: Navigation,
   },
-  {
-    selector: '.sidebar-quick-links',
-    title: 'Quick Access Links',
-    content: 'Fast shortcuts to frequently used sections: AI Assistant for conversations, Team management, Playbook planning, Calendar scheduling, and Learning Modules.',
-    position: 'left',
-    icon: Target,
-  },
+ 
   {
     selector: '.sidebar-ai-insights',
     title: 'AI Insights Panel',
