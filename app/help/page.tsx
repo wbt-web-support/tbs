@@ -162,7 +162,7 @@ const helpSections: HelpSection[] = [
           'If you don\'t find the account, request to add it from the website team'
         ],
         url: '/admin/analytics',
-        videoUrl: 'https://www.loom.com/share/dd24f4d881b64110bf0484fb303b14af?sid=1b60c8ed-2300-4fad-9ec6-6f5cce62d095'
+        videoUrl: 'https://www.loom.com/share/f21499a407124cbe9a08866b4c7df604?sid=2cf3257c-f04d-46b2-af8e-6a71d6f073ca'
       },
       {
         id: 'step-5',

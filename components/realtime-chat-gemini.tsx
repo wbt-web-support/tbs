@@ -1358,7 +1358,7 @@ export function RealtimeChatGemini({
       analyser.fftSize = 1024; // More detailed frequency data
       analyser.smoothingTimeConstant = 0.8; // Smoother transitions
       const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+      const dataArray = new Uint8Array(bufferLength) as Uint8Array;
       
       console.log(`📱 Call mode: Audio analyser set up with buffer length ${bufferLength}`);
       audioAnalyserRef.current = analyser;
@@ -1454,7 +1454,7 @@ export function RealtimeChatGemini({
     if (!audioAnalyserRef.current || !audioDataRef.current || !isInCallMode) return;
     
     const analyser = audioAnalyserRef.current;
-    const dataArray = audioDataRef.current;
+    const dataArray = audioDataRef.current as Uint8Array;
     
     // Track consecutive frames with/without voice
     let consecutiveSilentFrames = 0;
@@ -1470,7 +1470,7 @@ export function RealtimeChatGemini({
         return;
       }
       
-      analyser.getByteFrequencyData(dataArray);
+      analyser.getByteFrequencyData(dataArray as Uint8Array<ArrayBuffer>);
       
       // Calculate average frequency value
       let sum = 0;
