@@ -253,7 +253,7 @@ export default function AdminTimelinePage() {
             <div className="space-y-2">
               <h3 className="text-lg font-semibold text-slate-900">No Timeline Events</h3>
               <p className="text-slate-600 max-w-md">
-                Get started by creating your first timeline event. Plan your weekly activities and track important milestones.
+                Get started by creating your first timeline event.
               </p>
             </div>
             <Button 
