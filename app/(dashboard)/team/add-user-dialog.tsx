@@ -117,7 +117,7 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
         manager_id: null,
         critical_accountabilities: [],
         playbook_ids: [],
-        permissions: ['dashboard', 'chat'], // Default basic permissions
+        permissions: ['calendar', 'playbook-planner'], // Default permissions: Calendar and Playbook only
       })
 
       if (result.success) {

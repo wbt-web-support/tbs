@@ -69,11 +69,32 @@ export default function ChqTimelinePage() {
     todos: false,
     contact: false
   });
+  const [userRole, setUserRole] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     checkTimelineExists();
+    fetchUserRole();
   }, []);
+
+  const fetchUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: businessInfo } = await supabase
+          .from('business_info')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (businessInfo) {
+          setUserRole(businessInfo.role);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
 
   const checkTimelineExists = async () => {
     try {
@@ -91,6 +112,12 @@ export default function ChqTimelinePage() {
 
   // Fetch data based on active tab to implement lazy loading
   useEffect(() => {
+    // If user role is 'user' and they try to access restricted tabs, redirect to calendar
+    if (userRole === 'user' && (activeTab === 'timeline' || activeTab === 'benefits')) {
+      setActiveTab('calendar');
+      return;
+    }
+
     switch (activeTab) {
       case "timeline":
         if (!dataFetched.timeline) {
@@ -104,7 +131,7 @@ export default function ChqTimelinePage() {
         break;
       // We can add other cases for contact tab if needed
     }
-  }, [activeTab, dataFetched]);
+  }, [activeTab, dataFetched, userRole]);
 
   const fetchTimelineEvents = async () => {
     if (dataFetched.timeline) return; // Prevent refetching
@@ -241,18 +268,22 @@ export default function ChqTimelinePage() {
           >
             Calendar
           </TabsTrigger>
-          <TabsTrigger 
-            value="timeline" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
-          >
-            Timeline
-          </TabsTrigger>
-          <TabsTrigger 
-            value="benefits"
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
-          >
-            Book a Call
-          </TabsTrigger>
+          {userRole !== 'user' && (
+            <TabsTrigger 
+              value="timeline" 
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
+            >
+              Timeline
+            </TabsTrigger>
+          )}
+          {userRole !== 'user' && (
+            <TabsTrigger 
+              value="benefits"
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
+            >
+              Book a Call
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* All content is always mounted, just hidden with CSS */}
@@ -265,26 +296,30 @@ export default function ChqTimelinePage() {
           </div>
 
           {/* Timeline Tab */}
-          <div 
-            className={`${activeTab === 'timeline' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
-          >
-            <TimelineView 
-              events={timelineEvents}
-              loading={loading}
-              onEventUpdate={handleTimelineEventUpdate}
-            />
-          </div>
+          {userRole !== 'user' && (
+            <div 
+              className={`${activeTab === 'timeline' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
+            >
+              <TimelineView 
+                events={timelineEvents}
+                loading={loading}
+                onEventUpdate={handleTimelineEventUpdate}
+              />
+            </div>
+          )}
 
           {/* Todo List Tab */}
-          <div 
-            className={`${activeTab === 'benefits' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
-          >
-            <TodoList 
-              todoItems={todoItems}
-              loading={todoLoading}
-              teamId={teamId}
-            />
-          </div>
+          {userRole !== 'user' && (
+            <div 
+              className={`${activeTab === 'benefits' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
+            >
+              <TodoList 
+                todoItems={todoItems}
+                loading={todoLoading}
+                teamId={teamId}
+              />
+            </div>
+          )}
 
           {/* Contact Tab */}
           <div 

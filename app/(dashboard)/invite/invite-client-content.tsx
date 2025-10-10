@@ -24,6 +24,14 @@ import { Loader2, Plus, Trash2, Briefcase, Users, Building, ClipboardList, BookO
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -89,7 +97,7 @@ export default function InviteClientContent() {
       department_id: '',
       critical_accountabilities: [],
       playbook_ids: [],
-      permissions: permissionOptions.map(option => option.id),
+      permissions: ['calendar', 'playbook-planner'],
     },
   })
 
@@ -101,6 +109,8 @@ export default function InviteClientContent() {
   const [playbooks, setPlaybooks] = useState<SelectOption[]>([]);
   const [isEditingAdmin, setIsEditingAdmin] = useState(false);
   const [originalPermissions, setOriginalPermissions] = useState<string[]>([]);
+  const [showFullPermissions, setShowFullPermissions] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadAllData = async () => {
@@ -234,9 +244,9 @@ export default function InviteClientContent() {
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="">
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col gap-6">
           {/* User Details Section */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm w-full lg:w-1/2">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm w-full">
             <div className="p-6 border-b">
               <h2 className="text-xl font-medium">User Details</h2>
               <p className="mt-1 text-sm text-gray-500">
@@ -546,57 +556,123 @@ export default function InviteClientContent() {
                   )}
                 />
               </div>
+
+              {/* Page Permissions Button */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">Page Permissions</h3>
+                    <p className="text-sm text-gray-500">Configure which pages the user can access</p>
+                  </div>
+                  <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-gray-300 hover:bg-gray-50"
+                      >
+                        <Lock className="h-4 w-4 mr-2" />
+                        Configure Permissions
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Page Permissions</DialogTitle>
+                        <DialogDescription>
+                          Select which pages the user will be able to access. Default permissions include Calendar and Playbook access.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {!showFullPermissions ? (
+                          <div className="space-y-4">
+                            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                                <div className="ml-3">
+                                  <h3 className="text-sm font-medium text-green-800">
+                                    Default Permissions Set
+                                  </h3>
+                                  <div className="mt-1 text-sm text-green-700">
+                                    <p>User will have access to:</p>
+                                    <ul className="list-disc list-inside mt-1">
+                                      <li>Calendar</li>
+                                      <li>Playbook & Machine Planner</li>
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setShowFullPermissions(true)}
+                              className="w-full border-gray-300 hover:bg-gray-50"
+                            >
+                              Override Default Permissions
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <fieldset disabled={isEditingAdmin} className="space-y-4 grid grid-cols-2 gap-4">
+                              {isEditingAdmin && (
+                                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-md">
+                                  Page permissions for admin users cannot be changed.
+                                </div>
+                              )}
+                              {permissionOptions.map((permission) => (
+                                <FormField
+                                  key={permission.id}
+                                  control={form.control}
+                                  name="permissions"
+                                  render={({ field }) => {
+                                    return (
+                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 transition-colors">
+                                        <div>
+                                          <FormLabel className="text-sm font-medium text-gray-800 cursor-pointer">
+                                            {permission.label}
+                                          </FormLabel>
+                                        </div>
+                                        <FormControl>
+                                          <Switch
+                                            checked={field.value?.includes(permission.id)}
+                                            onCheckedChange={(checked) => {
+                                              return checked
+                                                ? field.onChange([...field.value, permission.id])
+                                                : field.onChange(field.value?.filter((value) => value !== permission.id))
+                                            }}
+                                            className="data-[state=checked]:bg-blue-600"
+                                          />
+                                        </FormControl>
+                                      </FormItem>
+                                    )
+                                  }}
+                                />
+                              ))}
+                            </fieldset>
+                            <div className="pt-4 border-t">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowFullPermissions(false)}
+                                className="border-gray-300 hover:bg-gray-50"
+                              >
+                                Use Default Permissions
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Page Permissions Section */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm w-full lg:w-1/2">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-medium">Page Permissions</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Select which pages the user will be able to access.
-              </p>
-            </div>
-            <div className="p-6">
-              <fieldset disabled={isEditingAdmin} className="space-y-4 grid grid-cols-2 gap-4">
-                {isEditingAdmin && (
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-md">
-                    Page permissions for admin users cannot be changed.
-                  </div>
-                )}
-                {permissionOptions.map((permission) => (
-                  <FormField
-                    key={permission.id}
-                    control={form.control}
-                    name="permissions"
-                    render={({ field }) => {
-                      return (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 transition-colors">
-                          <div>
-                            <FormLabel className="text-sm font-medium text-gray-800 cursor-pointer">
-                              {permission.label}
-                            </FormLabel>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value?.includes(permission.id)}
-                              onCheckedChange={(checked) => {
-                                return checked
-                                  ? field.onChange([...field.value, permission.id])
-                                  : field.onChange(field.value?.filter((value) => value !== permission.id))
-                              }}
-                              className="data-[state=checked]:bg-blue-600"
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )
-                    }}
-                  />
-                ))}
-              </fieldset>
-              
-            </div>
-          </div>
           </div>
 
           <div className="flex justify-end gap-4 mt-6 border-t pt-6">
