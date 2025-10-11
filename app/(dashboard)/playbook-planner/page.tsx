@@ -270,6 +270,7 @@ export default function GrowthEngineLibraryPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPlaybooks, setGeneratedPlaybooks] = useState<any[]>([]);
   const [savingPlaybookIds, setSavingPlaybookIds] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
   
 
   
@@ -327,20 +328,50 @@ export default function GrowthEngineLibraryPage() {
       
       if (!user) throw new Error("No authenticated user");
       
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      // Get user role first
+      const { data: userData } = await supabase
+        .from('business_info')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
       
-      const { data, error } = await supabase
-        .from("playbooks")
-        .select(`
-          *,
-          department:departments(id, name),
-          playbook_assignments (
-            assignment_type,
-            business_info ( id, full_name, profile_picture_url )
-          )
-        `)
-        .in("user_id", teamMemberIds)
-        .order("created_at", { ascending: false });
+      setUserRole(userData?.role || null);
+      
+      let query;
+      
+      if (userData?.role === 'user') {
+        // For users with 'user' role, only show playbooks they are assigned to
+        query = supabase
+          .from("playbooks")
+          .select(`
+            *,
+            department:departments(id, name),
+            playbook_assignments!inner (
+              assignment_type,
+              business_info!inner ( id, full_name, profile_picture_url )
+            )
+          `)
+          .eq('playbook_assignments.business_info.user_id', user.id)
+          .order("created_at", { ascending: false });
+      } else {
+        // For admin and super_admin, show all team playbooks
+        const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+        
+        query = supabase
+          .from("playbooks")
+          .select(`
+            *,
+            department:departments(id, name),
+            playbook_assignments (
+              assignment_type,
+              business_info ( id, full_name, profile_picture_url )
+            )
+          `)
+          .in("user_id", teamMemberIds)
+          .order("created_at", { ascending: false });
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -705,41 +736,43 @@ export default function GrowthEngineLibraryPage() {
             Manage your business playbooks and documentation
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button 
-            onClick={handleGeneratePlaybook}
-            disabled={isGenerating}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
-          >
-            {isGenerating ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-2" />
-            )}
-            {isGenerating ? 'AI Working...' : 'Let AI Help Create Playbooks'}
-          </Button>
-          {generatedPlaybooks.length > 0 && (
+        {userRole !== 'user' && (
+          <div className="flex gap-3">
             <Button 
-              onClick={handleSaveAllGeneratedPlaybooks}
-              disabled={isSaving}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleGeneratePlaybook}
+              disabled={isGenerating}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
             >
-              {isSaving ? (
+              {isGenerating ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
-              {isSaving ? 'Saving...' : `Save All (${generatedPlaybooks.length})`}
+              {isGenerating ? 'AI Working...' : 'Let AI Help Create Playbooks'}
             </Button>
-          )}
-          <Button 
-            onClick={handleAddNew}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Playbook
-          </Button>
-        </div>
+            {generatedPlaybooks.length > 0 && (
+              <Button 
+                onClick={handleSaveAllGeneratedPlaybooks}
+                disabled={isSaving}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                {isSaving ? 'Saving...' : `Save All (${generatedPlaybooks.length})`}
+              </Button>
+            )}
+            <Button 
+              onClick={handleAddNew}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Playbook
+            </Button>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -781,14 +814,20 @@ export default function GrowthEngineLibraryPage() {
           {playbooksData.length === 0 && generatedPlaybooks.length === 0 ? (
             <div className="py-12 px-4 text-center">
               <h3 className="text-lg font-medium text-gray-900 mb-2">No playbooks found</h3>
-              <p className="text-gray-500 mb-6">Get started by adding your first playbook.</p>
-              <Button
-                onClick={handleAddNew}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Playbook
-              </Button>
+              {userRole === 'user' ? (
+                <p className="text-gray-500 mb-6">You haven't been assigned any playbooks yet. Contact your administrator to get access to playbooks.</p>
+              ) : (
+                <>
+                  <p className="text-gray-500 mb-6">Get started by adding your first playbook.</p>
+                  <Button
+                    onClick={handleAddNew}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Playbook
+                  </Button>
+                </>
+              )}
             </div>
           ) : filteredData.length === 0 && generatedPlaybooks.length === 0 ? (
             <div className="py-12 px-4 text-center">
@@ -917,29 +956,33 @@ export default function GrowthEngineLibraryPage() {
                           >
                             <Edit className="h-4 w-4 text-blue-600" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(playbook)}
-                            className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full transition-colors"
-                            title="Edit playbook settings"
-                          >
-                            <Settings className="h-4 w-4 text-gray-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(playbook.id)}
-                            className="h-8 w-8 p-0 hover:bg-red-100 rounded-full transition-colors"
-                            title="Delete playbook"
-                            disabled={deleteLoading === playbook.id}
-                          >
-                            {deleteLoading === playbook.id ? (
-                              <Loader2 className="h-4 w-4 text-red-600 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            )}
-                          </Button>
+                          {userRole !== 'user' && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(playbook)}
+                                className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full transition-colors"
+                                title="Edit playbook settings"
+                              >
+                                <Settings className="h-4 w-4 text-gray-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(playbook.id)}
+                                className="h-8 w-8 p-0 hover:bg-red-100 rounded-full transition-colors"
+                                title="Delete playbook"
+                                disabled={deleteLoading === playbook.id}
+                              >
+                                {deleteLoading === playbook.id ? (
+                                  <Loader2 className="h-4 w-4 text-red-600 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                )}
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

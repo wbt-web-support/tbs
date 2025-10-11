@@ -1736,6 +1736,42 @@ export default function MeetingRhythmPlanner() {
     }
   };
 
+  const handleAddHoliday = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current user's role
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const isAdmin = userInfo?.role === 'admin';
+      
+      setCurrentMeeting({
+        id: "",
+        meeting_type: "holidays",
+        meeting_date: format(new Date(), "yyyy-MM-dd"),
+        meeting_title: "",
+        meeting_description: "",
+        meeting_color: "#263238",
+        leave_type: "bank_holiday",
+        start_date: format(new Date(), "yyyy-MM-dd"),
+        end_date: format(new Date(), "yyyy-MM-dd"),
+        status: "approved", // Holidays are auto-approved
+        duration_days: 1,
+        description: "",
+        selected_user_id: isAdmin ? "" : user.id // Set current user for non-admin users
+      });
+      setIsViewOnly(false);
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error("Error setting up holiday dialog:", error);
+    }
+  };
+
   const handleViewLeave = (leave: any) => {
     setCurrentMeeting(leave);
     setIsViewOnly(true);
@@ -2117,14 +2153,16 @@ export default function MeetingRhythmPlanner() {
               </Button>
             </div>
           )}
-          <Button 
-            onClick={showLeaves ? handleAddLeave : handleAddMeeting} 
-            className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
-            size="sm"
-          >
-            <Plus className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-            {showLeaves ? "Add Holiday" : "Add Meeting"}
-          </Button>
+          {(isAdmin || showLeaves) && (
+            <Button 
+              onClick={showLeaves ? handleAddLeave : handleAddMeeting} 
+              className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+              size="sm"
+            >
+              <Plus className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              {showLeaves ? "Add Holiday" : "Add Meeting"}
+            </Button>
+          )}
         </div>
       </div>
       
