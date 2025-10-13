@@ -75,16 +75,12 @@ type LeaveSummaryDialogProps = {
 };
 
 const MEETING_TYPES = [
-  { id: "quarterly_sprint_planning", name: "Quarterly Sprint Planning", color: "#C8E6C9" },
-  { id: "all_hands", name: "All Hands", color: "#BBDEFB" },
-  { id: "holidays", name: "Holidays", color: "#263238" },
-  { id: "monthly_business_review", name: "Monthly Business Review", color: "#FFF9C4" },
-  { id: "weekly_pulse", name: "Weekly Pulse", color: "#E1BEE7" },
-  { id: "others", name: "Others", color: "#FF9800" },
+  { id: "holidays", name: "Holiday", color: "#263238" },
+  { id: "bank_holiday", name: "Bank Holiday", color: "#9CA3AF" },
+  { id: "others", name: "Other", color: "#FF9800" },
 ];
 
 const LEAVE_TYPE = { id: "leave", name: "Leave", color: "#4CAF50" };
-const BANK_HOLIDAY_TYPE = { id: "bank_holiday", name: "Bank Holiday", color: "#9CA3AF" };
 
 // Generate colors for team members
 const TEAM_MEMBER_COLORS = [
@@ -1915,26 +1911,16 @@ export default function MeetingRhythmPlanner() {
                       const isPastAndEmpty = currentDate < today && dateMeetings.length === 0 && dateLeaves.length === 0;
 
                       // Default background for the day cell
-                      let bgColor = isWeekendDay ? "bg-gray-50" : "bg-white";
+                      let bgColor = "bg-white";
                       let mainMeeting = dateMeetings[0]; // Get the first meeting for this date
                       let mainLeave = dateLeaves[0]; // Get the first leave for this date
                       let mainBankHoliday = dateBankHolidays[0]; // Get the first bank holiday for this date
                       
-                      // Thursday default to Weekly Pulse if no other meeting exists (only in meeting mode)
-                      if (!showLeaves && isThursdayDay && dateMeetings.length === 0) {
-                        const weeklyPulseType = MEETING_TYPES.find(t => t.id === "weekly_pulse");
-                        if (weeklyPulseType) {
-                          bgColor = `bg-[${weeklyPulseType.color}]`;
-                        }
-                      }
                       
                       // Bank holidays take highest priority
                       if (mainBankHoliday) {
-                        bgColor = `bg-[${BANK_HOLIDAY_TYPE.color}]`;
-                      }
-                      // If there are leaves, use a neutral background
-                      else if (dateLeaves.length > 0) {
-                        bgColor = "bg-gray-100";
+                        const bankHolidayType = MEETING_TYPES.find(t => t.id === "bank_holiday");
+                        bgColor = `bg-[${bankHolidayType?.color || "#9CA3AF"}]`;
                       }
                       // If there's a meeting, use its color (only in meeting mode)
                       else if (mainMeeting) {
@@ -1997,20 +1983,6 @@ export default function MeetingRhythmPlanner() {
                               });
                               setIsViewOnly(false);
                               setIsDialogOpen(true);
-                            } else if (isThursdayDay) {
-                              // If it's a Thursday with no meeting, create a Weekly Pulse entry
-                              const weeklyPulseType = MEETING_TYPES.find(t => t.id === "weekly_pulse");
-                              const dateStr = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
-                              setCurrentMeeting({
-                                id: "",
-                                meeting_type: "weekly_pulse",
-                                meeting_date: dateStr,
-                                meeting_title: "Weekly Pulse",
-                                meeting_description: "Regular weekly meeting",
-                                meeting_color: weeklyPulseType?.color || "#E1BEE7"
-                              });
-                              setIsViewOnly(false);
-                              setIsDialogOpen(true);
                             } else {
                               // For other dates, open the add dialog
                               const dateStr = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
@@ -2027,18 +1999,15 @@ export default function MeetingRhythmPlanner() {
                             }
                           }}
                           style={{
-                            backgroundColor: mainBankHoliday ? BANK_HOLIDAY_TYPE.color : 
-                                            dateLeaves.length > 0 ? "#f3f4f6" : 
+                            backgroundColor: mainBankHoliday ? (MEETING_TYPES.find(t => t.id === "bank_holiday")?.color || "#9CA3AF") : 
                                             mainMeeting ? mainMeeting.meeting_color : 
-                                            !showLeaves && isThursdayDay && dateMeetings.length === 0 ? getMeetingTypeColor("weekly_pulse") : 
-                                            isWeekendDay ? "#f4f5f6" : "#ffffff",
+                                            "#ffffff",
                             opacity: isWeekendDay || isPastAndEmpty ? 0.7 : 1
                           }}
                         >
                           <div className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full text-[10px] sm:text-xs font-medium" style={{
                             color: (mainBankHoliday) || 
-                                  (mainMeeting && mainMeeting.meeting_color === "#263238") || 
-                                  (!showLeaves && isThursdayDay && dateMeetings.length === 0 && getMeetingTypeColor("weekly_pulse") === "#263238") 
+                                  (mainMeeting && mainMeeting.meeting_color === "#263238") 
                                   ? "white" : "black",
                              opacity: isPastAndEmpty ? 0.6 : 1,
                           }}>
@@ -2288,13 +2257,6 @@ export default function MeetingRhythmPlanner() {
                 })}
               </>
             )}
-            <div className="flex items-center">
-              <div 
-                className="w-4 h-4 rounded-sm mr-2" 
-                style={{ backgroundColor: BANK_HOLIDAY_TYPE.color }}
-              />
-              <span className="text-xs text-gray-700 truncate">{BANK_HOLIDAY_TYPE.name}</span>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -2737,239 +2699,56 @@ export default function MeetingRhythmPlanner() {
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-2 mt-4 max-h-[60vh] overflow-y-auto">
             {teamMembersDetails.length === 0 ? (
               <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Team Members</h3>
+                <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500">No team members found.</p>
               </div>
             ) : (
-              <>
-                {/* Team Leave Summary */}
-                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {teamMembersDetails.reduce((sum, member) => sum + Math.max(0, member.remaining_days), 0)}
-                        </div>
-                        <div className="text-sm text-blue-700">Total Days Available</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">
-                          {teamMembersDetails.reduce((sum, member) => sum + member.total_days_taken, 0)}
-                        </div>
-                        <div className="text-sm text-green-700">Total Days Taken</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-600">
-                          {teamMembersDetails.reduce((sum, member) => sum + member.total_days_pending, 0)}
-                        </div>
-                        <div className="text-sm text-orange-700">Total Days Pending</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-red-600">
-                          {teamMembersDetails.filter(member => member.remaining_days < 0).length}
-                        </div>
-                        <div className="text-sm text-red-700">Members Over Limit</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <div className="space-y-4">
-                  {teamMembersDetails.map((member) => (
-                  <Card key={member.user_id} className="p-4">
-                    {/* Enhanced Leave Balance Header */}
-                    <div className="flex items-start justify-between mb-4">
+              <div className="space-y-2">
+                {teamMembersDetails.map((member) => (
+                  <div key={member.user_id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm"
-                          style={{ backgroundColor: teamMemberColors.get(member.user_id) || TEAM_MEMBER_COLORS[0] }}
-                        >
-                          {member.full_name ? member.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
-                        </div>
+                       
                         <div>
-                          <h3 className="font-semibold text-gray-900">{member.full_name}</h3>
-                          <p className="text-sm text-gray-500">{member.email}</p>
+                          <h3 className="font-medium text-gray-900">{member.full_name}</h3>
+                          <p className="text-xs text-gray-500">{member.email}</p>
                         </div>
                       </div>
                       
-                      {/* Enhanced Leave Balance Display */}
                       <div className="text-right">
-                        <div className="flex items-center gap-2 mb-1">
-                          {member.remaining_days < 0 ? (
-                            <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
-                          ) : member.remaining_days <= 5 ? (
-                            <div className="w-3 h-3 rounded-full bg-orange-500 animate-pulse"></div>
-                          ) : (
-                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                          )}
-                          <div className={`text-lg font-bold ${
-                            member.remaining_days < 0 ? 'text-red-600' : 
-                            member.remaining_days <= 5 ? 'text-orange-600' : 
-                            'text-green-600'
-                          }`}>
-                            {member.remaining_days < 0 ? Math.abs(member.remaining_days) : member.remaining_days}
-                          </div>
-                          <div className={`text-sm font-medium ${
-                            member.remaining_days < 0 ? 'text-red-600' : 
-                            member.remaining_days <= 5 ? 'text-orange-600' : 
-                            'text-gray-900'
-                          }`}>
-                            {member.remaining_days < 0 ? 'days over' : 'days left'}
-                          </div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {member.remaining_days < 0 ? Math.abs(member.remaining_days) : member.remaining_days} days {member.remaining_days < 0 ? 'over' : 'left'}
                         </div>
                         <div className="text-xs text-gray-500">
                           of {member.total_entitlement} total
                         </div>
-                        
-                        {/* Leave Balance Status Badge */}
-                        <div className="mt-2">
-                          <Badge 
-                            variant={
-                              member.remaining_days < 0 ? 'destructive' : 
-                              member.remaining_days <= 5 ? 'secondary' : 
-                              'default'
-                            }
-                            className="text-xs"
-                          >
-                            {member.remaining_days < 0 ? 'Over Limit' : 
-                             member.remaining_days <= 5 ? 'Low Balance' : 
-                             'Good Balance'}
-                          </Badge>
-                        </div>
                       </div>
                     </div>
 
-                    {/* Leave Progress Bar */}
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-600 mb-1">
-                        <span>Leave Usage</span>
-                        <span>{Math.round(((member.total_entitlement - member.remaining_days) / member.total_entitlement) * 100)}%</span>
+                    <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
+                      <div className="text-center bg-gray-100 p-1 rounded-md flex flex-row-reverse gap-2 items-center justify-center">
+                        <div className="font-medium text-gray-900">{member.total_days_taken}</div>
+                        <div className="text-gray-500">Taken</div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            member.remaining_days < 0 ? 'bg-red-500' : 
-                            member.remaining_days <= 5 ? 'bg-orange-500' : 
-                            'bg-green-500'
-                          }`}
-                          style={{ 
-                            width: `${Math.min(100, Math.max(0, ((member.total_entitlement - member.remaining_days) / member.total_entitlement) * 100))}%` 
-                          }}
-                        ></div>
+                      <div className="text-center bg-gray-100 p-1 rounded-md flex flex-row-reverse gap-2 items-center justify-center">
+                        <div className="font-medium text-gray-900">{member.total_days_pending}</div>
+                        <div className="text-gray-500">Pending</div>
                       </div>
-                    </div>
-
-                    {/* Enhanced Leave Statistics */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                      <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                        <div className="text-lg font-bold text-green-600">{member.total_days_taken}</div>
-                        <div className="text-xs text-green-700">Days Taken</div>
-                        <div className="text-xs text-green-600 mt-1">
-                          {Math.round((member.total_days_taken / member.total_entitlement) * 100)}%
-                        </div>
+                      <div className="text-center bg-gray-100 p-1 rounded-md flex flex-row-reverse gap-2 items-center justify-center">
+                        <div className="font-medium text-gray-900">{member.bank_holidays}</div>
+                        <div className="text-gray-500">Bank Holidays</div>
                       </div>
-                      <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
-                        <div className="text-lg font-bold text-orange-600">{member.total_days_pending}</div>
-                        <div className="text-xs text-orange-700">Days Pending</div>
-                        <div className="text-xs text-orange-600 mt-1">
-                          {Math.round((member.total_days_pending / member.total_entitlement) * 100)}%
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="text-lg font-bold text-blue-600">{member.bank_holidays}</div>
-                        <div className="text-xs text-blue-700">Bank Holidays</div>
-                        <div className="text-xs text-blue-600 mt-1">
-                          {Math.round((member.bank_holidays / member.total_entitlement) * 100)}%
-                        </div>
-                      </div>
-                      <div className={`text-center p-3 rounded-lg border ${
-                        member.remaining_days < 0 ? 'bg-red-50 border-red-200' : 
-                        member.remaining_days <= 5 ? 'bg-orange-50 border-orange-200' : 
-                        'bg-gray-50 border-gray-200'
-                      }`}>
-                        <div className={`text-lg font-bold ${
-                          member.remaining_days < 0 ? 'text-red-600' : 
-                          member.remaining_days <= 5 ? 'text-orange-600' : 
-                          'text-gray-600'
-                        }`}>
-                          {member.remaining_days < 0 ? Math.abs(member.remaining_days) : member.remaining_days}
-                        </div>
-                        <div className={`text-xs ${
-                          member.remaining_days < 0 ? 'text-red-700' : 
-                          member.remaining_days <= 5 ? 'text-orange-700' : 
-                          'text-gray-700'
-                        }`}>
-                          {member.remaining_days < 0 ? 'Days Over' : 'Remaining'}
-                        </div>
-                        <div className={`text-xs mt-1 ${
-                          member.remaining_days < 0 ? 'text-red-600' : 
-                          member.remaining_days <= 5 ? 'text-orange-600' : 
-                          'text-gray-600'
-                        }`}>
-                          {Math.round((Math.max(0, member.remaining_days) / member.total_entitlement) * 100)}%
-                        </div>
+                      <div className="text-center bg-gray-100 p-1 rounded-md flex flex-row-reverse gap-2 items-center justify-center">
+                        <div className="font-medium text-gray-900">{member.all_leaves.length}</div>
+                        <div className="text-gray-500">Total Requests</div>
                       </div>
                     </div>
-
-                    {/* Leave Request Counts */}
-                    <div className="flex items-center justify-between text-sm mb-3">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span className="text-gray-600">{member.approved_leaves} Approved</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                          <span className="text-gray-600">{member.pending_leaves} Pending</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                          <span className="text-gray-600">{member.rejected_leaves} Rejected</span>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {member.all_leaves.length} total requests
-                      </div>
-                    </div>
-
-                    {/* Recent Leaves */}
-                    {member.all_leaves.length > 0 && (
-                      <div className="border-t pt-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Leave Requests</h4>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {member.all_leaves
-                            .sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
-                            .slice(0, 3)
-                            .map((leave: any) => (
-                              <div key={leave.id} className="flex items-center justify-between text-xs p-2 bg-gray-50 rounded">
-                                <div>
-                                  <span className="font-medium">
-                                    {format(new Date(leave.start_date), "MMM d")} - {format(new Date(leave.end_date), "MMM d")}
-                                  </span>
-                                  <span className="text-gray-500 ml-2">({leave.duration_days} days)</span>
-                                </div>
-                                <Badge 
-                                  className="text-xs"
-                                  variant={
-                                    leave.status === 'approved' ? 'default' : 
-                                    leave.status === 'pending' ? 'secondary' : 'destructive'
-                                  }
-                                >
-                                  {leave.status}
-                                </Badge>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
+                  </div>
                 ))}
-                </div>
-              </>
+              </div>
             )}
           </div>
         </DialogContent>

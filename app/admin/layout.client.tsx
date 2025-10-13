@@ -92,7 +92,7 @@ const navigationSections = [
     title: "Support",
     items: [
       {
-        name: "Help Center",
+        name: "Help Centre",
         href: "/help",
         icon: HelpCircle,
       }

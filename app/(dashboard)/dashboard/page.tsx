@@ -693,7 +693,6 @@ export default function NewDashboard() {
                 }}
                 onUploadFulfillmentDesign={handleUploadFulfillmentDesign}
                 onUploadGrowthDesign={handleUploadGrowthDesign}
-                onStartTour={handleStartTour}
                 isAIOnboardingCompleted={aiOnboardingCompleted}
                 />
               </div>
