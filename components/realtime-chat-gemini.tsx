@@ -11,6 +11,7 @@ import { AudioVisualizer } from "./audio-visualizer";
 import { Input } from "@/components/ui/input";
 import { useEffectOnce } from 'react-use';
 import { useRef as useReactRef } from 'react';
+import { ChatGroup, ChatGroupSelector } from './chat-group-selector';
 
 interface Message {
   role: "user" | "assistant";
@@ -80,6 +81,9 @@ interface RealtimeChatGeminiProps {
   // Force reload when new chat is created
   forceReloadKey?: string | number;
   onNewChatCreated?: () => void; // Callback when new chat is created
+  
+  // Chat group context
+  selectedGroup?: ChatGroup;
 }
 
 type ChatImage = {
@@ -108,7 +112,10 @@ export function RealtimeChatGemini({
   
   // Force reload when new chat is created
   forceReloadKey,
-  onNewChatCreated
+  onNewChatCreated,
+  
+  // Chat group context
+  selectedGroup = 'general'
 }: RealtimeChatGeminiProps = {}) {
   
   console.log('🔄 [RealtimeChatGemini] Component mounted/remounted with forceReloadKey:', forceReloadKey);
@@ -119,7 +126,7 @@ export function RealtimeChatGemini({
       console.log('🔄 [RealtimeChatGemini] Component unmounting with forceReloadKey:', forceReloadKey);
     };
   }, [forceReloadKey]);
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -128,6 +135,7 @@ export function RealtimeChatGemini({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isClearingChat, setIsClearingChat] = useState(false);
+  const [currentGroup, setCurrentGroup] = useState<ChatGroup>(selectedGroup || 'general');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
@@ -152,6 +160,42 @@ export function RealtimeChatGemini({
   const [useStreaming, setUseStreaming] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
   const [showDebugPopup, setShowDebugPopup] = useState(false);
+  const [isSwitchingGroup, setIsSwitchingGroup] = useState(false);
+  const [isFetchingInstances, setIsFetchingInstances] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+  const lastFetchedGroupRef = useRef<string | null>(null);
+  const lastFetchedInstanceRef = useRef<string | null>(null);
+
+  // Update currentGroup when selectedGroup prop changes
+  useEffect(() => {
+    if (selectedGroup) {
+      setCurrentGroup(selectedGroup);
+    }
+  }, [selectedGroup]);
+
+  // Refetch instances when group changes
+  useEffect(() => {
+    console.log('🔄 [RealtimeChatGemini] Group change effect triggered:', {
+      isDataLoaded,
+      currentGroup,
+      isFetchingInstances,
+      hasInitialized
+    });
+    
+    if (isDataLoaded && currentGroup && !isFetchingInstances && hasInitialized && lastFetchedGroupRef.current !== currentGroup) {
+      console.log('🔄 [RealtimeChatGemini] Executing group switch for:', currentGroup);
+      lastFetchedGroupRef.current = currentGroup;
+      setIsSwitchingGroup(true);
+      // Clear current chat when switching groups
+      setMessages([]);
+      setCurrentInstanceId(null);
+      
+      fetchChatInstances().finally(() => {
+        setIsSwitchingGroup(false);
+      });
+    }
+  }, [currentGroup]);
   
   // Multi-instance state
   const [chatInstances, setChatInstances] = useState<ChatInstance[]>([]);
@@ -160,6 +204,21 @@ export function RealtimeChatGemini({
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [isLoadingInstances, setIsLoadingInstances] = useState(true);
+
+  // Fetch history when current instance changes
+  useEffect(() => {
+    console.log('🔄 [RealtimeChatGemini] Instance change effect triggered:', {
+      currentInstanceId,
+      hasInitialized,
+      isFetchingHistory
+    });
+    
+    if (currentInstanceId && hasInitialized && !isFetchingHistory && lastFetchedInstanceRef.current !== currentInstanceId) {
+      console.log('🔄 [RealtimeChatGemini] Executing instance history fetch for:', currentInstanceId);
+      lastFetchedInstanceRef.current = currentInstanceId;
+      fetchInstanceHistory(currentInstanceId);
+    }
+  }, [currentInstanceId, hasInitialized]);
 
   // Responsive state
   const [isMediumScreen, setIsMediumScreen] = useState(false);
@@ -271,14 +330,23 @@ export function RealtimeChatGemini({
 
   // Function to fetch all chat instances
   const fetchChatInstances = async () => {
+    // Prevent multiple simultaneous calls
+    if (isFetchingInstances) {
+      console.log('🔄 [RealtimeChatGemini] fetchChatInstances already in progress, skipping...');
+      return;
+    }
+    
+    console.log('🔄 [RealtimeChatGemini] Starting fetchChatInstances for group:', currentGroup);
+    
     try {
+      setIsFetchingInstances(true);
       setIsLoadingInstances(true);
       
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
       
       if (userId) {
-        const response = await fetch('/api/gemini?action=instances', {
+        const response = await fetch(`/api/gemini?action=instances&group=${currentGroup}`, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`
           }
@@ -297,12 +365,27 @@ export function RealtimeChatGemini({
           if (!currentInstanceId && data.instances.length > 0) {
             const mostRecent = data.instances[0]; // Already sorted by updated_at desc
             setCurrentInstanceId(mostRecent.id);
-            await fetchInstanceHistory(mostRecent.id); // Ensure history is fetched before ready
             if (onInstanceChange) {
               onInstanceChange(mostRecent.id);
             }
+            // Don't fetch history here - let the instance selection handle it
           } else if (currentInstanceId) {
-            await fetchInstanceHistory(currentInstanceId); // Ensure history is fetched before ready
+            // Check if the current instance is still in the filtered list
+            const currentInstanceExists = data.instances.some((inst: any) => inst.id === currentInstanceId);
+            if (!currentInstanceExists) {
+              // Current instance is not in the new group, select the first one
+              if (data.instances.length > 0) {
+                const firstInstance = data.instances[0];
+                setCurrentInstanceId(firstInstance.id);
+                if (onInstanceChange) {
+                  onInstanceChange(firstInstance.id);
+                }
+              } else {
+                setCurrentInstanceId(null);
+                setMessages([]);
+              }
+            }
+            // Don't fetch history here - let the instance selection handle it
           } else if (data.instances?.length === 0) {
             // No instances exist, create a new one then fetch its history
             await createNewInstance(); // createNewInstance will set currentInstanceId and fetch history
@@ -318,13 +401,24 @@ export function RealtimeChatGemini({
       await createNewInstance();
     } finally {
       setIsLoadingInstances(false);
+      setIsFetchingInstances(false);
       setIsDataLoaded(true); // Mark data as loaded here
+      setHasInitialized(true); // Mark as initialized to allow group switching
     }
   };
 
   // Function to fetch history for a specific instance
   const fetchInstanceHistory = async (instanceId: string) => {
+    // Prevent multiple simultaneous calls
+    if (isFetchingHistory) {
+      console.log('🔄 [RealtimeChatGemini] fetchInstanceHistory already in progress, skipping...');
+      return;
+    }
+    
+    console.log('🔄 [RealtimeChatGemini] Starting fetchInstanceHistory for instance:', instanceId);
+    
     try {
+      setIsFetchingHistory(true);
       setIsLoadingHistory(true);
       // setIsDataLoaded(false); // Let's control isDataLoaded more carefully
       
@@ -366,6 +460,7 @@ export function RealtimeChatGemini({
       // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
     } finally {
       setIsLoadingHistory(false);
+      setIsFetchingHistory(false);
       // setIsDataLoaded(true); // Controlled by fetchChatInstances or fetchUserAndHistory
     }
   };
@@ -383,7 +478,8 @@ export function RealtimeChatGemini({
         },
         body: JSON.stringify({
           action: 'create',
-          title: title
+          title: title,
+          group: currentGroup
         })
       });
       if (!response.ok) throw new Error('Failed to create new chat instance');
@@ -876,8 +972,10 @@ export function RealtimeChatGemini({
           role: msg.role === "assistant" ? "model" : "user",
           parts: [{ text: msg.content }]
         })),
-        useStreaming: useStreaming
+        useStreaming: useStreaming,
+        group: currentGroup // Add group context to the payload
       };
+
 
       // Add document IDs if chat mode is document and documents are selected
       if (chatMode === 'document' && selectedDocuments.length > 0) {
@@ -2335,6 +2433,14 @@ export function RealtimeChatGemini({
           </div>
         </div>
       )}
+      
+      {/* Chat Group Selector - Right below the header */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <ChatGroupSelector
+          selectedGroup={currentGroup}
+          onGroupChange={setCurrentGroup}
+        />
+      </div>
       {/* ... (rest of the component: !showHeader block, Chat Area, Input Area, etc.) ... */}
       {!showHeader && (
         <div className="flex justify-between items-center p-4 border-b bg-white/80 backdrop-blur-sm h-16 sticky top-0 z-20 border-t">
@@ -2371,6 +2477,15 @@ export function RealtimeChatGemini({
       <div className="flex-1 overflow-y-auto bg-gray-50"> 
         <ScrollArea className="h-full" ref={scrollAreaRef}>
           <div className="space-y-6 p-6 pt-4 pb-2">
+            {/* Group switching indicator */}
+            {isSwitchingGroup && (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center gap-3 text-gray-500">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                  <span className="text-sm">Switching to {currentGroup} group...</span>
+                </div>
+              </div>
+            )}
              {/* ... messages map ... */}
               {messages.map((message, index) => (
               <div

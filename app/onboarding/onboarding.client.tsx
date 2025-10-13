@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -2493,6 +2494,9 @@ export default function OnboardingClient() {
   const [desktopAiOpen, setDesktopAiOpen] = useState(true); // Desktop AI assistant starts open
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [wbtOnboardingData, setWbtOnboardingData] = useState<string>("");
+  
+  // State for Terms & Conditions and Privacy Policy checkbox
+  const [termsAndPrivacyAccepted, setTermsAndPrivacyAccepted] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -3671,15 +3675,37 @@ export default function OnboardingClient() {
                             <ChevronRight className="h-4 w-4" />
                           </Button>
                         ) : (
-                          <Button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={isLoading}
-                            className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
-                          >
-                            {isLoading ? "Saving..." : "Complete Onboarding"}
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
+                          <div className="w-full">
+                            {/* Terms & Conditions and Privacy Policy checkbox */}
+                            <div className="mb-4">
+                              <div className="flex items-start space-x-2">
+                                <Checkbox
+                                  id="terms-privacy"
+                                  checked={termsAndPrivacyAccepted}
+                                  onCheckedChange={(checked) => setTermsAndPrivacyAccepted(checked as boolean)}
+                                />
+                                <label htmlFor="terms-privacy" className="text-sm text-gray-700 cursor-pointer">
+                                  I agree to the{" "}
+                                  <Link href="/terms-and-conditions" target="_blank" className="text-blue-600 hover:underline">
+                                    Terms & Conditions
+                                  </Link>
+                                  {" "}and{" "}
+                                  <Link href="/privacy-policy" target="_blank" className="text-blue-600 hover:underline">
+                                    Privacy Policy
+                                  </Link>
+                                </label>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={handleSubmit}
+                              disabled={isLoading || !termsAndPrivacyAccepted}
+                              className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 transition-colors w-full"
+                            >
+                              {isLoading ? "Saving..." : "Complete Onboarding"}
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -3716,6 +3742,29 @@ export default function OnboardingClient() {
 
                   {/* Mobile AI is now inline - no floating assistant needed */}
 
+                  {/* Mobile Terms & Conditions and Privacy Policy checkbox */}
+                  {currentCategory === categories.length - 1 && (
+                    <div className="md:hidden fixed bottom-20 left-0 right-0 bg-white border-t p-4">
+                      <div className="flex items-start space-x-2">
+                        <Checkbox
+                          id="mobile-terms-privacy"
+                          checked={termsAndPrivacyAccepted}
+                          onCheckedChange={(checked) => setTermsAndPrivacyAccepted(checked as boolean)}
+                        />
+                        <label htmlFor="mobile-terms-privacy" className="text-sm text-gray-700 cursor-pointer">
+                          I agree to the{" "}
+                          <Link href="/terms-and-conditions" target="_blank" className="text-blue-600 hover:underline">
+                            Terms & Conditions
+                          </Link>
+                          {" "}and{" "}
+                          <Link href="/privacy-policy" target="_blank" className="text-blue-600 hover:underline">
+                            Privacy Policy
+                          </Link>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Mobile bottom navigation bar */}
                   <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center">
                     <Button
@@ -3745,7 +3794,7 @@ export default function OnboardingClient() {
                       <Button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={isLoading}
+                        disabled={isLoading || !termsAndPrivacyAccepted}
                         className="flex items-center gap-2"
                       >
                         {isLoading ? "Saving..." : "Complete"}

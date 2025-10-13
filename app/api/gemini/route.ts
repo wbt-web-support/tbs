@@ -376,7 +376,7 @@ async function getUserData(userId: string) {
 }
 
 // Helper function to save message to history for a specific instance
-async function saveMessageToHistory(userId: string, message: string, role: 'user' | 'assistant', instanceId?: string, documentIds?: string[]) {
+async function saveMessageToHistory(userId: string, message: string, role: 'user' | 'assistant', instanceId?: string, documentIds?: string[], group?: string) {
   if (!userId) {
     console.log('⚠️ [Supabase] No userId provided, not saving message to history');
     return null;
@@ -414,6 +414,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
 
       const updatePayload: any = { messages: limitedMessages };
       if (documentIds) updatePayload.document_ids = documentIds;
+      if (group) updatePayload.group_type = group;
       const { error: updateError } = await supabase
         .from('chat_history')
         .update(updatePayload)
@@ -450,6 +451,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
           messages: [messageObj]
         };
         if (documentIds) insertPayload.document_ids = documentIds;
+        if (group) insertPayload.group_type = group;
         const { data: newInstance, error: insertError } = await supabase
           .from('chat_history')
           .insert(insertPayload)
@@ -474,6 +476,7 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
 
       const updatePayload: any = { messages: limitedMessages };
       if (documentIds) updatePayload.document_ids = documentIds;
+      if (group) updatePayload.group_type = group;
       const { error: updateError } = await supabase
         .from('chat_history')
         .update(updatePayload)
@@ -495,16 +498,22 @@ async function saveMessageToHistory(userId: string, message: string, role: 'user
 }
 
 // Helper function to get all chat instances for a user
-async function getChatInstances(userId: string) {
+async function getChatInstances(userId: string, group?: string) {
   if (!userId) return [];
 
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from('chat_history')
-      .select('id, title, created_at, updated_at, document_ids, pinned')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
+      .select('id, title, created_at, updated_at, document_ids, pinned, group_type')
+      .eq('user_id', userId);
+    
+    // Filter by group if provided
+    if (group) {
+      query = query.eq('group_type', group);
+    }
+    
+    const { data, error } = await query.order('updated_at', { ascending: false });
 
     if (error) {
       console.error('❌ [Supabase] Error fetching chat instances:', error);
@@ -544,18 +553,21 @@ async function getChatInstance(userId: string, instanceId: string) {
 }
 
 // Helper function to create a new chat instance
-async function createChatInstance(userId: string, title: string = 'New Chat') {
+async function createChatInstance(userId: string, title: string = 'New Chat', group?: string) {
   if (!userId) return null;
 
   try {
     const supabase = await createClient();
+    const insertPayload: any = {
+      user_id: userId,
+      title: title,
+      messages: []
+    };
+    if (group) insertPayload.group_type = group;
+    
     const { data, error } = await supabase
       .from('chat_history')
-      .insert({
-        user_id: userId,
-        title: title,
-        messages: []
-      })
+      .insert(insertPayload)
       .select('*')
       .single();
 
@@ -1377,8 +1389,246 @@ ${formatTableData(table, record)}`);
   return parts.join('\n');
 }
 
+// Helper function to get group-specific context
+function getGroupContext(group: string) {
+  const groupContexts = {
+    general: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 💬 GENERAL GROUP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are currently in the GENERAL group chat. In this context, you should:
+
+🎯 **Focus Areas:**
+- General business assistance and support
+- Broad knowledge across all business functions
+- Flexible problem-solving and advice
+- General productivity and efficiency tips
+- Cross-functional collaboration support
+- General business best practices
+
+💬 **Response Style:**
+- Be helpful and versatile
+- Provide balanced, well-rounded advice
+- Adapt to various business contexts
+- Be professional and informative
+- Offer practical solutions
+- Be approachable and easy to understand
+
+🔍 **Key Topics to Cover:**
+- General business strategy and planning
+- Communication and collaboration
+- Productivity and time management
+- General problem-solving approaches
+- Business process improvement
+- Cross-functional insights
+
+Remember: You're providing general business assistance, so be versatile and helpful across all areas!`,
+
+    innovation: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 💡 INNOVATION GROUP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are currently in the INNOVATION group chat. In this context, you should:
+
+🎯 **Focus Areas:**
+- Creative problem-solving and breakthrough thinking
+- Research & Development initiatives
+- New product/service ideas and concepts
+- Innovation methodologies and frameworks
+- Technology trends and emerging solutions
+- Design thinking and user experience innovation
+
+💬 **Response Style:**
+- Be creative and forward-thinking
+- Encourage out-of-the-box ideas
+- Ask probing questions to explore possibilities
+- Suggest innovative approaches and methodologies
+- Reference relevant innovation frameworks (Design Thinking, Lean Startup, etc.)
+- Be enthusiastic about exploring new possibilities
+
+🔍 **Key Topics to Emphasize:**
+- Market disruption opportunities
+- Emerging technologies and their applications
+- Customer needs and pain points for innovation
+- Competitive advantages through innovation
+- Prototyping and experimentation
+- Innovation metrics and measurement
+
+Remember: You're helping with innovation, so think creatively and encourage bold ideas!`,
+
+    operations: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## ⚙️ OPERATIONS GROUP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are currently in the OPERATIONS group chat. In this context, you should:
+
+🎯 **Focus Areas:**
+- Process optimization and efficiency
+- Day-to-day operational management
+- Quality control and standards
+- Resource allocation and management
+- Performance metrics and KPIs
+- Workflow improvements and automation
+
+💬 **Response Style:**
+- Be practical and solution-oriented
+- Focus on measurable outcomes
+- Provide step-by-step guidance
+- Emphasize efficiency and productivity
+- Use data-driven recommendations
+- Be systematic and organized
+
+🔍 **Key Topics to Emphasize:**
+- Standard Operating Procedures (SOPs)
+- Process mapping and optimization
+- Resource planning and allocation
+- Performance monitoring and reporting
+- Risk management and mitigation
+- Team coordination and communication
+
+Remember: You're helping with operations, so be practical, systematic, and focused on results!`,
+
+    growth: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📈 GROWTH GROUP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are currently in the GROWTH group chat. In this context, you should:
+
+🎯 **Focus Areas:**
+- Business scaling and expansion
+- Marketing strategies and campaigns
+- Sales optimization and revenue growth
+- Market penetration and customer acquisition
+- Strategic partnerships and alliances
+- Competitive positioning and differentiation
+
+💬 **Response Style:**
+- Be strategic and growth-focused
+- Emphasize scalability and sustainability
+- Provide actionable growth strategies
+- Focus on metrics and ROI
+- Be market-oriented and customer-centric
+- Encourage data-driven decision making
+
+🔍 **Key Topics to Emphasize:**
+- Customer acquisition and retention strategies
+- Marketing channels and optimization
+- Sales funnel development and optimization
+- Market analysis and competitive intelligence
+- Revenue model optimization
+- Growth metrics and KPIs
+
+Remember: You're helping with growth, so be strategic, market-focused, and growth-oriented!`,
+
+    financials: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 💰 FINANCIALS GROUP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are currently in the FINANCIALS group chat. In this context, you should:
+
+🎯 **Focus Areas:**
+- Financial planning and budgeting
+- Cash flow management and forecasting
+- Revenue optimization and cost control
+- Financial reporting and analysis
+- Investment decisions and capital allocation
+- Risk management and financial controls
+
+💬 **Response Style:**
+- Be data-driven and analytical
+- Focus on financial metrics and KPIs
+- Provide clear financial insights
+- Emphasize ROI and profitability
+- Use financial terminology appropriately
+- Be precise with numbers and calculations
+
+🔍 **Key Topics to Emphasize:**
+- Budget planning and variance analysis
+- Cash flow projections and management
+- Financial performance metrics
+- Cost-benefit analysis
+- Investment evaluation and ROI
+- Financial risk assessment
+
+Remember: You're helping with financials, so be analytical, precise, and focused on financial performance!`,
+
+    competitors: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🏆 COMPETITORS GROUP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are currently in the COMPETITORS group chat. In this context, you should:
+
+🎯 **Focus Areas:**
+- Competitive analysis and intelligence
+- Market positioning and differentiation
+- Competitor monitoring and tracking
+- Strategic competitive responses
+- Market share analysis
+- Competitive advantage identification
+
+💬 **Response Style:**
+- Be strategic and analytical
+- Focus on competitive positioning
+- Provide market insights and trends
+- Emphasize differentiation strategies
+- Use competitive intelligence frameworks
+- Be objective about market dynamics
+
+🔍 **Key Topics to Emphasize:**
+- SWOT analysis and competitive positioning
+- Market share and competitive landscape
+- Competitor strengths and weaknesses
+- Differentiation strategies
+- Competitive threats and opportunities
+- Market trend analysis
+
+Remember: You're helping with competitors, so be strategic, analytical, and focused on competitive advantage!`,
+
+    'business-foundations': `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🏗️ BUSINESS FOUNDATIONS GROUP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are currently in the BUSINESS FOUNDATIONS group chat. In this context, you should:
+
+🎯 **Focus Areas:**
+- Business model development and validation
+- Legal structure and compliance
+- Core business processes and systems
+- Organizational structure and governance
+- Business plan development
+- Foundational business principles
+
+💬 **Response Style:**
+- Be foundational and systematic
+- Focus on business fundamentals
+- Provide structured guidance
+- Emphasize best practices and standards
+- Use business framework methodologies
+- Be comprehensive and thorough
+
+🔍 **Key Topics to Emphasize:**
+- Business model canvas and value proposition
+- Legal and regulatory compliance
+- Core business processes and workflows
+- Organizational design and governance
+- Business plan development
+- Foundational business metrics
+
+Remember: You're helping with business foundations, so be systematic, comprehensive, and focused on building strong business fundamentals!`
+  };
+
+  return groupContexts[group as keyof typeof groupContexts] || '';
+}
+
 // Helper function to format instructions
-function formatInstructions(instructionsData: any[], userContext: string) {
+function formatInstructions(instructionsData: any[], userContext: string, group?: string) {
   const parts: string[] = ['🤖 AI ASSISTANT INSTRUCTIONS 🤖\n'];
   
   if (instructionsData && instructionsData.length > 0) {
@@ -1459,6 +1709,14 @@ function formatInstructions(instructionsData: any[], userContext: string) {
     }
   }
 
+  // Add group context if provided
+  if (group) {
+    const groupContext = getGroupContext(group);
+    if (groupContext) {
+      parts.push(groupContext);
+    }
+  }
+
   // Add user context with clear separation
   if (userContext) {
     parts.push(`
@@ -1513,7 +1771,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { message, type, audio, history, generateTTS = false, useStreaming = true, instanceId, documentIds } = await req.json();
+    const { message, type, audio, history, generateTTS = false, useStreaming = true, instanceId, documentIds, group } = await req.json();
+    
 
     if (type === "chat") {
       console.log('🔄 [API] Processing chat request', useStreaming ? '(streaming)' : '(non-streaming)', instanceId ? `for instance: ${instanceId}` : '');
@@ -1537,7 +1796,8 @@ export async function POST(req: Request) {
 
       // Prepare context and instructions
       const userContext = prepareUserContext(userData);
-      let formattedContext = formatInstructions(globalInstructions, userContext); // Rename formattedInstructions to formattedContext
+      let formattedContext = formatInstructions(globalInstructions, userContext, group); // Pass group parameter
+      
       
       // Add innovation documents to context if available
       if (innovationDocuments.length > 0) {
@@ -1555,7 +1815,7 @@ export async function POST(req: Request) {
 
       // Save user message to history but don't invalidate cache for user data
       // Only chat history is changing, which we'll handle separately
-      const savedInstanceId = await saveMessageToHistory(userId, message, 'user', instanceId, documentIds);
+      const savedInstanceId = await saveMessageToHistory(userId, message, 'user', instanceId, documentIds, group);
 
       // Create content with system instructions and conversation history
       const contents: any[] = [];
@@ -1948,6 +2208,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const action = url.searchParams.get('action');
   const instanceId = url.searchParams.get('instanceId');
+  const group = url.searchParams.get('group');
   
     const userId = await getUserId(req);
     if (!userId) {
@@ -1959,8 +2220,8 @@ export async function GET(req: Request) {
     case 'instances':
       // Get all chat instances for the user
       try {
-        console.log('🔄 [API] Fetching chat instances');
-        const instances = await getChatInstances(userId);
+        console.log('🔄 [API] Fetching chat instances for group:', group);
+        const instances = await getChatInstances(userId, group || undefined);
         return NextResponse.json({
           type: 'chat_instances',
           instances
@@ -2315,12 +2576,12 @@ export async function PUT(req: Request) {
 
   try {
     const body = await req.json();
-    const { action, instanceId, title, documentIds, pinned } = body;
+    const { action, instanceId, title, documentIds, pinned, group } = body;
 
     switch (action) {
       case 'create':
         // Create a new chat instance
-        const newInstance = await createChatInstance(userId, title || 'New Chat');
+        const newInstance = await createChatInstance(userId, title || 'New Chat', group);
         
         if (newInstance) {
           console.log(`✅ [Supabase] Created new chat instance: ${newInstance.id}`);
