@@ -9,7 +9,11 @@ interface SendEmailOptions {
 const smtpConfig = {
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465, // true for 465, false for other ports
+  secure: false, // Use TLS (STARTTLS) for port 587, SSL for port 465
+  requireTLS: true, // Force TLS
+  tls: {
+    rejectUnauthorized: false, // Allow self-signed certificates if needed
+  },
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD,
