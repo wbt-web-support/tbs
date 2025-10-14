@@ -2,9 +2,9 @@ import React from 'react';
 
 export default function TermsAndConditionsPage() {
   return (
-    <div className="container max-w-3xl mx-auto px-4 py-8">
-      <img src="/logo.png" alt="Trade Business School Logo" className="mx-auto mb-8 h-16 w-auto" />
-      <h1 className="text-3xl font-bold mb-6">Terms & Conditions</h1>
+    <div className="container max-w-5xl mx-auto px-4 py-8">
+      <img src="/logo.png" alt="Trade Business School Logo" className=" mb-8 h-16 w-auto " /> 
+      <h1 className="text-3xl font-bold mb-6 border-t-2 pt-5">Terms & Conditions</h1>
 
       <section className="mb-8">
         <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
