@@ -46,7 +46,7 @@ Keep each section brief (1-2 sentences maximum). Use clean, simple text without 
 
     // Make the request to Gemini
     const model = ai.getGenerativeModel({ 
-      model: "gemini-2.5-flash"
+      model: "gemini-2.5-flash-lite"
     });
 
     // Note: Google Search grounding is not yet available in the current @google/generative-ai package

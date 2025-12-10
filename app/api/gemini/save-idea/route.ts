@@ -19,7 +19,7 @@ async function getUserId(req: NextRequest) {
 // Function to generate summary using Gemini
 async function generateIdeaSummary(messages: any[], title: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     
     // Prepare the conversation for summarization
     const conversationText = messages
