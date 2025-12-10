@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 
-const MODEL_NAME = "gemini-2.5-flash-lite-preview-06-17";
+const MODEL_NAME = "gemini-2.5-flash";
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
 const genAI = new GoogleGenerativeAI(API_KEY);

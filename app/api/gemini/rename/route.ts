@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-06-17" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `Based on the following first message from a user, create a short, concise, and relevant title for the chat session. The title should be no more than 5 words. Do not use quotation marks in the title.\n\nUser message: "${message}"\n\nTitle:`;
 

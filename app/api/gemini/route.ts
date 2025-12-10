@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import serverCache from "@/utils/cache";
 import fetch from 'node-fetch';
 
-const MODEL_NAME = "gemini-2.5-flash-lite-preview-06-17";
+const MODEL_NAME = "gemini-2.5-flash";
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY || "";
 
