@@ -210,17 +210,17 @@ export default function ModulesPage() {
           
           if (lastAccessedLesson) {
             // Restore last accessed lesson
-            setSelectedLesson(lastAccessedLesson);
+            await selectLesson(lastAccessedLesson, { skipUpdate: true, courseIdOverride: course.id });
             setExpandedModules(new Set([lastAccessedLesson.module_id]));
           } else {
             // Fallback to first lesson
-            setSelectedLesson(lessonsData[0]);
+            await selectLesson(lessonsData[0], { skipUpdate: false, courseIdOverride: course.id });
             setExpandedModules(new Set([lessonsData[0].module_id]));
           }
         } catch (error) {
           console.error('Error fetching last accessed lesson:', error);
           // Fallback to first lesson
-          setSelectedLesson(lessonsData[0]);
+          await selectLesson(lessonsData[0], { skipUpdate: false, courseIdOverride: course.id });
           setExpandedModules(new Set([lessonsData[0].module_id]));
         }
       } else if (modulesData && modulesData.length > 0) {
@@ -356,19 +356,29 @@ export default function ModulesPage() {
     });
   };
 
-  const selectLesson = async (lesson: CourseLesson) => {
-    if (!selectedCourse) return;
+  const selectLesson = async (
+    lesson: CourseLesson,
+    options?: { skipUpdate?: boolean; courseIdOverride?: string }
+  ) => {
+    const courseId = options?.courseIdOverride || selectedCourse?.id;
+    if (!courseId) return;
     
     setSelectedLesson(lesson);
     // Close sidebar on mobile after lesson selection
     setIsSidebarOpen(false);
     
     // Save the current lesson position for persistence (background operation)
-    try {
-      await updateLastAccessedLesson(selectedCourse.id, lesson.id);
-    } catch (error) {
-      console.error('Error saving lesson position:', error);
-      // Silent error handling - no user feedback needed
+    if (!options?.skipUpdate) {
+      try {
+        await updateLastAccessedLesson(courseId, lesson.id);
+      } catch (error: any) {
+        console.error('Error saving lesson position:', error);
+        toast({
+          title: "Could not save lesson position",
+          description: "Progress will continue, but last lesson isn't saved.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
