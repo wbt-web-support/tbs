@@ -102,7 +102,7 @@ export default function QuarterlySprintCanvasPage() {
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="mb-5">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Quarterly Sprint Canvas</h1>
+        <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Quarterly Sprint Canvas</h1>
         <p className="text-sm text-gray-500 mt-1">
           Plan and track your quarterly business objectives and initiatives
         </p>

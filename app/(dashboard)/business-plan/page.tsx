@@ -158,7 +158,7 @@ export default function BattlePlanPage() {
         
       if (error) throw error;
       
-      return data?.map(item => item.content) || [];
+      return data?.map((item: { content: any; }) => item.content) || [];
     } catch (error) {
       console.error("Error loading history:", error);
       return [];
@@ -307,7 +307,7 @@ export default function BattlePlanPage() {
     <div className="max-w-[1440px] mx-auto">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Business Plan</h1>
+          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Business Plan</h1>
           <p className="text-sm text-gray-500 mt-1">
             Define and manage your business strategy and vision
           </p>

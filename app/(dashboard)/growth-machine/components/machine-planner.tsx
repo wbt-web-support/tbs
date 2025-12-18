@@ -264,7 +264,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       )}
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Growth Machine</h1>
+          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Growth Machine</h1>
           <p className="text-sm text-gray-500 mt-1">Define and manage your growth machine process</p>
         </div>
         {!editMode ? (
@@ -282,6 +282,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           </div>
         )}
       </div>
+      
 
       {/* AI Assistant Section */}
       <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">

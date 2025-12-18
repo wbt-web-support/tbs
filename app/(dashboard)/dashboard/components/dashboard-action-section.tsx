@@ -73,10 +73,10 @@ export default function DashboardActionSection({
 
   return (
     <div className="mb-6">
-      <Card className="bg-white border border-slate-200 shadow-sm">
+      <Card className="bg-white border border-slate-200">
         <CardContent className="p-6">
           <div className="text-left mb-4">
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            <h2 className="text-xl font-medium text-slate-900 mb-2">
               To Get Started
             </h2>
             <p className="text-slate-600 text-sm">
@@ -85,7 +85,7 @@ export default function DashboardActionSection({
           </div>
 
           {/* Action Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(2, 1fr)' }}>
             
             {/* Add Team Member - First Option */}
             <button
@@ -94,8 +94,8 @@ export default function DashboardActionSection({
             >
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-emerald-600 flex items-center justify-center group-hover:bg-emerald-700 transition-colors">
-                    <Users className="h-4 w-4 text-white" />
+                  <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    <Users className="h-4 w-4 text-blue-800" />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium text-slate-900 block text-sm">Add Team Member</span>
@@ -112,8 +112,8 @@ export default function DashboardActionSection({
             >
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center group-hover:bg-blue-700 transition-colors">
-                    <MessageCircle className="h-4 w-4 text-white" />
+                  <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    <MessageCircle className="h-4 w-4 text-blue-800" />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium text-slate-900 block text-sm">Start AI Conversation</span>
@@ -131,8 +131,8 @@ export default function DashboardActionSection({
             >
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-purple-600 flex items-center justify-center group-hover:bg-purple-700 transition-colors">
-                    <BookOpen className="h-4 w-4 text-white" />
+                  <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    <BookOpen className="h-4 w-4 text-blue-800" />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium text-slate-900 block text-sm">Complete Learning Modules</span>
@@ -151,8 +151,8 @@ export default function DashboardActionSection({
               >
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-green-600 flex items-center justify-center group-hover:bg-green-700 transition-colors">
-                      <Brain className="h-4 w-4 text-white" />
+                    <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                      <Brain className="h-4 w-4 text-blue-800" />
                     </div>
                     <div className="flex-1">
                       <span className="font-medium text-slate-900 block text-sm">Complete AI Setup</span>
@@ -171,8 +171,8 @@ export default function DashboardActionSection({
             >
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-orange-600 flex items-center justify-center group-hover:bg-orange-700 transition-colors">
-                    <Upload className="h-4 w-4 text-white" />
+                  <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    <Upload className="h-4 w-4 text-blue-800" />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium text-slate-900 block text-sm">Upload Fulfilment Design</span>
@@ -190,8 +190,8 @@ export default function DashboardActionSection({
             >
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center group-hover:bg-indigo-700 transition-colors">
-                    <TrendingUp className="h-4 w-4 text-white" />
+                    <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    <TrendingUp className="h-4 w-4 text-blue-800" />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium text-slate-900 block text-sm">Upload Growth Design</span>

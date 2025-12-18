@@ -304,22 +304,13 @@ export default function GrowthMachinePage() {
         </div>
       ) : (
         <>
+        
           {/* Header with machine name and main tab navigation */}
           <div className="">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3">
-              <div>
-                <h1 className="text-lg sm:text-xl font-semibold text-blue-800">
-                  {machineData?.enginename || "Growth Machine"}
-                </h1>
-                <p className="text-xs sm:text-sm text-gray-500">
-                  Manage your growth machine design and details
-                </p>
-              </div>
-            </div>
-            
+           
             {/* Main Tab Navigation */}
-            <Tabs value={mainActiveTab} onValueChange={setMainActiveTab} className="w-full">
-              <TabsList className="grid grid-cols-2 w-full sm:w-auto max-w-[400px] bg-white border-b border-gray-200 p-2 w-full h-full mb-2 gap-2">
+            <Tabs value={mainActiveTab} onValueChange={setMainActiveTab} className="w-full border-b border-gray-200 rounded-none pb-4 mb-4">
+              <TabsList className="grid grid-cols-2 w-full sm:w-auto max-w-[400px] bg-white  p-0 w-full h-full mb-2 gap-2">
                 <TabsTrigger value="details" className="bg-gray-50 hover:bg-gray-100 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                   <Settings className="h-4 w-4 mr-2" />
                   Planner

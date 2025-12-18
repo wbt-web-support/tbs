@@ -123,7 +123,7 @@ export default function HwgtPlanPage() {
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="mb-4">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">How We Get There Plan</h1>
+        <h1 className="md:text-3xl text-2xl font-medium text-gray-900">How We Get There Plan</h1>
         <p className="text-sm text-gray-500 mt-1">
           Define your quarter by quarter plan to achieve your business goals
         </p>

@@ -247,7 +247,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-background flex flex-col transform transition-transform duration-200 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className="flex h-16 items-center justify-center px-6 border-b">
+        <div className="flex h-16 items-center px-6 mb-4 mt-3">
           <img src="/logo.png" alt="Command HQ" className="h-10 mr-2" />
           <button 
             onClick={onClose}
@@ -264,7 +264,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           ) : (
             <div className="space-y-6">
               {visibleSections.map((section) => (
-                <div key={section.title} className="space-y-1">
+                <div key={section.title} className="space-y-2 border-b border-gray-100 pb-4">
                   <h2 className="text-xs font-semibold text-gray-500 px-3 uppercase tracking-wider">
                     {section.title}
                   </h2>
@@ -288,9 +288,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             }
                           }}
                           className={cn(
-                            "flex items-center gap-3 rounded-sm px-4 py-1.5 text-[14px] font-medium transition-colors",
+                            "flex items-center gap-3 rounded-lg px-4 py-1.5 text-[14px] font-medium transition-colors",
                             "hover:bg-blue-50/80 hover:text-blue-700",
-                            isActive ? "bg-blue-50/60 text-blue-700 font-bold" : "text-gray-600",
+                            isActive ? "bg-blue-600 text-white" : "text-gray-500",
                             item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-600"
                           )}
                           title={item.disabled ? "Coming Soon" : ""}
@@ -298,7 +298,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                           <item.icon 
                             className={cn(
                               "h-5 w-5 transition-transform group-hover:scale-110",
-                              isActive ? "text-blue-600" : "text-blue-500",
+                              isActive ? "text-white" : "text-gray-500",
                               item.disabled && "text-gray-400"
                             )}
                             strokeWidth={2}

@@ -557,7 +557,7 @@ export default function QuarterPlannerPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">12 Quarter Planner</h1>
+          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">12 Quarter Planner</h1>
           <p className="text-sm text-gray-500 mt-1">
             Plan and track your sales and profit targets across 12 quarters. Compound growth projections based on your targets.
           </p>

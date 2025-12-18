@@ -499,7 +499,7 @@ export default function CompanyScorecardPage() {
     <div className="max-w-[1440px] mx-auto">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Company Scorecard</h1>
+          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Company Scorecard</h1>
           <p className="text-sm text-gray-500 mt-1">
             Manage your company metrics and performance indicators
           </p>

@@ -514,7 +514,7 @@ export default function ModulesPage() {
               {/* Lesson Header */}
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-8">
                 <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-3">{selectedLesson.title}</h1>
+                  <h1 className="md:text-3xl text-2xl font-medium text-gray-900 mb-3">{selectedLesson.title}</h1>
                   <div className="flex items-center gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
@@ -613,7 +613,7 @@ export default function ModulesPage() {
                   </Button>
                 )}
                 <div className="flex flex-col">
-                  <h2 className="text-xl font-bold text-gray-900">{selectedCourse?.title}</h2>
+                  <h2 className="md:text-xl text-lg font-medium text-gray-900">{selectedCourse?.title}</h2>
                   <div className="flex items-center gap-1 text-sm text-gray-500">
                     <Clock className="h-3 w-3" />
                     <span>{formatDuration(calculateTotalCourseTime())}</span>

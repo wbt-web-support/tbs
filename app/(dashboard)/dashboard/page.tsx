@@ -638,10 +638,9 @@ export default function NewDashboard() {
             <Card className="bg-transparent border-none">
               <CardContent className="p-0">
                 <div className="flex justify-between items-start flex-col md:flex-row gap-4">
-                  <div className="flex-1 space-y-3">
+                  <div className="flex-1 space-y-3 mb-8">
                     <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-80"></div>
                     <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-96"></div>
-                    <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-32"></div>
                   </div>
                 </div>
               </CardContent>
@@ -652,7 +651,7 @@ export default function NewDashboard() {
                 <div className="flex justify-between items-start flex-col md:flex-row gap-4">
                   <div className="flex-1 welcome-greeting">
                     <div className="flex items-center justify-between mb-2">
-                      <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+                      <h1 className="text-4xl font-medium text-gray-900 flex items-center gap-2">
                         {getGreetingMessage()}, {greetingName.split(' ')[0]} 👋
                       </h1>
                       <Button
@@ -665,7 +664,7 @@ export default function NewDashboard() {
                         Take Tour
                       </Button>
                     </div>
-                    <p className="text-gray-600 mb-4">
+                    <p className="text-gray-600 mb-8">
                       {currentUserRole === 'admin'
                         ? "Here's your Google Analytics overview to help you understand your website performance and make data-driven decisions for your business growth."
                         : `Welcome to ${companyName || "the analytics dashboard"}. View real-time insights and track your website's performance.`

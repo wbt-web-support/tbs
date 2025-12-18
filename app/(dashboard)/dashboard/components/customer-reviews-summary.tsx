@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { createClient } from "@/utils/supabase/client";
@@ -17,7 +16,8 @@ import {
   Settings,
   CheckCircle,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Check
 } from "lucide-react";
 
 interface GoogleReview {
@@ -242,12 +242,12 @@ export default function CustomerReviewsSummary({ businessName, googleReviewLink 
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
+            <CardTitle className="text-xl font-medium text-gray-900 flex items-center gap-2">
+              <MessageSquare className="w-6 h-6" />
               Customer Reviews
             </CardTitle>
-            <CardDescription className="text-sm text-gray-600">
-              AI-powered analysis • {reviewsData.total_reviews} reviews
+            <CardDescription className="text-sm text-gray-600 flex items-center gap-2">
+              AI-powered analysis • {reviewsData.total_reviews} reviews • <span className="text-gray-600">{reviewsData.overall_rating.toFixed(1)} stars</span>
             </CardDescription>
           </div>
           <Button 
@@ -262,46 +262,19 @@ export default function CustomerReviewsSummary({ businessName, googleReviewLink 
       </CardHeader>
       <CardContent className="pt-0 space-y-4">
         {/* Overall Rating */}
-        <div className="">
-          <div className="flex items-center justify-start gap-2 mb-2">
-            <Star className="w-6 h-6 text-yellow-500 fill-current" />
-            <span className={`text-2xl font-bold ${getRatingColor(reviewsData.overall_rating)}`}>
-              {reviewsData.overall_rating.toFixed(1)}
-            </span>
-          </div>
-          <div className="flex items-center justify-center gap-1 mb-1 hidden">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`w-4 h-4 ${
-                  star <= Math.round(reviewsData.overall_rating)
-                    ? 'text-yellow-500 fill-current'
-                    : 'text-gray-300'
-                }`}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-gray-600 hidden">
-            {reviewsData.total_reviews} reviews
-          </p>
-        </div>
+        
 
         {/* AI Summary as Bullet Points */}
-        <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-          <div className="flex items-center gap-2 mb-3">
-            <Brain className="w-4 h-4 text-purple-600" />
-            <h4 className="font-semibold text-sm text-gray-900">AI Summary</h4>
-            
-          </div>
+       
           <div className="space-y-2">
             {aiSummaryPoints.map((point, index) => (
               <div key={index} className="flex items-start gap-2">
-                <CheckCircle className="w-3 h-3 text-purple-600 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-gray-700 leading-relaxed">{point}</p>
+                <Check className="w-3 h-3 text-purple-600 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-gray-700 leading-relaxed">{point}</p>
               </div>
             ))}
           </div>
-        </div>
+    
 
         {/* Key Insights in two columns */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 hidden">

@@ -247,7 +247,7 @@ export default function ChqTimelinePage() {
       <div className="transition-all duration-300 ease-in-out opacity-100 translate-y-0 h-auto">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
           <div className="flex-1">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900">Calendar</h1>
+            <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Calendar</h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Track your Command HQ implementation progress and milestones
             </p>

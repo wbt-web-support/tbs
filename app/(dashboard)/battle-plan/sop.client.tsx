@@ -542,7 +542,7 @@ export default function SopClient() {
           <div className="">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div className="flex-1">
-                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3">{currentSop.title}</h1>
+                <h1 className="md:text-3xl text-2xl font-medium text-gray-900 mb-3">{currentSop.title}</h1>
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1 rounded-full font-medium">

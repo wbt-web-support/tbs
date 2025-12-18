@@ -266,7 +266,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       )}
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Fulfillment Machine</h1>
+          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Fulfillment Machine</h1>
           <p className="text-sm text-gray-500 mt-1">Define and manage your fulfillment machine process</p>
         </div>
         {!editMode ? (

@@ -1,4 +1,4 @@
-import { Geist } from "next/font/google";
+import { Poppins } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import "./global-overrides.css";
@@ -20,9 +20,20 @@ export const metadata = {
   description: "Master Trade Business Growth: Unlock Success TodayTransform your trade business with strategies &amp; support from Trade Business School. Scale your operations &amp; boost profits. Watch our FREE intro video now!",
 };
 
-const geistSans = Geist({
+// Body text font
+const bodyFont = Poppins({
   display: "swap",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-body",
+});
+
+// Headings font
+const headingFont = Poppins({
+  display: "swap",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-heading",
 });
 
 export default async function RootLayout({
@@ -42,7 +53,7 @@ export default async function RootLayout({
   // Root route redirects are handled by middleware or page components, not in layout
 
   return (
-    <html lang="en" className={geistSans.className} suppressHydrationWarning>
+    <html lang="en" className={`${bodyFont.variable} ${headingFont.variable}`} suppressHydrationWarning>
       <head>
         <GoogleAnalyticsScript />
       </head>

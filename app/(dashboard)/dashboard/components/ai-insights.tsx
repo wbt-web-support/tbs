@@ -96,8 +96,8 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
     return (
       <Card className={className}>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Brain className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-xl font-medium">
+            <Brain className="h-6 w-6 text-gray-600 " />
             AI Insights
           </CardTitle>
         </CardHeader>
@@ -123,7 +123,7 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
     return (
       <Card className={className}>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className="flex items-center gap-2 text-xl font-medium">
             <Brain className="h-5 w-5 text-blue-600" />
             AI Insights
           </CardTitle>
@@ -160,7 +160,7 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
     return (
       <Card className={className}>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className="flex items-center gap-2 text-xl font-medium">
             <Brain className="h-5 w-5 text-blue-600" />
             AI Insights
           </CardTitle>
@@ -180,8 +180,8 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
     <Card className={className}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Brain className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-xl font-medium">
+            <Brain className="h-6 w-6 text-gray-600" />
             AI Insights
           </CardTitle>
           <Button 

@@ -20,7 +20,7 @@ export function DashboardLayoutClient({
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-gray-100 relative">
+        <main className="flex-1 overflow-y-auto bg-white relative">
           <div className={`relative max-w-[2800px] mx-auto w-full ${isModulesPage ? 'p-0' : 'p-8'}`}>
             {children}
             <FloatingChat />
