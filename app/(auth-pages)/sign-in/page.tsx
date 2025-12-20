@@ -8,15 +8,16 @@ import { SmtpMessage } from "../smtp-message";
 import Image from "next/image";
 import { ForgotPasswordDialog } from "./forgot-password-dialog";
 
-export default async function SignIn({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
+export default async function SignIn({ searchParams }: { searchParams: Promise<{ [key: string]: string | undefined }> }) {
   // Parse error/success/message from query params
+  const params = await searchParams;
   let message: Message | null = null;
-  if (searchParams.error) {
-    message = { error: decodeURIComponent(searchParams.error) };
-  } else if (searchParams.success) {
-    message = { success: decodeURIComponent(searchParams.success) };
-  } else if (searchParams.message) {
-    message = { message: decodeURIComponent(searchParams.message) };
+  if (params.error) {
+    message = { error: decodeURIComponent(params.error) };
+  } else if (params.success) {
+    message = { success: decodeURIComponent(params.success) };
+  } else if (params.message) {
+    message = { message: decodeURIComponent(params.message) };
   }
 
   return (
@@ -94,63 +95,6 @@ export default async function SignIn({ searchParams }: { searchParams: { [key: s
         </div>
       </div>
 
-      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden ">
-        <div className="absolute inset-0 bg-black/80"></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'url(/background.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          mixBlendMode: 'overlay',
-          opacity: 0.3
-        }}></div>
-        <div className="h-full flex items-center justify-center p-10 relative z-10 backdrop-blur-sm">
-          <div className="max-w-lg space-y-8">
-            <div className="p-6 rounded-xl ">
-              <h2 className="text-2xl font-bold text-white mb-4">Trades Business Command Center</h2>
-              <p className="text-white/80 mb-5">Take control of your trade business with our comprehensive management platform designed specifically for trades professionals.</p>
-            
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-white text-xs font-bold">1</span>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">Strategic Planning</h4>
-                    <p className="text-white/80 text-sm">Build and execute your business strategy with expert guidance</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-white text-xs font-bold">2</span>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">Growth Tracking</h4>
-                    <p className="text-white/80 text-sm">Monitor and accelerate your business growth metrics</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-white text-xs font-bold">3</span>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">Team Management</h4>
-                    <p className="text-white/80 text-sm">Optimise team performance and collaboration</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-gray-500 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-white text-xs font-bold">4</span>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">Business Analytics</h4>
-                    <p className="text-white/80 text-sm">Gain insights with comprehensive business reporting</p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
