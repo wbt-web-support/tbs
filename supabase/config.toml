@@ -184,10 +184,20 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Custom invite email template
+[auth.email.template.invite]
+subject = "You Have Been Invited - Command HQ"
+content_path = "./supabase/templates/invite.html"
+
+# Custom password reset email template
+[auth.email.template.recovery]
+subject = "Reset Your Password - Command HQ"
+content_path = "./supabase/templates/recovery.html"
+
+# Custom password change confirmation email template
+[auth.email.template.change_email]
+subject = "Your Password Has Been Changed - Command HQ"
+content_path = "./supabase/templates/password_changed.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.

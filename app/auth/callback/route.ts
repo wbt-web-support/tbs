@@ -18,6 +18,11 @@ export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
+  // If redirecting to reset password, allow it regardless of onboarding status
+  if (redirectTo === '/protected/reset-password') {
+    return NextResponse.redirect(`${origin}${redirectTo}`);
+  }
+  
   if (user) {
     // Check user role first
     const { data: userProfile } = await supabase

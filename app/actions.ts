@@ -110,7 +110,7 @@ export const forgotPasswordAction = async (formData: FormData) => {
   const callbackUrl = formData.get("callbackUrl")?.toString();
 
   if (!email) {
-    return encodedRedirect("error", "/forgot-password", "Email is required");
+    return encodedRedirect("error", "/sign-in", "Email is required");
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -121,8 +121,8 @@ export const forgotPasswordAction = async (formData: FormData) => {
     console.error(error.message);
     return encodedRedirect(
       "error",
-      "/forgot-password",
-      "Could not reset password",
+      "/sign-in",
+      "Could not reset password. Please try again.",
     );
   }
 
@@ -132,7 +132,7 @@ export const forgotPasswordAction = async (formData: FormData) => {
 
   return encodedRedirect(
     "success",
-    "/forgot-password",
+    "/sign-in",
     "Check your email for a link to reset your password.",
   );
 };
@@ -144,18 +144,39 @@ export const resetPasswordAction = async (formData: FormData) => {
   const confirmPassword = formData.get("confirmPassword") as string;
 
   if (!password || !confirmPassword) {
-    encodedRedirect(
+    return encodedRedirect(
       "error",
       "/protected/reset-password",
       "Password and confirm password are required",
     );
   }
 
+  // Validate password length (Supabase minimum is 6 characters)
+  if (password.length < 6) {
+    return encodedRedirect(
+      "error",
+      "/protected/reset-password",
+      "Password must be at least 6 characters long",
+    );
+  }
+
   if (password !== confirmPassword) {
-    encodedRedirect(
+    return encodedRedirect(
       "error",
       "/protected/reset-password",
       "Passwords do not match",
+    );
+  }
+
+  // Verify user has a valid session
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    console.error("Password reset error - no valid session:", userError);
+    return encodedRedirect(
+      "error",
+      "/sign-in",
+      "Your session has expired. Please request a new password reset link.",
     );
   }
 
@@ -164,14 +185,15 @@ export const resetPasswordAction = async (formData: FormData) => {
   });
 
   if (error) {
-    encodedRedirect(
+    console.error("Password update error:", error);
+    return encodedRedirect(
       "error",
       "/protected/reset-password",
-      "Password update failed",
+      error.message || "Password update failed. Please try again.",
     );
   }
 
-  encodedRedirect("success", "/protected/reset-password", "Password updated");
+  return encodedRedirect("success", "/sign-in", "Password updated successfully. Please sign in with your new password.");
 };
 
 export const signOutAction = async () => {

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { SmtpMessage } from "../smtp-message";
 import Image from "next/image";
+import { ForgotPasswordDialog } from "./forgot-password-dialog";
 
 export default async function SignIn({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
   // Parse error/success/message from query params
@@ -55,6 +56,7 @@ export default async function SignIn({ searchParams }: { searchParams: { [key: s
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-gray-800 font-medium">Password</Label>
+                  <ForgotPasswordDialog />
                 </div>
                 <Input
                   id="password"

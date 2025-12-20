@@ -88,6 +88,7 @@ export async function middleware(request: NextRequest) {
 
     // Redirect to onboarding if not completed and not already on onboarding page
     // Skip onboarding for super_admin users
+    // Allow access to protected/reset-password for password reset flow
     if (
       !onboardingData?.completed &&
       userData?.role !== 'super_admin' &&
@@ -95,7 +96,8 @@ export async function middleware(request: NextRequest) {
       !request.nextUrl.pathname.startsWith('/sign-out') &&
       !request.nextUrl.pathname.startsWith('/api') &&
       !request.nextUrl.pathname.startsWith('/admin') &&
-      !request.nextUrl.pathname.startsWith('/info')
+      !request.nextUrl.pathname.startsWith('/info') &&
+      !request.nextUrl.pathname.startsWith('/protected/reset-password')
     ) {
       return NextResponse.redirect(new URL('/onboarding', request.url))
     }
