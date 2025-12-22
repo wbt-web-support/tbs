@@ -90,6 +90,11 @@ const navigationSections: NavigationSection[] = [
         href: "/team",
         icon: Users,
       },
+      {
+        name: "Software Tracker",
+        href: "/software-tracker",
+        icon: Package,
+      },
       // {
       //   name: "Key Initiatives",
       //   href: "/key-Initiatives",
