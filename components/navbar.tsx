@@ -115,7 +115,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             )}
 
             {/* Welcome Popup Button - For testing purposes */}
-            {!aiOnboardingCompleted && (
+            {isAdmin && !aiOnboardingCompleted && (
               <Button 
                 variant="ghost" 
                 size="sm" 
