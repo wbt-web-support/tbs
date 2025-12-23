@@ -105,7 +105,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             </button>
 
             {/* AI Onboarding Button - Moved to left, temporary design */}
-            {!aiOnboardingCompleted && (
+            {isAdmin && !aiOnboardingCompleted && (
               <Link href="/ai-onboarding">
                 <Button variant="outline" size="sm" className="rounded-full border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 bg-blue-25">
                   <Brain className="h-4 w-4" />
