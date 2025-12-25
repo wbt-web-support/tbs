@@ -23,6 +23,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SubmissionLoader } from "./components/submission-loader";
 import { CompetitorInfoModal } from "./components/CompetitorInfoModal";
+import { DepartmentDropdown } from "@/components/ui/dropdown-helpers";
 
 // Animated AI Blob Component
 function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className?: string; isActive?: boolean }) {
@@ -144,7 +145,7 @@ function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className
 interface Question {
   name: string;
   label: string;
-  type: 'input' | 'textarea' | 'business-owners-repeater' | 'competitors-repeater' | 'employees-repeater' | 'date-picker' | 'sop-links-repeater' | 'revenue-input' | 'profit-margin-input';
+  type: 'input' | 'textarea' | 'business-owners-repeater' | 'competitors-repeater' | 'employees-repeater' | 'date-picker' | 'sop-links-repeater' | 'revenue-input' | 'profit-margin-input' | 'software-tools-repeater';
   placeholder?: string;
   inputType?: string;
   required: boolean;
@@ -194,6 +195,14 @@ interface SOPLink {
   id: string;
   title: string;
   url: string;
+}
+
+// Software Tool interface
+interface SoftwareTool {
+  id: string;
+  name: string;
+  description: string;
+  departmentId: string | null;
 }
 
 // Business Owners Repeater Component
@@ -367,7 +376,6 @@ function CompetitorsRepeater({
       const businessContext = {
         'Company Name': currentFormValues.company_name_official_registered || '',
         'Business Type': currentFormValues.business_overview_for_potential_investor || '',
-        'Target Customers': currentFormValues.description_of_target_customers_for_investor || '',
         'Services': currentFormValues.business_overview_for_potential_investor || '',
         'Location': currentFormValues.main_office_physical_address_full || '',
         'Revenue': currentFormValues.last_full_year_annual_revenue_amount || '',
@@ -849,6 +857,118 @@ function SOPLinksRepeater({
   );
 }
 
+// Software Tools Repeater Component
+function SoftwareToolsRepeater({
+  value,
+  onChange,
+  required,
+  fieldId,
+  departments
+}: {
+  value: SoftwareTool[];
+  onChange: (tools: SoftwareTool[]) => void;
+  required: boolean;
+  fieldId: string;
+  departments: Array<{ id: string; name: string }>;
+}) {
+  const addTool = () => {
+    const newTool: SoftwareTool = {
+      id: Date.now().toString(),
+      name: '',
+      description: '',
+      departmentId: null
+    };
+    onChange([...value, newTool]);
+  };
+
+  const removeTool = (id: string) => {
+    onChange(value.filter(tool => tool.id !== id));
+  };
+
+  const updateTool = (id: string, field: 'name' | 'description' | 'departmentId', newValue: string | null) => {
+    onChange(value.map(tool =>
+      tool.id === id ? { ...tool, [field]: newValue } : tool
+    ));
+  };
+
+  return (
+    <div id={fieldId} className="space-y-4">
+      {value.map((tool, index) => (
+        <div key={tool.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex-1 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Software/Tool Name
+              </label>
+              <Input
+                value={tool.name}
+                onChange={(e) => updateTool(tool.id, 'name', e.target.value)}
+                placeholder="e.g. Slack, Microsoft 365, Salesforce"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <Textarea
+                value={tool.description}
+                onChange={(e) => updateTool(tool.id, 'description', e.target.value)}
+                placeholder="Brief description of the software and its purpose..."
+                className="w-full min-h-[80px]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Department
+              </label>
+              <DepartmentDropdown
+                value={tool.departmentId || ""}
+                onChange={(value: string) => updateTool(tool.id, 'departmentId', value || null)}
+                departments={departments}
+                placeholder="Select department"
+                className="w-full"
+              />
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => removeTool(tool.id)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 mt-6"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      
+      <Button
+        type="button"
+        variant="outline"
+        onClick={addTool}
+        className="w-full border-dashed border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+      >
+        <Settings className="h-4 w-4 mr-2" />
+        Add Software/Tool
+      </Button>
+      
+      {required && value.length === 0 && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          At least one software/tool is required
+        </p>
+      )}
+      {required && value.length > 0 && !value.every((tool: any) => tool.name && tool.description) && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <X className="h-4 w-4" />
+          Please fill in all software/tool names and descriptions
+        </p>
+      )}
+    </div>
+  );
+}
+
 // Date Picker Component
 function DatePicker({
   value,
@@ -1139,15 +1259,14 @@ const formSchema = z.object({
   company_long_term_vision_statement: z.string().min(2, "Please provide your company's vision"),
 
   // War Machine Vision
-  ultimate_long_term_goal_for_business_owner: z.string().optional(),
-  definition_of_success_in_5_10_20_years: z.string().optional(),
+  next_5_year_goal_for_business: z.string().optional(),
+  success_in_1_year: z.string().optional(),
   additional_income_streams_or_investments_needed: z.string().optional(),
   focus_on_single_business_or_multiple_long_term: z.string().optional(),
 
 
   // Products and Services
   business_overview_for_potential_investor: z.string().optional(),
-  description_of_target_customers_for_investor: z.string().optional(),
   list_of_things_going_right_in_business: z.string().optional(),
   list_of_things_going_wrong_in_business: z.string().optional(),
   list_of_things_missing_in_business: z.string().optional(),
@@ -1165,7 +1284,12 @@ const formSchema = z.object({
     title: z.string().min(1, "Document title is required"),
     url: z.string().url("Please enter a valid URL")
   })).optional(),
-  software_and_tools_used_for_operations: z.string().optional(),
+  software_and_tools_used_for_operations: z.array(z.object({
+    id: z.string(),
+    name: z.string().min(1, "Software/tool name is required"),
+    description: z.string().min(1, "Description is required"),
+    departmentId: z.string().nullable()
+  })).optional(),
   team_structure_and_admin_sales_marketing_roles: z.string().optional(),
   regular_team_meetings_frequency_attendees_agenda: z.string().optional(),
   kpi_scorecards_metrics_tracked_and_review_frequency: z.string().optional(),
@@ -1278,7 +1402,7 @@ const questions: Question[] = [
   },
   {
     name: 'current_profit_margin_percentage',
-    label: "What is your companies current profit margin percentage?",
+    label: "What is your companies current net profit margin percentage?",
     description: "Understanding your profitability helps us focus on the right areas",
     type: 'profit-margin-input',
     required: true,
@@ -1288,15 +1412,14 @@ const questions: Question[] = [
 
 
   // War Machine Vision
-  { name: 'ultimate_long_term_goal_for_business_owner', label: 'What is your ultimate long-term goal? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false, aiAssist: true, icon: Target, description: 'Define your ultimate business destination' },
-  { name: 'definition_of_success_in_5_10_20_years', label: 'What does success look like for you in 1, 3, and 5 years?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'Paint a picture of your future success' },
+  { name: 'next_5_year_goal_for_business', label: 'What is your next 5 year goal for your business? (e.g., financial freedom, a specific revenue target, a legacy business, an exit strategy, etc.)', type: 'textarea', required: false, aiAssist: true, icon: Target, description: 'Define your ultimate business destination' },
+  { name: 'success_in_1_year', label: 'What does success look like for you in 1 year?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'Paint a picture of your future success' },
   { name: 'additional_income_streams_or_investments_needed', label: "If your current business isn't enough to reach this goal, what other income streams, investments, or businesses might be needed?", type: 'textarea', required: false, aiAssist: true, icon: PoundSterling, description: 'Think beyond your current business model' },
   { name: 'focus_on_single_business_or_multiple_long_term', label: 'Do you see yourself focusing on one business long-term, or do you want to build a group of companies?', type: 'textarea', required: false, aiAssist: true, icon: Building, description: 'Single focus or empire building?' },
 
 
   // Products and Services
   { name: 'business_overview_for_potential_investor', label: 'Please give a short overview of what your business does as if you were explaining it to a potential investor.', type: 'textarea', required: false, aiAssist: true, icon: FileText, description: 'Your elevator pitch for investors' },
-  { name: 'description_of_target_customers_for_investor', label: 'Please give a short overview of who your business serves as if you were explaining it to a potential investor.', type: 'textarea', required: false, aiAssist: true, icon: Users, description: 'Who exactly do you serve?' },
   { name: 'list_of_things_going_right_in_business', label: 'Please list all the things that you feel are going right in the business right now.', type: 'textarea', required: false, aiAssist: true, icon: CheckCircle, description: 'Celebrate your wins and strengths' },
   { name: 'list_of_things_going_wrong_in_business', label: 'Please list all the things that you feel are going wrong in the business right now.', type: 'textarea', required: false, aiAssist: true, icon: X, description: 'Honest assessment of current challenges' },
   { name: 'list_of_things_missing_in_business', label: 'Please list all the things that you feel are missing in the business right now.', type: 'textarea', required: false, aiAssist: true, icon: HelpCircle, description: 'What gaps need to be filled?' },
@@ -1310,7 +1433,7 @@ const questions: Question[] = [
 
   // Operations & Systems
   { name: 'documented_systems_or_sops_links', label: 'Do you currently have documented systems or SOPs in place? (If so, please share link to them below so we can review before your kick-off meeting).', type: 'sop-links-repeater', required: false, aiAssist: true, icon: FileText, description: 'Share your existing documentation' },
-  { name: 'software_and_tools_used_for_operations', label: 'What software or tools are you currently using for operations? (E.g., CRM, job management, accounting, etc.)', type: 'textarea', required: false, aiAssist: false, icon: Settings, description: 'List your current tech stack' },
+  { name: 'software_and_tools_used_for_operations', label: 'What software or tools are you currently using for operations? (E.g., CRM, job management, accounting, etc.)', type: 'software-tools-repeater', required: false, aiAssist: false, icon: Settings, description: 'List your current tech stack' },
   { name: 'team_structure_and_admin_sales_marketing_roles', label: 'Do you have a team that handles admin, sales, or marketing, or are you doing most of it yourself?', type: 'textarea', required: false, aiAssist: false, icon: Users, description: 'Understand your current team structure' },
   { name: 'regular_team_meetings_frequency_attendees_agenda', label: 'Do you currently hold regular team meetings? If so, how often do they happen, who attends, and do you follow a set agenda?', type: 'textarea', required: false, aiAssist: true, icon: CalendarIcon, description: 'How does your team communicate?' },
   { name: 'kpi_scorecards_metrics_tracked_and_review_frequency', label: 'Do you currently use scorecards or track key performance indicators (KPIs) for your team members? If so, what metrics do you monitor, and how frequently do you review them? If not, what challenges have prevented you from implementing a tracking system?', type: 'textarea', required: false, aiAssist: true, icon: TrendingUp, description: 'How do you measure performance?' },
@@ -1344,7 +1467,7 @@ const categories = [
     id: 'products-services',
     title: 'Products and Services',
     description: 'Details about your business offerings',
-    questions: questions.slice(16, 23),
+    questions: questions.slice(16, 22),
     color: 'green',
     icon: Users
   },
@@ -1352,7 +1475,7 @@ const categories = [
     id: 'sales-customer',
     title: 'Sales & Customer Journey',
     description: 'Your sales process and customer experience',
-    questions: questions.slice(23, 25),
+    questions: questions.slice(22, 24),
     color: 'orange',
     icon: TrendingUp
   },
@@ -1360,7 +1483,7 @@ const categories = [
     id: 'operations',
     title: 'Operations & Systems',
     description: 'Your business operations and systems',
-    questions: questions.slice(25, 31),
+    questions: questions.slice(24, 30),
     color: 'red',
     icon: Settings
   },
@@ -1368,7 +1491,7 @@ const categories = [
     id: 'final-section',
     title: 'Final Section',
     description: 'Final thoughts and expectations',
-    questions: questions.slice(31, 34),
+    questions: questions.slice(30, 33),
     color: 'indigo',
     icon: Sparkles
   }
@@ -2494,6 +2617,7 @@ export default function OnboardingClient() {
   const [desktopAiOpen, setDesktopAiOpen] = useState(true); // Desktop AI assistant starts open
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [wbtOnboardingData, setWbtOnboardingData] = useState<string>("");
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   
   // State for Terms & Conditions and Privacy Policy checkbox
   const [termsAndPrivacyAccepted, setTermsAndPrivacyAccepted] = useState(false);
@@ -2514,13 +2638,12 @@ export default function OnboardingClient() {
       last_full_year_annual_revenue_amount: "",
       current_profit_margin_percentage: "",
       company_long_term_vision_statement: "",
-      ultimate_long_term_goal_for_business_owner: "",
-      definition_of_success_in_5_10_20_years: "",
+      next_5_year_goal_for_business: "",
+      success_in_1_year: "",
       additional_income_streams_or_investments_needed: "",
       focus_on_single_business_or_multiple_long_term: "",
 
       business_overview_for_potential_investor: "",
-      description_of_target_customers_for_investor: "",
       list_of_things_going_right_in_business: "",
       list_of_things_going_wrong_in_business: "",
       list_of_things_missing_in_business: "",
@@ -2530,7 +2653,7 @@ export default function OnboardingClient() {
 
       customer_experience_and_fulfillment_process: "",
       documented_systems_or_sops_links: [],
-      software_and_tools_used_for_operations: "",
+      software_and_tools_used_for_operations: [],
       team_structure_and_admin_sales_marketing_roles: "",
       regular_team_meetings_frequency_attendees_agenda: "",
       kpi_scorecards_metrics_tracked_and_review_frequency: "",
@@ -2587,6 +2710,15 @@ export default function OnboardingClient() {
             .filter((link: any) => link && link.title && link.url)
             .map((link: any) => `${link.title}: ${link.url}`)
             .join('\n');
+        }
+
+        // Keep software tools as array format (don't convert to string for auto-save)
+        // Only convert to string if it's not already an array (for backward compatibility)
+        if (dataToSave.software_and_tools_used_for_operations && Array.isArray(dataToSave.software_and_tools_used_for_operations)) {
+          // Keep as array - no conversion needed
+          // The array format is the new standard
+        } else if (dataToSave.software_and_tools_used_for_operations && typeof dataToSave.software_and_tools_used_for_operations === 'string') {
+          // Legacy string format - keep as is
         }
         }
         
@@ -2777,6 +2909,42 @@ export default function OnboardingClient() {
           }
         }
 
+        // Convert legacy string format to new array format for software tools
+        if (typeof onboardingData.software_and_tools_used_for_operations === 'string') {
+          const softwareString = onboardingData.software_and_tools_used_for_operations;
+          if (softwareString.trim()) {
+            // Parse the old string format - split by commas (handles format like "name - desc (Dept: id), name2 - desc2 (Dept: id2)")
+            const softwareList = softwareString.split(',').filter((s: string) => s.trim());
+            const tools = softwareList.map((item: string, index: number) => {
+              const trimmed = item.trim();
+              
+              // Try to parse format: "name - description (Dept: departmentId)"
+              const deptMatch = trimmed.match(/\(Dept:\s*([^)]+)\)/);
+              const departmentId = deptMatch ? deptMatch[1].trim() : null;
+              
+              // Remove department part from the string
+              let remaining = trimmed.replace(/\(Dept:[^)]+\)/g, '').trim();
+              
+              // Try to split name and description by " - "
+              const parts = remaining.split(' - ');
+              const name = parts[0]?.trim() || remaining;
+              const description = parts.length > 1 ? parts.slice(1).join(' - ').trim() : '';
+              
+              return {
+                id: `legacy-software-${index}`,
+                name: name,
+                description: description,
+                departmentId: departmentId
+              };
+            });
+            onboardingData.software_and_tools_used_for_operations = tools;
+          } else {
+            onboardingData.software_and_tools_used_for_operations = [];
+          }
+        } else if (!Array.isArray(onboardingData.software_and_tools_used_for_operations)) {
+          onboardingData.software_and_tools_used_for_operations = [];
+        }
+
         // Use reset to set form values from fetched data
         form.reset(onboardingData);
       }
@@ -2833,6 +3001,40 @@ export default function OnboardingClient() {
     fetchWbtOnboardingData();
   }, []);
 
+  // Fetch departments on mount
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: adminBusinessInfo } = await supabase
+          .from('business_info')
+          .select('team_id')
+          .eq('user_id', user.id)
+          .single();
+        
+        const teamId = adminBusinessInfo?.team_id || user.id;
+
+        const { data: departmentsData, error } = await supabase
+          .from('departments')
+          .select('id, name')
+          .or(`team_id.eq.${teamId},team_id.eq.00000000-0000-0000-0000-000000000000`)
+          .order('name', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching departments:', error);
+        } else {
+          setDepartments(departmentsData || []);
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
   const handleStartOnboarding = () => {
     setShowWelcome(false);
   };
@@ -2886,6 +3088,15 @@ export default function OnboardingClient() {
             }
           } else {
             invalidFieldError = "Please add at least one SOP document.";
+          }
+        } else if (question.type === 'software-tools-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((tool: any) => tool.name && tool.description);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all software/tool names and descriptions.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one software/tool.";
           }
         } else {
           // Standard field validation
@@ -2963,6 +3174,9 @@ export default function OnboardingClient() {
         if (q.type === 'sop-links-repeater') {
           return Array.isArray(answer) && answer.length > 0 && answer.every((link: any) => link.title && link.url);
         }
+        if (q.type === 'software-tools-repeater') {
+          return Array.isArray(answer) && answer.length > 0 && answer.every((tool: any) => tool.name && tool.description);
+        }
         return answer !== undefined && answer !== null && answer !== '';
       }
       return true; // Optional fields are considered complete
@@ -3022,6 +3236,15 @@ export default function OnboardingClient() {
               }
             } else {
               invalidFieldError = "Please add at least one SOP document.";
+            }
+          } else if (question.type === 'software-tools-repeater') {
+            if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+              isFieldValid = fieldValue.every((tool: any) => tool.name && tool.description);
+              if (!isFieldValid) {
+                invalidFieldError = "Please fill in all software/tool names and descriptions.";
+              }
+            } else {
+              invalidFieldError = "Please add at least one software/tool.";
             }
           } else {
             // Standard field validation
@@ -3118,6 +3341,15 @@ export default function OnboardingClient() {
           } else {
             invalidFieldError = "Please add at least one SOP document.";
           }
+        } else if (question.type === 'software-tools-repeater') {
+          if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+            isFieldValid = fieldValue.every((tool: any) => tool.name && tool.description);
+            if (!isFieldValid) {
+              invalidFieldError = "Please fill in all software/tool names and descriptions.";
+            }
+          } else {
+            invalidFieldError = "Please add at least one software/tool.";
+          }
         } else {
           // Standard field validation
           isFieldValid = fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
@@ -3197,6 +3429,18 @@ export default function OnboardingClient() {
         .join('\n');
     }
 
+    // Prepare software tools for saving to software table
+    const softwareToolsToSave = allFormValues.software_and_tools_used_for_operations;
+    // Keep software tools as array format (don't convert to string)
+    // Only convert to string if it's not already an array (for backward compatibility)
+    if (softwareToolsToSave && Array.isArray(softwareToolsToSave)) {
+      // Keep as array - no conversion needed
+      dataToSubmit.software_and_tools_used_for_operations = softwareToolsToSave;
+    } else if (softwareToolsToSave && typeof softwareToolsToSave === 'string') {
+      // Legacy string format - keep as is for backward compatibility
+      dataToSubmit.software_and_tools_used_for_operations = softwareToolsToSave;
+    }
+
     try {
       // Update first step - Saving your information
       setSubmissionSteps(steps => steps.map((step, i) =>
@@ -3239,6 +3483,67 @@ export default function OnboardingClient() {
             completed: true,
           });
         console.log('✅ Successfully created onboarding record');
+      }
+
+      // Save software tools to software table
+      console.log('🔍 Checking software tools to save:', softwareToolsToSave);
+      if (softwareToolsToSave && Array.isArray(softwareToolsToSave) && softwareToolsToSave.length > 0) {
+        try {
+          const { data: adminBusinessInfo, error: businessInfoError } = await supabase
+            .from('business_info')
+            .select('team_id')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (businessInfoError) {
+            console.error('❌ Error fetching business info:', businessInfoError);
+          }
+          
+          const teamId = adminBusinessInfo?.team_id || user.id;
+          console.log('📋 Team ID for software tools:', teamId);
+
+          // Prepare software entries for insertion - only require name, description is optional
+          const softwareEntries = softwareToolsToSave
+            .filter((tool: any) => tool && tool.name && tool.name.trim())
+            .map((tool: any) => ({
+              team_id: teamId,
+              software: tool.name.trim(),
+              description: tool.description && tool.description.trim() ? tool.description.trim() : null,
+              department_id: tool.departmentId && tool.departmentId.trim() ? tool.departmentId.trim() : null,
+              url: null,
+              price_monthly: null,
+              pricing_period: 'n/a' as const,
+            }));
+
+          console.log('📦 Prepared software entries:', softwareEntries);
+
+          if (softwareEntries.length > 0) {
+            console.log('💾 Saving software tools to database:', softwareEntries);
+            const { data: insertedData, error: softwareError } = await supabase
+              .from('software')
+              .insert(softwareEntries)
+              .select();
+
+            if (softwareError) {
+              console.error('❌ Error saving software tools:', softwareError);
+              console.error('❌ Error details:', JSON.stringify(softwareError, null, 2));
+              // Don't throw error, just log it - we don't want to block form submission
+            } else {
+              console.log(`✅ Successfully saved ${softwareEntries.length} software tool(s) to database:`, insertedData);
+            }
+          } else {
+            console.log('⚠️ No valid software entries after filtering (all entries must have a name)');
+          }
+        } catch (softwareSaveError) {
+          console.error('❌ Exception while saving software tools:', softwareSaveError);
+          // Don't throw error, just log it - we don't want to block form submission
+        }
+      } else {
+        console.log('ℹ️ No software tools to save:', {
+          softwareToolsToSave,
+          isArray: Array.isArray(softwareToolsToSave),
+          length: softwareToolsToSave?.length
+        });
       }
 
       // Update second step - Preparing your workspace
@@ -3433,6 +3738,8 @@ export default function OnboardingClient() {
                           ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
                           : q.type === 'sop-links-repeater'
                           ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((link: any) => link.title && link.url)
+                          : q.type === 'software-tools-repeater'
+                          ? Array.isArray(fieldValue) && fieldValue.length > 0 && fieldValue.every((tool: any) => tool.name && tool.description)
                           : q.name === 'main_office_physical_address_full'
                           ? !!(fieldValue && typeof fieldValue === 'string' ? fieldValue.trim() : fieldValue)
                           : !!(fieldValue && typeof fieldValue === 'string' ? fieldValue.trim() : fieldValue);
@@ -3518,6 +3825,16 @@ export default function OnboardingClient() {
                                   }}
                                   required={q.required}
                                   fieldId={q.name}
+                                />
+                            ) : q.type === 'software-tools-repeater' ? (
+                                <SoftwareToolsRepeater
+                                  value={form.getValues(fieldName) as SoftwareTool[] || []}
+                                  onChange={(tools) => {
+                                    form.setValue(fieldName, tools, { shouldValidate: true });
+                                  }}
+                                  required={q.required}
+                                  fieldId={q.name}
+                                  departments={departments}
                                 />
                             ) : q.name === 'main_office_physical_address_full' ? (
                               <UkAddressFields
