@@ -2932,7 +2932,7 @@ export default function OnboardingClient() {
                   name: fullMatch[1].trim(),
                   role: fullMatch[2].trim(),
                   responsibilities: fullMatch[3].trim(),
-                  email: '',
+                  email: undefined,
                   departmentId: null
                 };
               }
@@ -2944,7 +2944,7 @@ export default function OnboardingClient() {
                   name: roleMatch[1].trim(),
                   role: roleMatch[2].trim(),
                   responsibilities: '',
-                  email: '',
+                  email: undefined,
                   departmentId: null
                 };
               } else {
@@ -2953,7 +2953,7 @@ export default function OnboardingClient() {
                   name: trimmed,
                   role: '',
                   responsibilities: '',
-                  email: '',
+                  email: undefined,
                   departmentId: null
                 };
               }
@@ -2962,6 +2962,35 @@ export default function OnboardingClient() {
           } else {
             onboardingData.current_employees_and_roles_responsibilities = [];
           }
+        } else if (Array.isArray(onboardingData.current_employees_and_roles_responsibilities)) {
+          // Normalize array format to ensure all employees have email and departmentId fields
+          onboardingData.current_employees_and_roles_responsibilities = onboardingData.current_employees_and_roles_responsibilities.map((employee: any, index: number) => {
+            // Handle email: convert empty string, null, or undefined to undefined
+            let email = employee.email;
+            if (!email || email === '' || email === null) {
+              email = undefined;
+            }
+            
+            const normalizedEmployee = {
+              id: employee.id || `employee-${index}`,
+              name: employee.name || '',
+              role: employee.role || '',
+              responsibilities: employee.responsibilities || '',
+              email: email,
+              departmentId: employee.departmentId || null
+            };
+            
+            console.log(`📋 Normalized employee ${index}:`, {
+              name: normalizedEmployee.name,
+              email: normalizedEmployee.email,
+              departmentId: normalizedEmployee.departmentId
+            });
+            
+            return normalizedEmployee;
+          });
+        } else {
+          // If it's neither string nor array, set to empty array
+          onboardingData.current_employees_and_roles_responsibilities = [];
         }
         // Convert legacy string format to new array format for SOP links
         if (typeof onboardingData.documented_systems_or_sops_links === 'string') {
@@ -3031,6 +3060,11 @@ export default function OnboardingClient() {
 
         // Use reset to set form values from fetched data
         form.reset(onboardingData);
+        
+        // Explicitly set employees array to ensure email and departmentId are properly loaded
+        if (Array.isArray(onboardingData.current_employees_and_roles_responsibilities)) {
+          form.setValue('current_employees_and_roles_responsibilities', onboardingData.current_employees_and_roles_responsibilities, { shouldValidate: false });
+        }
       }
     };
     fetchOnboardingData();

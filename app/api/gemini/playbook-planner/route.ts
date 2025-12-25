@@ -253,6 +253,37 @@ function formatPlaybookContext(playbookData: any) {
   return parts.join('\n');
 }
 
+// JSON structure for playbook suggestions (metadata only)
+const SUGGESTION_JSON_STRUCTURE = `
+## 📝 RESPONSE FORMAT
+Return ONLY a valid JSON object with this exact structure:
+
+{
+  "suggestions": [
+    {
+      "playbookname": "comprehensive playbook name",
+      "description": "detailed description of the playbook purpose and scope",
+      "enginetype": "GROWTH|FULFILLMENT|INNOVATION",
+      "recommended_owner_ids": ["uuid1", "uuid2"],
+      "recommended_department_id": "uuid or null"
+    }
+  ]
+}
+
+IMPORTANT: 
+- Generate 4-5 playbook suggestions based on the company context
+- Each suggestion should address a different critical business process
+- Mix of GROWTH, FULFILLMENT, and INNOVATION engine types
+- Provide only metadata (name, description, type, recommended owners/department)
+- Do NOT generate full content - only suggestions
+- Base recommendations on the actual company data provided
+- Keep descriptions concise but comprehensive
+- Use business_info.id for recommended_owner_ids (not names)
+- Use departments.id for recommended_department_id (not names)
+- Ensure suggestions complement each other and cover different aspects of the business
+- Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize")
+`;
+
 // Fixed JSON structure and rules for playbook generation
 const PLAYBOOK_JSON_STRUCTURE = `
 ## 📝 RESPONSE FORMAT
@@ -275,9 +306,8 @@ Return ONLY a valid JSON object with this exact structure:
 }
 
 IMPORTANT: 
-- Generate 4-5 comprehensive playbooks based on the company context
-- Each playbook should address a different critical business process
-- Mix of GROWTH, FULFILLMENT, and INNOVATION engine types
+- Generate comprehensive playbooks based on the provided specifications
+- Each playbook should address the specified business process
 - Make all content realistic and actionable
 - Base recommendations on the actual company data provided
 - Keep descriptions concise but comprehensive
@@ -287,9 +317,9 @@ IMPORTANT:
 - Use departments.id for recommended_department_id (not names)
 - ALWAYS use "Backlog" as the status for new playbooks
 - Create detailed SOP content with clear steps, procedures, and checklists
-- Ensure playbooks complement each other and cover different aspects of the business
 - FORMAT CONTENT AS HTML: Use <p>, <ul>, <li>, <strong>, <h2>, <h3> tags instead of markdown
 - Example: Use <p><strong>Objective:</strong> To efficiently...</p> instead of **Objective:** To efficiently...
+- Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize", "realise" not "realize", "analyse" not "analyze")
 `;
 
 // Helper function to load prompt template from the prompts table
@@ -307,27 +337,105 @@ async function getPromptTemplate(promptKey: string): Promise<string | null> {
   return data?.prompt_text || null;
 }
 
-// Helper function to generate playbook content
-async function generatePlaybook(userId: string, teamId: string) {
+// Helper function to generate playbook suggestions (metadata only)
+async function suggestPlaybooks(userId: string, teamId: string) {
   try {
     const playbookData = await getPlaybookData(userId, teamId);
     const playbookContext = formatPlaybookContext(playbookData);
+
+    const promptBody = `You are an expert business consultant specialising in creating comprehensive Standard Operating Procedures (SOPs) for companies. 
+
+Based on the company context provided, suggest 4-5 playbook ideas that would help the organisation improve their processes and achieve their goals.
+
+Only provide suggestions (metadata) - do NOT generate full content. Focus on identifying key business processes that need playbooks.
+
+IMPORTANT: Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize").
+
+{{companyContext}}
+
+{{responseFormat}}`;
+    
+    // Replace placeholders
+    const fullPrompt = promptBody
+      .replace(/{{companyContext}}/g, playbookContext)
+      .replace(/{{responseFormat}}/g, SUGGESTION_JSON_STRUCTURE);
+
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+    const result = await model.generateContent(fullPrompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Extract JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Failed to generate valid JSON response');
+    }
+    
+    const generatedData = JSON.parse(jsonMatch[0]);
+    
+    // Validate and fix each suggestion in the array
+    if (generatedData.suggestions && Array.isArray(generatedData.suggestions)) {
+      generatedData.suggestions.forEach((suggestion: any) => {
+        // Ensure engine type is valid
+        const validEngineTypes = ['GROWTH', 'FULFILLMENT', 'INNOVATION'];
+        if (!validEngineTypes.includes(suggestion.enginetype)) {
+          suggestion.enginetype = 'GROWTH';
+        }
+      });
+    }
+    
+    return generatedData;
+  } catch (error) {
+    console.error('Error suggesting playbooks:', error);
+    throw error;
+  }
+}
+
+// Helper function to generate playbook content
+async function generatePlaybook(userId: string, teamId: string, playbookSpecs: any[]) {
+  try {
+    const playbookData = await getPlaybookData(userId, teamId);
+    const playbookContext = formatPlaybookContext(playbookData);
+
+    // Format playbook specifications for the prompt
+    const specsText = playbookSpecs.map((spec, index) => {
+      return `
+Playbook #${index + 1}:
+- Name: ${spec.playbookname || 'Not specified'}
+- Description: ${spec.description || 'Not specified'}
+- Engine Type: ${spec.enginetype || 'GROWTH'}
+- Department ID: ${spec.department_id || 'null'}
+- Owner IDs: ${spec.owner_ids ? JSON.stringify(spec.owner_ids) : '[]'}
+`;
+    }).join('\n');
 
     // Load prompt body (instructions) from DB
     let promptBody = await getPromptTemplate('playbook_planner');
     if (!promptBody) {
       // Fallback prompt if not found in database
-      promptBody = `You are an expert business consultant specializing in creating comprehensive Standard Operating Procedures (SOPs) for companies. 
+      promptBody = `You are an expert business consultant specialising in creating comprehensive Standard Operating Procedures (SOPs) for companies. 
 
-Based on the company context provided, generate a detailed SOP playbook that will help the organization improve their processes and achieve their goals.
+Based on the company context and the playbook specifications provided, generate detailed SOP playbooks that will help the organisation improve their processes and achieve their goals.
+
+IMPORTANT: Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize", "realise" not "realize", "analyse" not "analyze").
 
 {{companyContext}}
 
+PLAYBOOK SPECIFICATIONS TO GENERATE:
+{{playbookSpecs}}
+
 {{responseFormat}}`;
+    } else {
+      // Add UK English instruction to existing prompt if it doesn't already have it
+      if (!promptBody.includes('UK English') && !promptBody.includes('British English')) {
+        promptBody = promptBody + '\n\nIMPORTANT: Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize", "realise" not "realize", "analyse" not "analyze").';
+      }
     }
     
     // Replace placeholders
-    promptBody = promptBody.replace(/{{companyContext}}/g, playbookContext)
+    promptBody = promptBody
+      .replace(/{{companyContext}}/g, playbookContext)
+      .replace(/{{playbookSpecs}}/g, specsText)
       .replace(/{{responseFormat}}/g, PLAYBOOK_JSON_STRUCTURE);
 
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
@@ -345,7 +453,16 @@ Based on the company context provided, generate a detailed SOP playbook that wil
     
     // Validate and fix each playbook in the array
     if (generatedData.playbooks && Array.isArray(generatedData.playbooks)) {
-      generatedData.playbooks.forEach((playbook: any) => {
+      generatedData.playbooks.forEach((playbook: any, index: number) => {
+        // Use the spec data if available
+        if (playbookSpecs[index]) {
+          playbook.playbookname = playbookSpecs[index].playbookname || playbook.playbookname;
+          playbook.description = playbookSpecs[index].description || playbook.description;
+          playbook.enginetype = playbookSpecs[index].enginetype || playbook.enginetype;
+          playbook.recommended_department_id = playbookSpecs[index].department_id || playbook.recommended_department_id;
+          playbook.recommended_owner_ids = playbookSpecs[index].owner_ids || playbook.recommended_owner_ids;
+        }
+        
         // Ensure status is valid
         const validStatuses = ['Backlog', 'In Progress', 'Behind', 'Completed'];
         if (!validStatuses.includes(playbook.status)) {
@@ -457,10 +574,19 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, generatedData } = body;
+    const { action, generatedData, playbookSpecs } = body;
 
-    if (action === 'generate') {
-      const generatedContent = await generatePlaybook(userId, teamId);
+    if (action === 'suggest') {
+      const suggestions = await suggestPlaybooks(userId, teamId);
+      return NextResponse.json({ 
+        success: true, 
+        data: suggestions 
+      });
+    } else if (action === 'generate') {
+      // playbookSpecs is an array of playbook specifications
+      // Each spec has: playbookname, description, enginetype, department_id, owner_ids
+      const playbookSpecsArray = playbookSpecs || [];
+      const generatedContent = await generatePlaybook(userId, teamId, playbookSpecsArray);
       return NextResponse.json({ 
         success: true, 
         data: generatedContent 
