@@ -50,6 +50,8 @@ interface AddUserDialogProps {
 export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditUser }: AddUserDialogProps) {
   const [departments, setDepartments] = useState<Department[]>([])
   const [loadingDepartments, setLoadingDepartments] = useState(true)
+  const [companyName, setCompanyName] = useState<string>('')
+  const [loadingCompanyName, setLoadingCompanyName] = useState(false)
 
   const form = useForm<BasicUserFormValues>({
     resolver: zodResolver(basicUserSchema),
@@ -67,6 +69,71 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [addedUserName, setAddedUserName] = useState('')
   const [addedUserId, setAddedUserId] = useState('')
+
+  // Generate password from company name
+  const generatePassword = (companyName: string): string => {
+    if (!companyName || companyName.trim() === '') {
+      // Fallback if company name is not available
+      return 'company2024'
+    }
+    
+    // Convert to lowercase and remove special characters/spaces, keep only alphanumeric
+    let password = companyName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    
+    // If password is too short (< 8 characters), append numbers
+    if (password.length < 8) {
+      const padding = '2024'.repeat(Math.ceil((8 - password.length) / 4))
+      password = password + padding.substring(0, 8 - password.length)
+    }
+    
+    return password
+  }
+
+  // Fetch company name from onboarding data
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      try {
+        setLoadingCompanyName(true)
+        const supabase = createClient()
+        
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        // Fetch onboarding data for the admin user
+        const { data: onboardingData, error } = await supabase
+          .from('company_onboarding')
+          .select('onboarding_data')
+          .eq('user_id', user.id)
+          .single()
+
+        if (error) {
+          console.error('Error fetching company name:', error)
+          setCompanyName('')
+        } else if (onboardingData?.onboarding_data) {
+          const companyNameFromData = onboardingData.onboarding_data?.company_name_official_registered
+          if (companyNameFromData) {
+            setCompanyName(companyNameFromData)
+            // Auto-populate password field with generated password
+            const generatedPassword = generatePassword(companyNameFromData)
+            form.setValue('password', generatedPassword)
+          } else {
+            setCompanyName('')
+          }
+        } else {
+          setCompanyName('')
+        }
+      } catch (error) {
+        console.error('Error fetching company name:', error)
+        setCompanyName('')
+      } finally {
+        setLoadingCompanyName(false)
+      }
+    }
+
+    if (open) {
+      fetchCompanyName()
+    }
+  }, [open, form])
 
   // Fetch departments when component mounts
   useEffect(() => {
@@ -288,9 +355,32 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
                     <Input 
                       type="password" 
                       {...field}
-                      className="border-gray-200 focus:border-gray-400 focus:ring-gray-400" 
+                      readOnly
+                      disabled={loadingCompanyName}
+                      className="border-gray-200 bg-gray-50 text-gray-600 cursor-not-allowed focus:border-gray-400 focus:ring-gray-400" 
                     />
                   </FormControl>
+                  {loadingCompanyName ? (
+                    <p className="text-xs text-gray-500 mt-1">Loading company information...</p>
+                  ) : companyName ? (
+                    <div className="space-y-1 mt-1">
+                      <p className="text-xs text-gray-600">
+                        The password is automatically generated from your company name: <span className="font-medium text-gray-800">{companyName}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Users should change this password after their first login for security.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 mt-1">
+                      <p className="text-xs text-amber-600">
+                        Company name not found. Using default password. Please ensure onboarding is completed.
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Users should change this password after their first login for security.
+                      </p>
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

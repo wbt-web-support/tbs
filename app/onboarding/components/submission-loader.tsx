@@ -21,10 +21,10 @@ export function SubmissionLoader({ loadingSteps }: SubmissionLoaderProps) {
         <div className="mb-6">
        
           <h1 className="text-3xl text-gray-900 mb-2 tracking-tight">
-            Setting up your account
+            Setting up your workspace
           </h1>
           <p className="text-gray-500 text-lg">
-            This will only take a moment
+            We're preparing everything for you
           </p>
         </div>
 

@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { SubmissionLoader } from "./components/submission-loader";
 import { CompetitorInfoModal } from "./components/CompetitorInfoModal";
 import { DepartmentDropdown } from "@/components/ui/dropdown-helpers";
+import { inviteUser } from "@/app/(dashboard)/invite/actions";
 
 // Animated AI Blob Component
 function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className?: string; isActive?: boolean }) {
@@ -188,6 +189,8 @@ interface Employee {
   name: string;
   role: string;
   responsibilities: string;
+  email?: string;
+  departmentId: string | null;
 }
 
 // SOP Link interface
@@ -655,19 +658,25 @@ function EmployeesRepeater({
   value, 
   onChange, 
   required,
-  fieldId
+  fieldId,
+  departments,
+  companyName
 }: { 
   value: Employee[]; 
   onChange: (employees: Employee[]) => void; 
   required: boolean;
   fieldId: string;
+  departments: Array<{ id: string; name: string }>;
+  companyName?: string;
 }) {
   const addEmployee = () => {
     const newEmployee: Employee = {
       id: Date.now().toString(),
       name: '',
       role: '',
-      responsibilities: ''
+      responsibilities: '',
+      email: undefined,
+      departmentId: null
     };
     onChange([...value, newEmployee]);
   };
@@ -676,42 +685,89 @@ function EmployeesRepeater({
     onChange(value.filter(employee => employee.id !== id));
   };
 
-  const updateEmployee = (id: string, field: 'name' | 'role' | 'responsibilities', newValue: string) => {
-    onChange(value.map(employee => 
-      employee.id === id ? { ...employee, [field]: newValue } : employee
-    ));
+  const updateEmployee = (id: string, field: 'name' | 'role' | 'responsibilities' | 'email' | 'departmentId', newValue: string | null) => {
+    onChange(value.map(employee => {
+      if (employee.id === id) {
+        // For email field, convert empty string to undefined
+        if (field === 'email') {
+          return { ...employee, [field]: newValue && newValue.trim() ? newValue : undefined };
+        }
+        return { ...employee, [field]: newValue };
+      }
+      return employee;
+    }));
   };
+
+  const generatedPassword = companyName ? generatePasswordFromCompanyName(companyName) : 'company2024';
 
   return (
     <div id={fieldId} className="space-y-4">
+      {/* Password Information */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3">
+        <p className="text-xs text-blue-800">
+          <strong>Account Creation:</strong> User accounts will be automatically created for employees with email addresses. Default password: <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono text-xs">{generatedPassword}</code> (users can change it using forgot password).
+        </p>
+      </div>
+
       {value.map((employee, index) => (
         <div key={employee.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Employee Name
-              </label>
-              <Input
-                value={employee.name}
-                onChange={(e) => updateEmployee(employee.id, 'name', e.target.value)}
-                placeholder="e.g. John Smith"
-                className="w-full"
-              />
+          <div className="flex-1 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Employee Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={employee.name}
+                  onChange={(e) => updateEmployee(employee.id, 'name', e.target.value)}
+                  placeholder="e.g. John Smith"
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address <span className="text-gray-500 text-xs">(Optional)</span>
+                </label>
+                <Input
+                  type="email"
+                  value={employee.email || ''}
+                  onChange={(e) => updateEmployee(employee.id, 'email', e.target.value || null)}
+                  placeholder="e.g. john.smith@example.com"
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-0.5">
+                  If provided, account will be created. Leave blank to skip account creation.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role/Position <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={employee.role}
+                  onChange={(e) => updateEmployee(employee.id, 'role', e.target.value)}
+                  placeholder="e.g. Operations Manager"
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department
+                </label>
+                <DepartmentDropdown
+                  value={employee.departmentId || ""}
+                  onChange={(value: string) => updateEmployee(employee.id, 'departmentId', value || null)}
+                  departments={departments}
+                  placeholder="Select department"
+                  className="w-full"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Role/Position
-              </label>
-              <Input
-                value={employee.role}
-                onChange={(e) => updateEmployee(employee.id, 'role', e.target.value)}
-                placeholder="e.g. Operations Manager"
-                className="w-full"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Main Responsibilities
+                Main Responsibilities <span className="text-red-500">*</span>
               </label>
               <Textarea
                 value={employee.responsibilities}
@@ -1252,7 +1308,9 @@ const formSchema = z.object({
     id: z.string(),
     name: z.string().min(1, "Employee name is required"),
     role: z.string().min(1, "Role is required"),
-    responsibilities: z.string().min(1, "Responsibilities are required")
+    responsibilities: z.string().min(1, "Responsibilities are required"),
+    email: z.string().email("Please enter a valid email address").optional().or(z.literal("")).optional(),
+    departmentId: z.string().nullable().optional()
   })),
   last_full_year_annual_revenue_amount: z.string().min(1, "Please select annual revenue or 'not sure'"),
   current_profit_margin_percentage: z.string().min(1, "Please select profit margin or 'not sure'"),
@@ -2593,6 +2651,24 @@ const UkAddressFields = React.forwardRef<HTMLInputElement, {
 });
 UkAddressFields.displayName = 'UkAddressFields';
 
+// Password generation function (similar to add-user-dialog.tsx)
+function generatePasswordFromCompanyName(companyName: string): string {
+  if (!companyName || companyName.trim() === '') {
+    return 'company2024'
+  }
+  
+  // Convert to lowercase and remove special characters/spaces, keep only alphanumeric
+  let password = companyName.toLowerCase().replace(/[^a-z0-9]/g, '')
+  
+  // If password is too short (< 8 characters), append numbers
+  if (password.length < 8) {
+    const padding = '2024'.repeat(Math.ceil((8 - password.length) / 4))
+    password = password + padding.substring(0, 8 - password.length)
+  }
+  
+  return password
+}
+
 export default function OnboardingClient() {
   const router = useRouter();
   const { toast } = useToast();
@@ -2606,6 +2682,7 @@ export default function OnboardingClient() {
     done: boolean;
   }[]>([
     { title: "Saving your information", done: false },
+    { title: "Creating accounts", done: false },
     { title: "Preparing your workspace", done: false },
     { title: "Redirecting to dashboard", done: false },
   ]);
@@ -2698,12 +2775,14 @@ export default function OnboardingClient() {
             });
         }
 
-        // Convert employees array to string format for backward compatibility
+        // Keep employees as array format (don't convert to string for auto-save)
+        // Only convert to string if it's not already an array (for backward compatibility)
         if (dataToSave.current_employees_and_roles_responsibilities && Array.isArray(dataToSave.current_employees_and_roles_responsibilities)) {
-          dataToSave.current_employees_and_roles_responsibilities = dataToSave.current_employees_and_roles_responsibilities
-            .filter((employee: any) => employee && employee.name && employee.role)
-            .map((employee: any) => `${employee.name} (${employee.role}) - ${employee.responsibilities || 'No responsibilities specified'}`)
-            .join(', ');
+          // Keep as array - no conversion needed
+          // The array format is the new standard
+        } else if (dataToSave.current_employees_and_roles_responsibilities && typeof dataToSave.current_employees_and_roles_responsibilities === 'string') {
+          // Legacy string format - keep as is
+        }
 // Convert SOP links array to string format for backward compatibility
         if (dataToSave.documented_systems_or_sops_links && Array.isArray(dataToSave.documented_systems_or_sops_links)) {
           dataToSave.documented_systems_or_sops_links = dataToSave.documented_systems_or_sops_links
@@ -2719,7 +2798,6 @@ export default function OnboardingClient() {
           // The array format is the new standard
         } else if (dataToSave.software_and_tools_used_for_operations && typeof dataToSave.software_and_tools_used_for_operations === 'string') {
           // Legacy string format - keep as is
-        }
         }
         
         await supabase
@@ -2853,7 +2931,9 @@ export default function OnboardingClient() {
                   id: `legacy-employee-${index}`,
                   name: fullMatch[1].trim(),
                   role: fullMatch[2].trim(),
-                  responsibilities: fullMatch[3].trim()
+                  responsibilities: fullMatch[3].trim(),
+                  email: '',
+                  departmentId: null
                 };
               }
               // Fallback to old format: "Name (Role)"
@@ -2863,14 +2943,18 @@ export default function OnboardingClient() {
                   id: `legacy-employee-${index}`,
                   name: roleMatch[1].trim(),
                   role: roleMatch[2].trim(),
-                  responsibilities: ''
+                  responsibilities: '',
+                  email: '',
+                  departmentId: null
                 };
               } else {
                 return {
                   id: `legacy-employee-${index}`,
                   name: trimmed,
                   role: '',
-                  responsibilities: ''
+                  responsibilities: '',
+                  email: '',
+                  departmentId: null
                 };
               }
             });
@@ -3546,9 +3630,135 @@ export default function OnboardingClient() {
         });
       }
 
-      // Update second step - Preparing your workspace
+      // Update step - Creating employee accounts
+      setSubmissionSteps(steps => steps.map((step, i) =>
+        i === 1 ? { ...step, done: false } : step
+      ));
+
+      // Create user accounts for employees
+      const employeesToCreate = allFormValues.current_employees_and_roles_responsibilities;
+      console.log('🔍 Checking employees to create accounts for:', employeesToCreate);
+      
+      if (employeesToCreate && Array.isArray(employeesToCreate) && employeesToCreate.length > 0) {
+        try {
+          const companyName = allFormValues.company_name_official_registered || '';
+          const companyPhone = allFormValues.primary_company_phone_number || '';
+          const generatedPassword = generatePasswordFromCompanyName(companyName);
+          
+          console.log('🔑 Generated password from company name:', companyName);
+          
+          let successCount = 0;
+          let failCount = 0;
+          const errors: string[] = [];
+          
+          for (const employee of employeesToCreate) {
+            // Skip employees without email (this is expected and not an error)
+            if (!employee.email || !employee.email.trim()) {
+              console.log(`ℹ️ Skipping employee ${employee.name} - no email provided (account creation skipped as expected)`);
+              continue;
+            }
+            
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(employee.email.trim())) {
+              console.warn(`⚠️ Skipping employee ${employee.name} - invalid email: ${employee.email}`);
+              failCount++;
+              errors.push(`${employee.name}: Invalid email format`);
+              continue;
+            }
+            
+            try {
+              console.log(`👤 Creating account for ${employee.name} (${employee.email})`);
+              
+              // Convert responsibilities to critical_accountabilities format
+              // Split by newlines or commas, or use the whole string as a single accountability
+              const responsibilities = employee.responsibilities?.trim() || '';
+              const criticalAccountabilities = responsibilities
+                ? responsibilities
+                    .split(/[,\n]/)
+                    .map((r: string) => r.trim())
+                    .filter((r: string) => r.length > 0)
+                    .map((r: string) => ({ value: r }))
+                : [];
+              
+              // If no responsibilities were split, use the whole string as one accountability
+              if (criticalAccountabilities.length === 0 && responsibilities) {
+                criticalAccountabilities.push({ value: responsibilities });
+              }
+              
+              const result = await inviteUser({
+                email: employee.email.trim(),
+                password: generatedPassword,
+                full_name: employee.name.trim(),
+                phone_number: companyPhone,
+                job_title: employee.role.trim(),
+                department_id: employee.departmentId || null,
+                manager_id: null,
+                critical_accountabilities: criticalAccountabilities,
+                playbook_ids: [],
+                permissions: ['calendar', 'playbook-planner'], // Default permissions: Calendar and Playbook only
+              });
+              
+              if (result.success) {
+                console.log(`✅ Successfully created account for ${employee.name}`);
+                successCount++;
+              } else {
+                console.error(`❌ Failed to create account for ${employee.name}:`, result.error);
+                failCount++;
+                errors.push(`${employee.name}: ${result.error || 'Unknown error'}`);
+              }
+            } catch (error: any) {
+              console.error(`❌ Exception creating account for ${employee.name}:`, error);
+              failCount++;
+              errors.push(`${employee.name}: ${error.message || 'Unknown error'}`);
+            }
+          }
+          
+          // Show summary toast
+          const employeesWithEmail = employeesToCreate.filter((e: any) => e.email && e.email.trim()).length;
+          if (successCount > 0) {
+            toast({
+              title: "Employee Accounts Created",
+              description: `Successfully created ${successCount} out of ${employeesWithEmail} employee account(s) with email addresses.${failCount > 0 ? ` ${failCount} failed.` : ''}`,
+            });
+          } else if (employeesWithEmail > 0 && failCount > 0) {
+            toast({
+              title: "Account Creation Failed",
+              description: `Failed to create employee accounts. Please check the console for details.`,
+              variant: "destructive",
+            });
+          } else if (employeesWithEmail === 0) {
+            console.log('ℹ️ No employees with email addresses - no accounts to create');
+          }
+          
+          console.log(`📊 Account creation summary: ${successCount} succeeded, ${failCount} failed`);
+          if (errors.length > 0) {
+            console.log('❌ Errors:', errors);
+          }
+        } catch (error) {
+          console.error('❌ Exception in employee account creation:', error);
+          // Don't throw - we don't want to block form submission
+          toast({
+            title: "Account Creation Error",
+            description: "An error occurred while creating accounts. Please create them manually from the Team page.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.log('ℹ️ No employees to create accounts for');
+      }
+
+      // Mark employee accounts step as done
       setSubmissionSteps(steps => steps.map((step, i) =>
         i === 1 ? { ...step, done: true } : step
+      ));
+
+      // Small delay to show the animation
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Update third step - Preparing your workspace
+      setSubmissionSteps(steps => steps.map((step, i) =>
+        i === 2 ? { ...step, done: true } : step
       ));
 
       // Small delay to show the animation
@@ -3556,7 +3766,7 @@ export default function OnboardingClient() {
 
       // Update final step - Redirecting to dashboard
       setSubmissionSteps(steps => steps.map((step, i) =>
-        i === 2 ? { ...step, done: true } : step
+        i === 3 ? { ...step, done: true } : step
       ));
 
       // Small delay before showing calendar step
@@ -3806,6 +4016,8 @@ export default function OnboardingClient() {
                                   }}
                                   required={q.required}
                                   fieldId={q.name}
+                                  departments={departments}
+                                  companyName={form.getValues('company_name_official_registered') as string}
                                 />
                             ) : q.type === 'date-picker' ? (
                                 <DatePicker
