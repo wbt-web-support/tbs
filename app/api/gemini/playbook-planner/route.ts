@@ -145,14 +145,16 @@ function formatPlaybookContext(playbookData: any) {
   if (playbookData.teamMembers && playbookData.teamMembers.length > 0) {
     parts.push(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## 👥 TEAM MEMBERS (USE THESE IDs FOR recommended_owner_ids)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+## 👥 TEAM MEMBERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NOTE: Use IDs only for the recommended_owner_ids field in JSON. In playbook content, use ONLY full names (no IDs).
+`);
     
     playbookData.teamMembers.forEach((member: any, index: number) => {
       parts.push(`
 👤 Team Member #${index + 1}:
-- ID: ${member.id}
-- Full Name: ${member.full_name}
+- ID: ${member.id} (use this ONLY for recommended_owner_ids in JSON response)
+- Full Name: ${member.full_name} (use this name in playbook content)
 - Job Title: ${member.job_title || 'Not specified'}
 - Department: ${member.department || 'Not specified'}
 - Role: ${member.role}
@@ -184,14 +186,16 @@ function formatPlaybookContext(playbookData: any) {
   if (playbookData.departments && playbookData.departments.length > 0) {
     parts.push(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## 🏢 DEPARTMENTS (USE THESE IDs FOR recommended_department_id)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+## 🏢 DEPARTMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NOTE: Use IDs only for the recommended_department_id field in JSON. In playbook content, use ONLY department names (no IDs).
+`);
     
     playbookData.departments.forEach((dept: any, index: number) => {
       parts.push(`
 🏢 Department #${index + 1}:
-- ID: ${dept.id}
-- Name: ${dept.name || 'No name'}`);
+- ID: ${dept.id} (use this ONLY for recommended_department_id in JSON response)
+- Name: ${dept.name || 'No name'} (use this name in playbook content)`);
     });
   }
 
@@ -306,6 +310,9 @@ Return ONLY a valid JSON object with this exact structure:
 }
 
 IMPORTANT: 
+- Generate EXACTLY the number of playbooks specified in the PLAYBOOK SPECIFICATIONS section - NO MORE, NO LESS
+- If only 1 playbook is specified, generate ONLY 1 playbook
+- If 2 playbooks are specified, generate EXACTLY 2 playbooks
 - Generate comprehensive playbooks based on the provided specifications
 - Each playbook should address the specified business process
 - Make all content realistic and actionable
@@ -319,6 +326,10 @@ IMPORTANT:
 - Create detailed SOP content with clear steps, procedures, and checklists
 - FORMAT CONTENT AS HTML: Use <p>, <ul>, <li>, <strong>, <h2>, <h3> tags instead of markdown
 - Example: Use <p><strong>Objective:</strong> To efficiently...</p> instead of **Objective:** To efficiently...
+- CRITICAL: When mentioning people in the playbook content, use ONLY their full names (e.g., "Myles" or "Harry Brown") - NEVER include user IDs or UUIDs in the content text
+- When referencing owners or team members in the content, write: "Owner: [Full Name]" or "Step 1: [Full Name] to..." - do NOT write "Owner: [Name] (ID: uuid)" or any similar format with IDs
+- IMPORTANT: Include department information in the playbook content when a department is specified. Use the format: "Department: [Department Name]" or mention the department name in the relevant sections of the playbook content
+- When a department is assigned to the playbook, include it in the content header or introduction section (e.g., "Department: Sales" or "This playbook applies to the [Department Name] department")
 - Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize", "realise" not "realize", "analyse" not "analyze")
 `;
 
@@ -399,15 +410,25 @@ async function generatePlaybook(userId: string, teamId: string, playbookSpecs: a
 
     // Format playbook specifications for the prompt
     const specsText = playbookSpecs.map((spec, index) => {
+      // Find department name if department_id is provided
+      let departmentName = 'Not specified';
+      if (spec.department_id && playbookData?.departments) {
+        const dept = playbookData.departments.find((d: any) => d.id === spec.department_id);
+        departmentName = dept?.name || 'Not specified';
+      }
+      
       return `
 Playbook #${index + 1}:
 - Name: ${spec.playbookname || 'Not specified'}
 - Description: ${spec.description || 'Not specified'}
 - Engine Type: ${spec.enginetype || 'GROWTH'}
-- Department ID: ${spec.department_id || 'null'}
+- Department: ${departmentName} (ID: ${spec.department_id || 'null'})
 - Owner IDs: ${spec.owner_ids ? JSON.stringify(spec.owner_ids) : '[]'}
 `;
     }).join('\n');
+
+    const playbookCount = playbookSpecs.length;
+    const countInstruction = `\n\nCRITICAL: You must generate EXACTLY ${playbookCount} playbook${playbookCount === 1 ? '' : 's'}. Generate ONLY the ${playbookCount} playbook${playbookCount === 1 ? '' : 's'} specified above - do NOT generate any additional playbooks.`;
 
     // Load prompt body (instructions) from DB
     let promptBody = await getPromptTemplate('playbook_planner');
@@ -423,6 +444,7 @@ IMPORTANT: Write all content in UK English (e.g., "organise" not "organize", "co
 
 PLAYBOOK SPECIFICATIONS TO GENERATE:
 {{playbookSpecs}}
+{{countInstruction}}
 
 {{responseFormat}}`;
     } else {
@@ -430,12 +452,15 @@ PLAYBOOK SPECIFICATIONS TO GENERATE:
       if (!promptBody.includes('UK English') && !promptBody.includes('British English')) {
         promptBody = promptBody + '\n\nIMPORTANT: Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize", "realise" not "realize", "analyse" not "analyze").';
       }
+      // Add count instruction to existing prompt
+      promptBody = promptBody + countInstruction;
     }
     
     // Replace placeholders
     promptBody = promptBody
       .replace(/{{companyContext}}/g, playbookContext)
       .replace(/{{playbookSpecs}}/g, specsText)
+      .replace(/{{countInstruction}}/g, countInstruction)
       .replace(/{{responseFormat}}/g, PLAYBOOK_JSON_STRUCTURE);
 
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
@@ -453,14 +478,27 @@ PLAYBOOK SPECIFICATIONS TO GENERATE:
     
     // Validate and fix each playbook in the array
     if (generatedData.playbooks && Array.isArray(generatedData.playbooks)) {
+      // Ensure we only return the exact number of playbooks requested
+      const expectedCount = playbookSpecs.length;
+      if (generatedData.playbooks.length > expectedCount) {
+        console.warn(`AI generated ${generatedData.playbooks.length} playbooks but only ${expectedCount} were requested. Trimming to ${expectedCount}.`);
+        generatedData.playbooks = generatedData.playbooks.slice(0, expectedCount);
+      }
+      
       generatedData.playbooks.forEach((playbook: any, index: number) => {
         // Use the spec data if available
         if (playbookSpecs[index]) {
           playbook.playbookname = playbookSpecs[index].playbookname || playbook.playbookname;
           playbook.description = playbookSpecs[index].description || playbook.description;
           playbook.enginetype = playbookSpecs[index].enginetype || playbook.enginetype;
-          playbook.recommended_department_id = playbookSpecs[index].department_id || playbook.recommended_department_id;
-          playbook.recommended_owner_ids = playbookSpecs[index].owner_ids || playbook.recommended_owner_ids;
+          // Preserve department_id from spec (including null values)
+          if (playbookSpecs[index].hasOwnProperty('department_id')) {
+            playbook.recommended_department_id = playbookSpecs[index].department_id;
+          }
+          // Preserve owner_ids from spec (including empty arrays)
+          if (playbookSpecs[index].hasOwnProperty('owner_ids')) {
+            playbook.recommended_owner_ids = playbookSpecs[index].owner_ids;
+          }
         }
         
         // Ensure status is valid
@@ -495,6 +533,21 @@ async function saveGeneratedPlaybooks(userId: string, generatedData: any) {
     }
 
     for (const playbookData of generatedData.playbooks) {
+      // Validate and get department_id if provided
+      let departmentId = null;
+      if (playbookData.recommended_department_id) {
+        // Validate that the department ID exists
+        const { data: department } = await supabase
+          .from('departments')
+          .select('id')
+          .eq('id', playbookData.recommended_department_id)
+          .single();
+        
+        if (department) {
+          departmentId = playbookData.recommended_department_id;
+        }
+      }
+
       // Create new playbook entry
       const { data: playbook, error: insertError } = await supabase
         .from("playbooks")
@@ -506,29 +559,12 @@ async function saveGeneratedPlaybooks(userId: string, generatedData: any) {
           status: playbookData.status,
           link: playbookData.link,
           content: playbookData.content,
-          department_id: null // Will be set if department exists
+          department_id: departmentId
         })
         .select()
         .single();
 
       if (insertError) throw insertError;
-
-      // If department is recommended, link it directly using ID
-      if (playbookData.recommended_department_id) {
-        // Validate that the department ID exists
-        const { data: department } = await supabase
-          .from('departments')
-          .select('id')
-          .eq('id', playbookData.recommended_department_id)
-          .single();
-        
-        if (department) {
-          await supabase
-            .from('playbooks')
-            .update({ department_id: playbookData.recommended_department_id })
-            .eq('id', playbook.id);
-        }
-      }
 
       // If owners are recommended, create assignments using IDs
       if (playbookData.recommended_owner_ids && playbookData.recommended_owner_ids.length > 0) {

@@ -1085,7 +1085,10 @@ export default function GrowthEngineLibraryPage() {
                     >
                       <TableCell className="px-6 py-4">
                         <div>
-                          <div className="font-medium text-purple-700 flex items-center gap-2">
+                          <div 
+                            className="font-medium text-purple-700 flex items-center gap-2 cursor-pointer hover:text-purple-800 hover:underline transition-colors"
+                            onClick={() => handleViewPlaybook(index)}
+                          >
                             <Sparkles className="h-4 w-4" />
                             {playbook.playbookname}
                           </div>
@@ -1158,7 +1161,12 @@ export default function GrowthEngineLibraryPage() {
                     >
                       <TableCell className="px-6 py-4">
                         <div>
-                          <div className="font-medium text-blue-700">{playbook.playbookname}</div>
+                          <div 
+                            className="font-medium text-blue-700 cursor-pointer hover:text-blue-800 hover:underline transition-colors"
+                            onClick={() => router.push(`/playbook-planner/edit/${playbook.id}`)}
+                          >
+                            {playbook.playbookname}
+                          </div>
                           {playbook.description && (
                             <div className="text-xs text-gray-500 mt-1 line-clamp-1">{playbook.description}</div>
                           )}
@@ -1483,30 +1491,8 @@ export default function GrowthEngineLibraryPage() {
           </div>
           {viewingPlaybook && (
             <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              <div className="px-6 py-4 space-y-4 overflow-y-auto flex-shrink-0">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">Engine Type</Label>
-                    <Badge variant="outline" className={`mt-1 ${getEngineTypeColor(viewingPlaybook.enginetype)}`}>
-                      {viewingPlaybook.enginetype}
-                    </Badge>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Status</Label>
-                    <Badge variant="outline" className={`mt-1 ${getStatusColor(viewingPlaybook.status)}`}>
-                      {viewingPlaybook.status}
-                    </Badge>
-                  </div>
-                </div>
-                {viewingPlaybook.description && (
-                  <div>
-                    <Label className="text-xs text-gray-500">Description</Label>
-                    <p className="mt-1 text-sm text-gray-700">{viewingPlaybook.description}</p>
-                  </div>
-                )}
-              </div>
+            
               <div className="flex-1 min-h-0 flex flex-col px-6 pb-4">
-                <Label className="text-xs text-gray-500 mb-2">Content</Label>
                 <div className="flex-1 border rounded-md overflow-hidden bg-white min-h-0 flex flex-col">
                   <ReusableTiptapEditor
                     content={viewPlaybookContent}
