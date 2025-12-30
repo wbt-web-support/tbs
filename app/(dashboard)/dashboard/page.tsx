@@ -666,8 +666,8 @@ export default function NewDashboard() {
                     </div>
                     <p className="text-gray-600 mb-8">
                       {currentUserRole === 'admin'
-                        ? "Here's your Google Analytics overview to help you understand your website performance and make data-driven decisions for your business growth."
-                        : `Welcome to ${companyName || "the analytics dashboard"}. View real-time insights and track your website's performance.`
+                        ? "Welcome to Your Command HQ"
+                        : `Welcome to Your Command HQ`
                       }
                     </p>
                     {/* <div className="flex items-center gap-4 text-sm text-gray-500">

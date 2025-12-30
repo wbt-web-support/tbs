@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Users, Settings, CheckCircle } from "lucide-react";
-import MeetingRhythmPlanner from "../calendar/components/meeting-rhythm-planner";
+// import MeetingRhythmPlanner from "../calendar/components/meeting-rhythm-planner"; // Component doesn't exist
 import LeaveEntitlements from "../calendar/components/leave-entitlements";
 import LeaveApprovals from "../calendar/components/leave-approvals";
+import GoogleCalendarView from "../calendar/components/google-calendar-view";
 
 export default function LeaveManagementPage() {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -38,7 +39,7 @@ export default function LeaveManagementPage() {
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-6">
-          <MeetingRhythmPlanner />
+          <GoogleCalendarView />
         </TabsContent>
 
         <TabsContent value="approvals" className="space-y-6">

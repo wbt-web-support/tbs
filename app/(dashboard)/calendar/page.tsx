@@ -6,7 +6,7 @@ import TimelineView from "./components/timeline-view";
 import TodoList from "./components/additional-benefits";
 import ContactInfo from "./components/contact-info";
 import { createClient } from "@/utils/supabase/client";
-import MeetingRhythmPlanner from "./components/meeting-rhythm-planner";
+import GoogleCalendarView from "./components/google-calendar-view";
 
 
 type TimelineEvent = {
@@ -73,6 +73,18 @@ export default function ChqTimelinePage() {
   const supabase = createClient();
 
   useEffect(() => {
+    // Handle OAuth error parameters in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    const details = urlParams.get('details');
+    
+    if (error) {
+      console.error('OAuth error detected:', error, details);
+      // Clean up URL but keep the page functional
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+    
     checkTimelineExists();
     fetchUserRole();
   }, []);
@@ -249,7 +261,7 @@ export default function ChqTimelinePage() {
           <div className="flex-1">
             <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Calendar</h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Track your Command HQ implementation progress and milestones
+            Review your schedule and organise your team leave requests for the year.
             </p>
           </div>
         </div>
@@ -279,7 +291,7 @@ export default function ChqTimelinePage() {
           {userRole !== 'user' && (
             <TabsTrigger 
               value="benefits"
-              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
+              className="hidden data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-10 text-xs sm:text-sm whitespace-nowrap"
             >
               Book a Call
             </TabsTrigger>
@@ -292,7 +304,7 @@ export default function ChqTimelinePage() {
           <div 
             className={`${activeTab === 'calendar' ? 'block' : 'hidden'} space-y-2 sm:space-y-4`}
           >
-            <MeetingRhythmPlanner />
+            <GoogleCalendarView />
           </div>
 
           {/* Timeline Tab */}

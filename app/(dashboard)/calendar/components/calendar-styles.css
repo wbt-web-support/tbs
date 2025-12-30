@@ -1,0 +1,154 @@
+/* Custom styles for react-big-calendar */
+.rbc-calendar-wrapper {
+  background: white;
+  border-radius: 8px;
+}
+
+.rbc-calendar-custom {
+  font-family: inherit;
+}
+
+.rbc-header {
+  padding: 12px 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rbc-today {
+  background-color: #eff6ff;
+}
+
+.rbc-off-range-bg {
+  background-color: #f9fafb;
+}
+
+.rbc-event {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rbc-event:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rbc-event-google {
+  background-color: #3b82f6;
+  border-color: #2563eb;
+  color: white;
+}
+
+.rbc-event-holiday {
+  background-color: #10b981;
+  border-color: #059669;
+  color: white;
+}
+
+.rbc-event-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid #f3f4f6;
+}
+
+.rbc-time-header-content {
+  border-left: 1px solid #e5e7eb;
+}
+
+.rbc-time-content {
+  border-top: 2px solid #e5e7eb;
+}
+
+.rbc-time-view {
+  border: 1px solid #e5e7eb;
+}
+
+.rbc-month-view {
+  border: 1px solid #e5e7eb;
+}
+
+.rbc-agenda-view {
+  border: 1px solid #e5e7eb;
+}
+
+.rbc-agenda-view table {
+  border-collapse: collapse;
+}
+
+.rbc-agenda-view table tbody > tr > td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rbc-agenda-view table thead > tr > th {
+  padding: 12px;
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.rbc-toolbar {
+  margin-bottom: 1rem;
+}
+
+.rbc-toolbar button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rbc-toolbar button:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.rbc-btn-group {
+  display: flex;
+  gap: 4px;
+}
+
+.rbc-toolbar-label {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #111827;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rbc-calendar-wrapper {
+    font-size: 0.75rem;
+  }
+  
+  .rbc-header {
+    padding: 8px 4px;
+    font-size: 0.75rem;
+  }
+  
+  .rbc-event {
+    font-size: 0.625rem;
+    padding: 2px 4px;
+  }
+}
+

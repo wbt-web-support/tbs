@@ -77,15 +77,13 @@ export default function DashboardActionSection({
         <CardContent className="p-6">
           <div className="text-left mb-4">
             <h2 className="text-xl font-medium text-slate-900 mb-2">
-              To Get Started
+            Quick Actions
             </h2>
-            <p className="text-slate-600 text-sm">
-              Complete these tasks to get the most out of your Command HQ
-            </p>
+        
           </div>
 
           {/* Action Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(2, 1fr)' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(1, 1fr)' }}>
             
             {/* Add Team Member - First Option */}
             <button
@@ -143,64 +141,8 @@ export default function DashboardActionSection({
               </div>
             </button>
 
-            {/* AI Personalization - Only show if not completed */}
-            {!isAIOnboardingCompleted && (
-              <button
-                onClick={handleStartAIPersonalization}
-                className="cursor-pointer p-4 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-left group"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                      <Brain className="h-4 w-4 text-blue-800" />
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-medium text-slate-900 block text-sm">Complete AI Setup</span>
-                    </div>
-                    <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
-                  </div>
-               
-                </div>
-              </button>
-            )}
-
-            {/* Upload Fulfillment Design */}
-            <button
-              onClick={handleUploadFulfillmentDesign}
-              className="cursor-pointer p-4 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-left group"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                    <Upload className="h-4 w-4 text-blue-800" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-medium text-slate-900 block text-sm">Upload Fulfilment Design</span>
-                  </div>
-                  <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
-                </div>
-            
-              </div>
-            </button>
-
-            {/* Upload Growth Design */}
-            <button
-              onClick={handleUploadGrowthDesign}
-              className="!cursor-pointer p-4 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-left group"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                    <TrendingUp className="h-4 w-4 text-blue-800" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-medium text-slate-900 block text-sm">Upload Growth Design</span>
-                  </div>
-                  <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
-                </div>
-               
-              </div>
-            </button>
+           
+        
           </div>
         </CardContent>
       </Card>
