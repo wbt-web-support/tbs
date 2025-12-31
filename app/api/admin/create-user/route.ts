@@ -28,6 +28,7 @@ interface CreateUserRequest {
   gd_folder_created: boolean;
   meeting_scheduled: boolean;
   role: string;
+  google_review_link?: string;
   wbt_onboarding: string;
   wbt_onboarding_type: string;
 }
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
         gd_folder_created: userData.gd_folder_created,
         meeting_scheduled: userData.meeting_scheduled,
         role: userData.role,
+        google_review_link: userData.google_review_link || null,
         wbt_onboarding: userData.wbt_onboarding || '',
       });
 

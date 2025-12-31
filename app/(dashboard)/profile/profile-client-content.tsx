@@ -458,7 +458,7 @@ export function ProfileClientContent({ user, initialBusinessInfo, userRole, team
                           placeholder="Enter phone number"
                         />
                       </div>
-                      <div className="space-y-1.5 sm:col-span-2 hidden">
+                      <div className="space-y-1.5 sm:col-span-2">
                         <Label htmlFor="google_review_link" className="text-sm font-medium text-gray-700">Google Review Link</Label>
                         <Input
                           id="google_review_link"
@@ -468,7 +468,7 @@ export function ProfileClientContent({ user, initialBusinessInfo, userRole, team
                           onChange={handleInputChange}
                           disabled={!editing || saving}
                           className="h-10"
-                          placeholder="Enter your Google Business review link (e.g., https://maps.google.com/...)"
+                          placeholder="Enter your Google Business review link (e.g., https://g.page/r/...)"
                         />
                         <p className="text-xs text-gray-500">
                           This link will be used to fetch and analyse your Google Business reviews for the dashboard.

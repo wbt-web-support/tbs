@@ -350,22 +350,6 @@ export default function UserManagementPage() {
       return;
     }
 
-    // Validate WBT onboarding data
-    if (!newUserForm.wbt_onboarding_type) {
-      toast.error("Please select WBT onboarding data type (PDF file or URL)");
-      return;
-    }
-
-    if (newUserForm.wbt_onboarding_type === 'file' && !newUserForm.extractedContent) {
-      toast.error("Please upload and extract a PDF file for WBT onboarding data");
-      return;
-    }
-
-    if (newUserForm.wbt_onboarding_type === 'url' && !newUserForm.extractedContent) {
-      toast.error("Please provide a PDF URL and extract the content for WBT onboarding data");
-      return;
-    }
-
     try {
       setIsCreatingUser(true);
 
@@ -375,10 +359,10 @@ export default function UserManagementPage() {
         throw new Error("No session token available");
       }
 
-      // Prepare user data with extracted PDF content
+      // Prepare user data with extracted PDF content (if provided)
       const userData = {
         ...newUserForm,
-        wbt_onboarding: newUserForm.extractedContent
+        wbt_onboarding: newUserForm.extractedContent || ''
       };
 
       // Use the admin API to create user (this won't log in as the new user)

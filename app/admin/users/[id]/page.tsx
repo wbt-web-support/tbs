@@ -70,6 +70,7 @@ interface UserProfile {
   gd_folder_created?: boolean;
   meeting_scheduled?: boolean;
   profile_picture_url?: string;
+  google_review_link?: string;
   role: string;
   created_at: string;
   updated_at: string;
@@ -359,6 +360,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           gd_folder_created: editedUser.gd_folder_created,
           meeting_scheduled: editedUser.meeting_scheduled,
           role: editedUser.role,
+          google_review_link: editedUser.google_review_link || null,
         })
         .eq('id', id);
       
@@ -1023,6 +1025,28 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                     />
                   ) : (
                     <p className="text-muted-foreground mt-1">{user.business_name}</p>
+                  )}
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-sm font-medium">Google Review Link</Label>
+                  {editMode ? (
+                    <Input
+                      name="google_review_link"
+                      type="url"
+                      value={editedUser?.google_review_link || ""}
+                      onChange={handleInputChange}
+                      placeholder="https://g.page/r/..."
+                    />
+                  ) : (
+                    <p className="text-muted-foreground mt-1">
+                      {user.google_review_link ? (
+                        <a href={user.google_review_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {user.google_review_link}
+                        </a>
+                      ) : (
+                        'Not set'
+                      )}
+                    </p>
                   )}
                 </div>
               </div>
