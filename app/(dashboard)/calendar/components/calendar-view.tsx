@@ -113,13 +113,40 @@ export default function CalendarView({ events }: CalendarViewProps) {
 
   const eventStyleGetter = (event: CalendarEvent) => {
     const isHoliday = event.resource?.status === "holiday";
+    const isLeaveRequest = event.resource?.status && ["pending", "approved", "rejected"].includes(event.resource.status);
+    
+    if (isHoliday) {
+      return {
+        className: "rbc-event-holiday",
+        style: {
+          backgroundColor: "#10b981",
+          borderColor: "#059669",
+        },
+      };
+    }
+    
+    if (isLeaveRequest) {
+      const status = event.resource.status;
+      const colors = {
+        pending: { bg: "#f59e0b", border: "#d97706" }, // amber
+        approved: { bg: "#10b981", border: "#059669" }, // green
+        rejected: { bg: "#ef4444", border: "#dc2626" }, // red
+      };
+      const color = colors[status as keyof typeof colors] || colors.pending;
+      return {
+        className: `rbc-event-leave-${status}`,
+        style: {
+          backgroundColor: color.bg,
+          borderColor: color.border,
+        },
+      };
+    }
+    
     return {
-      className: isHoliday
-        ? "rbc-event-holiday"
-        : "rbc-event-google",
+      className: "rbc-event-google",
       style: {
-        backgroundColor: isHoliday ? "#10b981" : "#3b82f6",
-        borderColor: isHoliday ? "#059669" : "#2563eb",
+        backgroundColor: "#3b82f6",
+        borderColor: "#2563eb",
       },
     };
   };

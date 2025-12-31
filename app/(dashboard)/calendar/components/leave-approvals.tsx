@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Calendar, Users, Check, X, Clock, Eye } from "lucide-react";
+import { Calendar, Users, Check, X, Clock, Eye, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 
@@ -227,16 +227,28 @@ export default function LeaveApprovals() {
   const processedRequests = leaveRequests.filter(r => r.status !== 'pending');
 
   return (
-    <div className="space-y-6 py-4">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex justify-between items-start pb-4 border-b">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">Leave Approvals</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Review and approve leave requests from your team.
+          <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
+            <CheckCircle2 className="h-6 w-6 text-blue-600" />
+            Leave Approvals
+          </h2>
+          <p className="text-sm text-gray-500 mt-1.5">
+            Review and approve leave requests from your team
           </p>
         </div>
       </div>
 
+      {isLoading && leaveRequests.length === 0 ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-200 border-t-blue-600"></div>
+            <p className="text-sm text-gray-500">Loading leave requests...</p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Pending Requests */}
       <Card>
         <CardHeader>
@@ -250,8 +262,11 @@ export default function LeaveApprovals() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="flex items-center justify-center py-8">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600"></div>
+                <p className="text-sm text-gray-500">Loading...</p>
+              </div>
             </div>
           ) : pendingRequests.length === 0 ? (
             <div className="text-center py-8">
@@ -353,6 +368,8 @@ export default function LeaveApprovals() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
 
       {/* Approval Dialog */}
       <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>

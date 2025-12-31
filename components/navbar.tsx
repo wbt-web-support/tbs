@@ -15,7 +15,7 @@ import {
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2, Database, Brain, Eye } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2, Database, Brain } from "lucide-react";
 import QuickAccessDropdown from "./quick-access-dropdown";
 import { useEffect, useState, useRef } from "react";
 
@@ -95,52 +95,39 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
   return (
     <div className="border-b">
-              <div className="flex h-16 items-center px-6">
-          <div className="flex-1 flex items-center gap-4">
-            <button
-              onClick={onMenuClick}
-              className="lg:hidden p-1 hover:bg-gray-100 rounded-md"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+      <div className="flex h-16 items-center px-3 sm:px-4 md:px-6">
+        <div className="flex-1 flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden p-1 hover:bg-gray-100 rounded-md flex-shrink-0"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
 
-            {/* AI Onboarding Button - Moved to left, temporary design */}
-            {isAdmin && !aiOnboardingCompleted && (
-              <Link href="/ai-onboarding">
-                <Button variant="outline" size="sm" className="rounded-full border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 bg-blue-25">
-                  <Brain className="h-4 w-4" />
-                  <span>Complete Onboarding</span>
-                </Button>
-              </Link>
-            )}
-
-            {/* Welcome Popup Button - For testing purposes */}
-            {isAdmin && !aiOnboardingCompleted && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="bg-transparent border-none"
-                onClick={() => {
-                  // Dispatch a custom event that the dashboard can listen to
-                  window.dispatchEvent(new CustomEvent('openWelcomePopup'));
-                }}
-              >
-                <Eye className="h-4 w-4" />
+          {/* AI Onboarding Button - Moved to left, temporary design */}
+          {isAdmin && !aiOnboardingCompleted && (
+            <Link href="/ai-onboarding" className="flex-shrink-0">
+              <Button variant="outline" size="sm" className="rounded-full border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 bg-blue-25">
+                <Brain className="h-4 w-4" />
+                <span>Complete Onboarding</span>
               </Button>
-            )}
+            </Link>
+          )}
+        </div>
+      
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-5 flex-shrink-0">
+          <div className="hidden md:block">
+            <QuickAccessDropdown 
+              userPermissions={userPermissions}
+              isAdmin={isAdmin}
+            />
           </div>
-        
-        <div className="flex items-center gap-5">
-          <QuickAccessDropdown 
-            userPermissions={userPermissions}
-            isAdmin={isAdmin}
-          />
           
           {(isAdmin || userPermissions.includes('chat')) && (
             <Link href="/chat" className="header-ai-assistant">
               <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-blue-700 hover:to-blue-900 hover:text-white from-blue-600 to-blue-800 text-white">
-                <Sparkles className="h-4 w-4" />
-                <span>AI Assistant</span>
+                <Sparkles className="h-4 w-4 flex-shrink-0" />
+                <span>AI</span>
               </Button>
             </Link>
           )}
@@ -158,7 +145,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuContent className="w-56" align="end" sideOffset={5}>
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{fullName || user?.email?.split('@')[0]}</p>

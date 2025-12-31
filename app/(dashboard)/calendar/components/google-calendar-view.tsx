@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { 
   Calendar, 
   RefreshCw, 
@@ -20,9 +22,14 @@ import {
   Users,
   CheckCircle2,
   XCircle,
-  ExternalLink
+  ExternalLink,
+  Settings
 } from "lucide-react";
 import CalendarView from "./calendar-view";
+import BankHolidaysManager from "./bank-holidays-manager";
+import LeaveRequest from "./leave-request";
+import LeaveApprovals from "./leave-approvals";
+import LeaveEntitlements from "./leave-entitlements";
 
 type GoogleCalendarEvent = {
   id: string;
@@ -44,6 +51,19 @@ type BankHoliday = {
   holiday_date: string;
   year: number;
   is_active: boolean;
+  team_id?: string;
+};
+
+type LeaveRequestEvent = {
+  id: string;
+  user_id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  duration_days: number;
+  description?: string;
+  created_at: string;
 };
 
 type UnifiedEvent = {
@@ -70,20 +90,26 @@ type ConnectionStatus = {
 export default function GoogleCalendarView() {
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
   const [holidays, setHolidays] = useState<BankHoliday[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestEvent[]>([]);
   const [showGoogleCalendar, setShowGoogleCalendar] = useState<boolean>(true);
-  const [showHolidays, setShowHolidays] = useState<boolean>(true);
+  const [showHolidaysAndLeave, setShowHolidaysAndLeave] = useState<boolean>(true);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ connected: false });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'list' | 'week' | 'calendar'>('calendar');
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isLeaveManagementOpen, setIsLeaveManagementOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>("holidays");
   const supabase = createClient();
   const { toast } = useToast();
 
   useEffect(() => {
     checkConnectionStatus();
     fetchHolidays();
+    fetchUserRole();
+    fetchLeaveRequests();
     
     // Check for OAuth callback success
     const urlParams = new URLSearchParams(window.location.search);
@@ -263,12 +289,41 @@ export default function GoogleCalendarView() {
     }
   };
 
+  const fetchUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      setIsAdmin(userInfo?.role === 'admin');
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
+
   const fetchHolidays = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!userInfo?.team_id) return;
+
       const currentYear = new Date().getFullYear();
       const { data, error } = await supabase
         .from('bank_holidays')
         .select('*')
+        .eq('team_id', userInfo.team_id)
         .eq('year', currentYear)
         .eq('is_active', true)
         .order('holiday_date', { ascending: true });
@@ -277,6 +332,24 @@ export default function GoogleCalendarView() {
       setHolidays(data || []);
     } catch (error) {
       console.error("Error fetching holidays:", error);
+    }
+  };
+
+  const fetchLeaveRequests = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('team_leaves')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setLeaveRequests(data || []);
+    } catch (error) {
+      console.error("Error fetching leave requests:", error);
     }
   };
 
@@ -316,14 +389,29 @@ export default function GoogleCalendarView() {
       events.push(...googleEvents);
     }
     
-    if (showHolidays) {
+    if (showHolidaysAndLeave) {
+      // Add holidays
       events.push(...holidays.map(h => ({
         id: h.id,
         title: h.holiday_name,
         start_time: h.holiday_date,
         end_time: h.holiday_date,
         all_day: true,
+        status: 'holiday',
       })));
+      
+      // Add leave requests (excluding rejected ones)
+      events.push(...leaveRequests
+        .filter(lr => lr.status.toLowerCase() !== 'rejected')
+        .map(lr => ({
+          id: lr.id,
+          title: `${lr.leave_type} (${lr.status})`,
+          start_time: lr.start_date,
+          end_time: lr.end_date,
+          all_day: true,
+          description: lr.description,
+          status: lr.status,
+        })));
     }
 
     return events.sort((a, b) => {
@@ -527,97 +615,103 @@ export default function GoogleCalendarView() {
 
   return (
     <div className="space-y-4 sm:space-y-6 py-2 sm:py-4">
-
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-
-     
-
-      {/* Toggle Controls */}
+      {/* Controls and Connection Status */}
       <Card className="border-0">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm text-gray-600">Google Calendar</span>
-              <Switch
-                checked={showGoogleCalendar}
-                onCheckedChange={setShowGoogleCalendar}
-                disabled={!connectionStatus.connected}
-                className="data-[state=checked]:bg-blue-600"
-              />
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Left Side - Controls */}
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm text-gray-600">Google Calendar</span>
+                <Switch
+                  checked={showGoogleCalendar}
+                  onCheckedChange={setShowGoogleCalendar}
+                  disabled={!connectionStatus.connected}
+                  className="data-[state=checked]:bg-blue-600"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm text-gray-600">Holidays & Leave</span>
+                <Switch
+                  checked={showHolidaysAndLeave}
+                  onCheckedChange={setShowHolidaysAndLeave}
+                  className="data-[state=checked]:bg-blue-600"
+                />
+              </div>
+              {showHolidaysAndLeave && (
+                <>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsLeaveManagementOpen(true)}
+                      className="gap-2 px-4 py-5"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Manage Leave
+                    </Button>
+                  )}
+                  <LeaveRequest onLeaveRequested={fetchLeaveRequests} />
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm text-gray-600">Holidays</span>
-              <Switch
-                checked={showHolidays}
-                onCheckedChange={setShowHolidays}
-                className="data-[state=checked]:bg-blue-600"
-              />
+
+            {/* Right Side - Connection Status */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              {connectionStatus.connected ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <div className="text-xs sm:text-sm">
+                      <div className="font-medium text-gray-900">Connected</div>
+                      <div className="text-gray-500">{connectionStatus.account_name}</div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDisconnect}
+                    className="transition-all duration-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                  >
+                    Disconnect
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={syncCalendar}
+                    disabled={isSyncing}
+                    className="transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                      <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
+                    </span>
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleConnect}
+                  disabled={isConnecting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                  size="sm"
+                >
+                  {isConnecting ? (
+                    <span className="flex items-center gap-2">
+                      <Spinner className="h-4 w-4" />
+                      <span>Connecting...</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      <span>Connect Google Calendar</span>
+                    </span>
+                  )}
+                </Button>
+              )}
             </div>
-           
           </div>
         </CardContent>
       </Card>
-
-       {/* Header with Connection Status and Controls */}
-       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          {/* Connection Status */}
-          {connectionStatus.connected ? (
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <div className="text-xs sm:text-sm">
-                <div className="font-medium text-gray-900">Connected</div>
-                <div className="text-gray-500">{connectionStatus.account_name}</div>
-              </div>
-              <Button
-                variant="outline"
-                size="default"
-                onClick={handleDisconnect}
-                className="transition-all duration-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
-              >
-                Disconnect
-              </Button>
-            </div>
-          ) : (
-            <Button
-              onClick={handleConnect}
-              disabled={isConnecting}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
-              size="default"
-            >
-              {isConnecting ? (
-                <span className="flex items-center gap-2">
-                  <Spinner className="h-4 w-4" />
-                  <span>Connecting...</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <LinkIcon className="h-4 w-4" />
-                  <span>Connect Google Calendar</span>
-                </span>
-              )}
-            </Button>
-          )}
-
-          {/* Sync Button */}
-          {connectionStatus.connected && (
-            <Button
-              variant="outline"
-              size="default"
-              onClick={syncCalendar}
-              disabled={isSyncing}
-              className="transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              <span className="flex items-center gap-2">
-                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
-              </span>
-            </Button>
-          )}
-        </div>
-      </div>
-      </div>
       {/* Events Display */}
       {viewMode === 'calendar' ? (
         <CalendarView events={getFilteredEvents()} />
@@ -649,6 +743,59 @@ export default function GoogleCalendarView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Unified Leave Management Modal */}
+      <Dialog open={isLeaveManagementOpen} onOpenChange={setIsLeaveManagementOpen}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0 bg-white">
+            <DialogTitle className="text-xl font-semibold">Leave Management</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-shrink-0 px-6 pt-4 pb-3 border-b bg-gray-50/50">
+                <TabsList className="w-full justify-start bg-transparent p-0 h-auto gap-1">
+                  <TabsTrigger 
+                    value="holidays" 
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 data-[state=inactive]:hover:bg-gray-100 transition-all border-0"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Manage Holidays
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="entitlements" 
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 data-[state=inactive]:hover:bg-gray-100 transition-all border-0"
+                  >
+                    <Users className="h-4 w-4" />
+                    Set Leave Days
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="approvals" 
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 data-[state=inactive]:hover:bg-gray-100 transition-all border-0"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Approve Requests
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <div className="flex-1 overflow-y-auto min-h-0 bg-white">
+                <div className="px-6 py-6">
+                  <TabsContent value="holidays" className="mt-0 focus-visible:outline-none data-[state=active]:animate-in data-[state=inactive]:animate-out">
+                    <BankHolidaysManager onHolidaysUpdated={() => {
+                      fetchHolidays();
+                    }} />
+                  </TabsContent>
+                  <TabsContent value="entitlements" className="mt-0 focus-visible:outline-none data-[state=active]:animate-in data-[state=inactive]:animate-out">
+                    <LeaveEntitlements />
+                  </TabsContent>
+                  <TabsContent value="approvals" className="mt-0 focus-visible:outline-none data-[state=active]:animate-in data-[state=inactive]:animate-out">
+                    <LeaveApprovals />
+                  </TabsContent>
+                </div>
+              </div>
+            </Tabs>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -114,6 +114,7 @@ export default function LeaveEntitlements() {
   };
 
   const fetchTeamMembersLeaveInfo = async () => {
+    setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -126,8 +127,12 @@ export default function LeaveEntitlements() {
 
       if (!userInfo?.team_id) return;
 
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
       const currentYear = new Date().getFullYear();
+      
+      // Debug: Verify data exists
+      console.log('=== Leave Entitlements Debug ===');
+      console.log('Current Year:', currentYear);
+      console.log('Team ID:', userInfo.team_id);
 
       // Get team members with their leave info
       const { data: teamMembersData, error: teamError } = await supabase
@@ -141,25 +146,103 @@ export default function LeaveEntitlements() {
       // Calculate leave info for each team member
       const membersWithLeaveInfo = await Promise.all(
         (teamMembersData || []).map(async (member: TeamMember) => {
-          const { data: leaveInfo } = await supabase.rpc('calculate_remaining_leave_days', {
-            p_user_id: member.user_id,
-            p_year: currentYear
-          });
+          try {
+            const { data: leaveInfo, error: rpcError } = await supabase.rpc('calculate_remaining_leave_days', {
+              p_user_id: member.user_id,
+              p_year: currentYear
+            });
 
-          return {
-            user_id: member.user_id,
-            full_name: member.full_name,
-            total_entitlement: leaveInfo?.[0]?.total_entitlement || 25,
-            used_leave_days: leaveInfo?.[0]?.used_leave_days || 0,
-            bank_holidays: leaveInfo?.[0]?.bank_holidays || 0,
-            remaining_days: leaveInfo?.[0]?.remaining_days || 25
-          };
+            if (rpcError) {
+              console.error(`Error calculating leave for ${member.full_name}:`, rpcError);
+              console.error('RPC Error details:', JSON.stringify(rpcError, null, 2));
+              // Return default values on error
+              return {
+                user_id: member.user_id,
+                full_name: member.full_name,
+                total_entitlement: 25,
+                used_leave_days: 0,
+                bank_holidays: 0,
+                remaining_days: 25
+              };
+            }
+
+            // The RPC function returns a table, so data is an array
+            // It should always return at least one row
+            const info = leaveInfo && leaveInfo.length > 0 ? leaveInfo[0] : null;
+
+            if (!info) {
+              console.warn(`No leave info returned for ${member.full_name}`, { leaveInfo, currentYear, userId: member.user_id });
+              return {
+                user_id: member.user_id,
+                full_name: member.full_name,
+                total_entitlement: 25,
+                used_leave_days: 0,
+                bank_holidays: 0,
+                remaining_days: 25
+              };
+            }
+
+            // Log the values for debugging
+            console.log(`Leave info for ${member.full_name}:`, {
+              total_entitlement: info.total_entitlement,
+              used_leave_days: info.used_leave_days,
+              bank_holidays: info.bank_holidays,
+              remaining_days: info.remaining_days,
+              rawData: info
+            });
+            
+            // Also verify by querying directly
+            const { data: directLeaves } = await supabase
+              .from('team_leaves')
+              .select('duration_days, status, start_date')
+              .eq('user_id', member.user_id)
+              .in('status', ['approved', 'pending']);
+            
+            const { data: directHolidays } = await supabase
+              .from('bank_holidays')
+              .select('*')
+              .eq('team_id', userInfo.team_id)
+              .eq('year', currentYear)
+              .eq('is_active', true);
+            
+            console.log(`Direct query for ${member.full_name}:`, {
+              leaves: directLeaves,
+              holidays: directHolidays,
+              holidayCount: directHolidays?.length || 0
+            });
+
+            return {
+              user_id: member.user_id,
+              full_name: member.full_name,
+              total_entitlement: Number(info.total_entitlement) || 25,
+              used_leave_days: Number(info.used_leave_days) || 0,
+              bank_holidays: Number(info.bank_holidays) || 0,
+              remaining_days: Number(info.remaining_days) || 25
+            };
+          } catch (error) {
+            console.error(`Error processing leave info for ${member.full_name}:`, error);
+            return {
+              user_id: member.user_id,
+              full_name: member.full_name,
+              total_entitlement: 25,
+              used_leave_days: 0,
+              bank_holidays: 0,
+              remaining_days: 25
+            };
+          }
         }) || []
       );
 
       setTeamMembers(membersWithLeaveInfo);
     } catch (error: any) {
       console.error("Error fetching team members leave info:", error);
+      toast({
+        title: "Error fetching leave information",
+        description: error.message || "Failed to fetch team members leave information",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -209,8 +292,8 @@ export default function LeaveEntitlements() {
         });
       }
 
-      fetchEntitlements();
-      fetchTeamMembersLeaveInfo();
+      await fetchEntitlements();
+      await fetchTeamMembersLeaveInfo();
       setIsDialogOpen(false);
     } catch (error: any) {
       toast({
@@ -238,8 +321,8 @@ export default function LeaveEntitlements() {
         title: "Entitlement deleted",
         description: "Leave entitlement has been deleted successfully.",
       });
-      fetchEntitlements();
-      fetchTeamMembersLeaveInfo();
+      await fetchEntitlements();
+      await fetchTeamMembersLeaveInfo();
     } catch (error: any) {
       toast({
         title: "Error deleting entitlement",
@@ -282,12 +365,15 @@ export default function LeaveEntitlements() {
   }
 
   return (
-    <div className="space-y-6 py-4">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex justify-between items-start pb-4 border-b">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">Leave Entitlements</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage leave entitlements for your team.
+          <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
+            <Users className="h-6 w-6 text-blue-600" />
+            Leave Entitlements
+          </h2>
+          <p className="text-sm text-gray-500 mt-1.5">
+            Manage leave entitlements for your team
           </p>
         </div>
         <Button onClick={handleAddEntitlement} className="bg-blue-600 hover:bg-blue-700">
@@ -296,6 +382,15 @@ export default function LeaveEntitlements() {
         </Button>
       </div>
 
+      {isLoading && teamMembers.length === 0 && entitlements.length === 0 ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-200 border-t-blue-600"></div>
+            <p className="text-sm text-gray-500">Loading leave entitlements...</p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Team Members Leave Summary */}
       <Card>
         <CardHeader>
@@ -308,8 +403,21 @@ export default function LeaveEntitlements() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {teamMembers.map((member) => (
+          {isLoading && teamMembers.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600"></div>
+                <p className="text-sm text-gray-500">Loading team leave summary...</p>
+              </div>
+            </div>
+          ) : teamMembers.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No team members found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {teamMembers.map((member) => (
               <div key={member.user_id} className="p-4 border rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-gray-900">{member.full_name}</h3>
@@ -335,8 +443,9 @@ export default function LeaveEntitlements() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -399,6 +508,8 @@ export default function LeaveEntitlements() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
 
       {/* Add/Edit Entitlement Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

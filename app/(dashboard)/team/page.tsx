@@ -23,6 +23,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // --- New Type Definitions for Relational Data ---
 
@@ -246,12 +251,44 @@ export default function ChainOfCommandPage() {
                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
                         {member.department?.name && <Badge className={`${getDepartmentColor(member.department.name)} hover:bg-opacity-80 text-white`}>{member.department.name}</Badge>}
                        </TableCell>
-                       <TableCell className="px-6 py-4 whitespace-normal text-sm text-gray-600 border-l">
-                         <ul className="list-disc list-inside space-y-1">
-                          {member.critical_accountabilities?.map((cab, i) => (
-                            <li key={i}>{cab.value}</li>
-                          ))}
-                         </ul>
+                       <TableCell className="px-6 py-4 whitespace-normal text-sm text-gray-600 border-l max-w-[300px]">
+                         {member.critical_accountabilities && member.critical_accountabilities.length > 0 ? (
+                           <Popover>
+                             <PopoverTrigger asChild>
+                               <button 
+                                 type="button"
+                                 className="text-left cursor-pointer hover:text-blue-600 transition-colors w-full"
+                               >
+                                 <ul className="list-disc list-inside space-y-0.5">
+                                   {member.critical_accountabilities.slice(0, 2).map((cab, i) => (
+                                     <li key={i} className="line-clamp-1">{cab.value}</li>
+                                   ))}
+                                 </ul>
+                                 {member.critical_accountabilities.length > 2 && (
+                                   <span className="text-xs text-blue-600 hover:underline mt-1 block font-medium">
+                                     +{member.critical_accountabilities.length - 2} more (click to view all)
+                                   </span>
+                                 )}
+                               </button>
+                             </PopoverTrigger>
+                             <PopoverContent 
+                               side="right" 
+                               className="max-w-sm p-4"
+                               sideOffset={5}
+                             >
+                               <div className="space-y-2">
+                                 <h4 className="font-semibold text-sm mb-2">Critical Accountabilities</h4>
+                                 <ul className="list-disc list-inside space-y-1.5">
+                                   {member.critical_accountabilities.map((cab, i) => (
+                                     <li key={i} className="text-sm text-gray-700">{cab.value}</li>
+                                   ))}
+                                 </ul>
+                               </div>
+                             </PopoverContent>
+                           </Popover>
+                         ) : (
+                           <span className="text-gray-400">—</span>
+                         )}
                       </TableCell>
                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
                          <div className="flex flex-col gap-1.5">

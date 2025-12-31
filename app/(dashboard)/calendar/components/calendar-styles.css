@@ -51,6 +51,24 @@
   color: white;
 }
 
+.rbc-event-leave-pending {
+  background-color: #f59e0b;
+  border-color: #d97706;
+  color: white;
+}
+
+.rbc-event-leave-approved {
+  background-color: #10b981;
+  border-color: #059669;
+  color: white;
+}
+
+.rbc-event-leave-rejected {
+  background-color: #ef4444;
+  border-color: #dc2626;
+  color: white;
+}
+
 .rbc-event-content {
   overflow: hidden;
   text-overflow: ellipsis;
