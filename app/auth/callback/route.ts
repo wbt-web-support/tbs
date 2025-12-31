@@ -59,9 +59,12 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .single();
 
-    // Redirect super_admin to /admin, others to /dashboard
+    // Redirect super_admin to /admin, users with role "user" to /member/dashboard, others to /dashboard
     if (userProfile?.role === 'super_admin') {
       return NextResponse.redirect(`${origin}/admin`);
+    }
+    if (userProfile?.role === 'user') {
+      return NextResponse.redirect(`${origin}/member/dashboard`);
     }
   }
 

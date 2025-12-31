@@ -111,7 +111,7 @@ export const getInvitationEmailHtml = ({
         </div>
         <div class="footer">
           <p>If you have any questions, please contact ${invitedBy}.</p>
-          <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
+          <p>&copy; ${new Date().getFullYear()} The Trades Business School. All rights reserved.</p>
         </div>
       </div>
     </body>

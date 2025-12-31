@@ -94,7 +94,7 @@ export const getWelcomeEmailHtml = ({
         <img src="https://app.tradebusinessschool.com/logo.png" alt="Trades Business School Logo" class="logo">
         
         <div class="header">
-          <h1>Welcome to Trades Business School</h1>
+          <h1>Welcome to The Trades Business School</h1>
           <p>Your central hub for business growth and success</p>
         </div>
         

@@ -24,6 +24,7 @@ const dashboardPages = [
   '/sop',
   '/triage-planner',
   '/ai-onboarding',
+  '/member',
 ]
 
 export async function middleware(request: NextRequest) {
@@ -107,8 +108,13 @@ export async function middleware(request: NextRequest) {
       (onboardingData?.completed || userData?.role === 'super_admin') &&
       request.nextUrl.pathname.startsWith('/onboarding')
     ) {
-      // Redirect super_admin to /admin, others to /dashboard
-      const redirectUrl = userData?.role === 'super_admin' ? '/admin' : '/dashboard'
+      // Redirect super_admin to /admin, users with role "user" to /member/dashboard, others to /dashboard
+      let redirectUrl = '/dashboard'
+      if (userData?.role === 'super_admin') {
+        redirectUrl = '/admin'
+      } else if (userData?.role === 'user') {
+        redirectUrl = '/member/dashboard'
+      }
       return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
@@ -122,13 +128,26 @@ export async function middleware(request: NextRequest) {
       if (!onboardingData?.completed) {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       }
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      // Redirect users with role "user" to /member/dashboard, others to /dashboard
+      const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
+      return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
     if (request.nextUrl.pathname.startsWith('/admin')) {
       if (userData?.role !== 'super_admin') {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
+        return NextResponse.redirect(new URL(redirectUrl, request.url))
       }
+    }
+
+    // Redirect users with role "user" from /dashboard to /member/dashboard
+    if (userData?.role === 'user' && request.nextUrl.pathname === '/dashboard') {
+      return NextResponse.redirect(new URL('/member/dashboard', request.url))
+    }
+
+    // Prevent non-user roles from accessing /member routes
+    if (request.nextUrl.pathname.startsWith('/member') && userData?.role !== 'user') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
     if (isDashboardPage && userData?.role === 'user') {
@@ -137,12 +156,12 @@ export async function middleware(request: NextRequest) {
       const allowedPages = permissions?.pages ?? []
 
       if (pageSlug === 'invite') {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        return NextResponse.redirect(new URL('/member/dashboard', request.url))
       }
 
-      const defaultAllowed = ['dashboard', 'profile']
+      const defaultAllowed = ['dashboard', 'profile', 'member']
       if (!allowedPages.includes(pageSlug) && !defaultAllowed.includes(pageSlug)) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+        return NextResponse.redirect(new URL('/member/dashboard', request.url))
       }
     }
   }
