@@ -8,6 +8,7 @@ import { Send, Loader2, Plus, Code, PenTool, GraduationCap, Coffee, Lightbulb, X
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
 import { MemberChatInput } from "./member-chat-input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Message {
   role: "user" | "assistant";
@@ -586,10 +587,38 @@ export function MemberChat() {
     },
   ];
 
+  // Show skeleton for initial loading (centered greeting interface)
   if (isLoadingHistory && messages.length === 0 && !currentInstanceId) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      <div className="flex flex-col h-full w-full">
+        {/* Centered Greeting Interface Skeleton */}
+        <div className="flex-1 flex items-center justify-center px-4 md:px-6 py-4 md:py-6">
+          <div className="w-full max-w-3xl mx-auto">
+            {/* Greeting Skeleton */}
+            <div className="text-center mb-8">
+              <Skeleton className="h-12 md:h-16 w-64 md:w-96 mx-auto mb-4 rounded-lg" />
+              <Skeleton className="h-6 w-48 mx-auto rounded" />
+            </div>
+            
+            {/* Input Area Skeleton */}
+            <div className="mb-6">
+              <div className="relative bg-white rounded-2xl border border-gray-200 p-3 md:p-4">
+                <div className="flex items-end gap-2">
+                  <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+                  <Skeleton className="h-10 flex-1 rounded-xl" />
+                  <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Action Buttons Skeleton */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-10 w-32 rounded-full" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -598,13 +627,55 @@ export function MemberChat() {
 
   return (
     <div className="flex flex-col h-full w-full">
-      {/* Messages Area */}
+      {/* Messages Area - Active Chat Interface */}
       {!showGreeting && (
         <div className="flex-1 overflow-hidden bg-white">
           <ScrollArea className="h-full" ref={scrollAreaRef}>
             <div className="max-w-4xl mx-auto w-full px-4 pt-12">
               <div className="space-y-6 py-6 pb-0">
-              {messages.map((message, index) => {
+              {isLoadingHistory && messages.length === 0 ? (
+                <>
+                  {/* Loading skeleton for chat messages */}
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl bg-gray-50 px-4 py-3">
+                      <Skeleton className="h-4 w-48 mb-2 rounded" />
+                      <Skeleton className="h-4 w-32 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl bg-white px-5 py-4">
+                      <Skeleton className="h-4 w-full mb-2 rounded" />
+                      <Skeleton className="h-4 w-full mb-2 rounded" />
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl bg-gray-50 px-4 py-3">
+                      <Skeleton className="h-4 w-56 mb-2 rounded" />
+                      <Skeleton className="h-4 w-40 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl bg-white px-5 py-4">
+                      <Skeleton className="h-4 w-full mb-2 rounded" />
+                      <Skeleton className="h-4 w-full mb-2 rounded" />
+                      <Skeleton className="h-4 w-5/6 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl bg-gray-50 px-4 py-3">
+                      <Skeleton className="h-4 w-44 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl bg-white px-5 py-4">
+                      <Skeleton className="h-4 w-full mb-2 rounded" />
+                      <Skeleton className="h-4 w-4/5 rounded" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                messages.map((message, index) => {
                 // Extract images from message content
                 const imageMarkdownRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
                 const imageUrls: string[] = [];
@@ -713,7 +784,7 @@ export function MemberChat() {
                     </div>
                   </div>
                 );
-              })}
+              }))}
               
               {/* Bot typing indicator placeholder with glowing lines */}
               {showBotTyping && (
@@ -735,10 +806,10 @@ export function MemberChat() {
       )}
 
       {/* Input Area - Centered when greeting, bottom when messages */}
-      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center' : ''} px-4 md:px-6 py-4 md:py-6 border-t border-gray-100`}>
+      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center' : ''} px-4 md:px-6 py-4 md:py-6 !pt-0`}>
         <div className={`w-full ${showGreeting ? 'max-w-3xl mx-auto' : 'max-w-4xl mx-auto'}`}>
           {error && (
-            <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl">
+            <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl ">
               {error}
             </div>
           )}

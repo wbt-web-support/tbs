@@ -75,11 +75,11 @@ const navigationSections: NavigationSection[] = [
         href: "/dashboard",
         icon: LayoutDashboard,
       },
-      {
-        name: "Calendar",
-        href: "/calendar",
-        icon: Calendar,
-      },
+      // {
+      //   name: "Calendar",
+      //   href: "/calendar",
+      //   icon: Calendar,
+      // },
       {
         name: "Modules",
         href: "/modules",

@@ -68,7 +68,7 @@ export function MemberChatInput({
       {/* Input Container */}
       <div
         className={cn(
-          "relative bg-white rounded-2xl border-1 transition-all duration-200 !border-gray-200 border",
+          "relative bg-white rounded-2xl border-1 transition-all duration-200 !border-gray-200 border shadow-xl",
           isFocused
             ? "border-blue-500 ring-1 ring-blue-500/20"
             : "border-gray-200 hover:border-gray-300"

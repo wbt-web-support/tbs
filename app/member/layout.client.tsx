@@ -263,10 +263,12 @@ export function MemberLayoutClient({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [currentInstanceId, setCurrentInstanceId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
 
   // Detect mobile
   useEffect(() => {
@@ -278,19 +280,59 @@ export function MemberLayoutClient({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Load chat instance from URL on mount
+  useEffect(() => {
+    if (hasLoadedFromUrl) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const chatId = params.get('chat');
+    if (chatId) {
+      setCurrentInstanceId(chatId);
+      setHasLoadedFromUrl(true);
+      // Small delay to ensure chat component is ready
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('member-chat:select-instance', { detail: { instanceId: chatId } }));
+      }, 100);
+    } else {
+      setHasLoadedFromUrl(true);
+    }
+  }, [hasLoadedFromUrl]);
+
   // Listen for instance changes from chat component
   useEffect(() => {
     const handleInstanceChange = (event: CustomEvent) => {
-      setCurrentInstanceId(event.detail.instanceId);
+      const instanceId = event.detail.instanceId;
+      setCurrentInstanceId(instanceId);
+      
+      // Update URL with chat ID
+      const params = new URLSearchParams(window.location.search);
+      if (instanceId) {
+        params.set('chat', instanceId);
+      } else {
+        params.delete('chat');
+      }
+      const newUrl = params.toString() 
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      router.replace(newUrl, { scroll: false });
     };
 
     window.addEventListener('member-chat:instance-changed', handleInstanceChange as EventListener);
     return () => {
       window.removeEventListener('member-chat:instance-changed', handleInstanceChange as EventListener);
     };
-  }, []);
+  }, [router]);
 
   const handleNewChat = () => {
+    // Clear URL chat parameter for new chat
+    const params = new URLSearchParams(window.location.search);
+    params.delete('chat');
+    const newUrl = params.toString() 
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+    router.replace(newUrl, { scroll: false });
+    
+    setCurrentInstanceId(null);
     window.dispatchEvent(new CustomEvent('member-chat:new-chat'));
     if (isMobile) {
       setMobileSidebarOpen(false);
@@ -300,6 +342,13 @@ export function MemberLayoutClient({
   const handleSelectInstance = (instanceId: string) => {
     setCurrentInstanceId(instanceId);
     window.dispatchEvent(new CustomEvent('member-chat:select-instance', { detail: { instanceId } }));
+    
+    // Update URL with chat ID
+    const params = new URLSearchParams(window.location.search);
+    params.set('chat', instanceId);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    router.replace(newUrl, { scroll: false });
+    
     // Close mobile sidebar after selecting
     if (isMobile) {
       setMobileSidebarOpen(false);
@@ -310,6 +359,13 @@ export function MemberLayoutClient({
     window.dispatchEvent(new CustomEvent('member-chat:delete-instance', { detail: { instanceId } }));
     if (currentInstanceId === instanceId) {
       setCurrentInstanceId(null);
+      // Clear URL chat parameter when deleting current chat
+      const params = new URLSearchParams(window.location.search);
+      params.delete('chat');
+      const newUrl = params.toString() 
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      router.replace(newUrl, { scroll: false });
     }
   };
 

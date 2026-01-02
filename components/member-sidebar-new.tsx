@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Loader2, Edit2, Trash2, Check, MessageSquare, MoreVertical } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ChatInstance {
   id: string;
@@ -56,6 +57,7 @@ export function MemberSidebarNew({
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [loadingInstanceId, setLoadingInstanceId] = useState<string | null>(null);
   const hasLoadedRef = useRef(chatInstances.length > 0);
   const supabase = createClient();
 
@@ -140,6 +142,28 @@ export function MemberSidebarNew({
     setEditingTitle("");
   };
 
+  const handleSelectInstance = (instanceId: string) => {
+    setLoadingInstanceId(instanceId);
+    onSelectInstance(instanceId);
+  };
+
+  // Clear loading state when instance is loaded or when currentInstanceId changes
+  useEffect(() => {
+    if (currentInstanceId) {
+      // If the loaded instance matches the loading one, clear it
+      if (loadingInstanceId === currentInstanceId) {
+        // Small delay to ensure smooth transition
+        const timer = setTimeout(() => {
+          setLoadingInstanceId(null);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      // If no instance is selected, clear loading
+      setLoadingInstanceId(null);
+    }
+  }, [currentInstanceId, loadingInstanceId]);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <ScrollArea className="flex-1 min-h-0">
@@ -147,8 +171,16 @@ export function MemberSidebarNew({
           {!isCollapsed && (
             <>
               {isLoadingInstances && chatInstances.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                <div className="space-y-1 px-3 py-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Skeleton className="h-4 w-4 rounded shrink-0" />
+                        <Skeleton className={`h-4 rounded ${i % 2 === 0 ? 'w-32' : 'w-24'}`} />
+                      </div>
+                      <Skeleton className="h-8 w-8 rounded-xl shrink-0" />
+                    </div>
+                  ))}
                 </div>
               ) : chatInstances.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
@@ -193,10 +225,14 @@ export function MemberSidebarNew({
                 ) : (
                   <div
                     className="flex items-center justify-between gap-2"
-                    onClick={() => onSelectInstance(instance.id)}
+                    onClick={() => handleSelectInstance(instance.id)}
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <MessageSquare className="h-4 w-4 shrink-0 text-gray-500" />
+                      {loadingInstanceId === instance.id ? (
+                        <Loader2 className="h-4 w-4 shrink-0 text-blue-600 animate-spin" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4 shrink-0 text-gray-500" />
+                      )}
                       <h3 className="font-medium text-sm truncate">
                         {instance.title}
                       </h3>
@@ -212,7 +248,7 @@ export function MemberSidebarNew({
                           onClick={(e) => {
                             e.stopPropagation();
                           }}
-                          className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-8 w-8 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         >
                           <MoreVertical className="h-4 w-4" />
                           <span className="sr-only">Open menu</span>
