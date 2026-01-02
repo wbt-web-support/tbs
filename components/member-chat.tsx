@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Plus, Code, PenTool, GraduationCap, Coffee, Lightbulb, X, HelpCircle, Globe, Paperclip, BarChart3 } from "lucide-react";
+import { Send, Loader2, Plus, Code, PenTool, GraduationCap, Coffee, Lightbulb, X, HelpCircle, Globe, Paperclip, BarChart3, ArrowRight, ArrowUp } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
 
@@ -576,8 +576,8 @@ export function MemberChat() {
       {!showGreeting && (
         <div className="flex-1 overflow-hidden bg-white">
           <ScrollArea className="h-full" ref={scrollAreaRef}>
-            <div className="max-w-4xl mx-auto w-full px-4">
-              <div className="space-y-6 py-6">
+            <div className="max-w-4xl mx-auto w-full px-4 pt-12">
+              <div className="space-y-6 py-6 pb-0">
               {messages.map((message, index) => {
                 // Extract images from message content
                 const imageMarkdownRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
@@ -694,8 +694,8 @@ export function MemberChat() {
                 <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 text-gray-800">
                     <div className="flex flex-col gap-1.5 w-36">
-                      <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
-                      <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
+                      <div className="h-2 rounded-full bg-transparent animate-pulse"></div>
+                      <div className="h-2 w-2/3 rounded-full bg-transparent animate-pulse delay-75"></div>
                     </div>
                   </div>
                 </div>
@@ -709,7 +709,7 @@ export function MemberChat() {
       )}
 
       {/* Input Area - Centered when greeting, bottom when messages */}
-      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-white' : 'bg-white'} pb-4 px-4`}>
+      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center bg-transparent' : 'bg-transparent'} px-3 md:px-4 py-3 md:pb-4 pt-0`}>
         <div className={`w-full ${showGreeting ? 'max-w-3xl mx-auto' : ''}`}>
           {error && (
             <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded">
@@ -721,7 +721,7 @@ export function MemberChat() {
           {showGreeting && (
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-5xl font-normal text-gray-800">
-                {getGreetingMessage()}{userName ? `, ${userName}` : ''}
+                {getGreetingMessage()}{userName ? `, ${userName}` : ''} 🖐️
               </h1>
             </div>
           )}
@@ -768,17 +768,17 @@ export function MemberChat() {
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={showGreeting ? "How can I help you today?" : "Type your message..."}
-                className="min-h-[60px] w-full max-h-32 px-4 py-4 bg-transparent border-0 rounded-2xl focus:outline-none resize-none text-gray-800 placeholder:text-gray-500"
+                className="md:min-h-[60px] min-h-[40px] w-full max-h-32 md:px-4 md:py-4 px-3 py-3 bg-transparent border-0 rounded-2xl focus:outline-none resize-none text-gray-800 placeholder:text-gray-500"
                 rows={1}
                 disabled={isLoading}
               />
               
               {/* Second row - Plus and Send buttons */}
-              <div className="flex items-center justify-between px-4 pb-3">
+              <div className="flex items-center justify-between md:px-4 px-3 md:pb-3 pb-2">
                 {/* Plus button */}
                 <button
                   type="button"
-                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors bg-gray-200"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={chatImages.length >= 5 || isLoading}
                   title="Attach file"
@@ -790,12 +790,16 @@ export function MemberChat() {
                 <Button
                   onClick={() => handleSendMessage()}
                   disabled={isLoading || (!inputText.trim() && chatImages.length === 0)}
-                  className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-0 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send className="h-4 w-4" />
+                    <>
+                    <span className="">Send</span>
+                    <ArrowUp className="h-4 w-4" />
+                    
+                    </>
                   )}
                 </Button>
               </div>

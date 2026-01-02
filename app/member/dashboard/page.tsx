@@ -54,7 +54,7 @@ export default function MemberDashboard() {
 
 
       {/* Main Chat Area */}
-      <main className="flex-1 overflow-hidden bg-gradient-to-br from-gray-50 to-white">
+      <main className="flex-1 overflow-hidden bg-transparent">
         <MemberChat />
       </main>
     </div>

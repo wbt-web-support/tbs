@@ -41,7 +41,7 @@ function SidebarContentWrapper({
   onDeleteInstance: (instanceId: string) => void;
   onUpdateInstanceTitle: (instanceId: string, newTitle: string) => void;
 }) {
-  const { state } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [user, setUser] = useState<any>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
@@ -72,6 +72,18 @@ function SidebarContentWrapper({
 
     loadUserData();
   }, [supabase]);
+
+  // Listen for close mobile sidebar event
+  useEffect(() => {
+    const handleCloseMobile = () => {
+      setOpenMobile(false);
+    };
+
+    window.addEventListener('member-sidebar:close-mobile', handleCloseMobile);
+    return () => {
+      window.removeEventListener('member-sidebar:close-mobile', handleCloseMobile);
+    };
+  }, [setOpenMobile]);
 
   return (
     <Sidebar
@@ -262,6 +274,8 @@ export function MemberLayoutClient({
   const handleSelectInstance = (instanceId: string) => {
     setCurrentInstanceId(instanceId);
     window.dispatchEvent(new CustomEvent('member-chat:select-instance', { detail: { instanceId } }));
+    // Close sidebar on mobile after selecting
+    window.dispatchEvent(new CustomEvent('member-sidebar:close-mobile'));
   };
 
   const handleDeleteInstance = (instanceId: string) => {
