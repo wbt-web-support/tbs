@@ -126,7 +126,7 @@ function SidebarContent({
         isCollapsed ? "px-2" : "px-4 pb-5 pt-0"
       )}>
         <Link
-          href="/calendar"
+          href="/member/calendar"
           className={cn(
             "flex items-center gap-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors",
             isCollapsed ? "justify-center px-2 w-10 h-10 mx-auto" : "px-3"
@@ -137,7 +137,7 @@ function SidebarContent({
           {!isCollapsed && <span className="text-sm">Calendar</span>}
         </Link>
         <Link
-          href="/playbook-planner"
+          href="/member/playbook-planner"
           className={cn(
             "flex items-center gap-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors",
             isCollapsed ? "justify-center px-2 w-10 h-10 mx-auto" : "px-3"
@@ -294,6 +294,7 @@ export function MemberLayoutClient({
         window.dispatchEvent(new CustomEvent('member-chat:select-instance', { detail: { instanceId: chatId } }));
       }, 100);
     } else {
+      setCurrentInstanceId(null);
       setHasLoadedFromUrl(true);
     }
   }, [hasLoadedFromUrl]);
@@ -304,17 +305,26 @@ export function MemberLayoutClient({
       const instanceId = event.detail.instanceId;
       setCurrentInstanceId(instanceId);
       
-      // Update URL with chat ID
-      const params = new URLSearchParams(window.location.search);
-      if (instanceId) {
-        params.set('chat', instanceId);
+      // Update URL to /member/dashboard with chat ID if we're not already there
+      if (window.location.pathname !== '/member/dashboard') {
+        if (instanceId) {
+          router.push(`/member/dashboard?chat=${instanceId}`);
+        } else {
+          router.push('/member/dashboard');
+        }
       } else {
-        params.delete('chat');
+        // Just update the URL params if we're already on dashboard
+        const params = new URLSearchParams(window.location.search);
+        if (instanceId) {
+          params.set('chat', instanceId);
+        } else {
+          params.delete('chat');
+        }
+        const newUrl = params.toString() 
+          ? `/member/dashboard?${params.toString()}`
+          : '/member/dashboard';
+        router.replace(newUrl, { scroll: false });
       }
-      const newUrl = params.toString() 
-        ? `${window.location.pathname}?${params.toString()}`
-        : window.location.pathname;
-      router.replace(newUrl, { scroll: false });
     };
 
     window.addEventListener('member-chat:instance-changed', handleInstanceChange as EventListener);
@@ -324,15 +334,9 @@ export function MemberLayoutClient({
   }, [router]);
 
   const handleNewChat = () => {
-    // Clear URL chat parameter for new chat
-    const params = new URLSearchParams(window.location.search);
-    params.delete('chat');
-    const newUrl = params.toString() 
-      ? `${window.location.pathname}?${params.toString()}`
-      : window.location.pathname;
-    router.replace(newUrl, { scroll: false });
-    
+    // Redirect to /member/dashboard for new chat
     setCurrentInstanceId(null);
+    router.push('/member/dashboard');
     window.dispatchEvent(new CustomEvent('member-chat:new-chat'));
     if (isMobile) {
       setMobileSidebarOpen(false);
@@ -341,13 +345,9 @@ export function MemberLayoutClient({
 
   const handleSelectInstance = (instanceId: string) => {
     setCurrentInstanceId(instanceId);
+    // Redirect to /member/dashboard with selected chat
+    router.push(`/member/dashboard?chat=${instanceId}`);
     window.dispatchEvent(new CustomEvent('member-chat:select-instance', { detail: { instanceId } }));
-    
-    // Update URL with chat ID
-    const params = new URLSearchParams(window.location.search);
-    params.set('chat', instanceId);
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    router.replace(newUrl, { scroll: false });
     
     // Close mobile sidebar after selecting
     if (isMobile) {
@@ -359,13 +359,8 @@ export function MemberLayoutClient({
     window.dispatchEvent(new CustomEvent('member-chat:delete-instance', { detail: { instanceId } }));
     if (currentInstanceId === instanceId) {
       setCurrentInstanceId(null);
-      // Clear URL chat parameter when deleting current chat
-      const params = new URLSearchParams(window.location.search);
-      params.delete('chat');
-      const newUrl = params.toString() 
-        ? `${window.location.pathname}?${params.toString()}`
-        : window.location.pathname;
-      router.replace(newUrl, { scroll: false });
+      // Redirect to /member/dashboard without chat parameter when deleting current chat
+      router.push('/member/dashboard');
     }
   };
 

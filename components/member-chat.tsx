@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,6 +42,7 @@ export function MemberChat() {
   const [chatImages, setChatImages] = useState<ChatImage[]>([]);
   const [showBotTyping, setShowBotTyping] = useState(false);
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   // Get greeting message
   const getGreetingMessage = () => {
@@ -94,52 +96,6 @@ export function MemberChat() {
     };
   }, []);
 
-  // Load user name and chat instance
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
-
-        // Fetch user name
-        const { data: businessInfo } = await supabase
-          .from('business_info')
-          .select('full_name')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        if (businessInfo) {
-          setFullName(businessInfo.full_name);
-          // Extract first name for greeting
-          if (businessInfo.full_name) {
-            const firstName = businessInfo.full_name.split(' ')[0];
-            setUserName(firstName);
-          }
-        }
-
-        // Fetch chat instances
-        const instancesResponse = await fetch(`/api/gemini?action=instances&group=general`, {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-
-        if (instancesResponse.ok) {
-          const instancesData = await instancesResponse.json();
-          if (instancesData.type === 'chat_instances' && Array.isArray(instancesData.instances)) {
-            // Don't auto-load any instance - show greeting interface
-            setIsLoadingHistory(false);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-        setIsLoadingHistory(false);
-      }
-    };
-
-    loadInitialData();
-  }, []);
-
   // Fetch history for a specific instance
   const fetchInstanceHistory = async (instanceId: string) => {
     try {
@@ -177,6 +133,61 @@ export function MemberChat() {
       setIsLoadingHistory(false);
     }
   };
+
+  // Load user name and chat instance
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+
+        // Fetch user name
+        const { data: businessInfo } = await supabase
+          .from('business_info')
+          .select('full_name')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (businessInfo) {
+          setFullName(businessInfo.full_name);
+          // Extract first name for greeting
+          if (businessInfo.full_name) {
+            const firstName = businessInfo.full_name.split(' ')[0];
+            setUserName(firstName);
+          }
+        }
+
+        // Check URL for chat parameter
+        const chatIdFromUrl = searchParams.get('chat');
+        
+        if (chatIdFromUrl) {
+          // Load the chat instance from URL
+          setCurrentInstanceId(chatIdFromUrl);
+          await fetchInstanceHistory(chatIdFromUrl);
+        } else {
+          // Fetch chat instances but don't auto-load
+          const instancesResponse = await fetch(`/api/gemini?action=instances&group=general`, {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          });
+
+          if (instancesResponse.ok) {
+            const instancesData = await instancesResponse.json();
+            if (instancesData.type === 'chat_instances' && Array.isArray(instancesData.instances)) {
+              // Don't auto-load any instance - show greeting interface
+              setIsLoadingHistory(false);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadInitialData();
+  }, [searchParams]);
 
   // Create a new chat instance
   const createNewInstance = async () => {
@@ -637,38 +648,38 @@ export function MemberChat() {
                 <>
                   {/* Loading skeleton for chat messages */}
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl bg-gray-50 px-4 py-3">
+                    <div className="max-w-[90%] rounded-2xl bg-gray-50 px-4 py-3">
                       <Skeleton className="h-4 w-48 mb-2 rounded" />
                       <Skeleton className="h-4 w-32 rounded" />
                     </div>
                   </div>
                   <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-2xl bg-white px-5 py-4">
+                    <div className="max-w-[90%] rounded-2xl bg-white px-5 py-4">
                       <Skeleton className="h-4 w-full mb-2 rounded" />
                       <Skeleton className="h-4 w-full mb-2 rounded" />
                       <Skeleton className="h-4 w-3/4 rounded" />
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl bg-gray-50 px-4 py-3">
+                    <div className="max-w-[90%] rounded-2xl bg-gray-50 px-4 py-3">
                       <Skeleton className="h-4 w-56 mb-2 rounded" />
                       <Skeleton className="h-4 w-40 rounded" />
                     </div>
                   </div>
                   <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-2xl bg-white px-5 py-4">
+                    <div className="max-w-[90%] rounded-2xl bg-white px-5 py-4">
                       <Skeleton className="h-4 w-full mb-2 rounded" />
                       <Skeleton className="h-4 w-full mb-2 rounded" />
                       <Skeleton className="h-4 w-5/6 rounded" />
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl bg-gray-50 px-4 py-3">
+                    <div className="max-w-[90%] rounded-2xl bg-gray-50 px-4 py-3">
                       <Skeleton className="h-4 w-44 rounded" />
                     </div>
                   </div>
                   <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-2xl bg-white px-5 py-4">
+                    <div className="max-w-[90%] rounded-2xl bg-white px-5 py-4">
                       <Skeleton className="h-4 w-full mb-2 rounded" />
                       <Skeleton className="h-4 w-4/5 rounded" />
                     </div>
@@ -692,7 +703,7 @@ export function MemberChat() {
                     className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-2xl ${
+                      className={`max-w-[90%] rounded-2xl ${
                         message.role === "user"
                           ? "bg-gray-50 text-gray-900 px-4 py-3"
                           : "bg-white text-gray-900 px-5 py-4"

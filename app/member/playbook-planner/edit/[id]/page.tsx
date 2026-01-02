@@ -55,7 +55,7 @@ export default function PlaybookEditPage() {
         description: "Failed to load playbook. Please try again.",
         variant: "destructive",
       });
-      router.push('/playbook-planner');
+      router.push('/member/playbook-planner');
     } finally {
       setLoading(false);
     }
@@ -158,7 +158,7 @@ export default function PlaybookEditPage() {
       <div className="text-center py-12">
         <h2 className="text-lg font-medium text-gray-900 mb-2">Playbook not found</h2>
         <p className="text-gray-500 mb-4">The playbook you're looking for doesn't exist.</p>
-        <Button onClick={() => router.push('/playbook-planner')}>
+        <Button onClick={() => router.push('/member/playbook-planner')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Playbooks
         </Button>
@@ -204,7 +204,7 @@ export default function PlaybookEditPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => router.push('/playbook-planner')}
+            onClick={() => router.push('/member/playbook-planner')}
             className="flex items-center gap-2 hidden"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -245,4 +245,5 @@ export default function PlaybookEditPage() {
       </div>
     </div>
   );
-} 
+}
+
