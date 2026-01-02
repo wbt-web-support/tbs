@@ -1,16 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MemberSidebar } from "@/components/member-sidebar";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { MemberSidebarNew } from "@/components/member-sidebar-new";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,29 +11,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Loader2, Calendar, BookOpen, Plus, ChevronUp } from "lucide-react";
+import { User, LogOut, Loader2, Calendar, BookOpen, Plus, ChevronUp, PanelLeftOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSidebar } from "@/components/ui/sidebar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
-function SidebarContentWrapper({
-  currentInstanceId,
-  onNewChat,
-  onSelectInstance,
-  onDeleteInstance,
-  onUpdateInstanceTitle,
-}: {
+interface SidebarContentProps {
   currentInstanceId: string | null;
   onNewChat: () => void;
   onSelectInstance: (instanceId: string) => void;
   onDeleteInstance: (instanceId: string) => void;
   onUpdateInstanceTitle: (instanceId: string, newTitle: string) => void;
-}) {
-  const { state, setOpenMobile } = useSidebar();
-  const isCollapsed = state === "collapsed";
+  isCollapsed?: boolean;
+  isMobile?: boolean;
+}
+
+function SidebarContent({
+  currentInstanceId,
+  onNewChat,
+  onSelectInstance,
+  onDeleteInstance,
+  onUpdateInstanceTitle,
+  isCollapsed = false,
+  isMobile = false,
+}: SidebarContentProps) {
   const [user, setUser] = useState<any>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
@@ -73,29 +69,17 @@ function SidebarContentWrapper({
     loadUserData();
   }, [supabase]);
 
-  // Listen for close mobile sidebar event
-  useEffect(() => {
-    const handleCloseMobile = () => {
-      setOpenMobile(false);
-    };
-
-    window.addEventListener('member-sidebar:close-mobile', handleCloseMobile);
-    return () => {
-      window.removeEventListener('member-sidebar:close-mobile', handleCloseMobile);
-    };
-  }, [setOpenMobile]);
-
   return (
-    <Sidebar
-      collapsible="icon"
-      variant="sidebar"
-      className="flex flex-col justify-between border-r border-gray-200"
-    >
-      <div className="flex flex-col h-full">
-        <SidebarHeader className="border-b border-gray-200 shrink-0">
-          <div className="flex items-center justify-between px-4 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-            {/* Logo - visible when expanded */}
-            <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+      {/* Header */}
+      <div className="border-b border-gray-200 shrink-0">
+        <div className={cn(
+          "flex items-center justify-between py-3",
+          isCollapsed ? "px-2 flex-col gap-2" : "px-4"
+        )}>
+          {/* Logo */}
+          {!isCollapsed && (
+            <div className="flex items-center gap-2">
               <Image
                 src="/logo.png"
                 alt="Trade Business School"
@@ -104,77 +88,103 @@ function SidebarContentWrapper({
                 className="object-contain"
               />
             </div>
-            <SidebarTrigger className="group-data-[collapsible=icon]:mx-auto" />
+          )}
+        </div>
+      </div>
+
+      {/* New Chat Button */}
+      <div className={cn(
+        "pt-3 pb-2 shrink-0",
+        isCollapsed ? "px-3" : "px-4"
+      )}>
+        <Button
+          onClick={onNewChat}
+          className={cn(
+            "flex items-center gap-3 bg-white hover:bg-gray-50 text-black font-medium transition-all",
+            isCollapsed
+              ? 'w-10 h-10 p-0 justify-center'
+              : 'w-full h-10 px-3 justify-start'
+          )}
+          title={isCollapsed ? "New chat" : undefined}
+        >
+          <div className={cn(
+            "flex items-center justify-center bg-blue-600 rounded-full",
+            isCollapsed ? 'w-6 h-6' : 'w-8 h-8'
+          )}>
+            <Plus className={cn(
+              "text-white shrink-0",
+              isCollapsed ? "h-4 w-4" : "h-5 w-5"
+            )} />
           </div>
-        </SidebarHeader>
+          {!isCollapsed && <span className="text-gray-700">New chat</span>}
+        </Button>
+      </div>
 
-        <SidebarContent className="flex-1">
-          {/* New Chat Button */}
-          <div className="pt-3 pb-0 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-            <Button
-              onClick={onNewChat}
-              className={`flex items-center gap-3 bg-white hover:bg-gray-50 text-black rounded-lg font-medium transition-all ${isCollapsed
-                  ? 'w-10 h-10 p-0 justify-center'
-                  : 'w-full h-10 px-3 justify-start'
-                }`}
-              title={isCollapsed ? "New chat" : undefined}
+      {/* Calendar and Playbook */}
+      <div className={cn(
+        "py-2 border-b border-gray-200 space-y-1 shrink-0",
+        isCollapsed ? "px-2" : "px-4 pb-5 pt-0"
+      )}>
+        <Link
+          href="/calendar"
+          className={cn(
+            "flex items-center gap-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors",
+            isCollapsed ? "justify-center px-2 w-10 h-10 mx-auto" : "px-3"
+          )}
+          title={isCollapsed ? "Calendar" : undefined}
+        >
+          <Calendar className={isCollapsed ? "h-5 w-5 shrink-0" : "h-5 w-5 shrink-0"} />
+          {!isCollapsed && <span className="text-sm">Calendar</span>}
+        </Link>
+        <Link
+          href="/playbook-planner"
+          className={cn(
+            "flex items-center gap-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors",
+            isCollapsed ? "justify-center px-2 w-10 h-10 mx-auto" : "px-3"
+          )}
+          title={isCollapsed ? "Playbook Planner" : undefined}
+        >
+          <BookOpen className={isCollapsed ? "h-5 w-5 shrink-0" : "h-5 w-5 shrink-0"} />
+          {!isCollapsed && <span className="text-sm">Playbook Planner</span>}
+        </Link>
+      </div>
+
+      {/* Chat Instances */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <MemberSidebarNew
+          currentInstanceId={currentInstanceId}
+          onSelectInstance={onSelectInstance}
+          onDeleteInstance={onDeleteInstance}
+          onUpdateInstanceTitle={onUpdateInstanceTitle}
+          isCollapsed={isCollapsed}
+        />
+      </div>
+
+      {/* Profile Dropdown at bottom */}
+      <div className={cn(
+        "border-t border-gray-200 p-2 shrink-0",
+        isCollapsed && "flex justify-center"
+      )}>
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={cn(
+                "flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                isCollapsed
+                  ? 'justify-center w-10 h-10'
+                  : 'w-full'
+              )}
+              title={isCollapsed ? fullName || user?.email || "Profile" : undefined}
             >
-              <div className={`flex items-center justify-center bg-blue-600 rounded-full ${isCollapsed ? 'w-6 h-6' : 'w-8 h-8'}`}>
-                <Plus className={`text-white shrink-0 ${isCollapsed ? "h-4 w-4" : "h-5 w-5"}`} />
-              </div>
-              {!isCollapsed && <span className="text-gray-700">New chat</span>}
-            </Button>
-          </div>
-
-          {/* Calendar and Playbook */}
-          <div className="py-[10px] border-b border-gray-200 space-y-1">
-            <Link
-              href="/calendar"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:mx-auto"
-              title={isCollapsed ? "Calendar" : undefined}
-            >
-              <Calendar className={isCollapsed ? "h-5 w-5 shrink-0" : "h-6 w-6 shrink-0"} />
-              <span className="text-sm group-data-[collapsible=icon]:hidden">Calendar</span>
-            </Link>
-            <Link
-              href="/playbook-planner"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:mx-auto"
-              title={isCollapsed ? "Playbook Planner" : undefined}
-            >
-              <BookOpen className={isCollapsed ? "h-5 w-5 shrink-0" : "h-6 w-6 shrink-0"} />
-              <span className="text-sm group-data-[collapsible=icon]:hidden">Playbook Planner</span>
-            </Link>
-          </div>
-
-          {/* Recent Chats */}
-          <MemberSidebar
-            currentInstanceId={currentInstanceId}
-            onNewChat={onNewChat}
-            onSelectInstance={onSelectInstance}
-            onDeleteInstance={onDeleteInstance}
-            onUpdateInstanceTitle={onUpdateInstanceTitle}
-          />
-        </SidebarContent>
-
-        <SidebarFooter className="border-t border-gray-200 p-0 shrink-0">
-          {/* Profile Dropdown at bottom */}
-          <div className="p-2 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={`flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isCollapsed
-                      ? 'justify-center w-10 h-10'
-                      : 'w-full'
-                    }`}
-                  title={isCollapsed ? fullName || user?.email || "Profile" : undefined}
-                >
-                  <Avatar className={isCollapsed ? "h-9 w-9 shrink-0 ring-2 ring-gray-200" : "h-8 w-8 shrink-0 ring-2 ring-gray-200"}>
-                    <AvatarImage src={profilePicture || ''} alt={user?.email || ""} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-sm font-semibold">
-                      {fullName ? fullName.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0 text-left group-data-[collapsible=icon]:hidden">
+              <Avatar className={isCollapsed ? "h-9 w-9 shrink-0 ring-2 ring-gray-200" : "h-8 w-8 shrink-0 ring-2 ring-gray-200"}>
+                <AvatarImage src={profilePicture || ''} alt={user?.email || ""} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-sm font-semibold">
+                  {fullName ? fullName.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <>
+                  <div className="flex-1 min-w-0 text-left">
                     <p className="text-sm font-medium truncate text-gray-900">
                       {fullName || user?.email?.split('@')[0]}
                     </p>
@@ -182,69 +192,69 @@ function SidebarContentWrapper({
                       {user?.email}
                     </p>
                   </div>
-                  <ChevronUp className="h-4 w-4 shrink-0 text-gray-500 group-data-[collapsible=icon]:hidden" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-56"
-                align="end"
-                side="top"
-                sideOffset={8}
-              >
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {fullName || user?.email?.split('@')[0]}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile" className="w-full text-left flex items-center gap-2 cursor-pointer">
-                    <User className="h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={isSigningOut}
-                  onClick={async () => {
-                    if (!isSigningOut) {
-                      setIsSigningOut(true);
-                      try {
-                        const { error } = await supabase.auth.signOut();
-                        if (error) {
-                          console.error('Error signing out:', error);
-                          setIsSigningOut(false);
-                        } else {
-                          router.push('/sign-in');
-                        }
-                      } catch (error) {
-                        console.error('Error signing out:', error);
-                        setIsSigningOut(false);
-                      }
+                  <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-56"
+            align="end"
+            side="top"
+            sideOffset={8}
+          >
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {fullName || user?.email?.split('@')[0]}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/profile" className="w-full text-left flex items-center gap-2 cursor-pointer">
+                <User className="h-4 w-4" />
+                Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={isSigningOut}
+              onClick={async () => {
+                if (!isSigningOut) {
+                  setIsSigningOut(true);
+                  try {
+                    const { error } = await supabase.auth.signOut();
+                    if (error) {
+                      console.error('Error signing out:', error);
+                      setIsSigningOut(false);
+                    } else {
+                      router.push('/sign-in');
                     }
-                  }}
-                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                >
-                  <div className="w-full text-left flex items-center gap-2">
-                    {isSigningOut ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <LogOut className="h-4 w-4" />
-                    )}
-                    {isSigningOut ? 'Logging out...' : 'Log out'}
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </SidebarFooter>
+                  } catch (error) {
+                    console.error('Error signing out:', error);
+                    setIsSigningOut(false);
+                  }
+                }
+              }}
+              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <div className="w-full text-left flex items-center gap-2">
+                {isSigningOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+                {isSigningOut ? 'Logging out...' : 'Log out'}
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </Sidebar>
+    </div>
   );
 }
 
@@ -254,6 +264,19 @@ export function MemberLayoutClient({
   children: React.ReactNode;
 }) {
   const [currentInstanceId, setCurrentInstanceId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Listen for instance changes from chat component
   useEffect(() => {
@@ -269,13 +292,18 @@ export function MemberLayoutClient({
 
   const handleNewChat = () => {
     window.dispatchEvent(new CustomEvent('member-chat:new-chat'));
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
   };
 
   const handleSelectInstance = (instanceId: string) => {
     setCurrentInstanceId(instanceId);
     window.dispatchEvent(new CustomEvent('member-chat:select-instance', { detail: { instanceId } }));
-    // Close sidebar on mobile after selecting
-    window.dispatchEvent(new CustomEvent('member-sidebar:close-mobile'));
+    // Close mobile sidebar after selecting
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
   };
 
   const handleDeleteInstance = (instanceId: string) => {
@@ -289,30 +317,70 @@ export function MemberLayoutClient({
     window.dispatchEvent(new CustomEvent('member-chat:update-title', { detail: { instanceId, newTitle } }));
   };
 
+  const toggleDesktopSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="flex h-screen w-full overflow-hidden bg-gray-50">
-        <SidebarContentWrapper
-          currentInstanceId={currentInstanceId}
-          onNewChat={handleNewChat}
-          onSelectInstance={handleSelectInstance}
-          onDeleteInstance={handleDeleteInstance}
-          onUpdateInstanceTitle={handleUpdateInstanceTitle}
-        />
+    <div className="flex h-screen w-full overflow-hidden">
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <div
+          className={cn(
+            "hidden md:flex flex-col transition-all duration-300 ease-in-out",
+            sidebarOpen ? "w-64" : "w-16"
+          )}
+        >
+          <SidebarContent
+            currentInstanceId={currentInstanceId}
+            onNewChat={handleNewChat}
+            onSelectInstance={handleSelectInstance}
+            onDeleteInstance={handleDeleteInstance}
+            onUpdateInstanceTitle={handleUpdateInstanceTitle}
+            isCollapsed={!sidebarOpen}
+          />
+        </div>
+      )}
 
-        <SidebarInset className="flex flex-col">
-          {/* Mobile header with trigger - only visible on mobile */}
-          <div className="md:hidden sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2 shadow-sm">
-            <SidebarTrigger />
+      {/* Mobile Sidebar */}
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <SidebarContent
+            currentInstanceId={currentInstanceId}
+            onNewChat={handleNewChat}
+            onSelectInstance={handleSelectInstance}
+            onDeleteInstance={handleDeleteInstance}
+            onUpdateInstanceTitle={handleUpdateInstanceTitle}
+            isMobile={true}
+          />
+        </SheetContent>
+      </Sheet>
 
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Mobile Header */}
+      
+          <div className="md:hidden sticky top-0 z-10 flex items-center gap-3 bg-transparent px-6 py-4 cursor-pointer border-b border-gray-200" onClick={() => setMobileSidebarOpen(true)}>
+          
+          <PanelLeftOpen className="h-6 w-6" />
+       
+         
+        </div>
+
+        {/* Desktop Toggle Button */}
+        {!isMobile && (
+          <div className="hidden md:flex items-center bg-transparent px-4 py-5 cursor-pointer border-b border-gray-200" onClick={toggleDesktopSidebar}>
+           
+              <PanelLeftOpen className="h-6 w-6" onClick={toggleDesktopSidebar} />
+       
           </div>
+        )}
 
-          {/* Main Content */}
-          <main className="flex-1 overflow-hidden">
-            {children}
-          </main>
-        </SidebarInset>
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-hidden">
+          {children}
+        </main>
       </div>
-    </SidebarProvider>
+    </div>
   );
 }

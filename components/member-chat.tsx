@@ -4,9 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Plus, Code, PenTool, GraduationCap, Coffee, Lightbulb, X, HelpCircle, Globe, Paperclip, BarChart3, ArrowRight, ArrowUp } from "lucide-react";
+import { Send, Loader2, Plus, Code, PenTool, GraduationCap, Coffee, Lightbulb, X, HelpCircle, Globe, Paperclip, BarChart3, ArrowRight, ArrowUp, Calendar, Sparkles, Bell, TrendingUp, CheckCircle2, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
+import { MemberChatInput } from "./member-chat-input";
 
 interface Message {
   role: "user" | "assistant";
@@ -551,13 +552,38 @@ export function MemberChat() {
     }
   };
 
-  // Quick action handlers - updated to match image
+  // Quick action handlers - Conversational chat starters
   const quickActions = [
-    { icon: HelpCircle, label: "How to", prompt: "How to" },
-    { icon: Lightbulb, label: "Explain Concepts", prompt: "Explain" },
-    { icon: PenTool, label: "Creative", prompt: "Help me create" },
-    { icon: GraduationCap, label: "Advice", prompt: "Give me advice on" },
-    { icon: BarChart3, label: "Analysis", prompt: "Analyze" },
+    { 
+      icon: Calendar, 
+      label: "Today's Agenda", 
+      prompt: "What's on my agenda today? Show me my priorities, tasks, and important items I need to focus on for my trade business" 
+    },
+    { 
+      icon: Sparkles, 
+      label: "What's New", 
+      prompt: "What's new in my business? Show me recent updates, changes, or important information I should know about" 
+    },
+    { 
+      icon: Bell, 
+      label: "Quick Updates", 
+      prompt: "Give me a quick update on my business. What are the key highlights, metrics, or changes I should be aware of?" 
+    },
+    { 
+      icon: TrendingUp, 
+      label: "Today's Insights", 
+      prompt: "What insights do you have for me today? Share actionable advice or recommendations for my trade business" 
+    },
+    { 
+      icon: CheckCircle2, 
+      label: "Priority Tasks", 
+      prompt: "What are my priority tasks right now? Help me understand what I should focus on today to move my business forward" 
+    },
+    { 
+      icon: Zap, 
+      label: "Quick Tips", 
+      prompt: "Give me some quick tips for improving my trade business today. What can I do right now to make a positive impact?" 
+    },
   ];
 
   if (isLoadingHistory && messages.length === 0 && !currentInstanceId) {
@@ -658,7 +684,7 @@ export function MemberChat() {
                               blockquote: ({ node, ...props }) => (
                                 <blockquote
                                   {...props}
-                                  className="border-l-4 border-blue-500 pl-4 py-2 my-3 italic text-gray-700 bg-blue-50 rounded-r"
+                                  className="border-l-4 border-blue-500 pl-4 py-2 my-3 italic text-gray-700 rounded-r"
                                 />
                               ),
                             }}
@@ -709,10 +735,10 @@ export function MemberChat() {
       )}
 
       {/* Input Area - Centered when greeting, bottom when messages */}
-      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center bg-transparent' : 'bg-transparent'} px-3 md:px-4 py-3 md:pb-4 pt-0`}>
-        <div className={`w-full ${showGreeting ? 'max-w-3xl mx-auto' : ''}`}>
+      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center' : ''} px-4 md:px-6 py-4 md:py-6 border-t border-gray-100`}>
+        <div className={`w-full ${showGreeting ? 'max-w-3xl mx-auto' : 'max-w-4xl mx-auto'}`}>
           {error && (
-            <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+            <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl">
               {error}
             </div>
           )}
@@ -720,102 +746,40 @@ export function MemberChat() {
           {/* Greeting - Only show when no messages */}
           {showGreeting && (
             <div className="text-center mb-8">
-              <h1 className="text-3xl md:text-5xl font-normal text-gray-800">
-                {getGreetingMessage()}{userName ? `, ${userName}` : ''} 🖐️
+              <h1 className="text-3xl md:text-5xl font-normal text-gray-900 mb-2">
+                {getGreetingMessage()}{userName ? `, ${userName}` : ''} 👋
               </h1>
+              <p className="text-gray-500 text-base md:text-lg">
+                How can I assist you today?
+              </p>
             </div>
           )}
 
-          {/* Large Input Field - Centered when greeting */}
-          <div className={`${showGreeting ? 'mb-3' : ''}`}>
-            <div className="max-w-[840px] mx-auto w-full relative bg-gray-100 rounded-2xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-              
-              {/* Image Previews - Inside input box */}
-              {chatImages.length > 0 && (
-                <div className="flex items-center gap-2 px-4 pt-3 pb-2 flex-wrap">
-                  {chatImages.map((img, idx) => (
-                    <div key={img.previewUrl} className="relative group">
-                      <img
-                        src={img.previewUrl}
-                        alt="Preview"
-                        className="h-16 w-16 rounded-lg border border-gray-300 object-cover"
-                      />
-                      {img.uploading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
-                          <Loader2 className="h-5 w-5 animate-spin text-white" />
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeChatImage(idx)}
-                        className="absolute -top-2 -right-2 bg-gray-800 hover:bg-gray-900 text-white rounded-full p-1 transition-all shadow-lg"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                      {img.error && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-xs rounded-b-lg px-1 py-0.5 text-center">
-                          {img.error}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Textarea */}
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={showGreeting ? "How can I help you today?" : "Type your message..."}
-                className="md:min-h-[60px] min-h-[40px] w-full max-h-32 md:px-4 md:py-4 px-3 py-3 bg-transparent border-0 rounded-2xl focus:outline-none resize-none text-gray-800 placeholder:text-gray-500"
-                rows={1}
-                disabled={isLoading}
-              />
-              
-              {/* Second row - Plus and Send buttons */}
-              <div className="flex items-center justify-between md:px-4 px-3 md:pb-3 pb-2">
-                {/* Plus button */}
-                <button
-                  type="button"
-                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors bg-gray-200"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={chatImages.length >= 5 || isLoading}
-                  title="Attach file"
-                >
-                  <Plus className="h-4 w-4 text-gray-600" />
-                </button>
-                
-                {/* Send button */}
-                <Button
-                  onClick={() => handleSendMessage()}
-                  disabled={isLoading || (!inputText.trim() && chatImages.length === 0)}
-                  className="px-3 py-0 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                    <span className="">Send</span>
-                    <ArrowUp className="h-4 w-4" />
-                    
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
+          {/* Chat Input */}
+          <MemberChatInput
+            inputText={inputText}
+            setInputText={setInputText}
+            isLoading={isLoading}
+            chatImages={chatImages}
+            onSendMessage={handleSendMessage}
+            onImageChange={handleImageChange}
+            onRemoveImage={removeChatImage}
+            showGreeting={showGreeting}
+            placeholder={showGreeting ? "Ask me anything..." : "Type your message..."}
+            maxImages={5}
+          />
 
           {/* Quick Action Buttons - Only show when greeting */}
           {showGreeting && (
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
               {quickActions.map((action, index) => {
                 const Icon = action.icon;
                 return (
                   <button
                     key={index}
                     onClick={() => handleSendMessage(`${action.prompt}...`)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-full text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Icon className="h-4 w-4" />
                     <span>{action.label}</span>
@@ -826,17 +790,6 @@ export function MemberChat() {
           )}
         </div>
       </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        className="hidden"
-        onChange={handleImageChange}
-        multiple
-        disabled={chatImages.length >= 5}
-      />
     </div>
   );
 }
