@@ -54,13 +54,8 @@ export default function MemberDashboard() {
 
 
       {/* Main Chat Area */}
-      <main className="flex-1 overflow-hidden flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
-        <div className="w-full h-full flex flex-col">
-          {/* Chat Component */}
-          <div className="flex-1 w-full">
-            <MemberChat />
-          </div>
-        </div>
+      <main className="flex-1 overflow-hidden bg-gradient-to-br from-gray-50 to-white">
+        <MemberChat />
       </main>
     </div>
   );

@@ -37,6 +37,7 @@ export function MemberChat() {
   const currentStreamingMessageRef = useRef<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [chatImages, setChatImages] = useState<ChatImage[]>([]);
+  const [showBotTyping, setShowBotTyping] = useState(false);
   const supabase = createClient();
 
   // Get greeting message
@@ -179,7 +180,10 @@ export function MemberChat() {
   const createNewInstance = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return null;
+      if (!session?.user) {
+        console.error('No user session found when creating chat instance');
+        return null;
+      }
 
       const response = await fetch('/api/gemini', {
         method: 'PUT',
@@ -194,18 +198,23 @@ export function MemberChat() {
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.type === 'instance_created' && data.instance) {
-          setCurrentInstanceId(data.instance.id);
-          setMessages([]);
-          // Dispatch events
-          window.dispatchEvent(new CustomEvent('member-sidebar:refresh'));
-          window.dispatchEvent(new CustomEvent('member-chat:instance-changed', { detail: { instanceId: data.instance.id } }));
-          return data.instance;
-        }
+      if (!response.ok) {
+        console.error(`Failed to create chat instance: ${response.status} ${response.statusText}`);
+        return null;
       }
-      return null;
+
+      const data = await response.json();
+      if (data.type === 'instance_created' && data.instance && data.instance.id) {
+        setCurrentInstanceId(data.instance.id);
+        setMessages([]);
+        // Dispatch events
+        window.dispatchEvent(new CustomEvent('member-sidebar:refresh'));
+        window.dispatchEvent(new CustomEvent('member-chat:instance-changed', { detail: { instanceId: data.instance.id } }));
+        return data.instance;
+      } else {
+        console.error('Invalid response from create chat instance API:', data);
+        return null;
+      }
     } catch (error) {
       console.error('Error creating new chat instance:', error);
       return null;
@@ -268,6 +277,26 @@ export function MemberChat() {
       }
     } catch (error) {
       console.error('Error updating instance title:', error);
+    }
+  };
+
+  // Function to automatically generate and update the chat title
+  const generateAndSetTitle = async (messageContent: string, instanceId: string) => {
+    try {
+      const response = await fetch('/api/gemini/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageContent }),
+      });
+      if (response.ok) {
+        const { title } = await response.json();
+        if (title) {
+          await updateInstanceTitle(instanceId, title);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to generate and set title:", error);
+      // We don't want to block user flow if this fails, so we just log the error
     }
   };
 
@@ -344,12 +373,14 @@ export function MemberChat() {
     if (isLoading) return;
 
     // If no instance is selected, create a new one
-    if (!currentInstanceId) {
-      await createNewInstance();
-      if (!currentInstanceId) {
+    let instanceId = currentInstanceId;
+    if (!instanceId) {
+      const newInstance = await createNewInstance();
+      if (!newInstance || !newInstance.id) {
         setError("Failed to create chat instance.");
         return;
       }
+      instanceId = newInstance.id;
     }
 
     currentStreamingMessageRef.current = '';
@@ -377,6 +408,9 @@ export function MemberChat() {
     };
     setMessages(prev => [...prev, userMessage]);
 
+    // Check if this is the first message (for auto-naming)
+    const isFirstMessage = messages.length === 0;
+
     // Delete images from bucket in background
     imagesToDelete.forEach(img => {
       if (img.path) {
@@ -388,6 +422,9 @@ export function MemberChat() {
       }
     });
 
+    // Show typing indicator
+    setShowBotTyping(true);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
@@ -397,7 +434,7 @@ export function MemberChat() {
       const payload = {
         type: 'chat',
         message: messageToSend,
-        instanceId: currentInstanceId,
+        instanceId: instanceId,
         history: messages.map(msg => ({
           role: msg.role === "assistant" ? "model" : "user",
           parts: [{ text: msg.content }]
@@ -422,6 +459,9 @@ export function MemberChat() {
       if (!response.body) {
         throw new Error('No response body');
       }
+
+      // Hide typing indicator when we start receiving the response
+      setShowBotTyping(false);
 
       // Add assistant message placeholder
       setMessages(prev => [...prev, {
@@ -478,10 +518,16 @@ export function MemberChat() {
         }
       }
 
+      // Auto-name the chat instance if this was the first message
+      if (isFirstMessage && instanceId) {
+        generateAndSetTitle(messageToSend, instanceId);
+      }
+
       // Refresh sidebar instances
       window.dispatchEvent(new CustomEvent('member-sidebar:refresh'));
     } catch (error) {
       console.error("Error sending message:", error);
+      setShowBotTyping(false);
       setMessages(prevMessages => 
         prevMessages.filter(msg => !(msg.role === 'assistant' && msg.isStreaming && !msg.isComplete))
         .concat([{
@@ -493,6 +539,7 @@ export function MemberChat() {
       setError("Failed to process your message. Please try again.");
     } finally {
       setIsLoading(false);
+      setShowBotTyping(false);
     }
   };
 
@@ -524,12 +571,13 @@ export function MemberChat() {
   const showGreeting = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full w-full bg-white">
+    <div className="flex flex-col h-full w-full">
       {/* Messages Area */}
       {!showGreeting && (
-        <ScrollArea className="flex-1" ref={scrollAreaRef}>
-          <div className="max-w-4xl mx-auto w-full px-4">
-            <div className="space-y-6 py-6">
+        <div className="flex-1 overflow-hidden bg-white">
+          <ScrollArea className="h-full" ref={scrollAreaRef}>
+            <div className="max-w-4xl mx-auto w-full px-4">
+              <div className="space-y-6 py-6">
               {messages.map((message, index) => {
                 // Extract images from message content
                 const imageMarkdownRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
@@ -547,34 +595,70 @@ export function MemberChat() {
                     className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                      className={`max-w-[85%] rounded-2xl ${
                         message.role === "user"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-800"
+                          ? "bg-gray-50 text-gray-900 px-4 py-3"
+                          : "bg-white text-gray-900 px-5 py-4"
                       }`}
                     >
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm max-w-none">
+                        <div className="prose prose-base max-w-none text-gray-800 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                           <ReactMarkdown
                             components={{
+                              p: ({ node, ...props }) => (
+                                <p {...props} className="mb-4 last:mb-0 leading-relaxed text-[15px]" />
+                              ),
+                              h1: ({ node, ...props }) => (
+                                <h1 {...props} className="text-xl font-bold mb-3 mt-4 first:mt-0 text-gray-900" />
+                              ),
+                              h2: ({ node, ...props }) => (
+                                <h2 {...props} className="text-lg font-bold mb-2 mt-4 first:mt-0 text-gray-900" />
+                              ),
+                              h3: ({ node, ...props }) => (
+                                <h3 {...props} className="text-base font-semibold mb-2 mt-3 first:mt-0 text-gray-900" />
+                              ),
+                              ul: ({ node, ...props }) => (
+                                <ul {...props} className="mb-4 last:mb-0 space-y-2 list-none pl-0" />
+                              ),
+                              ol: ({ node, ...props }) => (
+                                <ol {...props} className="mb-4 last:mb-0 space-y-2 list-decimal pl-5" />
+                              ),
+                              li: ({ node, ...props }) => (
+                                <li {...props} className="leading-relaxed text-[15px] pl-0 flex items-start">
+                                  <span className="text-gray-500 mr-2 mt-1 flex-shrink-0">•</span>
+                                  <span className="flex-1">{props.children}</span>
+                                </li>
+                              ),
+                              strong: ({ node, ...props }) => (
+                                <strong {...props} className="font-semibold text-gray-900" />
+                              ),
                               a: ({ node, ...props }) => (
                                 <a
                                   {...props}
-                                  className="text-blue-500 hover:underline"
+                                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 transition-colors"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 />
                               ),
-                              code: ({ node, ...props }) => (
-                                <code
-                                  {...props}
-                                  className="bg-gray-200 rounded px-1 py-0.5 text-sm"
-                                />
-                              ),
+                              code: ({ node, inline, ...props }: any) => 
+                                inline ? (
+                                  <code
+                                    {...props}
+                                    className="bg-gray-100 text-gray-800 rounded px-1.5 py-0.5 text-sm font-mono"
+                                  />
+                                ) : (
+                                  <code {...props} className="block" />
+                                ),
                               pre: ({ node, ...props }) => (
                                 <pre
                                   {...props}
-                                  className="bg-gray-200 rounded p-2 text-sm overflow-x-auto my-2"
+                                  className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm overflow-x-auto my-3 font-mono"
+                                />
+                              ),
+                              blockquote: ({ node, ...props }) => (
+                                <blockquote
+                                  {...props}
+                                  className="border-l-4 border-blue-500 pl-4 py-2 my-3 italic text-gray-700 bg-blue-50 rounded-r"
                                 />
                               ),
                             }}
@@ -583,7 +667,7 @@ export function MemberChat() {
                           </ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap">{textOnly}</p>
+                        <p className="whitespace-pre-wrap leading-relaxed text-[15px]">{textOnly}</p>
                       )}
                       {imageUrls.length > 0 && (
                         <div className="flex flex-row gap-2 mt-2">
@@ -604,51 +688,32 @@ export function MemberChat() {
                   </div>
                 );
               })}
+              
+              {/* Bot typing indicator placeholder with glowing lines */}
+              {showBotTyping && (
+                <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 text-gray-800">
+                    <div className="flex flex-col gap-1.5 w-36">
+                      <div className="h-2 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
+                      <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse delay-75"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
+              </div>
             </div>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
       )}
 
       {/* Input Area - Centered when greeting, bottom when messages */}
-      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center' : 'border-t bg-white'} p-4`}>
+      <div className={`${showGreeting ? 'flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-white' : 'bg-white'} pb-4 px-4`}>
         <div className={`w-full ${showGreeting ? 'max-w-3xl mx-auto' : ''}`}>
           {error && (
             <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded">
               {error}
-            </div>
-          )}
-
-          {/* Image Previews */}
-          {chatImages.length > 0 && (
-            <div className="mb-2 flex items-center gap-2">
-              {chatImages.map((img, idx) => (
-                <div key={img.previewUrl} className="relative group">
-                  <img
-                    src={img.previewUrl}
-                    alt="Preview"
-                    className="h-14 w-14 rounded-xl border object-cover"
-                  />
-                  {img.uploading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
-                      <Loader2 className="h-6 w-6 animate-spin text-white" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeChatImage(idx)}
-                    className="absolute top-0 right-0 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ transform: 'translate(35%,-35%)' }}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  {img.error && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-xs rounded-b-xl px-1 py-0.5 text-center">
-                      {img.error}
-                    </div>
-                  )}
-                </div>
-              ))}
             </div>
           )}
 
@@ -663,14 +728,47 @@ export function MemberChat() {
 
           {/* Large Input Field - Centered when greeting */}
           <div className={`${showGreeting ? 'mb-3' : ''}`}>
-            <div className="relative bg-gray-100 rounded-2xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-              {/* First row - Input field */}
+            <div className="max-w-[840px] mx-auto w-full relative bg-gray-100 rounded-2xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+              
+              {/* Image Previews - Inside input box */}
+              {chatImages.length > 0 && (
+                <div className="flex items-center gap-2 px-4 pt-3 pb-2 flex-wrap">
+                  {chatImages.map((img, idx) => (
+                    <div key={img.previewUrl} className="relative group">
+                      <img
+                        src={img.previewUrl}
+                        alt="Preview"
+                        className="h-16 w-16 rounded-lg border border-gray-300 object-cover"
+                      />
+                      {img.uploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+                          <Loader2 className="h-5 w-5 animate-spin text-white" />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeChatImage(idx)}
+                        className="absolute -top-2 -right-2 bg-gray-800 hover:bg-gray-900 text-white rounded-full p-1 transition-all shadow-lg"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      {img.error && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-xs rounded-b-lg px-1 py-0.5 text-center">
+                          {img.error}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Textarea */}
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={showGreeting ? "How can I help you today?" : "Type your message..."}
-                className="w-full min-h-[60px] max-h-32 px-4 py-4 bg-transparent border-0 rounded-2xl focus:outline-none resize-none text-gray-800 placeholder:text-gray-500"
+                className="min-h-[60px] w-full max-h-32 px-4 py-4 bg-transparent border-0 rounded-2xl focus:outline-none resize-none text-gray-800 placeholder:text-gray-500"
                 rows={1}
                 disabled={isLoading}
               />
