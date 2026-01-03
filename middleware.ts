@@ -25,6 +25,9 @@ const dashboardPages = [
   '/triage-planner',
   '/ai-onboarding',
   '/member',
+  '/member/playbook-planner',
+  '/member/playbook-planner/edit',
+  
 ]
 
 export async function middleware(request: NextRequest) {

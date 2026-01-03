@@ -19,6 +19,7 @@ import {
   BarChart3,
   BookOpen,
   HelpCircle,
+  Brain,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -75,6 +76,11 @@ const navigationSections = [
         name: "AI Assistant Instructions",
         href: "/admin/instructions", 
         icon: MessageSquare,
+      },
+      {
+        name: "AI Instructions",
+        href: "/admin/ai-instructions", 
+        icon: Brain,
       },
       {
         name: "Google Analytics",
