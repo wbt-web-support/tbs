@@ -103,14 +103,30 @@ export async function POST(request: NextRequest) {
 
     // Generate embedding for the query
     addDebugStep("Generating query embedding");
-    const queryEmbedding = await generateGoogleEmbedding(message);
-    addDebugStep("Query embedding generated", { dimensions: queryEmbedding.length });
+    let queryEmbedding;
+    try {
+      queryEmbedding = await generateGoogleEmbedding(message);
+      addDebugStep("Query embedding generated", { 
+        dimensions: queryEmbedding.length,
+        sampleValues: queryEmbedding.slice(0, 5).map(v => v.toFixed(4)),
+      });
+    } catch (embeddingError) {
+      addError("Failed to generate query embedding", embeddingError);
+      return NextResponse.json(
+        { 
+          error: "Failed to generate query embedding", 
+          details: embeddingError instanceof Error ? embeddingError.message : String(embeddingError),
+          debug: debugInfo 
+        },
+        { status: 500 }
+      );
+    }
 
-    // Build the RPC call parameters - Lower threshold to get more matches
+    // Build the RPC call parameters - Very low threshold to get matches
     const rpcParams: any = {
       query_embedding: queryEmbedding,
-      match_threshold: 0.3, // Lowered from 0.6 to 0.3 to get more matches
-      match_count: 10,
+      match_threshold: 0.1, // Very low threshold - anything above 10% similarity
+      match_count: 50, // Increased to get more potential matches
       user_role_access: userData.role || "super_admin",
     };
 
@@ -247,10 +263,10 @@ export async function POST(request: NextRequest) {
 
     // Format instructions for context
     // Limit instructions and truncate content to prevent token limit issues
-    // Note: Gemini supports up to 500k tokens, so we can be more generous
-    const MAX_INSTRUCTIONS = 15; // Limit to top 15 instructions
-    const MAX_CONTENT_LENGTH = 30000; // Limit each instruction content to 30k chars
-    const MAX_TOTAL_CONTEXT = 450000; // Maximum total context length (safety limit, leaving room for conversation)
+    // Note: Gemini-3-flash-preview supports up to 1M tokens, so we can be very generous
+    const MAX_INSTRUCTIONS = 30; // Increased to top 30 instructions
+    const MAX_CONTENT_LENGTH = 80000; // Increased to 80k chars per instruction
+    const MAX_TOTAL_CONTEXT = 900000; // Increased to 900k chars total context (leaving room for conversation)
     
     let instructionsContext = "";
     let limitedInstructions: any[] = [];
@@ -363,14 +379,14 @@ No specific instructions matched the query. Please provide general assistance ba
     });
     
     // Final safety check - if context is still too large, use a reduced version
-    if (instructionsContext.length > 400000) {
+    if (instructionsContext.length > 800000) {
       addWarning(`Context still too large after truncation (${instructionsContext.length} chars), using reduced version`);
-      // Reduce to top 10 instructions with 20k chars each
-      const reducedInstructions = limitedInstructions.slice(0, 10);
+      // Reduce to top 20 instructions with 40k chars each
+      const reducedInstructions = limitedInstructions.slice(0, 20);
       const reducedParts = reducedInstructions.map((inst: any, index: number) => {
         let content = inst.content || "No content available";
-        if (content.length > 20000) {
-          content = content.substring(0, 20000) + `\n\n[... Content truncated. Original length: ${inst.content.length} characters ...]`;
+        if (content.length > 40000) {
+          content = content.substring(0, 40000) + `\n\n[... Content truncated. Original length: ${inst.content.length} characters ...]`;
         }
         
         // Build metadata section
@@ -402,7 +418,7 @@ ${content}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 The following instructions are relevant to the user's query. Use them to provide accurate and helpful responses.
-${filteredInstructions.length > 10 ? `\nNote: Showing top 10 of ${filteredInstructions.length} matched instructions.\n` : ''}
+${filteredInstructions.length > 20 ? `\nNote: Showing top 20 of ${filteredInstructions.length} matched instructions.\n` : ''}
 
 ${reducedParts.join("\n")}
 `;
@@ -414,15 +430,28 @@ You are an AI assistant helping to answer questions based on AI instructions sto
 
 ${instructionsContext}
 
-## 📋 RESPONSE GUIDELINES
+## 📋 CRITICAL RESPONSE RULES
 
-1. Use the provided instructions to answer questions accurately.
-2. If the instructions don't contain relevant information, acknowledge this and provide general assistance.
-3. Be clear about which instruction(s) you're referencing when answering.
-4. Format your responses in an organized, easy-to-read way.
-5. If you're unsure about something, acknowledge your uncertainty.
+1. **USE EXACT INFORMATION**: When providing URLs, links, product names, prices, or any specific data from the instructions above, you MUST copy them EXACTLY as they appear. DO NOT modify, paraphrase, or change any part of URLs, links, or specific details.
 
-Remember: You're helping users understand and work with AI instructions, so be helpful, accurate, and professional.
+2. **NEVER MAKE UP INFORMATION**: If the instructions don't contain the specific information requested, clearly state "I don't have that specific information in my instructions" rather than guessing or creating information.
+
+3. **URLS AND LINKS**: 
+   - Copy URLs character-by-character EXACTLY as shown in the instructions
+   - Pay special attention to:
+     * Country codes (e.g., /au/ vs /en/)
+     * Path segments (e.g., /products/ vs /product/)
+     * File extensions and trailing slashes
+   - If a Source URL or Document URL is provided in an instruction, use that EXACT URL
+   - NEVER modify URLs to "fix" them or make them "look better"
+
+4. **DOCUMENT REFERENCES**: When instructions include a "Document URL" or "Document Name", mention it exactly: "According to [Document Name], the information is..." and provide the exact document URL if asked.
+
+5. **BE SPECIFIC**: Reference which instruction number you're using when answering (e.g., "According to Instruction #2...")
+
+6. **FORMAT CLEARLY**: Use bullet points, bold text, and clear sections to make information easy to read.
+
+Remember: ACCURACY IS CRITICAL. Copy exact URLs, names, and details. Never guess or paraphrase specific information.
 `;
 
     // Prepare the model
@@ -447,8 +476,8 @@ Remember: You're helping users understand and work with AI instructions, so be h
 
     // Add conversation history (previous messages)
     if (history && history.length > 0) {
-      // Limit history to last 10 messages to avoid context limits
-      const recentHistory = history.slice(-10);
+      // Limit history to last 20 messages to avoid context limits
+      const recentHistory = history.slice(-20);
       addDebugStep("Adding conversation history", { count: recentHistory.length });
       for (const msg of recentHistory) {
         // Convert "assistant" to "model" for Gemini API compatibility
@@ -471,7 +500,7 @@ Remember: You're helping users understand and work with AI instructions, so be h
     addDebugStep("Content building complete", { totalMessages: contents.length });
 
     const generationConfig: any = {
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096, // Increased output token limit for more detailed responses
       temperature: 0.4,
       topK: 40,
       topP: 0.95,

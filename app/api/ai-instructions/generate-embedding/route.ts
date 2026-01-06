@@ -31,8 +31,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate embedding
+    console.log(`📝 Generating embedding for instruction ${instructionId}`);
+    console.log(`📊 Text length: ${text.length} characters`);
+
+    // Generate embedding - API will handle truncation if text is too long
     const embedding = await generateGoogleEmbedding(text);
+
+    console.log(`✅ Embedding generated: ${embedding.length} dimensions`);
 
     // Update the instruction with the embedding
     // Supabase pgvector accepts the array directly
@@ -52,18 +57,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (updateError) {
-      console.error("Error updating embedding:", updateError);
-      return NextResponse.json(
-        { error: "Failed to update embedding", details: updateError.message },
-        { status: 500 }
-      );
-    }
+    console.log(`✅ Embedding saved to database for instruction ${instructionId}`);
 
     return NextResponse.json({
       success: true,
       instructionId,
       embeddingDimensions: embedding.length,
+      textLength: text.length,
     });
   } catch (error) {
     console.error("Error generating embedding:", error);
