@@ -1589,7 +1589,19 @@ function StepIndicator({ step, title, description, isActive, isCompleted, onClic
   );
 }
 
-function OnboardingHeader({ userName }: { userName: string }) {
+function OnboardingHeader({ 
+  userName, 
+  isEditMode, 
+  onSaveProgress, 
+  isSavingProgress,
+  onCancel 
+}: { 
+  userName: string;
+  isEditMode?: boolean;
+  onSaveProgress?: () => void;
+  isSavingProgress?: boolean;
+  onCancel?: () => void;
+}) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b">
       <div className="px-4 h-16 flex items-center justify-between">
@@ -1598,21 +1610,39 @@ function OnboardingHeader({ userName }: { userName: string }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild className="flex items-center gap-2">
-            <Link href="/help" target="_blank" rel="noopener noreferrer">
-              <HelpCircle className="h-4 w-4" />
-              Complete Help Guide
-            </Link>
-          </Button>
-          <div className="text-sm text-gray-600">
-            {userName}
-          </div>
-          <form action={signOutAction}>
-            <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </Button>
-          </form>
+          {isEditMode && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onSaveProgress}
+                disabled={isSavingProgress}
+                className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {isSavingProgress ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Save
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -2669,13 +2699,14 @@ function generatePasswordFromCompanyName(companyName: string): string {
   return password
 }
 
-export default function OnboardingClient() {
+export default function OnboardingClient({ isEditMode = false }: { isEditMode?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(0);
   const [userName, setUserName] = useState<string>("");
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(!isEditMode);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [submissionSteps, setSubmissionSteps] = useState<{
     title: string;
@@ -2800,13 +2831,23 @@ export default function OnboardingClient() {
           // Legacy string format - keep as is
         }
         
+        // Check existing onboarding data to preserve completed status
+        const { data: existingOnboarding } = await supabase
+          .from('company_onboarding')
+          .select('completed')
+          .eq('user_id', user.id)
+          .single();
+        
+        // Preserve existing completed status, or set to false for new records
+        const completedStatus = existingOnboarding?.completed ?? false;
+        
         await supabase
           .from('company_onboarding')
           .upsert(
             {
               user_id: user.id,
               onboarding_data: dataToSave,
-              completed: false,
+              completed: completedStatus, // Preserve existing completed status
             },
             {
               onConflict: 'user_id',
@@ -3808,6 +3849,13 @@ export default function OnboardingClient() {
 
       toast({ title: "Success", description: "Your company information has been saved successfully!" });
       
+      // If in edit mode, redirect to thank-you page
+      if (isEditMode) {
+        router.push('/thank-you');
+        router.refresh();
+        return;
+      }
+      
       // Prepare parameters for discovery call page
       const formValues = form.getValues();
       const businessOwners = formValues.list_of_business_owners_full_names;
@@ -3841,6 +3889,68 @@ export default function OnboardingClient() {
     }
   };
 
+  // Save progress function for edit mode - saves without completing
+  const saveProgress = async () => {
+    setIsSavingProgress(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      const allFormValues = form.getValues();
+      const dataToSave = { ...allFormValues } as any;
+      
+      // Keep arrays as arrays for edit mode (don't convert to strings)
+      // The auto-save already handles this, but we'll ensure consistency
+      
+      // Check if user already has onboarding data
+      const { data: existingOnboarding } = await supabase
+        .from('company_onboarding')
+        .select('id, completed')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingOnboarding) {
+        // Preserve the existing completed status when updating
+        await supabase
+          .from('company_onboarding')
+          .update({
+            onboarding_data: dataToSave,
+            completed: existingOnboarding.completed, // Explicitly preserve existing completed status
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Only set completed: false for new records
+        await supabase
+          .from('company_onboarding')
+          .insert({
+            user_id: user.id,
+            onboarding_data: dataToSave,
+            completed: false,
+          });
+      }
+
+      toast({ 
+        title: "Progress Saved", 
+        description: "Your changes have been saved successfully." 
+      });
+      
+      // Redirect to thank-you page after saving (small delay to show toast)
+      setTimeout(() => {
+        window.location.href = '/thank-you';
+      }, 500);
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to save your progress. Please try again.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingProgress(false);
+    }
+  };
+
   // AI Content Accept Handler for inline assistant
   const handleAiContentAccept = (questionName: string, content: string) => {
     form.setValue(questionName as keyof z.infer<typeof formSchema>, content, { shouldValidate: true });
@@ -3864,7 +3974,15 @@ export default function OnboardingClient() {
       ) : (
         <>
           {isLoading && <SubmissionLoader loadingSteps={submissionSteps} />}
-          <OnboardingHeader userName={userName} />
+          <OnboardingHeader 
+            userName={userName}
+            isEditMode={isEditMode}
+            onSaveProgress={saveProgress}
+            isSavingProgress={isSavingProgress}
+            onCancel={() => {
+              window.location.href = '/thank-you';
+            }}
+          />
           <main className="mx-auto p-0">
             {showWelcome ? (
               <WelcomeScreen userEmail={userName} onStart={handleStartOnboarding} />
@@ -3913,6 +4031,21 @@ export default function OnboardingClient() {
                       </div>
                       <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
                     </div>
+
+                    {/* User info and signout at bottom */}
+                    <div className="p-6 border-t bg-white">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                          {userName}
+                        </div>
+                        <form action={signOutAction}>
+                          <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                            <LogOut className="h-4 w-4" />
+                            Sign out
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -3953,6 +4086,21 @@ export default function OnboardingClient() {
                           <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
                         </div>
                         <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
+                      </div>
+
+                      {/* User info and signout at bottom */}
+                      <div className="p-6 border-t bg-white">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            {userName}
+                          </div>
+                          <form action={signOutAction}>
+                            <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                              <LogOut className="h-4 w-4" />
+                              Sign out
+                            </Button>
+                          </form>
+                        </div>
                       </div>
                     </div>
                   </SheetContent>
@@ -4237,6 +4385,25 @@ export default function OnboardingClient() {
                             Next
                             <ChevronRight className="h-4 w-4" />
                           </Button>
+                        ) : isEditMode ? (
+                          <Button
+                            type="button"
+                            onClick={saveProgress}
+                            disabled={isSavingProgress}
+                            className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            {isSavingProgress ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4" />
+                                Save
+                              </>
+                            )}
+                          </Button>
                         ) : (
                           <div className="w-full">
                             {/* Terms & Conditions and Privacy Policy checkbox */}
@@ -4306,7 +4473,7 @@ export default function OnboardingClient() {
                   {/* Mobile AI is now inline - no floating assistant needed */}
 
                   {/* Mobile Terms & Conditions and Privacy Policy checkbox */}
-                  {currentCategory === categories.length - 1 && (
+                  {currentCategory === categories.length - 1 && !isEditMode && (
                     <div className="md:hidden fixed bottom-20 left-0 right-0 bg-white border-t p-4">
                       <div className="flex items-start space-x-2">
                         <Checkbox
@@ -4343,27 +4510,46 @@ export default function OnboardingClient() {
                     <span className="text-sm font-medium text-gray-500">
                       Step {currentCategory + 1} of {categories.length}
                     </span>
-                    {currentCategory < categories.length - 1 ? (
-                      <Button
-                        type="button"
-                        onClick={handleNext}
-                        disabled={isLoading}
-                        className="flex items-center gap-2"
-                      >
-                        Next
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={isLoading || !termsAndPrivacyAccepted}
-                        className="flex items-center gap-2"
-                      >
-                        {isLoading ? "Saving..." : "Complete"}
-                        <CheckCircle className="h-4 w-4" />
-                      </Button>
-                    )}
+                      {currentCategory < categories.length - 1 ? (
+                        <Button
+                          type="button"
+                          onClick={handleNext}
+                          disabled={isLoading}
+                          className="flex items-center gap-2"
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      ) : isEditMode ? (
+                        <Button
+                          type="button"
+                          onClick={saveProgress}
+                          disabled={isSavingProgress}
+                          className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          {isSavingProgress ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={isLoading || !termsAndPrivacyAccepted}
+                          className="flex items-center gap-2"
+                        >
+                          {isLoading ? "Saving..." : "Complete"}
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                   </div>
                 </div>
               </div>

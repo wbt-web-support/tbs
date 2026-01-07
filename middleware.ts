@@ -107,12 +107,16 @@ export async function middleware(request: NextRequest) {
     }
 
     // Prevent users with completed onboarding or super_admin from accessing onboarding page
+    // BUT allow access if edit=true query parameter is present (coming from thank-you page)
+    const isEditMode = request.nextUrl.searchParams.get('edit') === 'true'
     if (
       (onboardingData?.completed || userData?.role === 'super_admin') &&
-      request.nextUrl.pathname.startsWith('/onboarding')
+      request.nextUrl.pathname.startsWith('/onboarding') &&
+      !isEditMode
     ) {
       // Redirect super_admin to /admin, users with role "user" to /member/dashboard, others to /dashboard
-      let redirectUrl = '/dashboard'
+      let redirectUrl = '/thank-you'
+      // let redirectUrl = '/dashboard'
       if (userData?.role === 'super_admin') {
         redirectUrl = '/admin'
       } else if (userData?.role === 'user') {
@@ -131,26 +135,34 @@ export async function middleware(request: NextRequest) {
       if (!onboardingData?.completed) {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       }
-      // Redirect users with role "user" to /member/dashboard, others to /dashboard
-      const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
-      return NextResponse.redirect(new URL(redirectUrl, request.url))
+      // Redirect based on role: super_admin -> /admin, admin -> /thank-you, user -> /member/dashboard, others -> /thank-you
+      if (userData?.role === 'user') {
+        return NextResponse.redirect(new URL('/member/dashboard', request.url))
+      }
+      if (userData?.role === 'admin') {
+        return NextResponse.redirect(new URL('/thank-you', request.url))
+      }
+      // Default redirect for other roles (including admin)
+      return NextResponse.redirect(new URL('/thank-you', request.url))
+      // const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
+      // return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
     if (request.nextUrl.pathname.startsWith('/admin')) {
       if (userData?.role !== 'super_admin') {
-        const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
+        const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/thank-you'
         return NextResponse.redirect(new URL(redirectUrl, request.url))
       }
     }
 
     // Redirect users with role "user" from /dashboard to /member/dashboard
-    if (userData?.role === 'user' && request.nextUrl.pathname === '/dashboard') {
+    if (userData?.role === 'user' && request.nextUrl.pathname === '/thank-you') {
       return NextResponse.redirect(new URL('/member/dashboard', request.url))
     }
 
     // Prevent non-user roles from accessing /member routes
     if (request.nextUrl.pathname.startsWith('/member') && userData?.role !== 'user') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/thank-you', request.url))
     }
 
     if (isDashboardPage && userData?.role === 'user') {
