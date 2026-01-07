@@ -95,11 +95,7 @@ const navigationSections: NavigationSection[] = [
         href: "/software-tracker",
         icon: Package,
       },
-      // {
-      //   name: "Key Initiatives",
-      //   href: "/key-Initiatives",
-      //   icon: Flag,
-      // }
+ 
     ],
   },
   {
