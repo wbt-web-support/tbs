@@ -331,6 +331,8 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
         await createOnboardingRecord(supabase, newUser.id, adminBusinessInfo, full_name, email, phone_number);
 
         // Send invitation email
+        // DISABLED: Account creation emails are turned off for now
+        /*
         const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`;
         const emailHtml = getInvitationEmailHtml({
           invitedBy: adminBusinessInfo.full_name,
@@ -345,6 +347,7 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
           subject: `You're invited to join ${adminBusinessInfo.business_name}`,
           html: emailHtml,
         });
+        */
 
         revalidatePath('/team');
         return { success: true, userId: newBusinessInfo.id, userName: full_name }
