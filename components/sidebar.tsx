@@ -35,6 +35,7 @@ import {
   FileText,
   RefreshCw,
   HelpCircle,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +95,11 @@ const navigationSections: NavigationSection[] = [
         name: "Software Tracker",
         href: "/software-tracker",
         icon: Package,
+      },
+      {
+        name: "Performance",
+        href: "/performance",
+        icon: Wallet,
       },
       // {
       //   name: "Key Initiatives",
