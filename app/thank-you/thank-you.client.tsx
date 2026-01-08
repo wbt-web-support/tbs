@@ -685,7 +685,7 @@ export default function ThankYouClient({
 
         {/* Hero Section */}
         <section className="bg-white border-b border-gray-200">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
             <div className="space-y-6">
               {/* Main Title */}
               <div className="space-y-4">
@@ -693,8 +693,27 @@ export default function ThankYouClient({
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-medium text-gray-700">EARLY ACCESS MEMBER</span>
                 </div>
+
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium text-gray-900 leading-tight">
-                  You're In. <span className="font-bold text-blue-600">Your AI Business Brain </span>Is Being Built.
+                  {userName ? (
+                    <>
+                      Hi {userName.split(' ')[0]},
+                    </>
+                  ) : (
+                    <>
+                    </>
+                  )}
+                </h1>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium text-gray-900 leading-tight">
+                  {userName ? (
+                    <>
+                      <span className="pt-4 text-gray-800 text-3xl md:text-3xl lg:text-5xl font-medium leading-tight" > Your <span className="font-bold text-blue-600"> AI Business Brain </span>is being built.</span>
+                    </>
+                  ) : (
+                    <>
+                      You're In. <span className="font-bold text-blue-600">Your AI Business Brain </span>is being built.
+                    </>
+                  )}
                 </h1>
               </div>
 
@@ -716,7 +735,7 @@ export default function ThankYouClient({
 
         {/* You're Not Waiting, You're Early Section */}
         <section className="bg-white py-16 md:py-24">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mb-12">
               <div className="flex items-center gap-2 mb-4">
                 <h2 className="text-3xl md:text-4xl font-medium text-gray-900">
@@ -779,7 +798,7 @@ export default function ThankYouClient({
             </div>
 
             {/* Trade Business School Explanation */}
-            <div className="max-w-3xl space-y-6">
+            <div className="max-w-5xl space-y-6">
             
               <div className="space-y-4">
                 <p className="text-lg text-gray-700 leading-relaxed">
@@ -800,7 +819,7 @@ export default function ThankYouClient({
 
         {/* Onboarding Information Section */}
         <section className="bg-gray-50 py-16 md:py-24 border-t border-gray-200">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
 
             {/* Section Header */}

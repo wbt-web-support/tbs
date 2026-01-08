@@ -68,10 +68,10 @@ export default function DiscoveryCallPage() {
         <div className="text-left mt-10">
          
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Schedule Your Discovery Call
+            Trade Business Bootcamp: 3-1 Strategy Session
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl">
-            Let's book a time to discuss your business goals and create a personalized discovery call for your success.
+          <p className="text-lg text-gray-600 max-w-3xl">
+            Trade Business School 60 Minute strategy session With Daniel, Stephen & Al
           </p>
         </div>
 
@@ -91,7 +91,7 @@ export default function DiscoveryCallPage() {
         </div>
 
         {/* Skip Button */}
-        <div className="text-center">
+        <div className="text-center hidden">
           <Button
             onClick={handleSkipToDashboard}
             variant="outline"
