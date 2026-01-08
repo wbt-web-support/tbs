@@ -1503,6 +1503,15 @@ const questions: Question[] = [
   { name: 'additional_comments_or_items_for_attention', label: 'Please list any additional comments or items that you would like to bring to our attention before we get started.', type: 'textarea', required: false, aiAssist: true, icon: FileText, description: 'Anything else we should know?' },
 ];
 
+// Helper function to create question labels mapping
+const getQuestionLabelsMapping = (): Record<string, string> => {
+  const labels: Record<string, string> = {};
+  questions.forEach((question) => {
+    labels[question.name] = question.label;
+  });
+  return labels;
+};
+
 // Define categories
 const categories = [
   {
@@ -2841,12 +2850,18 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
         // Preserve existing completed status, or set to false for new records
         const completedStatus = existingOnboarding?.completed ?? false;
         
+        // Add question labels to the saved data
+        const dataWithLabels = {
+          ...dataToSave,
+          question_labels: getQuestionLabelsMapping()
+        };
+        
         await supabase
           .from('company_onboarding')
           .upsert(
             {
               user_id: user.id,
-              onboarding_data: dataToSave,
+              onboarding_data: dataWithLabels,
               completed: completedStatus, // Preserve existing completed status
             },
             {
@@ -3600,6 +3615,12 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
       dataToSubmit.software_and_tools_used_for_operations = softwareToolsToSave;
     }
 
+    // Add question labels to the submitted data
+    const dataToSubmitWithLabels = {
+      ...dataToSubmit,
+      question_labels: getQuestionLabelsMapping()
+    };
+
     try {
       // Update first step - Saving your information
       setSubmissionSteps(steps => steps.map((step, i) =>
@@ -3623,7 +3644,7 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
         await supabase
           .from('company_onboarding')
           .update({
-            onboarding_data: dataToSubmit,
+            onboarding_data: dataToSubmitWithLabels,
             competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
             updated_at: new Date().toISOString()
@@ -3637,7 +3658,7 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
           .from('company_onboarding')
           .insert({
             user_id: user.id,
-            onboarding_data: dataToSubmit,
+            onboarding_data: dataToSubmitWithLabels,
             competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
           });
@@ -3903,6 +3924,12 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
       // Keep arrays as arrays for edit mode (don't convert to strings)
       // The auto-save already handles this, but we'll ensure consistency
       
+      // Add question labels to the saved data
+      const dataToSaveWithLabels = {
+        ...dataToSave,
+        question_labels: getQuestionLabelsMapping()
+      };
+      
       // Check if user already has onboarding data
       const { data: existingOnboarding } = await supabase
         .from('company_onboarding')
@@ -3915,7 +3942,7 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
         await supabase
           .from('company_onboarding')
           .update({
-            onboarding_data: dataToSave,
+            onboarding_data: dataToSaveWithLabels,
             completed: existingOnboarding.completed, // Explicitly preserve existing completed status
             updated_at: new Date().toISOString()
           })
@@ -3926,7 +3953,7 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
           .from('company_onboarding')
           .insert({
             user_id: user.id,
-            onboarding_data: dataToSave,
+            onboarding_data: dataToSaveWithLabels,
             completed: false,
           });
       }

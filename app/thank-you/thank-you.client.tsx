@@ -4,12 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
 import { signOutAction } from '@/app/actions';
-import Link from 'next/link';
 import {
   HelpCircle,
   LogOut,
@@ -79,18 +76,17 @@ function ThankYouHeader({ userName }: { userName: string }) {
 }
 
 // Field display helpers
-function FieldDisplay({ label, value, icon: Icon }: { label: string; value: any; icon?: any }) {
+function FieldDisplay({ label, value }: { label: string; value: any }) {
   if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'string' && value.trim() === '')) {
     return null;
   }
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        {Icon && <Icon className="h-4 w-4" />}
+      <div className="text-sm font-medium text-gray-700">
         {label}
       </div>
-      <div className="text-sm text-gray-600 pl-6">
+      <div className="text-sm text-gray-600 pl-0">
         {Array.isArray(value) ? (
           <ul className="list-disc list-inside space-y-1">
             {value.map((item: any, idx: number) => (
@@ -109,7 +105,7 @@ function FieldDisplay({ label, value, icon: Icon }: { label: string; value: any;
   );
 }
 
-function BusinessOwnersDisplay({ owners }: { owners: any }) {
+function BusinessOwnersDisplay({ owners, label }: { owners: any; label?: string }) {
   if (!owners) return null;
 
   // Handle both array and string formats
@@ -132,15 +128,22 @@ function BusinessOwnersDisplay({ owners }: { owners: any }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <Users className="h-4 w-4" />
-        Business Owners
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Business Owners'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {ownersList.map((owner: any, idx: number) => (
-          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <p className="font-medium text-sm text-gray-900">{owner.fullName || owner}</p>
-            {owner.role && <p className="text-xs text-gray-600 mt-1">{owner.role}</p>}
+          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Name</span>
+              <p className="text-sm text-gray-900 mt-1">{owner.fullName || owner || 'N/A'}</p>
+            </div>
+            {owner.role && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</span>
+                <p className="text-sm text-gray-900 mt-1">{owner.role}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -148,7 +151,7 @@ function BusinessOwnersDisplay({ owners }: { owners: any }) {
   );
 }
 
-function CompetitorsDisplay({ competitors }: { competitors: any }) {
+function CompetitorsDisplay({ competitors, label }: { competitors: any; label?: string }) {
   if (!competitors) return null;
 
   // Handle both array and string formats
@@ -174,14 +177,16 @@ function CompetitorsDisplay({ competitors }: { competitors: any }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <TrendingUp className="h-4 w-4" />
-        Main Competitors
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Main Competitors'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {competitorsList.map((competitor: any, idx: number) => (
           <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <p className="text-sm text-gray-900">{competitor.name || competitor || String(competitor)}</p>
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Competitor Name</span>
+              <p className="text-sm text-gray-900 mt-1">{competitor.name || competitor || String(competitor)}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -189,7 +194,7 @@ function CompetitorsDisplay({ competitors }: { competitors: any }) {
   );
 }
 
-function EmployeesDisplay({ employees }: { employees: any }) {
+function EmployeesDisplay({ employees, label }: { employees: any; label?: string }) {
   if (!employees) return null;
 
   // Handle both array and string formats
@@ -218,25 +223,34 @@ function EmployeesDisplay({ employees }: { employees: any }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <Users className="h-4 w-4" />
-        Current Employees
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Current Employees'}
       </div>
-      <div className="pl-6 space-y-3">
+      <div className="pl-0 space-y-3">
         {employeesList.map((employee: any, idx: number) => (
-          <div key={idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="font-medium text-sm text-gray-900">{employee.name || employee}</p>
-                {employee.role && <p className="text-xs text-gray-600 mt-1">{employee.role}</p>}
-                {employee.responsibilities && (
-                  <p className="text-xs text-gray-600 mt-2">{employee.responsibilities}</p>
-                )}
-                {employee.email && (
-                  <p className="text-xs text-blue-600 mt-1">{employee.email}</p>
-                )}
-              </div>
+          <div key={idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</span>
+              <p className="text-sm text-gray-900 mt-1">{employee.name || employee || 'N/A'}</p>
             </div>
+            {employee.role && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</span>
+                <p className="text-sm text-gray-900 mt-1">{employee.role}</p>
+              </div>
+            )}
+            {employee.responsibilities && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Responsibilities</span>
+                <p className="text-sm text-gray-900 mt-1">{employee.responsibilities}</p>
+              </div>
+            )}
+            {employee.email && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</span>
+                <p className="text-sm text-blue-600 mt-1">{employee.email}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -244,7 +258,7 @@ function EmployeesDisplay({ employees }: { employees: any }) {
   );
 }
 
-function SOPLinksDisplay({ links }: { links: any }) {
+function SOPLinksDisplay({ links, label }: { links: any; label?: string }) {
   if (!links) return null;
 
   // Handle both array and string formats
@@ -268,21 +282,29 @@ function SOPLinksDisplay({ links }: { links: any }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <FileText className="h-4 w-4" />
-        Documented Systems / SOPs
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Documented Systems / SOPs'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {linksList.map((link: any, idx: number) => (
-          <div key={idx} className="flex items-center gap-2">
-            <a
-              href={link.url || link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {link.title || link.url || link}
-            </a>
+          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Document Title</span>
+              <p className="text-sm text-gray-900 mt-1">{link.title || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Document URL</span>
+              <p className="text-sm mt-1">
+                <a
+                  href={link.url || link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {link.url || link || 'N/A'}
+                </a>
+              </p>
+            </div>
           </div>
         ))}
       </div>
@@ -290,7 +312,7 @@ function SOPLinksDisplay({ links }: { links: any }) {
   );
 }
 
-function SoftwareToolsDisplay({ tools }: { tools: any }) {
+function SoftwareToolsDisplay({ tools, label }: { tools: any; label?: string }) {
   if (!tools) return null;
 
   // Handle both array and string formats
@@ -315,16 +337,21 @@ function SoftwareToolsDisplay({ tools }: { tools: any }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <Settings className="h-4 w-4" />
-        Software & Tools
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Software & Tools'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {toolsList.map((tool: any, idx: number) => (
-          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <p className="font-medium text-sm text-gray-900">{tool.name || tool}</p>
+          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Software/Tool Name</span>
+              <p className="text-sm text-gray-900 mt-1">{tool.name || tool || 'N/A'}</p>
+            </div>
             {tool.description && (
-              <p className="text-xs text-gray-600 mt-1">{tool.description}</p>
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</span>
+                <p className="text-sm text-gray-900 mt-1">{tool.description}</p>
+              </div>
             )}
           </div>
         ))}
@@ -408,6 +435,14 @@ export default function ThankYouClient({
   const aiProgress = clientAiQuestions && clientAiQuestions.length > 0
     ? (clientAiQuestions.filter(q => q.is_completed).length / clientAiQuestions.length) * 100
     : 0;
+
+  // Extract question labels from onboarding data
+  const questionLabels = onboardingData?.question_labels || {};
+
+  // Helper function to get label for a field, using saved question labels or fallback
+  const getFieldLabel = (fieldKey: string, fallbackLabel: string): string => {
+    return questionLabels[fieldKey] || fallbackLabel;
+  };
 
   // Organize onboarding data by categories
   const categories = [
@@ -672,8 +707,7 @@ export default function ThankYouClient({
                   <Card key={category.id}>
                     <CardHeader>
                       <div className="flex items-center justify-between flex-wrap gap-3">
-                        <CardTitle className="flex items-center gap-2">
-                          <Icon className="h-5 w-5" />
+                        <CardTitle>
                           {category.title}
                         </CardTitle>
                         {category.id === 'company-info' && (
@@ -703,8 +737,14 @@ export default function ThankYouClient({
                           else if (field.key.includes('sop') || field.key.includes('documented_systems')) propName = 'links';
                           else if (field.key.includes('software') || field.key.includes('tools')) propName = 'tools';
                           
-                          return <Component owners={[]} competitors={[]} employees={[]} links={[]} tools={[]} key={field.key} {...{ [propName]: value }} />;
+                          // Get the label from question_labels if available
+                          const displayLabel = getFieldLabel(field.key, field.label);
+                          
+                          return <Component owners={[]} competitors={[]} employees={[]} links={[]} tools={[]} key={field.key} {...{ [propName]: value, label: displayLabel }} />;
                         }
+
+                        // Get the label from question_labels if available, otherwise use fallback
+                        const displayLabel = getFieldLabel(field.key, field.label);
 
                         // Special handling for date fields
                         if (field.key === 'business_founding_date_iso' && value) {
@@ -713,18 +753,16 @@ export default function ThankYouClient({
                             return (
                               <FieldDisplay
                                 key={field.key}
-                                label={field.label}
+                                label={displayLabel}
                                 value={dateValue}
-                                icon={field.icon}
                               />
                             );
                           } catch {
                             return (
                               <FieldDisplay
                                 key={field.key}
-                                label={field.label}
+                                label={displayLabel}
                                 value={value}
-                                icon={field.icon}
                               />
                             );
                           }
@@ -733,9 +771,8 @@ export default function ThankYouClient({
                         return (
                           <FieldDisplay
                             key={field.key}
-                            label={field.label}
+                            label={displayLabel}
                             value={value}
-                            icon={field.icon}
                           />
                         );
                       })}
@@ -750,8 +787,7 @@ export default function ThankYouClient({
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
+                <CardTitle>
                   AI Onboarding Questions
                 </CardTitle>
                 {clientAiQuestions && clientAiQuestions.length > 0 && (
@@ -775,52 +811,28 @@ export default function ThankYouClient({
             <CardContent>
               {!clientAiQuestions || clientAiQuestions.length === 0 ? (
                 <div className="text-center py-8 flex flex-col items-center justify-center">
-                  <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600 mb-4">No AI onboarding questions have been answered yet.</p>
                   <Button
                     onClick={() => router.push('/ai-onboarding')}
-                    className="flex items-center gap-2"
                   >
-                    <Sparkles className="h-4 w-4" />
                     Start AI Onboarding
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {clientAiQuestions.map((question) => (
-                    <div
+                    <FieldDisplay
                       key={question.id}
-                      className="border border-gray-200 rounded-lg p-4 bg-white"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                        
-                          <h4 className="text-sm font-medium text-gray-900">
-                            {question.question_text}
-                          </h4>
-                        </div>
-                      </div>
-                      {question.user_answer ? (
-                        <div className="mt-2">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                            {question.user_answer}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                          <p className="text-sm text-gray-400 italic">No answer provided</p>
-                        </div>
-                      )}
-                    </div>
+                      label={question.question_text}
+                      value={question.user_answer || null}
+                    />
                   ))}
                   {!aiOnboardingCompleted && (
                     <div className="flex justify-center pt-4">
                       <Button
                         onClick={() => router.push('/ai-onboarding')}
-                        className="flex items-center gap-2"
                       >
                         Complete AI Onboarding
-                        <ArrowRightIcon className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
