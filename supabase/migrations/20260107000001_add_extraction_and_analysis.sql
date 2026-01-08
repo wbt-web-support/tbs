@@ -10,8 +10,10 @@ CREATE TABLE IF NOT EXISTS finance_analysis (
   analysis_result JSONB NOT NULL, -- Structured data for charts
   summary TEXT,                   -- AI commentary
   status TEXT DEFAULT 'completed', -- 'pending', 'completed', 'failed'
+  period_type TEXT DEFAULT 'monthly' CHECK (period_type IN ('monthly', 'yearly')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+
 );
 
 -- Enable RLS
@@ -45,3 +47,7 @@ CREATE POLICY "Users can delete own finance analysis"
 -- Add indexes
 CREATE INDEX IF NOT EXISTS idx_finance_analysis_file_id ON finance_analysis(file_id);
 CREATE INDEX IF NOT EXISTS idx_finance_analysis_team_id ON finance_analysis(team_id);
+
+-- Add comments for clarity
+COMMENT ON COLUMN finance_analysis.period_type IS 'Type of data period: monthly or yearly.';
+

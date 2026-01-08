@@ -8,9 +8,11 @@ CREATE TABLE IF NOT EXISTS finance_files (
   file_size BIGINT NOT NULL,
   file_url TEXT NOT NULL,
   storage_path TEXT NOT NULL,
-  month TEXT NOT NULL,
+  month TEXT, -- Optional for yearly data
   year TEXT NOT NULL,
+  period_type TEXT DEFAULT 'monthly' CHECK (period_type IN ('monthly', 'yearly')),
   uploaded_by TEXT NOT NULL,
+
   extracted_text TEXT,
   upload_date TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -64,3 +66,7 @@ CREATE TRIGGER finance_files_updated_at
   BEFORE UPDATE ON finance_files
   FOR EACH ROW
   EXECUTE FUNCTION update_finance_files_updated_at();
+
+-- Add comments for clarity
+COMMENT ON COLUMN finance_files.period_type IS 'Type of data period: monthly or yearly. If yearly, month can be null or "Full Year".';
+

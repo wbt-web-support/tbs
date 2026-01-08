@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const month = formData.get('month') as string;
     const year = formData.get('year') as string;
+    const period_type = (formData.get('period_type') as string) || 'monthly';
+
 
     if (!file || !month || !year) {
       return NextResponse.json(
@@ -148,8 +150,10 @@ export async function POST(request: NextRequest) {
         storage_path: storagePath,
         month: month,
         year: year,
+        period_type: period_type,
         uploaded_by: businessInfo.full_name || user.email || 'Unknown',
         extracted_text: extractedText
+
       })
       .select()
       .single();
@@ -176,8 +180,10 @@ export async function POST(request: NextRequest) {
         team_id: businessInfo.team_id,
         analysis_result: null,
         summary: "Analysis in progress...",
-        status: 'pending'
+        status: 'pending',
+        period_type: period_type
       });
+
     // --- END AUTOMATIC ANALYSIS TRIGGER ---
 
     return NextResponse.json({

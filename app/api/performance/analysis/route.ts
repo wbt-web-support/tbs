@@ -23,7 +23,8 @@ export async function POST(req: NextRequest) {
     // Get the extracted text and metadata
     const { data: fileData, error: fileError } = await supabase
       .from("finance_files")
-      .select("extracted_text, team_id, file_name, month, year")
+      .select("extracted_text, team_id, file_name, month, year, period_type")
+
       .eq("id", file_id)
       .single();
 
@@ -39,7 +40,8 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const prompt = `
-      You are a professional financial analyst. Analyze the following extracted text from a financial document (${fileData.file_name}) for the period ${fileData.month} ${fileData.year}.
+      You are a professional financial analyst. Analyze the following extracted text from a financial document (${fileData.file_name}) for the ${fileData.period_type} period of ${fileData.period_type === 'monthly' ? fileData.month : ''} ${fileData.year}.
+
       
       Extract and provide the analysis in a strict JSON format.
       
@@ -87,8 +89,10 @@ export async function POST(req: NextRequest) {
         team_id: fileData.team_id,
         analysis_result: analysisResult,
         summary: analysisResult.summary || "",
-        status: 'completed'
+        status: 'completed',
+        period_type: fileData.period_type
       })
+
       .select()
       .single();
 

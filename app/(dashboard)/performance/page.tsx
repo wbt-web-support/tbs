@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { toast } from "sonner";
 import Link from "next/link";
 import { 
@@ -19,6 +21,9 @@ type AnalysisData = {
   id: string;
   month: string;
   year: string;
+  period_type: "monthly" | "yearly";
+  status: string;
+
   analysis_result: {
     summary: string;
     kpis: {
@@ -45,7 +50,9 @@ export default function PerformanceDashboardPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadPeriodType, setUploadPeriodType] = useState<"monthly" | "yearly">("monthly");
   const [uploadMonth, setUploadMonth] = useState<string>("");
+
   const [uploadYear, setUploadYear] = useState<string>("");
   const [dragActive, setDragActive] = useState(false);
   
@@ -128,6 +135,8 @@ export default function PerformanceDashboardPage() {
       formData.append('file', selectedFile);
       formData.append('month', uploadMonth);
       formData.append('year', uploadYear);
+      formData.append('period_type', uploadPeriodType);
+
 
       const response = await fetch('/api/performance/upload', {
         method: 'POST',
@@ -140,6 +149,7 @@ export default function PerformanceDashboardPage() {
       toast.success("File uploaded! Analysis is running in the background...");
       setUploadDialogOpen(false);
       resetUploadForm();
+
       fetchAnalyses();
 
       // Trigger analysis in the background
@@ -159,8 +169,10 @@ export default function PerformanceDashboardPage() {
 
   const resetUploadForm = () => {
     setSelectedFile(null);
+    setUploadPeriodType("monthly");
     setUploadMonth("");
     setUploadYear("");
+
   };
 
   const fetchAnalyses = async () => {
@@ -175,6 +187,8 @@ export default function PerformanceDashboardPage() {
           id,
           file_id,
           analysis_result,
+          status,
+          period_type,
           finance_files!inner (
             month,
             year
@@ -182,14 +196,18 @@ export default function PerformanceDashboardPage() {
         `)
         .eq('finance_files.year', selectedYear);
 
+
       if (error) throw error;
 
       const formattedData = data.map((item: any) => ({
         id: item.id,
         analysis_result: item.analysis_result,
+        status: item.status,
+        period_type: item.period_type || 'monthly',
         month: item.finance_files?.month || "Unknown",
         year: item.finance_files?.year || selectedYear
       }));
+
 
       setAnalyses(formattedData);
     } catch (error) {
@@ -206,6 +224,7 @@ export default function PerformanceDashboardPage() {
 
   // Aggregate Data for Trends
   const trendData = analyses
+    .filter(a => a.period_type === "monthly") // Only monthly data for trends
     .sort((a, b) => months.indexOf(a.month) - months.indexOf(b.month))
     .map(a => ({
       month: (a.month || "Unknown").substring(0, 3),
@@ -214,12 +233,26 @@ export default function PerformanceDashboardPage() {
       profit: a.analysis_result?.kpis?.net_profit || 0
     }));
 
-  const totalRevenue = filteredData.reduce((sum, a) => sum + a.analysis_result.kpis.total_revenue, 0);
-  const totalExpenses = filteredData.reduce((sum, a) => sum + a.analysis_result.kpis.total_expenses, 0);
+  const monthlyData = analyses.filter(a => a.period_type === "monthly");
+  const yearlyData = analyses.find(a => a.period_type === "yearly");
+
+  const totalRevenue = selectedMonth === "All Months"
+    ? (monthlyData.length > 0 ? monthlyData.reduce((sum, a) => sum + (a.analysis_result?.kpis?.total_revenue || 0), 0) : (yearlyData?.analysis_result?.kpis?.total_revenue || 0))
+    : (filteredData[0]?.analysis_result?.kpis?.total_revenue || 0);
+
+  const totalExpenses = selectedMonth === "All Months"
+    ? (monthlyData.length > 0 ? monthlyData.reduce((sum, a) => sum + (a.analysis_result?.kpis?.total_expenses || 0), 0) : (yearlyData?.analysis_result?.kpis?.total_expenses || 0))
+    : (filteredData[0]?.analysis_result?.kpis?.total_expenses || 0);
+
   const totalProfit = totalRevenue - totalExpenses;
-  const avgMargin = filteredData.length > 0 
-    ? (filteredData.reduce((sum, a) => sum + a.analysis_result.kpis.profit_margin, 0) / filteredData.length).toFixed(1)
-    : "0";
+  
+  const avgMargin = selectedMonth === "All Months"
+    ? (monthlyData.length > 0 
+        ? (monthlyData.reduce((sum, a) => sum + (a.analysis_result?.kpis?.profit_margin || 0), 0) / monthlyData.length).toFixed(1)
+        : (yearlyData?.analysis_result?.kpis?.profit_margin || "0")
+      )
+    : (filteredData[0]?.analysis_result?.kpis?.profit_margin?.toFixed(1) || "0");
+
 
   return (
     <div className="max-w-[1440px] mx-auto space-y-8">
@@ -231,6 +264,7 @@ export default function PerformanceDashboardPage() {
             Monitor your financial health and business performance insights
           </p>
         </div>
+
         <div className="flex items-center gap-3">
           <Link href="/performance/files">
             <Button variant="outline" className="border-gray-200">
@@ -341,9 +375,11 @@ export default function PerformanceDashboardPage() {
           {analyses.some(a => !a.analysis_result) && (
             <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100 animate-pulse">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Some documents are still being analyzed by AI. Charts will update automatically.</span>
+              <span>Some documents are still being analyzed by AI. Dashboard will update automatically.</span>
             </div>
           )}
+
+
 
           {/* Charts Row 1: Trends */}
           <div className="grid grid-cols-1 gap-6">
@@ -442,13 +478,44 @@ export default function PerformanceDashboardPage() {
                 )}
               </div>
             </div>
+
+            <div className="space-y-3">
+              <Label className="text-gray-800 font-medium">Data Period Type <span className="text-red-500">*</span></Label>
+              <RadioGroup 
+                value={uploadPeriodType} 
+                onValueChange={(v: "monthly" | "yearly") => {
+                  setUploadPeriodType(v);
+                  if (v === "yearly") setUploadMonth("Full Year");
+                  else setUploadMonth("");
+                }}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="monthly" id="monthly" />
+                  <Label htmlFor="monthly" className="font-normal cursor-pointer">Monthly data</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="yearly" id="yearly" />
+                  <Label htmlFor="yearly" className="font-normal cursor-pointer">Yearly data</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
+
               <div className="space-y-2">
                 <Label>Month <span className="text-red-500">*</span></Label>
-                <Select value={uploadMonth} onValueChange={setUploadMonth}>
-                  <SelectTrigger className="rounded-xl"><SelectValue placeholder="Month" /></SelectTrigger>
+                <Select 
+                  value={uploadMonth} 
+                  onValueChange={setUploadMonth}
+                  disabled={uploadPeriodType === "yearly"}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder={uploadPeriodType === "yearly" ? "Full Year" : "Month"} />
+                  </SelectTrigger>
                   <SelectContent>{months.filter(m => m !== "All Months").map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                 </Select>
+
               </div>
               <div className="space-y-2">
                 <Label>Year <span className="text-red-500">*</span></Label>
