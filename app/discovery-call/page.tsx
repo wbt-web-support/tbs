@@ -8,11 +8,11 @@ import { useEffect, useState } from "react";
 export default function DiscoveryCallPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [iframeUrl, setIframeUrl] = useState('https://api.leadconnectorhq.com/widget/booking/NB7G58FsleME5Aprb062');
+  const [iframeUrl, setIframeUrl] = useState('https://api.leadconnectorhq.com/widget/booking/7sPkfen64Bo3UObW1EWa');
 
   // Build iframe URL with parameters
   useEffect(() => {
-    const baseUrl = 'https://api.leadconnectorhq.com/widget/booking/NB7G58FsleME5Aprb062';
+    const baseUrl = 'https://api.leadconnectorhq.com/widget/booking/7sPkfen64Bo3UObW1EWa';
     const params = new URLSearchParams();
     
     // Get parameters from URL
@@ -41,14 +41,14 @@ export default function DiscoveryCallPage() {
   // Load the calendar script when component mounts
   useEffect(() => {
     const script = document.createElement('script');
-    script.src = 'https://api.leadconnectorhq.com/js/form_embed.js';
+    script.src = 'https://link.msgsndr.com/js/form_embed.js';
     script.type = 'text/javascript';
     script.async = true;
     document.head.appendChild(script);
 
     return () => {
       // Cleanup script when component unmounts
-      const existingScript = document.querySelector('script[src="https://api.leadconnectorhq.com/js/form_embed.js"]');
+      const existingScript = document.querySelector('script[src="https://link.msgsndr.com/js/form_embed.js"]');
       if (existingScript) {
         document.head.removeChild(existingScript);
       }
@@ -84,7 +84,7 @@ export default function DiscoveryCallPage() {
                src={iframeUrl}
                style={{ width: '100%', border: 'none', overflow: 'hidden' }} 
                scrolling="no" 
-               id="NB7G58FsleME5Aprb062_1756967093868"
+               id="QMNTP0yoJPYVYdLveOVB_1767875345713"
                className="min-h-[600px] rounded-lg"
              />
            </div>

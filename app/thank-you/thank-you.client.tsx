@@ -4,12 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
 import { signOutAction } from '@/app/actions';
-import Link from 'next/link';
 import {
   HelpCircle,
   LogOut,
@@ -33,7 +30,9 @@ import {
   Edit,
   Brain,
   CheckCircle2,
-  ArrowRight as ArrowRightIcon
+  ArrowRight as ArrowRightIcon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -79,18 +78,17 @@ function ThankYouHeader({ userName }: { userName: string }) {
 }
 
 // Field display helpers
-function FieldDisplay({ label, value, icon: Icon }: { label: string; value: any; icon?: any }) {
+function FieldDisplay({ label, value }: { label: string; value: any }) {
   if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'string' && value.trim() === '')) {
     return null;
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        {Icon && <Icon className="h-4 w-4" />}
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+      <div className="text-sm font-medium text-gray-700">
         {label}
       </div>
-      <div className="text-sm text-gray-600 pl-6">
+      <div className="text-sm text-gray-600 pl-0">
         {Array.isArray(value) ? (
           <ul className="list-disc list-inside space-y-1">
             {value.map((item: any, idx: number) => (
@@ -109,7 +107,7 @@ function FieldDisplay({ label, value, icon: Icon }: { label: string; value: any;
   );
 }
 
-function BusinessOwnersDisplay({ owners }: { owners: any }) {
+function BusinessOwnersDisplay({ owners, label }: { owners: any; label?: string }) {
   if (!owners) return null;
 
   // Handle both array and string formats
@@ -131,16 +129,23 @@ function BusinessOwnersDisplay({ owners }: { owners: any }) {
   if (ownersList.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <Users className="h-4 w-4" />
-        Business Owners
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Business Owners'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {ownersList.map((owner: any, idx: number) => (
-          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <p className="font-medium text-sm text-gray-900">{owner.fullName || owner}</p>
-            {owner.role && <p className="text-xs text-gray-600 mt-1">{owner.role}</p>}
+          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Name</span>
+              <p className="text-sm text-gray-900 mt-1">{owner.fullName || owner || 'N/A'}</p>
+            </div>
+            {owner.role && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</span>
+                <p className="text-sm text-gray-900 mt-1">{owner.role}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -148,7 +153,7 @@ function BusinessOwnersDisplay({ owners }: { owners: any }) {
   );
 }
 
-function CompetitorsDisplay({ competitors }: { competitors: any }) {
+function CompetitorsDisplay({ competitors, label }: { competitors: any; label?: string }) {
   if (!competitors) return null;
 
   // Handle both array and string formats
@@ -173,15 +178,17 @@ function CompetitorsDisplay({ competitors }: { competitors: any }) {
   if (competitorsList.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <TrendingUp className="h-4 w-4" />
-        Main Competitors
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Main Competitors'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {competitorsList.map((competitor: any, idx: number) => (
           <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <p className="text-sm text-gray-900">{competitor.name || competitor || String(competitor)}</p>
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Competitor Name</span>
+              <p className="text-sm text-gray-900 mt-1">{competitor.name || competitor || String(competitor)}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -189,7 +196,7 @@ function CompetitorsDisplay({ competitors }: { competitors: any }) {
   );
 }
 
-function EmployeesDisplay({ employees }: { employees: any }) {
+function EmployeesDisplay({ employees, label }: { employees: any; label?: string }) {
   if (!employees) return null;
 
   // Handle both array and string formats
@@ -217,26 +224,35 @@ function EmployeesDisplay({ employees }: { employees: any }) {
   if (employeesList.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <Users className="h-4 w-4" />
-        Current Employees
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Current Employees'}
       </div>
-      <div className="pl-6 space-y-3">
+      <div className="pl-0 space-y-3">
         {employeesList.map((employee: any, idx: number) => (
-          <div key={idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="font-medium text-sm text-gray-900">{employee.name || employee}</p>
-                {employee.role && <p className="text-xs text-gray-600 mt-1">{employee.role}</p>}
-                {employee.responsibilities && (
-                  <p className="text-xs text-gray-600 mt-2">{employee.responsibilities}</p>
-                )}
-                {employee.email && (
-                  <p className="text-xs text-blue-600 mt-1">{employee.email}</p>
-                )}
-              </div>
+          <div key={idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</span>
+              <p className="text-sm text-gray-900 mt-1">{employee.name || employee || 'N/A'}</p>
             </div>
+            {employee.role && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</span>
+                <p className="text-sm text-gray-900 mt-1">{employee.role}</p>
+              </div>
+            )}
+            {employee.responsibilities && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Responsibilities</span>
+                <p className="text-sm text-gray-900 mt-1">{employee.responsibilities}</p>
+              </div>
+            )}
+            {employee.email && (
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</span>
+                <p className="text-sm text-blue-600 mt-1">{employee.email}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -244,7 +260,7 @@ function EmployeesDisplay({ employees }: { employees: any }) {
   );
 }
 
-function SOPLinksDisplay({ links }: { links: any }) {
+function SOPLinksDisplay({ links, label }: { links: any; label?: string }) {
   if (!links) return null;
 
   // Handle both array and string formats
@@ -267,22 +283,30 @@ function SOPLinksDisplay({ links }: { links: any }) {
   if (linksList.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <FileText className="h-4 w-4" />
-        Documented Systems / SOPs
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Documented Systems / SOPs'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {linksList.map((link: any, idx: number) => (
-          <div key={idx} className="flex items-center gap-2">
-            <a
-              href={link.url || link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {link.title || link.url || link}
-            </a>
+          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Document Title</span>
+              <p className="text-sm text-gray-900 mt-1">{link.title || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Document URL</span>
+              <p className="text-sm mt-1">
+                <a
+                  href={link.url || link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {link.url || link || 'N/A'}
+                </a>
+              </p>
+            </div>
           </div>
         ))}
       </div>
@@ -290,7 +314,7 @@ function SOPLinksDisplay({ links }: { links: any }) {
   );
 }
 
-function SoftwareToolsDisplay({ tools }: { tools: any }) {
+function SoftwareToolsDisplay({ tools, label }: { tools: any; label?: string }) {
   if (!tools) return null;
 
   // Handle both array and string formats
@@ -314,17 +338,22 @@ function SoftwareToolsDisplay({ tools }: { tools: any }) {
   if (toolsList.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <Settings className="h-4 w-4" />
-        Software & Tools
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+      <div className="text-sm font-medium text-gray-700">
+        {label || 'Software & Tools'}
       </div>
-      <div className="pl-6 space-y-2">
+      <div className="pl-0 space-y-2">
         {toolsList.map((tool: any, idx: number) => (
-          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <p className="font-medium text-sm text-gray-900">{tool.name || tool}</p>
+          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Software/Tool Name</span>
+              <p className="text-sm text-gray-900 mt-1">{tool.name || tool || 'N/A'}</p>
+            </div>
             {tool.description && (
-              <p className="text-xs text-gray-600 mt-1">{tool.description}</p>
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</span>
+                <p className="text-sm text-gray-900 mt-1">{tool.description}</p>
+              </div>
             )}
           </div>
         ))}
@@ -349,6 +378,8 @@ export default function ThankYouClient({
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(showWelcome);
   const [aiOnboardingCompleted, setAiOnboardingCompleted] = useState(false);
   const [clientAiQuestions, setClientAiQuestions] = useState<AIQuestion[]>(aiQuestions || []);
+  const [normalOnboardingExpanded, setNormalOnboardingExpanded] = useState(false);
+  const [aiOnboardingExpanded, setAiOnboardingExpanded] = useState(false);
 
   // Fetch AI questions on client side if not provided or empty
   useEffect(() => {
@@ -408,6 +439,14 @@ export default function ThankYouClient({
   const aiProgress = clientAiQuestions && clientAiQuestions.length > 0
     ? (clientAiQuestions.filter(q => q.is_completed).length / clientAiQuestions.length) * 100
     : 0;
+
+  // Extract question labels from onboarding data
+  const questionLabels = onboardingData?.question_labels || {};
+
+  // Helper function to get label for a field, using saved question labels or fallback
+  const getFieldLabel = (fieldKey: string, fallbackLabel: string): string => {
+    return questionLabels[fieldKey] || fallbackLabel;
+  };
 
   // Organize onboarding data by categories
   const categories = [
@@ -489,141 +528,64 @@ export default function ThankYouClient({
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full">
+    <div className="min-h-screen bg-white w-full">
       <ThankYouHeader userName={userName} />
-      <main className="pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Welcome Dialog */}
-          <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
-            <DialogContent className="sm:max-w-2xl max-h-[96vh] overflow-y-auto p-6">
-              <DialogHeader className="text-center mb-6">
-                <DialogTitle className="text-2xl font-bold">
-                  Onboarding Complete
-                </DialogTitle>
-              </DialogHeader>
+      <main className="pt-16">
+        {/* Welcome Dialog */}
+        <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
+          <DialogContent className="sm:max-w-2xl max-h-[96vh] overflow-y-auto p-6">
+            <DialogHeader className="text-center mb-6">
+              <DialogTitle className="text-2xl font-bold">
+                Onboarding Complete
+              </DialogTitle>
+            </DialogHeader>
 
-              {/* AI Onboarding Section */}
-              {clientAiQuestions && clientAiQuestions.length > 0 ? (
-                <div className="bg-gray-50 rounded-2xl p-6 border border-blue-100">
-                  <div className="mb-4">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="h-16 w-16 rounded-xl bg-blue-600 flex items-center justify-center">
-                        <Brain className="h-8 w-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-900">AI Onboarding Questions</h3>
-                        <p className="text-sm text-blue-600 font-medium">
-                          {aiOnboardingCompleted ? 'Completed' : 'In Progress'}
-                        </p>
-                      </div>
+            {/* AI Onboarding Section */}
+            {clientAiQuestions && clientAiQuestions.length > 0 ? (
+              <div className="bg-gray-50 rounded-2xl p-6 border border-blue-100">
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-16 w-16 rounded-xl bg-blue-600 flex items-center justify-center">
+                      <Brain className="h-8 w-8 text-white" />
                     </div>
-                    <div className="space-y-4">
-                      <p className="text-gray-700 leading-relaxed">
-                        {aiOnboardingCompleted 
-                          ? "You've completed the AI onboarding questions! Your responses help us provide:"
-                          : "Continue answering AI-generated questions to unlock:"
-                        }
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900">AI Onboarding Questions</h3>
+                      <p className="text-sm text-blue-600 font-medium">
+                        {aiOnboardingCompleted ? 'Completed' : 'In Progress'}
                       </p>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Personalised business recommendations</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Industry-specific insights and strategies</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Tailored growth opportunities</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Customised action plans</span>
-                        </div>
-                      </div>
                     </div>
                   </div>
-                  
-                  <div className="pt-4">
-                    {!aiOnboardingCompleted && (
-                      <button
-                        onClick={() => {
-                          setShowWelcomeDialog(false);
-                          router.push('/ai-onboarding');
-                        }}
-                        className="w-full group p-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-200"
-                      >
-                        <div className="flex items-center justify-center gap-3">
-                          <span>Continue AI Onboarding</span>
-                          <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
-                        </div>
-                      </button>
-                    )}
-                    {aiOnboardingCompleted && (
-                      <button
-                        onClick={() => {
-                          setShowWelcomeDialog(false);
-                          router.push('/ai-onboarding?edit=true');
-                        }}
-                        className="w-full group p-4 rounded-xl bg-gray-600 hover:bg-gray-700 text-white font-medium transition-all duration-300 hover:shadow-lg"
-                      >
-                        <div className="flex items-center justify-center gap-3">
-                          <Edit className="h-5 w-5" />
-                          <span>Edit AI Onboarding Answers</span>
-                        </div>
-                      </button>
-                    )}
-                    <div className="text-center mt-4 text-xs text-gray-500">
-                      <p>
-                        {aiOnboardingCompleted 
-                          ? "You can edit your answers anytime to update your AI experience"
-                          : "This step takes only 2-5 minutes and significantly improves your AI experience"
-                        }
-                      </p>
+                  <div className="space-y-4">
+                    <p className="text-gray-700 leading-relaxed">
+                      {aiOnboardingCompleted 
+                        ? "You've completed the AI onboarding questions! Your responses help us provide:"
+                        : "Continue answering AI-generated questions to unlock:"
+                      }
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Personalised business recommendations</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Industry-specific insights and strategies</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Tailored growth opportunities</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Customised action plans</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="bg-gray-50 rounded-2xl p-6 border border-blue-100">
-                  <div className="mb-4">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="h-16 w-16 rounded-xl bg-blue-600 flex items-center justify-center">
-                        <Brain className="h-8 w-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-900">AI Personalisation</h3>
-                        <p className="text-sm text-blue-600 font-medium">Answer a few questions to improve your AI experience</p>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <p className="text-gray-700 leading-relaxed">
-                        Help us understand your business better by answering a few targeted questions. This will enable our AI to provide you with:
-                      </p>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Personalised business recommendations</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Industry-specific insights and strategies</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Tailored growth opportunities</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-base text-gray-700">Customised action plans</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="pt-4">
+                
+                <div className="pt-4">
+                  {!aiOnboardingCompleted && (
                     <button
                       onClick={() => {
                         setShowWelcomeDialog(false);
@@ -632,203 +594,469 @@ export default function ThankYouClient({
                       className="w-full group p-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-200"
                     >
                       <div className="flex items-center justify-center gap-3">
-                        <span>Start AI Personalisation</span>
+                        <span>Continue AI Onboarding</span>
                         <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
                       </div>
                     </button>
-                    <div className="text-center mt-4 text-xs text-gray-500">
-                      <p>This step takes only 2-5 minutes and significantly improves your AI experience</p>
+                  )}
+                  {aiOnboardingCompleted && (
+                    <button
+                      onClick={() => {
+                        setShowWelcomeDialog(false);
+                        router.push('/ai-onboarding?edit=true');
+                      }}
+                      className="w-full group p-4 rounded-xl bg-gray-600 hover:bg-gray-700 text-white font-medium transition-all duration-300 hover:shadow-lg"
+                    >
+                      <div className="flex items-center justify-center gap-3">
+                        <Edit className="h-5 w-5" />
+                        <span>Edit AI Onboarding Answers</span>
+                      </div>
+                    </button>
+                  )}
+                  <div className="text-center mt-4 text-xs text-gray-500">
+                    <p>
+                      {aiOnboardingCompleted 
+                        ? "You can edit your answers anytime to update your AI experience"
+                        : "This step takes only 2-5 minutes and significantly improves your AI experience"
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-2xl p-6 border border-blue-100">
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-16 w-16 rounded-xl bg-blue-600 flex items-center justify-center">
+                      <Brain className="h-8 w-8 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900">AI Personalisation</h3>
+                      <p className="text-sm text-blue-600 font-medium">Answer a few questions to improve your AI experience</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <p className="text-gray-700 leading-relaxed">
+                      Help us understand your business better by answering a few targeted questions. This will enable our AI to provide you with:
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Personalised business recommendations</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Industry-specific insights and strategies</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Tailored growth opportunities</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-base text-gray-700">Customised action plans</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
-            </DialogContent>
-          </Dialog>
+                
+                <div className="pt-4">
+                  <button
+                    onClick={() => {
+                      setShowWelcomeDialog(false);
+                      router.push('/ai-onboarding');
+                    }}
+                    className="w-full group p-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-200"
+                  >
+                    <div className="flex items-center justify-center gap-3">
+                      <span>Start AI Personalisation</span>
+                      <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                    </div>
+                  </button>
+                  <div className="text-center mt-4 text-xs text-gray-500">
+                    <p>This step takes only 2-5 minutes and significantly improves your AI experience</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
-          {/* Page Header */}
-          <div className="mb-8 text-center">
-            <h1 className="text-5xl font-medium text-gray-900 mb-2">Thank You!</h1>
-            <p className="text-lg text-gray-600 mx-auto max-w-2xl">
-              Your onboarding information has been saved. Review your details below or make edits as needed.
-            </p>
+        {/* Hero Section */}
+        <section className="bg-white border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+            <div className="space-y-6">
+              {/* Main Title */}
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-gray-700">EARLY ACCESS MEMBER</span>
+                </div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium text-gray-900 leading-tight">
+                  You're In. <span className="font-bold text-blue-600">Your AI Business Brain </span>Is Being Built.
+                </h1>
+              </div>
+
+              {/* Thank You Message */}
+              <div className="space-y-4 pt-4">
+                <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
+                  Thank you for completing your <strong>Trade Business School</strong> onboarding.
+                </p>
+                <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
+                  You're now part of a <strong>small early group</strong> shaping the future of AI-powered trade businesses.
+                </p>
+                <p className="text-base md:text-lg text-gray-600 leading-relaxed max-w-2xl pt-2">
+                  We're currently preparing something powerful behind the scenes, and you're early enough to benefit from it first.
+                </p>
+              </div>
+            </div>
           </div>
+        </section>
+
+        {/* You're Not Waiting, You're Early Section */}
+        <section className="bg-white py-16 md:py-24">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mb-12">
+              <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-3xl md:text-4xl font-medium text-gray-900">
+                  You're Not Waiting, You're Early
+                </h2>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 md:gap-8 mb-16">
+              {/* Card 1: Setting the Foundation */}
+              <Card className="border border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <Brain className="h-6 w-6 text-blue-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                    We're Setting the Foundation
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Your product data and business information are now being securely added to our AI system, forming the foundation of your Command HQ.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Card 2: Features Being Built */}
+              <Card className="border border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-12 w-12 rounded-lg bg-purple-50 flex items-center justify-center">
+                      <Settings className="h-6 w-6 text-purple-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                    Features Are Being Built Privately
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    We're refining and improving advanced AI features before making them visible, ensuring everything works exactly as intended.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Card 3: Early Advantage */}
+              <Card className="border border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-12 w-12 rounded-lg bg-yellow-50 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-yellow-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                    You're Early: That's an Advantage
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Early members like you help shape how this system evolves, giving your business a long-term edge.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Trade Business School Explanation */}
+            <div className="max-w-3xl space-y-6">
+            
+              <div className="space-y-4">
+                <p className="text-lg text-gray-700 leading-relaxed">
+                  <strong>Trade Business School</strong> is building something entirely new: an AI operating system designed specifically for trade businesses.
+                </p>
+                <p className="text-lg text-gray-700 leading-relaxed">
+                  Instead of releasing half-finished tools, we're building this in phases, ensuring each stage delivers real value before unlocking the next.
+                </p>
+                <p className="text-lg text-gray-700 leading-relaxed font-medium">
+                  Early access members don't just use the system; they help define it.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+    
+
+        {/* Onboarding Information Section */}
+        <section className="bg-gray-50 py-16 md:py-24 border-t border-gray-200">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
 
-          {/* Onboarding Data Sections */}
-          {onboardingData && (
-            <div className="space-y-6 mb-8">
-              {categories.map((category) => {
-                const hasData = category.fields.some((field) => {
-                  const value = onboardingData[field.key];
-                  if (field.component) return value && Array.isArray(value) && value.length > 0;
-                  return value && (typeof value === 'string' ? value.trim() !== '' : true);
-                });
+            {/* Section Header */}
+            <div className="mb-12">
+              <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-4">
+                Your Onboarding Information
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl">
+                Review your details below or make edits as needed. This information forms the foundation of your <span className="font-bold text-blue-600">AI Business Brain.</span>
+              </p>
+            </div>
 
-                if (!hasData) return null;
-
-                const Icon = category.icon;
-
-                return (
-                  <Card key={category.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between flex-wrap gap-3">
-                        <CardTitle className="flex items-center gap-2">
-                          <Icon className="h-5 w-5" />
-                          {category.title}
+            {/* Onboarding Data Sections */}
+            {onboardingData && (
+              <div className="mb-8">
+                <Card className="border border-gray-200 shadow-sm">
+                  <CardHeader>
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setNormalOnboardingExpanded(!normalOnboardingExpanded)}
+                        className="flex items-center gap-2 text-left flex-1"
+                      >
+                        <CardTitle className="text-2xl">
+                          Onboarding Information
                         </CardTitle>
-                        {category.id === 'company-info' && (
-                          <Button
-                            onClick={() => router.push('/onboarding?edit=true')}
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-2"
-                          >
-                            <Edit className="h-4 w-4" />
-                            Edit Onboarding Information
-                          </Button>
+                        {normalOnboardingExpanded ? (
+                          <ChevronUp className="h-5 w-5 text-gray-600" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5 text-gray-600" />
                         )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {category.fields.map((field) => {
-                        const value = onboardingData[field.key];
-                        if (!value) return null;
+                      </button>
+                      <Button
+                        onClick={() => router.push('/onboarding?edit=true')}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit Onboarding Information
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {normalOnboardingExpanded && (
+                    <CardContent className="space-y-8 pt-6">
+                      {categories.map((category) => {
+                        const hasData = category.fields.some((field) => {
+                          const value = onboardingData[field.key];
+                          if (field.component) return value && Array.isArray(value) && value.length > 0;
+                          return value && (typeof value === 'string' ? value.trim() !== '' : true);
+                        });
 
-                        if (field.component) {
-                          const Component = field.component;
-                          // Determine the prop name based on the field key
-                          let propName = 'owners';
-                          if (field.key.includes('competitors')) propName = 'competitors';
-                          else if (field.key.includes('employees')) propName = 'employees';
-                          else if (field.key.includes('sop') || field.key.includes('documented_systems')) propName = 'links';
-                          else if (field.key.includes('software') || field.key.includes('tools')) propName = 'tools';
-                          
-                          return <Component owners={[]} competitors={[]} employees={[]} links={[]} tools={[]} key={field.key} {...{ [propName]: value }} />;
-                        }
-
-                        // Special handling for date fields
-                        if (field.key === 'business_founding_date_iso' && value) {
-                          try {
-                            const dateValue = format(new Date(value), 'PPP');
-                            return (
-                              <FieldDisplay
-                                key={field.key}
-                                label={field.label}
-                                value={dateValue}
-                                icon={field.icon}
-                              />
-                            );
-                          } catch {
-                            return (
-                              <FieldDisplay
-                                key={field.key}
-                                label={field.label}
-                                value={value}
-                                icon={field.icon}
-                              />
-                            );
-                          }
-                        }
+                        if (!hasData) return null;
 
                         return (
-                          <FieldDisplay
-                            key={field.key}
-                            label={field.label}
-                            value={value}
-                            icon={field.icon}
-                          />
+                          <div key={category.id} className="space-y-4">
+                            {/* Section Heading */}
+                            <div className="border-b border-gray-200 pb-3">
+                              <div className="flex items-center gap-3">
+                                {category.icon && (
+                                  <category.icon className="h-5 w-5 text-gray-600" />
+                                )}
+                                <h3 className="text-xl font-semibold text-gray-900">{category.title}</h3>
+                              </div>
+                            </div>
+
+                            {/* Section Content */}
+                            <div className={category.id === 'company-info' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-6'}>
+                              {category.fields.map((field) => {
+                                const value = onboardingData[field.key];
+                                if (!value) return null;
+
+                                if (field.component) {
+                                  const Component = field.component;
+                                  // Determine the prop name based on the field key
+                                  let propName = 'owners';
+                                  if (field.key.includes('competitors')) propName = 'competitors';
+                                  else if (field.key.includes('employees')) propName = 'employees';
+                                  else if (field.key.includes('sop') || field.key.includes('documented_systems')) propName = 'links';
+                                  else if (field.key.includes('software') || field.key.includes('tools')) propName = 'tools';
+                                  
+                                  // Get the label from question_labels if available
+                                  const displayLabel = getFieldLabel(field.key, field.label);
+                                  
+                                  return (
+                                    <div key={field.key}>
+                                      <Component owners={[]} competitors={[]} employees={[]} links={[]} tools={[]} {...{ [propName]: value, label: displayLabel }} />
+                                    </div>
+                                  );
+                                }
+
+                                // Get the label from question_labels if available, otherwise use fallback
+                                const displayLabel = getFieldLabel(field.key, field.label);
+
+                                // Special handling for date fields
+                                if (field.key === 'business_founding_date_iso' && value) {
+                                  try {
+                                    const dateValue = format(new Date(value), 'PPP');
+                                    return (
+                                      <div key={field.key}>
+                                        <FieldDisplay
+                                          label={displayLabel}
+                                          value={dateValue}
+                                        />
+                                      </div>
+                                    );
+                                  } catch {
+                                    return (
+                                      <div key={field.key}>
+                                        <FieldDisplay
+                                          label={displayLabel}
+                                          value={value}
+                                        />
+                                      </div>
+                                    );
+                                  }
+                                }
+
+                                return (
+                                  <div key={field.key}>
+                                    <FieldDisplay
+                                      label={displayLabel}
+                                      value={value}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         );
                       })}
                     </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-
-          {/* AI Onboarding Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  AI Onboarding Questions
-                </CardTitle>
-                {clientAiQuestions && clientAiQuestions.length > 0 && (
-                  <Button
-                    onClick={() => router.push('/ai-onboarding?edit=true')}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit AI Onboarding Questions
-                  </Button>
-                )}
+                  )}
+                </Card>
               </div>
-              {clientAiQuestions && clientAiQuestions.length > 0 && (
-                <div className="mt-4 flex items-center gap-3">
-               
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {!clientAiQuestions || clientAiQuestions.length === 0 ? (
-                <div className="text-center py-8 flex flex-col items-center justify-center">
-                  <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">No AI onboarding questions have been answered yet.</p>
-                  <Button
-                    onClick={() => router.push('/ai-onboarding')}
-                    className="flex items-center gap-2"
+            )}
+
+            {/* AI Onboarding Section */}
+            <Card className="border border-gray-200 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAiOnboardingExpanded(!aiOnboardingExpanded)}
+                    className="flex items-center gap-2 text-left flex-1"
                   >
-                    <Sparkles className="h-4 w-4" />
-                    Start AI Onboarding
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {clientAiQuestions.map((question) => (
-                    <div
-                      key={question.id}
-                      className="border border-gray-200 rounded-lg p-4 bg-white"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                        
-                          <h4 className="text-sm font-medium text-gray-900">
-                            {question.question_text}
-                          </h4>
-                        </div>
-                      </div>
-                      {question.user_answer ? (
-                        <div className="mt-2">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                            {question.user_answer}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                          <p className="text-sm text-gray-400 italic">No answer provided</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {!aiOnboardingCompleted && (
-                    <div className="flex justify-center pt-4">
+                    <CardTitle className="text-2xl">
+                      AI Onboarding Questions
+                    </CardTitle>
+                    {aiOnboardingExpanded ? (
+                      <ChevronUp className="h-5 w-5 text-gray-600" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-600" />
+                    )}
+                  </button>
+                  {clientAiQuestions && clientAiQuestions.length > 0 ? (
+                    aiOnboardingCompleted ? (
                       <Button
-                        onClick={() => router.push('/ai-onboarding')}
+                        onClick={() => router.push('/ai-onboarding?edit=true')}
+                        variant="outline"
+                        size="sm"
                         className="flex items-center gap-2"
                       >
-                        Complete AI Onboarding
-                        <ArrowRightIcon className="h-4 w-4" />
+                        <Edit className="h-4 w-4" />
+                        Edit AI Onboarding Questions
                       </Button>
-                    </div>
+                    ) : (
+                      <Button
+                        onClick={() => router.push('/ai-onboarding')}
+                        variant="default"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <Brain className="h-4 w-4" />
+                        Complete AI Onboarding
+                      </Button>
+                    )
+                  ) : (
+                    <Button
+                      onClick={() => router.push('/ai-onboarding')}
+                      variant="default"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Brain className="h-4 w-4" />
+                      Start AI Onboarding
+                    </Button>
                   )}
                 </div>
+              </CardHeader>
+              {aiOnboardingExpanded && (
+                <CardContent className="pt-6">
+                {!clientAiQuestions || clientAiQuestions.length === 0 ? (
+                  <div className="text-center py-12 flex flex-col items-center justify-center">
+                    <Brain className="h-16 w-16 text-gray-300 mb-4" />
+                    <p className="text-gray-600 mb-2 text-lg">No AI onboarding questions have been answered yet.</p>
+                    <p className="text-gray-500 mb-6 text-sm">Complete AI onboarding to unlock personalised business insights.</p>
+                    <Button
+                      onClick={() => router.push('/ai-onboarding')}
+                      size="lg"
+                      className="flex items-center gap-2"
+                    >
+                      <Brain className="h-4 w-4" />
+                      Start AI Onboarding
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Brain className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900 mb-1">AI Personalisation Progress</p>
+                          <p className="text-sm text-blue-700">
+                            {aiOnboardingCompleted 
+                              ? "You've completed all AI onboarding questions! Your responses help power personalised recommendations."
+                              : `You've answered ${clientAiQuestions.filter(q => q.is_completed).length} of ${clientAiQuestions.length} questions. Complete all questions to unlock the full AI experience.`
+                            }
+                          </p>
+                          {!aiOnboardingCompleted && (
+                            <div className="mt-3 w-full bg-blue-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${aiProgress}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {clientAiQuestions.map((question) => (
+                      <FieldDisplay
+                        key={question.id}
+                        label={question.question_text}
+                        value={question.user_answer || null}
+                      />
+                    ))}
+                    {!aiOnboardingCompleted && (
+                      <div className="flex justify-center pt-6">
+                        <Button
+                          onClick={() => router.push('/ai-onboarding')}
+                          size="lg"
+                          className="flex items-center gap-2"
+                        >
+                          <Brain className="h-4 w-4" />
+                          Complete AI Onboarding
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                </CardContent>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </Card>
+          </div>
+        </section>
       </main>
     </div>
   );
