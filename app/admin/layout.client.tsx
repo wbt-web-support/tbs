@@ -72,6 +72,7 @@ const navigationSections = [
         href: "/admin/users",
         icon: Users,
       },
+     
       {
         name: "AI Assistant Instructions",
         href: "/admin/instructions", 
@@ -97,6 +98,11 @@ const navigationSections = [
   {
     title: "Support",
     items: [
+      {
+        name: "Onboarding Feedback",
+        href: "/admin/feedback",
+        icon: MessageSquare,
+      },
       {
         name: "Help Centre",
         href: "/help",

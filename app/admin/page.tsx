@@ -21,7 +21,8 @@ import {
   User as UserIcon,
   DollarSign,
   Eye,
-  MoreHorizontal
+  MoreHorizontal,
+  MessageSquare
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -88,6 +89,14 @@ type UserProfile = {
   created_at: string;
 };
 
+type FeedbackItem = {
+  id: string;
+  feedback_text: string;
+  rating: number | null;
+  feedback_type: string;
+  created_at: string;
+};
+
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -95,6 +104,7 @@ export default function AdminDashboard() {
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [userStats, setUserStats] = useState<UserCount>({ total: 0, admins: 0, users: 0 });
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -138,7 +148,7 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     try {
       // Fetch data from all tables in parallel
-      const [timelineRes, checklistRes, benefitsRes, usersRes, allUsersRes] = await Promise.all([
+      const [timelineRes, checklistRes, benefitsRes, usersRes, allUsersRes, feedbackRes] = await Promise.all([
         supabase
           .from("chq_timeline")
           .select("*")
@@ -160,18 +170,26 @@ export default function AdminDashboard() {
         supabase
           .from("business_info")
           .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("onboarding_feedback")
+          .select("*")
           .order("created_at", { ascending: false })
+          .limit(5)
       ]);
 
       if (timelineRes.error) throw timelineRes.error;
       if (checklistRes.error) throw checklistRes.error;
       if (benefitsRes.error) throw benefitsRes.error;
       if (allUsersRes.error) throw allUsersRes.error;
+      // Feedback errors are non-critical, so we don't throw
+      if (feedbackRes.error) console.error("Error fetching feedback:", feedbackRes.error);
 
       setEvents(timelineRes.data || []);
       setChecklist(checklistRes.data || []);
       setBenefits(benefitsRes.data || []);
       setUsers(allUsersRes.data || []);
+      setFeedback(feedbackRes.data || []);
       
       // Calculate user statistics
       if (usersRes.data) {
@@ -220,6 +238,13 @@ export default function AdminDashboard() {
       link: "/admin/users",
       color: "blue"
     },
+    {
+      title: "Feedback",
+      value: feedback.length,
+      icon: MessageSquare,
+      link: "/admin/feedback",
+      color: "blue"
+    },
   ];
 
   if (loading) {
@@ -238,7 +263,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {statCards.map((stat, index) => (
           <Card key={index} className="p-5 border-blue-100 hover:-md transition-all duration-200">
             <div className="flex items-center justify-between">
