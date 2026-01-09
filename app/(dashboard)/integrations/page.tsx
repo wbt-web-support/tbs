@@ -25,8 +25,11 @@ import {
   RefreshCw,
   BarChart3,
   Building,
-  FileText
+  FileText,
+  Rocket,
+  Target
 } from "lucide-react";
+import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface QuickBooksConnection {
@@ -964,6 +967,48 @@ export default function IntegrationsPage() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+        {/* GoHighLevel Integration Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <Rocket className="h-8 w-8 text-[#155EEF]" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">GoHighLevel</CardTitle>
+                  <CardDescription>CRM & Marketing Automation</CardDescription>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Features:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                       <Users className="h-3 w-3 mr-1" />
+                       Contacts
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                       <Target className="h-3 w-3 mr-1" />
+                       Opportunities
+                    </Badge>
+                  </div>
+                </div>
+                <Button 
+                  asChild
+                  className="w-full"
+                >
+                  <Link href="/integrations/ghl">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Manage Integration
+                  </Link>
+                </Button>
+              </div>
           </CardContent>
         </Card>
       </div>
