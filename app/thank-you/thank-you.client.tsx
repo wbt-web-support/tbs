@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { signOutAction } from '@/app/actions';
 import {
   HelpCircle,
@@ -67,7 +66,7 @@ function ThankYouHeader({ userName, onFeedbackClick }: { userName: string; onFee
 
         <div className="flex items-center gap-4">
         
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 hidden md:block">
             {userName}
           </div>
           <Button 
@@ -78,7 +77,8 @@ function ThankYouHeader({ userName, onFeedbackClick }: { userName: string; onFee
             onClick={onFeedbackClick}
           >
             <MessageSquare className="h-4 w-4" />
-            Feedback
+            <span className="hidden md:inline">Leave Your Feedback</span>
+            <span className="md:hidden">Feedback</span>
           </Button>
           <form action={signOutAction}>
             <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
