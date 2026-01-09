@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { decodeImpersonationState, IMPERSONATION_COOKIE_NAME } from '@/lib/impersonation'
 
 const dashboardPages = [
   '/dashboard',
@@ -78,16 +79,46 @@ export async function middleware(request: NextRequest) {
   }
 
   if (session) {
+    // Check for impersonation and get effective user ID
+    let effectiveUserId = session.user.id
+    let isImpersonated = false
+
+    const impersonationCookie = request.cookies.get(IMPERSONATION_COOKIE_NAME)
+    if (impersonationCookie?.value) {
+      const impersonationState = decodeImpersonationState(impersonationCookie.value)
+
+      if (impersonationState) {
+        // Verify the actual user is a superadmin before allowing impersonation
+        const { data: actualUserData } = await supabase
+          .from('business_info')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (actualUserData?.role === 'super_admin') {
+          effectiveUserId = impersonationState.impersonatedUserId
+          isImpersonated = true
+        } else {
+          // Invalid impersonation state - clear the cookie
+          response.cookies.delete(IMPERSONATION_COOKIE_NAME)
+        }
+      } else {
+        // Invalid or expired impersonation state - clear the cookie
+        response.cookies.delete(IMPERSONATION_COOKIE_NAME)
+      }
+    }
+
+    // Fetch userData using effectiveUserId instead of session.user.id
     const { data: userData } = await supabase
       .from('business_info')
       .select('role, permissions')
-      .eq('user_id', session.user.id)
+      .eq('user_id', effectiveUserId)
       .single()
 
     const { data: onboardingData } = await supabase
       .from('company_onboarding')
       .select('completed')
-      .eq('user_id', session.user.id)
+      .eq('user_id', effectiveUserId)
       .single()
 
     // Redirect to onboarding if not completed and not already on onboarding page

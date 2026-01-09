@@ -1630,7 +1630,8 @@ function OnboardingHeader({
               onClick={onFeedbackClick}
             >
               <MessageSquare className="h-4 w-4" />
-              Feedback
+              <span className="hidden md:inline">Leave Your Feedback</span>
+              <span className="md:hidden">Feedback</span>
             </Button>
           )}
           {isEditMode && (

@@ -1,11 +1,11 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { LogOut, X, CheckCircle, Loader2, MessageSquare, Star, Send } from 'lucide-react';
+import { LogOut, X, CheckCircle, Loader2, MessageSquare, Star, Send, ArrowLeft } from 'lucide-react';
 import { signOutAction } from '@/app/actions';
 import AIOnboardingClient from '@/components/ai-onboarding/ai-onboarding-client';
 import { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { createClient } from '@/utils/supabase/client';
@@ -33,6 +33,9 @@ function AIOnboardingHeader({
         </div>
 
         <div className="flex items-center gap-4">
+        <div className="text-sm text-gray-600 hidden md:block">
+            {userName}
+          </div>
           {onFeedbackClick && (
             <Button 
               type="button" 
@@ -42,7 +45,8 @@ function AIOnboardingHeader({
               onClick={onFeedbackClick}
             >
               <MessageSquare className="h-4 w-4" />
-              Feedback
+              <span className="hidden md:inline">Leave Your Feedback</span>
+              <span className="md:hidden">Feedback</span>
             </Button>
           )}
           {isEditMode && (
@@ -78,9 +82,7 @@ function AIOnboardingHeader({
               </Button>
             </>
           )}
-          <div className="text-sm text-gray-600">
-            {userName}
-          </div>
+       
           <form action={signOutAction}>
             <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
               <LogOut className="h-4 w-4" />
@@ -94,6 +96,7 @@ function AIOnboardingHeader({
 }
 
 export default function AIOnboardingPageClient({ userName }: { userName: string }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get('edit') === 'true';
   const saveHandlerRef = useRef<(() => void) | null>(null);
@@ -176,6 +179,19 @@ export default function AIOnboardingPageClient({ userName }: { userName: string 
       />
       <main className="pt-16 pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Back Button */}
+          <div className="mb-6">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => router.push('/thank-you')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Thank You Page
+            </Button>
+          </div>
+          
           <AIOnboardingClient 
             redirectTo="/thank-you" 
             onSaveRef={saveHandlerRef}
