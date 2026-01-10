@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Package, DollarSign, Building2, TrendingUp } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
 import { getEffectiveUserId } from '@/lib/get-effective-user-id';
@@ -271,6 +271,47 @@ export default function SoftwareTrackerPage() {
     return `${formattedPrice}/month`;
   };
 
+  // Calculate stats from softwareData
+  const stats = useMemo(() => {
+    const totalSoftware = softwareData.length;
+    
+    // Calculate total monthly spend (convert yearly to monthly)
+    const totalMonthlySpend = softwareData.reduce((sum, software) => {
+      if (!software.price_monthly || software.pricing_period === 'n/a' || software.pricing_period === 'custom') {
+        return sum;
+      }
+      if (software.pricing_period === 'yearly') {
+        return sum + (software.price_monthly / 12);
+      }
+      return sum + software.price_monthly;
+    }, 0);
+
+    // Calculate total yearly spend (convert monthly to yearly)
+    const totalYearlySpend = softwareData.reduce((sum, software) => {
+      if (!software.price_monthly || software.pricing_period === 'n/a' || software.pricing_period === 'custom') {
+        return sum;
+      }
+      if (software.pricing_period === 'monthly') {
+        return sum + (software.price_monthly * 12);
+      }
+      return sum + software.price_monthly;
+    }, 0);
+
+    // Count unique departments
+    const uniqueDepartments = new Set(
+      softwareData
+        .filter(software => software.department_id !== null)
+        .map(software => software.department_id)
+    ).size;
+
+    return {
+      totalSoftware,
+      totalMonthlySpend,
+      totalYearlySpend,
+      uniqueDepartments,
+    };
+  }, [softwareData]);
+
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
@@ -288,6 +329,63 @@ export default function SoftwareTrackerPage() {
           Add Software
         </Button>
       </div>
+
+      {/* Stats Summary Boxes */}
+      {!loading && softwareData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Total Software</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.totalSoftware}</p>
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <Package className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Monthly Spend</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  £{stats.totalMonthlySpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Yearly Spend</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  £{stats.totalYearlySpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Departments</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.uniqueDepartments}</p>
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <Building2 className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
