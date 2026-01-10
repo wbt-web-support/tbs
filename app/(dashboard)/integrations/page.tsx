@@ -69,16 +69,25 @@ interface XeroConnection {
   tenant_id?: string;
 }
 
+interface GHLConnection {
+  connected: boolean;
+  location_id?: string;
+  company_id?: string;
+  user_type?: string;
+}
+
 export default function IntegrationsPage() {
   const [quickbooksConnection, setQuickbooksConnection] = useState<QuickBooksConnection | null>(null);
   const [servicem8Connection, setServicem8Connection] = useState<ServiceM8Connection | null>(null);
   const [googleAnalyticsConnection, setGoogleAnalyticsConnection] = useState<GoogleAnalyticsConnection | null>(null);
   const [xeroConnection, setXeroConnection] = useState<XeroConnection | null>(null);
+  const [ghlConnection, setGhlConnection] = useState<GHLConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectingQuickBooks, setConnectingQuickBooks] = useState(false);
   const [connectingServiceM8, setConnectingServiceM8] = useState(false);
   const [connectingGoogleAnalytics, setConnectingGoogleAnalytics] = useState(false);
   const [connectingXero, setConnectingXero] = useState(false);
+  const [connectingGhl, setConnectingGhl] = useState(false);
   const [refreshingGoogleAnalytics, setRefreshingGoogleAnalytics] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -211,6 +220,34 @@ export default function IntegrationsPage() {
         setXeroConnection({ connected: false, sync_status: 'error', last_sync_at: null });
       }
 
+      // Fetch GHL connection status
+      try {
+        const { data: ghlData, error: ghlError } = await supabase
+          .from('ghl_integrations')
+          .select('*')
+          .eq('is_active', true)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (ghlError && ghlError.code !== 'PGRST116') {
+          console.error('GHL connection check failed:', ghlError);
+          setGhlConnection({ connected: false });
+        } else if (ghlData) {
+          setGhlConnection({
+            connected: true,
+            location_id: ghlData.location_id,
+            company_id: ghlData.company_id,
+            user_type: ghlData.user_type
+          });
+        } else {
+          setGhlConnection({ connected: false });
+        }
+      } catch (err) {
+        console.error('GHL connection check failed:', err);
+        setGhlConnection({ connected: false });
+      }
+
     } catch (err) {
       console.error('Error:', err);
       setError('Failed to fetch connection status');
@@ -310,6 +347,38 @@ export default function IntegrationsPage() {
       setError('Failed to connect to Xero. Please try again.');
     } finally {
       setConnectingXero(false);
+    }
+  };
+
+  const handleConnectGhl = async () => {
+    try {
+      setConnectingGhl(true);
+      setError(null);
+
+      const response = await fetch('/api/ghls/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        setError("Failed to generate authorization URL");
+      }
+    } catch (err) {
+      console.error('Error connecting to GHL:', err);
+      setError('Failed to initiate GoHighLevel connection');
+    } finally {
+      setConnectingGhl(false);
     }
   };
 
@@ -982,6 +1051,11 @@ export default function IntegrationsPage() {
                   <CardDescription>CRM & Marketing Automation</CardDescription>
                 </div>
               </div>
+              {ghlConnection?.connected ? (
+                <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>
+              ) : (
+                <Badge variant="outline">Disconnected</Badge>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -999,15 +1073,30 @@ export default function IntegrationsPage() {
                     </Badge>
                   </div>
                 </div>
-                <Button 
-                  asChild
-                  className="w-full"
-                >
-                  <Link href="/integrations/ghl">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Manage Integration
-                  </Link>
-                </Button>
+                {ghlConnection?.connected ? (
+                  <Button 
+                    asChild
+                    className="w-full"
+                  >
+                    <Link href="/integrations/ghl">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Manage Integration
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleConnectGhl}
+                    disabled={connectingGhl}
+                    className="w-full"
+                  >
+                    {connectingGhl ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                    )}
+                    {connectingGhl ? 'Connecting...' : 'Connect GoHighLevel'}
+                  </Button>
+                )}
               </div>
           </CardContent>
         </Card>

@@ -113,8 +113,25 @@ export default function GoHighLevelPage() {
   };
 
   const handleDisconnect = async () => {
-    // Placeholder disconnect
-    setConnection(null);
+    try {
+      setLoading(true);
+      const response = await fetch('/api/ghls/integration', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect integration');
+      }
+
+      setConnection(null);
+      setSuccessMessage('Successfully disconnected from GoHighLevel');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      console.error('Error disconnecting:', err);
+      setError('Failed to disconnect from GoHighLevel');
+    } finally {
+      setLoading(false);
+    }
   };
 
 

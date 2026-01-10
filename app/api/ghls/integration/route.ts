@@ -44,7 +44,7 @@ export async function DELETE(req: NextRequest) {
     
         await supabase
             .from('ghl_integrations')
-            .update({ is_active: false })
+            .delete()
             .eq('user_id', user.id);
     
         return NextResponse.json({ success: true });
