@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,11 +45,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
-      if (user) {
+      const effectiveUserId = await getEffectiveUserId();
+      if (effectiveUserId) {
         const { data: businessInfo } = await supabase
           .from('business_info')
           .select('profile_picture_url, full_name, role, permissions')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .single();
 
         if (businessInfo) {
@@ -61,16 +63,14 @@ export function Navbar({ onMenuClick }: NavbarProps) {
         }
 
         // Check AI onboarding status
-        if (user) {
-          const { data: aiQuestions } = await supabase
-            .from('ai_onboarding_questions')
-            .select('is_completed')
-            .eq('user_id', user.id);
-          
-          if (aiQuestions && aiQuestions.length > 0) {
-            const allCompleted = aiQuestions.every((q: { is_completed: any; }) => q.is_completed);
-            setAiOnboardingCompleted(allCompleted);
-          }
+        const { data: aiQuestions } = await supabase
+          .from('ai_onboarding_questions')
+          .select('is_completed')
+          .eq('user_id', effectiveUserId);
+        
+        if (aiQuestions && aiQuestions.length > 0) {
+          const allCompleted = aiQuestions.every((q: { is_completed: any; }) => q.is_completed);
+          setAiOnboardingCompleted(allCompleted);
         }
       }
     }

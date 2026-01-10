@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       isImpersonating: true,
       impersonatedUser: {
+        userId: impersonationState.impersonatedUserId,
         email: userProfile.email,
         fullName: userProfile.full_name,
         businessName: userProfile.business_name,

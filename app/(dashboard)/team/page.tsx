@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Plus, Users, MoreHorizontal, Trash2, Pencil, BookOpen, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -85,11 +86,11 @@ export default function ChainOfCommandPage() {
   const fetchTeamDirectoryData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
-      setLoggedInUserId(user.id);
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
+      setLoggedInUserId(effectiveUserId);
 
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
 
       // Fetch all business_info records for the team, with related departments and playbook assignments
       const { data: usersData, error } = await supabase

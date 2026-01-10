@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import PlanTable from "./components/plan-table";
 
@@ -65,11 +66,10 @@ export default function HwgtPlanPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
-      const teamId = await getTeamId(supabase, user.id);
+      const teamId = await getTeamId(supabase, effectiveUserId);
       
       const { data, error } = await supabase
         .from("hwgt_plan")

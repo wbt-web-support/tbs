@@ -32,20 +32,21 @@ interface BusinessInfo {
 // Make the page component async
 export default async function ProfilePage() {
   const supabase = await createClient();
+  const { getEffectiveUser } = await import('@/lib/get-effective-user');
 
-  // Fetch user session server-side
-  const { data: { user } } = await supabase.auth.getUser();
+  // Get effective user (impersonated if active, otherwise actual user)
+  const effectiveUser = await getEffectiveUser();
 
   // Redirect to login if no user
-  if (!user) {
+  if (!effectiveUser) {
     return redirect('/sign-in');
   }
 
-  // Fetch user's role and team info
+  // Fetch user's role and team info using effective user ID
   const { data: userProfile, error: userError } = await supabase
     .from('business_info')
     .select('role, team_id')
-    .eq('user_id', user.id)
+    .eq('user_id', effectiveUser.userId)
     .single();
 
   if (userError) {
@@ -54,7 +55,7 @@ export default async function ProfilePage() {
   }
 
   const userRole = userProfile?.role || 'user';
-  const teamId = await getTeamId(supabase, user.id);
+  const teamId = await getTeamId(supabase, effectiveUser.userId);
 
   // Fetch business info for the admin of the team (company profile)
   const { data: businessInfo, error } = await supabase
@@ -71,9 +72,21 @@ export default async function ProfilePage() {
     // For now, we'll proceed and let the client component handle null initialBusinessInfo
   }
 
+  // Create a user object with effective user ID for the client component
+  // Get the auth user for the structure, but use effective user ID
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) {
+    return redirect('/sign-in');
+  }
+  
+  const effectiveUserForClient = {
+    ...authUser,
+    id: effectiveUser.userId, // Use effective user ID instead of actual user ID
+  };
+
   // Render the client component, passing the fetched data as props
   return <ProfileClientContent 
-    user={user} 
+    user={effectiveUserForClient} 
     initialBusinessInfo={businessInfo as BusinessInfo | null} 
     userRole={userRole}
     teamId={teamId}

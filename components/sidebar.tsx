@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { 
   LayoutDashboard,
   Calendar,
@@ -194,12 +195,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   useEffect(() => {
     const fetchUserPermissions = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      const effectiveUserId = await getEffectiveUserId();
+      if (effectiveUserId) {
         const { data: businessInfo } = await supabase
           .from('business_info')
           .select('role, permissions')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .single();
 
         if (businessInfo) {

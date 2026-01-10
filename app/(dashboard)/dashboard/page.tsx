@@ -7,6 +7,7 @@ import AccountPropertyModal from '@/app/(dashboard)/dashboard/components/account
 import DashboardSidebar from '@/app/(dashboard)/dashboard/components/dashboard-sidebar';
 import { createClient } from '@/utils/supabase/client';
 import { getTeamId } from '@/utils/supabase/teams';
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card, CardContent } from '@/components/ui/card';
 import IntegrationsDashboard from '@/app/(dashboard)/dashboard/components/integrations-dashboard';
 import DashboardActionSection from '@/app/(dashboard)/dashboard/components/dashboard-action-section';
@@ -77,12 +78,20 @@ export default function NewDashboard() {
 
   const setupGreeting = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // Get effective user ID (impersonated if active, otherwise actual user)
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
       
-      setCurrentUserRole(user.role || 'user');
+      // Fetch business info for effective user
+      const { data: effectiveUserInfo } = await supabase
+        .from('business_info')
+        .select('role')
+        .eq('user_id', effectiveUserId)
+        .single();
+      
+      setCurrentUserRole(effectiveUserInfo?.role || 'user');
 
-      const teamId = await getTeamId(supabase, user.id);
+      const teamId = await getTeamId(supabase, effectiveUserId);
       
       // Fetch admin info for company name and profile
       const { data: adminData } = await supabase
@@ -97,13 +106,13 @@ export default function NewDashboard() {
       }
 
       // Set the correct name for the greeting
-      if (user.role === 'admin') {
+      if (effectiveUserInfo?.role === 'admin') {
         setGreetingName(adminData?.full_name || '');
       } else {
         const { data: userData } = await supabase
           .from('business_info')
           .select('full_name')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .single();
         setGreetingName(userData?.full_name || adminData?.full_name || '');
       }
@@ -118,13 +127,13 @@ export default function NewDashboard() {
 
   const checkAIOnboardingStatus = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
       const { data: aiQuestions } = await supabase
         .from('ai_onboarding_questions')
         .select('is_completed')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
       
       if (aiQuestions && aiQuestions.length > 0) {
         const allCompleted = aiQuestions.every((q: { is_completed: any; }) => q.is_completed);
@@ -138,8 +147,8 @@ export default function NewDashboard() {
   const checkConnectionStatus = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) {
         setIsConnected(false);
         setHasPropertySelected(false);
         setLoading(false);
@@ -150,7 +159,7 @@ export default function NewDashboard() {
       const { data: tokenData, error } = await supabase
         .from('google_analytics_tokens')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .maybeSingle();
 
       if (error) {
@@ -171,7 +180,7 @@ export default function NewDashboard() {
         const { data: directAssignment, error: assignmentError } = await supabase
           .from('superadmin_analytics_assignments')
           .select('*')
-          .eq('assigned_user_id', user.id)
+          .eq('assigned_user_id', effectiveUserId)
           .eq('is_active', true)
           .maybeSingle();
 
@@ -187,7 +196,7 @@ export default function NewDashboard() {
           const { data: userProfile } = await supabase
             .from('business_info')
             .select('team_id, role')
-            .eq('user_id', user.id)
+            .eq('user_id', effectiveUserId)
             .maybeSingle();
 
           if (userProfile?.team_id) {
@@ -348,14 +357,14 @@ export default function NewDashboard() {
 
   const handleDisconnect = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
       // Delete the token from database
       const { error } = await supabase
         .from('google_analytics_tokens')
         .delete()
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       if (error) {
         console.error('Error disconnecting:', error);

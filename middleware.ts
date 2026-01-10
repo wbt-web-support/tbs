@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { decodeImpersonationState, IMPERSONATION_COOKIE_NAME } from '@/lib/impersonation'
+import { decodeImpersonationStateEdge, IMPERSONATION_COOKIE_NAME } from '@/lib/impersonation-edge'
 
 const dashboardPages = [
   '/dashboard',
@@ -64,35 +64,37 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Use getUser() instead of getSession() for security (validates with Supabase Auth server)
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
   const isDashboardPage =
     dashboardPages.some((p) => request.nextUrl.pathname.startsWith(p)) ||
     request.nextUrl.pathname.startsWith('/admin')
 
-  if (!session && isDashboardPage) {
+  if (!user && isDashboardPage) {
     const redirectUrl = new URL('/sign-in', request.url)
     redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (session) {
+  if (user) {
     // Check for impersonation and get effective user ID
-    let effectiveUserId = session.user.id
+    let effectiveUserId = user.id
     let isImpersonated = false
 
     const impersonationCookie = request.cookies.get(IMPERSONATION_COOKIE_NAME)
     if (impersonationCookie?.value) {
-      const impersonationState = decodeImpersonationState(impersonationCookie.value)
+      const impersonationState = await decodeImpersonationStateEdge(impersonationCookie.value)
 
       if (impersonationState) {
         // Verify the actual user is a superadmin before allowing impersonation
         const { data: actualUserData } = await supabase
           .from('business_info')
           .select('role')
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .single()
 
         if (actualUserData?.role === 'super_admin') {

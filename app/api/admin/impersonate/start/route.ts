@@ -119,9 +119,11 @@ export async function POST(request: NextRequest) {
 
     // Set impersonation cookie
     const cookieOptions = getImpersonationCookieOptions('set');
+    const encodedState = encodeImpersonationState(impersonationState);
+    
     response.cookies.set(
       cookieOptions.name,
-      encodeImpersonationState(impersonationState),
+      encodedState,
       {
         httpOnly: cookieOptions.httpOnly,
         secure: cookieOptions.secure,
@@ -134,6 +136,7 @@ export async function POST(request: NextRequest) {
     console.log(
       `[Impersonate Start] ${actualUser.email} -> ${targetUser.email} (${targetUser.role})`
     );
+    console.log(`[Impersonate Start] Cookie set: ${cookieOptions.name}, maxAge: ${cookieOptions.maxAge}, secure: ${cookieOptions.secure}`);
 
     return response;
   } catch (error) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -238,9 +238,16 @@ export default function AdminLayoutClient({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetUserId }),
+        credentials: 'include', // Ensure cookies are sent and received
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start impersonation');
+      }
+
       const data = await response.json();
+      console.log('[Impersonation] Start response:', data);
 
       if (data.success) {
         setIsImpersonating(true);
@@ -248,14 +255,19 @@ export default function AdminLayoutClient({
           fullName: data.impersonatedUser.fullName,
           email: data.impersonatedUser.email,
         });
-        // Refresh the page to apply impersonation context
-        window.location.reload();
+        // Wait for cookie to be set, then navigate
+        // Use full page reload to ensure cookie is available
+        setTimeout(() => {
+          console.log('[Impersonation] Cookie should be set, navigating to dashboard...');
+          // Force a full page navigation to ensure cookie is available
+          window.location.href = '/dashboard';
+        }, 300);
       } else {
-        alert('Failed to start impersonation: ' + data.error);
+        alert('Failed to start impersonation: ' + (data.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error starting impersonation:', error);
-      alert('Failed to start impersonation');
+      alert('Failed to start impersonation: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsLoadingImpersonate(false);
       setImpersonateDropdownOpen(false);

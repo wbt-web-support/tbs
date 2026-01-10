@@ -269,6 +269,47 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
     }
   }, [onSaveRef, isEditMode, answers, questions]);
 
+  // Auto-save function that saves silently without showing toasts or redirecting
+  const autoSaveAnswers = async () => {
+    try {
+      const answersToSave = Object.entries(answers).map(([questionId, answer]) => ({
+        questionId,
+        answer
+      }));
+
+      const response = await fetch('/api/ai-onboarding/save-answers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: answersToSave })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Silently update completion status without toasts or redirects
+        if (data.isCompleted) {
+          setIsCompleted(true);
+        }
+        
+        // Update questions completion status locally without full refresh
+        setQuestions(prev => prev.map(q => {
+          const savedAnswer = answersToSave.find(a => a.questionId === q.id);
+          if (savedAnswer) {
+            return { 
+              ...q, 
+              is_completed: savedAnswer.answer.trim() !== '', 
+              user_answer: savedAnswer.answer 
+            };
+          }
+          return q;
+        }));
+      }
+    } catch (error) {
+      // Silently fail for auto-save - errors are logged but not shown to user
+      console.error('Auto-save failed:', error);
+    }
+  };
+
   const saveAnswers = async () => {
     setIsSaving(true);
     setShowSubmitDialog(false);
@@ -329,6 +370,11 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
 
   const nextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
+      // Auto-save current answers in the background (non-blocking)
+      autoSaveAnswers().catch(error => {
+        console.error('Auto-save failed:', error);
+      });
+      
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentQuestionIndex(prev => prev + 1);
@@ -339,6 +385,11 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
 
   const previousQuestion = () => {
     if (currentQuestionIndex > 0) {
+      // Auto-save current answers in the background (non-blocking)
+      autoSaveAnswers().catch(error => {
+        console.error('Auto-save failed:', error);
+      });
+      
       setCurrentQuestionIndex(prev => prev - 1);
     }
   };
@@ -539,7 +590,7 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
     <div className="min-h-[calc(100vh-10rem)]">
       <div className="max-w-3xl mx-auto px-4 py-8">
                  {/* Header */}
-         <div className="text-left mb-12">
+         <div className="text-left mb-6">
            <h1 className="text-3xl font-medium text-slate-900 mb-3">
              {isEditMode ? 'Edit AI Onboarding Questions' : 'AI Business Insights'}
            </h1>
@@ -575,12 +626,11 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
 
 
         {/* Question Card */}
-        <Card className="mb-8 shadow-sm border-slate-200">
+        <Card className="mb-8 border-slate-200">
           <CardHeader className="pb-6">
                          <div className="flex items-center gap-3 mb-4">
-               {getCategoryIcon(currentQuestion.question_category)}
                <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">
-                 {currentQuestion.question_category}
+                 {currentQuestion.question_category.replace(/\|/g, ' | ')}
                </Badge>
              </div>
             <CardTitle className="text-xl text-slate-900 leading-relaxed">
@@ -612,11 +662,11 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
                 </SelectContent>
               </Select>
             ) : (
-              <Input
+              <Textarea
                 value={answers[currentQuestion.id] || ''}
                 onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                 placeholder="Enter your answer..."
-                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                className="min-h-[120px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 resize-none"
               />
             )}
           </CardContent>
@@ -681,7 +731,13 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
             return (
               <button
                 key={index}
-                onClick={() => setCurrentQuestionIndex(index)}
+                onClick={() => {
+                  // Auto-save current answers in the background (non-blocking)
+                  autoSaveAnswers().catch(error => {
+                    console.error('Auto-save failed:', error);
+                  });
+                  setCurrentQuestionIndex(index);
+                }}
                 className={`w-3 h-3 rounded-full transition-colors ${
                   index === currentQuestionIndex
                     ? 'bg-blue-600'

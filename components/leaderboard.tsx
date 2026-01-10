@@ -67,8 +67,8 @@ export default function Leaderboard() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
       // Fetch leaderboard data
       const { data: leaderboard, error: leaderboardError } = await supabase
@@ -79,7 +79,7 @@ export default function Leaderboard() {
       if (leaderboardError) throw leaderboardError;
 
       // Find current user's stats
-      const currentUserStats = leaderboard?.find(u => u.user_id === user.id);
+      const currentUserStats = leaderboard?.find(u => u.user_id === effectiveUserId);
       
       if (currentUserStats) {
         setUserStats({
