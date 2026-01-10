@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import { Input, ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -102,11 +103,10 @@ export default function SoftwareTrackerPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
       
-      if (!user) throw new Error("No authenticated user");
-      
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
       
       const { data, error } = await supabase
         .from("software")
@@ -130,10 +130,10 @@ export default function SoftwareTrackerPage() {
 
   const fetchDropdownData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
 
       // Fetch departments
       const { data: departmentsData, error: departmentsError } = await supabase
@@ -204,16 +204,16 @@ export default function SoftwareTrackerPage() {
     try {
       setIsSaving(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
       const { data: adminBusinessInfo } = await supabase
         .from('business_info')
         .select('team_id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
       
-      const teamId = adminBusinessInfo?.team_id || user.id;
+      const teamId = adminBusinessInfo?.team_id || effectiveUserId;
 
       if (currentSoftware) {
         // Update existing software

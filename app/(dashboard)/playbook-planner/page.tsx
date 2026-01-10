@@ -6,6 +6,7 @@ import ReusableTiptapEditor from '@/components/reusable-tiptap-editor';
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -399,15 +400,14 @@ export default function GrowthEngineLibraryPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
       
       // Get user role first
       const { data: userData } = await supabase
         .from('business_info')
         .select('role')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
       
       setUserRole(userData?.role || null);
@@ -426,11 +426,11 @@ export default function GrowthEngineLibraryPage() {
               business_info!inner ( id, full_name, profile_picture_url )
             )
           `)
-          .eq('playbook_assignments.business_info.user_id', user.id)
+          .eq('playbook_assignments.business_info.user_id', effectiveUserId)
           .order("created_at", { ascending: false });
       } else {
         // For admin and super_admin, show all team playbooks
-        const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+        const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
         
         query = supabase
           .from("playbooks")
@@ -564,8 +564,8 @@ export default function GrowthEngineLibraryPage() {
         throw new Error("Playbook name is required.");
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
       const playbookPayload = {
         playbookname: data.playbookname,
@@ -574,7 +574,7 @@ export default function GrowthEngineLibraryPage() {
         status: data.status,
         link: data.link,
         department_id: data.department_id,
-        user_id: user.id
+        user_id: effectiveUserId
       };
 
       let playbookId: string;

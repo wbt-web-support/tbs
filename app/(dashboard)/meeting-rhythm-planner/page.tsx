@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, parseISO, getYear, getMonth, getDaysInMonth, getDay } from "date-fns";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -307,11 +308,10 @@ export default function MeetingRhythmPlannerPage() {
   const fetchMeetings = async () => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
       
-      if (!user) throw new Error("No authenticated user");
-      
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
 
       const { data, error } = await supabase
         .from('meeting_rhythm_planner')
@@ -341,9 +341,8 @@ export default function MeetingRhythmPlannerPage() {
   const handleSaveMeeting = async (meeting: Partial<Meeting>) => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
       
       if (meeting.id) {
         // Update existing meeting
@@ -368,7 +367,7 @@ export default function MeetingRhythmPlannerPage() {
         const { error } = await supabase
           .from('meeting_rhythm_planner')
           .insert({
-            user_id: user.id,
+            user_id: effectiveUserId,
             meeting_type: meeting.meeting_type,
             meeting_date: meeting.meeting_date,
             meeting_title: meeting.meeting_title,

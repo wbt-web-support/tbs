@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import TopSection from "./components/top-section";
 import MiddleSection from "./components/middle-section";
@@ -48,11 +49,10 @@ export default function QuarterlySprintCanvasPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
-      const teamId = await getTeamId(supabase, user.id);
+      const teamId = await getTeamId(supabase, effectiveUserId);
       
       const { data, error } = await supabase
         .from("quarterly_sprint_canvas")

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { getEffectiveUser } from "@/lib/get-effective-user";
 import ThankYouClient from "./thank-you.client";
 
 export default async function ThankYouPage({
@@ -10,24 +11,28 @@ export default async function ThankYouPage({
   searchParams: { onboarding?: string; welcome?: string };
 }) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect('/sign-in');
   }
 
-  // Fetch onboarding data
+  // Get effective user (impersonated if active, otherwise actual user)
+  const effectiveUser = await getEffectiveUser();
+  const effectiveUserId = effectiveUser?.userId || user.id;
+
+  // Fetch onboarding data using effective user ID
   const { data: onboardingData } = await supabase
     .from('company_onboarding')
     .select('onboarding_data, completed')
-    .eq('user_id', session.user.id)
+    .eq('user_id', effectiveUserId)
     .single();
 
   // Fetch AI onboarding questions (stored as JSONB in questions_data)
   const { data: aiQuestionsRecord, error: aiQuestionsError } = await supabase
     .from('ai_onboarding_questions')
     .select('questions_data, is_completed')
-    .eq('user_id', session.user.id)
+    .eq('user_id', effectiveUserId)
     .single();
 
   // Extract questions array from JSONB structure
@@ -38,14 +43,14 @@ export default async function ThankYouPage({
     console.error('Error fetching AI onboarding questions:', aiQuestionsError);
   }
 
-  // Fetch user name
+  // Fetch user name using effective user ID
   const { data: businessInfo } = await supabase
     .from('business_info')
     .select('full_name')
-    .eq('user_id', session.user.id)
+    .eq('user_id', effectiveUserId)
     .single();
 
-  const userName = businessInfo?.full_name || session.user.email || "";
+  const userName = businessInfo?.full_name || effectiveUser?.email || user.email || "";
 
   return (
     <ThankYouClient

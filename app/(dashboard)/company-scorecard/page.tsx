@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Loader2, Plus, Pencil, Trash2, Search, Filter, BarChart, Eye, Calendar, Target, User, FileText, Info } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import { Input, ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -259,11 +260,10 @@ export default function CompanyScorecardPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
       
-      if (!user) throw new Error("No authenticated user");
-      
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
       
       const { data, error } = await supabase
         .from("company_scorecards")
@@ -288,10 +288,10 @@ export default function CompanyScorecardPage() {
 
   const fetchDropdownData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
 
       // Fetch departments
       const { data: departmentsData, error: departmentsError } = await supabase
@@ -383,9 +383,8 @@ export default function CompanyScorecardPage() {
     try {
       setIsSaving(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
       // Calculate status automatically
       const calculatedStatus = calculateStatus(formData.monthlyactual, formData.monthlytarget);
@@ -416,10 +415,13 @@ export default function CompanyScorecardPage() {
         if (error) throw error;
       } else {
         // Create new scorecard
+        const effectiveUserId = await getEffectiveUserId();
+        if (!effectiveUserId) throw new Error("No effective user ID");
+        
         const { error } = await supabase
           .from("company_scorecards")
           .insert({
-            user_id: user.id,
+            user_id: effectiveUserId,
             name: formData.name,
             department_id: formData.department_id,
             week1: formData.week1,

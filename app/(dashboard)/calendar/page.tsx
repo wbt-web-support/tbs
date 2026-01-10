@@ -6,6 +6,7 @@ import TimelineView from "./components/timeline-view";
 import TodoList from "./components/additional-benefits";
 import ContactInfo from "./components/contact-info";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import GoogleCalendarView from "./components/google-calendar-view";
 
 
@@ -91,12 +92,12 @@ export default function ChqTimelinePage() {
 
   const fetchUserRole = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      const effectiveUserId = await getEffectiveUserId();
+      if (effectiveUserId) {
         const { data: businessInfo } = await supabase
           .from('business_info')
           .select('role')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .single();
         
         if (businessInfo) {
@@ -149,8 +150,8 @@ export default function ChqTimelinePage() {
     if (dataFetched.timeline) return; // Prevent refetching
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error('No effective user ID found');
 
       // Get timeline events
       const { data: timelineData, error: timelineError } = await supabase
@@ -164,7 +165,7 @@ export default function ChqTimelinePage() {
       const { data: userClaims, error: claimsError } = await supabase
         .from('user_timeline_claims')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       if (claimsError) throw claimsError;
 
@@ -192,14 +193,14 @@ export default function ChqTimelinePage() {
 
     setTodoLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error('No effective user ID found');
 
       // Get user's team information
       const { data: userInfo, error: userError } = await supabase
         .from('business_info')
         .select('team_id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
 
       if (userError) throw userError;

@@ -29,7 +29,11 @@ type LeaveRequest = {
   approval_date?: string;
 };
 
-export default function LeaveApprovals() {
+type LeaveApprovalsProps = {
+  onLeaveUpdated?: () => void;
+};
+
+export default function LeaveApprovals({ onLeaveUpdated }: LeaveApprovalsProps) {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
@@ -178,6 +182,9 @@ export default function LeaveApprovals() {
       });
 
       fetchLeaveRequests();
+      if (onLeaveUpdated) {
+        onLeaveUpdated();
+      }
       setIsApprovalDialogOpen(false);
       setComments('');
     } catch (error: any) {

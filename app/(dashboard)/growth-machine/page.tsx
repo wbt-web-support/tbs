@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2, ExternalLink, Edit, Save, X, Code, Hand, ZoomIn, Camera, Upload, Image, FileCode2, Check, SwitchCamera, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -80,11 +81,16 @@ export default function GrowthMachinePage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) {
+        throw new Error("No effective user ID");
+      }
 
-      const teamId = await getTeamId(supabase, user.id);
+      const teamId = await getTeamId(supabase, effectiveUserId);
+      
+      if (!teamId) {
+        throw new Error("Unable to determine team ID");
+      }
       
       const { data, error } = await supabase
         .from("machines")
@@ -104,9 +110,11 @@ export default function GrowthMachinePage() {
         // Automatically create a new growth machine if none exists
         await createDefaultGrowthMachine(teamId);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching growth machine data:", error);
-      setError("Failed to load growth machine data");
+      const errorMessage = error?.message || "Failed to load growth machine data";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -114,6 +122,10 @@ export default function GrowthMachinePage() {
 
   const createDefaultGrowthMachine = async (teamId: string) => {
     try {
+      if (!teamId) {
+        throw new Error("Team ID is required to create a growth machine");
+      }
+
       const { data, error } = await supabase
         .from("machines")
         .insert({
@@ -128,15 +140,23 @@ export default function GrowthMachinePage() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Database error creating growth machine:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("No data returned after creating growth machine");
+      }
       
       setMachineData(data);
       setError("");
       toast.success("Growth machine created successfully!");
     } catch (error: any) {
       console.error("Error creating default growth machine:", error);
-      setError("Failed to create growth machine");
-      toast.error("Failed to create growth machine");
+      const errorMessage = error?.message || error?.details || "Failed to create growth machine";
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 

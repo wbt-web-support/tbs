@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, Plus, Code, PenTool, GraduationCap, Coffee, Lightbulb, X, HelpCircle, Globe, Paperclip, BarChart3, ArrowRight, ArrowUp, Calendar, Sparkles, Bell, TrendingUp, CheckCircle2, Zap } from "lucide-react";
@@ -138,14 +139,14 @@ export function MemberChat() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
+        const effectiveUserId = await getEffectiveUserId();
+        if (!effectiveUserId) return;
 
         // Fetch user name
         const { data: businessInfo } = await supabase
           .from('business_info')
           .select('full_name')
-          .eq('user_id', session.user.id)
+          .eq('user_id', effectiveUserId)
           .single();
         
         if (businessInfo) {

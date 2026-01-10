@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Sparkles, Save } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import BattlePlanDetails from "./components/battle-plan-details";
@@ -47,11 +48,10 @@ export default function BattlePlanPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
-      const teamId = await getTeamId(supabase, user.id);
+      const teamId = await getTeamId(supabase, effectiveUserId);
       
       const { data, error } = await supabase
         .from("battle_plan")

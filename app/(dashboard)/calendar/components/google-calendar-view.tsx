@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addDays, subDays } from "date-fns";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -12,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { 
   Calendar, 
   RefreshCw, 
@@ -21,15 +21,14 @@ import {
   Clock, 
   Users,
   CheckCircle2,
-  XCircle,
   ExternalLink,
   Settings
 } from "lucide-react";
 import CalendarView from "./calendar-view";
 import BankHolidaysManager from "./bank-holidays-manager";
 import LeaveRequest from "./leave-request";
-import LeaveApprovals from "./leave-approvals";
-import LeaveEntitlements from "./leave-entitlements";
+import AdminCalendarSidebar from "./admin-calendar-sidebar";
+import SimplifiedLeaveEntitlement from "./simplified-leave-entitlement";
 
 type GoogleCalendarEvent = {
   id: string;
@@ -64,6 +63,7 @@ type LeaveRequestEvent = {
   duration_days: number;
   description?: string;
   created_at: string;
+  user_name?: string;
 };
 
 type UnifiedEvent = {
@@ -101,7 +101,7 @@ export default function GoogleCalendarView() {
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLeaveManagementOpen, setIsLeaveManagementOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>("holidays");
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState<number>(0);
   const supabase = createClient();
   const { toast } = useToast();
 
@@ -109,7 +109,6 @@ export default function GoogleCalendarView() {
     checkConnectionStatus();
     fetchHolidays();
     fetchUserRole();
-    fetchLeaveRequests();
     
     // Check for OAuth callback success
     const urlParams = new URLSearchParams(window.location.search);
@@ -291,16 +290,19 @@ export default function GoogleCalendarView() {
 
   const fetchUserRole = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
       const { data: userInfo } = await supabase
         .from('business_info')
         .select('role')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
 
-      setIsAdmin(userInfo?.role === 'admin');
+      const userIsAdmin = userInfo?.role === 'admin';
+      setIsAdmin(userIsAdmin);
+      // Refetch leaves after role is determined to show all leaves for admins
+      fetchLeaveRequests(userIsAdmin);
     } catch (error) {
       console.error("Error fetching user role:", error);
     }
@@ -335,19 +337,82 @@ export default function GoogleCalendarView() {
     }
   };
 
-  const fetchLeaveRequests = async () => {
+  const fetchLeaveRequests = async (userIsAdmin?: boolean) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
-      const { data, error } = await supabase
+      // Use the passed parameter if available, otherwise fall back to state
+      const adminStatus = userIsAdmin !== undefined ? userIsAdmin : isAdmin;
+
+      // Get user's team_id to fetch team members for name mapping
+      const { data: userInfo } = await supabase
+        .from('business_info')
+        .select('team_id')
+        .eq('user_id', effectiveUserId)
+        .single();
+
+      // For admins, fetch all leaves (RLS policy will filter to team members)
+      // For regular users, only fetch their own leaves
+      let query = supabase
         .from('team_leaves')
-        .select('*')
-        .eq('user_id', user.id)
+        .select('*');
+
+      if (!adminStatus) {
+        query = query.eq('user_id', effectiveUserId);
+      }
+
+      const { data: leaves, error } = await query
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setLeaveRequests(data || []);
+
+      // Fetch user names for all leave requests
+      type LeaveData = {
+        user_id: string;
+        [key: string]: unknown;
+      };
+      
+      type MemberData = {
+        user_id: string;
+        full_name: string | null;
+      };
+
+      const userIds = Array.from(new Set((leaves || []).map((l: LeaveData) => l.user_id)));
+      let membersMap = new Map<string, string>();
+
+      if (userIds.length > 0) {
+        // For admins, get all team members, for regular users just get their own info
+        let nameQuery = supabase
+          .from('business_info')
+          .select('user_id, full_name');
+
+        if (adminStatus && userInfo?.team_id) {
+          // Get all team members
+          nameQuery = nameQuery.eq('team_id', userInfo.team_id);
+        } else {
+          // Get only current user
+          nameQuery = nameQuery.eq('user_id', effectiveUserId);
+        }
+
+        const { data: members } = await nameQuery;
+        if (members) {
+          membersMap = new Map((members as MemberData[]).map((m: MemberData) => [m.user_id, m.full_name || 'Unknown']));
+        }
+      }
+
+      // Map leaves with user names
+      const leavesWithNames = (leaves || []).map((leave: LeaveData) => ({
+        ...leave,
+        user_name: membersMap.get(leave.user_id) || 'Unknown User'
+      } as LeaveRequestEvent));
+
+      setLeaveRequests(leavesWithNames);
+      
+      // Trigger sidebar refresh for admin
+      if (adminStatus) {
+        setSidebarRefreshTrigger(prev => prev + 1);
+      }
     } catch (error) {
       console.error("Error fetching leave requests:", error);
     }
@@ -405,7 +470,7 @@ export default function GoogleCalendarView() {
         .filter(lr => lr.status.toLowerCase() !== 'rejected')
         .map(lr => ({
           id: lr.id,
-          title: `${lr.leave_type} (${lr.status})`,
+          title: `${lr.user_name || 'Unknown'}: ${lr.leave_type} (${lr.status})`,
           start_time: lr.start_date,
           end_time: lr.end_date,
           all_day: true,
@@ -651,7 +716,9 @@ export default function GoogleCalendarView() {
                       Manage Leave
                     </Button>
                   )}
-                  <LeaveRequest onLeaveRequested={fetchLeaveRequests} />
+                  <LeaveRequest onLeaveRequested={() => {
+                    fetchLeaveRequests();
+                  }} />
                 </>
               )}
             </div>
@@ -712,18 +779,32 @@ export default function GoogleCalendarView() {
           </div>
         </CardContent>
       </Card>
-      {/* Events Display */}
-      {viewMode === 'calendar' ? (
-        <CalendarView events={getFilteredEvents()} />
-      ) : (
-        <Card className="border-0">
-          <CardContent className="p-4 sm:p-6">
-            <ScrollArea className="h-[600px]">
-              {viewMode === 'list' ? renderListView() : renderWeekView()}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      )}
+      {/* Events Display with Admin Sidebar */}
+      <div className={isAdmin ? "flex gap-4" : ""}>
+        <div className={isAdmin ? "flex-1" : ""}>
+          {viewMode === 'calendar' ? (
+            <CalendarView events={getFilteredEvents()} />
+          ) : (
+            <Card className="border-0">
+              <CardContent className="p-4 sm:p-6">
+                <ScrollArea className="h-[600px]">
+                  {viewMode === 'list' ? renderListView() : renderWeekView()}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+        {isAdmin && (
+          <AdminCalendarSidebar 
+            isOpen={true} 
+            refreshTrigger={sidebarRefreshTrigger}
+            onLeaveUpdated={() => {
+              fetchLeaveRequests();
+              setSidebarRefreshTrigger(prev => prev + 1);
+            }}
+          />
+        )}
+      </div>
 
       {/* Info Card */}
       {connectionStatus.connected && connectionStatus.last_sync_at && (
@@ -744,55 +825,28 @@ export default function GoogleCalendarView() {
         </Card>
       )}
 
-      {/* Unified Leave Management Modal */}
+      {/* Simplified Leave Management Modal */}
       <Dialog open={isLeaveManagementOpen} onOpenChange={setIsLeaveManagementOpen}>
-        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0 bg-white">
-            <DialogTitle className="text-xl font-semibold">Leave Management</DialogTitle>
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-3 pb-3 border-b flex-shrink-0 bg-white">
+            <DialogTitle className="text-xl font-semibold">Leave Settings</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div className="flex-shrink-0 px-6 pt-4 pb-3 border-b bg-gray-50/50">
-                <TabsList className="w-full justify-start bg-transparent p-0 h-auto gap-1">
-                  <TabsTrigger 
-                    value="holidays" 
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 data-[state=inactive]:hover:bg-gray-100 transition-all border-0"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Manage Holidays
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="entitlements" 
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 data-[state=inactive]:hover:bg-gray-100 transition-all border-0"
-                  >
-                    <Users className="h-4 w-4" />
-                    Set Leave Days
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="approvals" 
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 data-[state=inactive]:hover:bg-gray-100 transition-all border-0"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    Approve Requests
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              <div className="flex-1 overflow-y-auto min-h-0 bg-white">
-                <div className="px-6 py-6">
-                  <TabsContent value="holidays" className="mt-0 focus-visible:outline-none data-[state=active]:animate-in data-[state=inactive]:animate-out">
-                    <BankHolidaysManager onHolidaysUpdated={() => {
-                      fetchHolidays();
-                    }} />
-                  </TabsContent>
-                  <TabsContent value="entitlements" className="mt-0 focus-visible:outline-none data-[state=active]:animate-in data-[state=inactive]:animate-out">
-                    <LeaveEntitlements />
-                  </TabsContent>
-                  <TabsContent value="approvals" className="mt-0 focus-visible:outline-none data-[state=active]:animate-in data-[state=inactive]:animate-out">
-                    <LeaveApprovals />
-                  </TabsContent>
-                </div>
-              </div>
-            </Tabs>
+          <div className="flex-1 overflow-y-auto min-h-0 bg-white">
+            <div className="px-6 py-6 space-y-6">
+              {/* Leave Entitlement Section */}
+              <SimplifiedLeaveEntitlement onUpdated={() => {
+                setSidebarRefreshTrigger(prev => prev + 1);
+              }} />
+              
+              {/* Bank Holidays Section */}
+              <BankHolidaysManager 
+                hideHeader={true}
+                onHolidaysUpdated={() => {
+                  fetchHolidays();
+                  setSidebarRefreshTrigger(prev => prev + 1);
+                }} 
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

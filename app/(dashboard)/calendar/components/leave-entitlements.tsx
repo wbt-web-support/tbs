@@ -429,9 +429,12 @@ export default function LeaveEntitlements() {
                   </Badge>
                 </div>
                 <div className="space-y-1 text-sm text-gray-600">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span>Total Entitlement:</span>
-                    <span>{member.total_entitlement} days</span>
+                    <div className="text-right">
+                      <span>{member.total_entitlement + member.bank_holidays} days</span>
+                     
+                    </div>
                   </div>
                   <div className="flex justify-between">
                     <span>Used Leave:</span>

@@ -95,7 +95,7 @@ export default function AdminFeedbackPage() {
 
       // Fetch user information for each feedback
       if (feedbackData && feedbackData.length > 0) {
-        const userIds = [...new Set(feedbackData.map(f => f.user_id))];
+        const userIds = Array.from(new Set(feedbackData.map((f: { user_id: any; }) => f.user_id)));
         
         const { data: usersData, error: usersError } = await supabase
           .from('business_info')
@@ -105,8 +105,8 @@ export default function AdminFeedbackPage() {
         if (usersError) throw usersError;
 
         // Map user data to feedback
-        const feedbackWithUsers = feedbackData.map(f => {
-          const user = usersData?.find(u => u.user_id === f.user_id);
+        const feedbackWithUsers = feedbackData.map((f: { user_id: any; }) => {
+          const user = usersData?.find((u: { user_id: any; }) => u.user_id === f.user_id);
           return {
             ...f,
             user: user ? {
