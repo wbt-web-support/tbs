@@ -92,7 +92,7 @@ function PerformanceFilesContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const response = await fetch('/api/performance/files');
+      const response = await fetch('/api/finance/files');
       if (!response.ok) throw new Error('Failed to fetch files');
       const data = await response.json();
       
@@ -109,7 +109,7 @@ function PerformanceFilesContent() {
       })) || []);
     } catch (error) {
       console.error("Error fetching performance files:", error);
-      toast.error("Failed to load performance files");
+      toast.error("Failed to load finance files");
     } finally {
       setLoading(false);
     }
@@ -192,7 +192,7 @@ function PerformanceFilesContent() {
       formData.append('month', selectedMonth);
       formData.append('year', selectedYear);
 
-      const response = await fetch('/api/performance/upload', {
+      const response = await fetch('/api/finance/upload', {
         method: 'POST',
         body: formData,
       });
@@ -206,7 +206,7 @@ function PerformanceFilesContent() {
       fetchFiles();
 
       // Trigger analysis in the background
-      fetch('/api/performance/analysis', {
+      fetch('/api/finance/analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_id: data.file.id }),
@@ -229,7 +229,7 @@ function PerformanceFilesContent() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
     try {
-      const response = await fetch(`/api/performance/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/finance/${id}`, { method: 'DELETE' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Delete failed');
       toast.success("File deleted successfully");
@@ -241,7 +241,7 @@ function PerformanceFilesContent() {
 
   const handleDownload = async (id: string) => {
     try {
-      const response = await fetch(`/api/performance/download/${id}`);
+      const response = await fetch(`/api/finance/download/${id}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Download failed');
       window.open(data.downloadUrl, '_blank');
@@ -254,14 +254,14 @@ function PerformanceFilesContent() {
     <div className="max-w-[1440px] mx-auto">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/performance">
+          <Link href="/finance">
             <Button variant="ghost" size="sm" className="rounded-full h-10 w-10 p-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div>
-            <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Manage Performance Files</h1>
-            <p className="text-sm text-gray-500 mt-1">Upload and track your Performance documents</p>
+            <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Manage Finance Files</h1>
+            <p className="text-sm text-gray-500 mt-1">Upload and track your Finance documents</p>
           </div>
         </div>
         <Button 
@@ -289,7 +289,7 @@ function PerformanceFilesContent() {
                 <TableCell colSpan={4} className="h-48 text-center">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    <p className="text-sm text-gray-500 font-medium">Loading performance data...</p>
+                    <p className="text-sm text-gray-500 font-medium">Loading finance data...</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -299,7 +299,7 @@ function PerformanceFilesContent() {
                   <div className="flex flex-col items-center justify-center gap-2">
                     <FileText className="h-8 w-8 text-gray-300" />
                     <p className="text-sm font-medium">No files uploaded yet.</p>
-                    <p className="text-xs">Your performance documents will appear here.</p>
+                    <p className="text-xs">Your finance documents will appear here.</p>
                   </div>
                 </TableCell>
               </TableRow>

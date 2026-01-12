@@ -98,7 +98,7 @@ const navigationSections: NavigationSection[] = [
       },
       {
         name: "Performance",
-        href: "/performance1",
+        href: "/performance",
         icon: Wallet,
       },
       // {
