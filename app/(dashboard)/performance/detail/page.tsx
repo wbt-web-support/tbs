@@ -40,7 +40,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { PieChart, Pie, Cell, Label as RechartsLabel } from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartConfig,
+} from '@/components/ui/chart';
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -122,48 +128,32 @@ const formatMetric = (value: number, type: 'currency' | 'percentage' | 'number' 
   }
 };
 
-// Metric categories for grouping
-interface MetricGroup {
-  category: string;
-  metrics: Array<{ n: string; f: keyof KPIData; p?: string; s?: string; c?: boolean; hasTarget?: boolean }>;
+// Flat list of metrics in exact order from image
+interface Metric {
+  n: string;
+  f: keyof KPIData;
+  p?: string;
+  s?: string;
+  c?: boolean;
+  hasTarget?: boolean;
 }
 
-const metricGroups: MetricGroup[] = [
-  {
-    category: 'Financial Metrics',
-    metrics: [
-      { n: 'Revenue', f: 'revenue', p: '$', hasTarget: true },
-      { n: 'Ad Spend', f: 'ad_spend', p: '$', hasTarget: true },
-      { n: 'ROAS', f: 'roas', c: true },
-      { n: 'ROI (£)', f: 'roi_pounds', p: '$', c: true },
-      { n: 'ROI (%)', f: 'roi_percent', s: '%', c: true },
-    ]
-  },
-  {
-    category: 'Lead Metrics',
-    metrics: [
-      { n: 'Total Leads', f: 'leads', hasTarget: true },
-      { n: 'Surveys Booked', f: 'surveys_booked', hasTarget: true },
-      { n: 'Jobs Completed', f: 'jobs_completed', hasTarget: true },
-    ]
-  },
-  {
-    category: 'Calculated Metrics',
-    metrics: [
-      { n: 'Avg Cost Per Lead', f: 'avg_cost_per_lead', p: '$', c: true },
-      { n: 'Avg Cost Per Job', f: 'avg_cost_per_job', p: '$', c: true },
-      { n: 'Lead to Survey Rate', f: 'lead_to_survey_rate', s: '%', c: true },
-      { n: 'Survey to Job Rate', f: 'survey_to_job_rate', s: '%', c: true },
-      { n: 'Lead to Job Rate', f: 'lead_to_job_rate', s: '%', c: true },
-    ]
-  },
-  {
-    category: 'Review Metrics',
-    metrics: [
-      { n: 'Google Reviews', f: 'google_reviews', hasTarget: true },
-      { n: 'Review Rating', f: 'review_rating', hasTarget: true },
-    ]
-  }
+const metrics: Metric[] = [
+  { n: 'New Revenue Generated', f: 'revenue', p: '£', hasTarget: true },
+  { n: 'Total Ad Spend (FB, IG & Google Ads)', f: 'ad_spend', p: '£', hasTarget: true },
+  { n: 'Total Number of Leads', f: 'leads', hasTarget: true },
+  { n: 'Ave Cost Per Lead (Combined)', f: 'avg_cost_per_lead', p: '£', c: true },
+  { n: 'No. of Surveys Booked', f: 'surveys_booked', hasTarget: true },
+  { n: 'Lead -> Survey Conv Rate %', f: 'lead_to_survey_rate', s: '%', c: true },
+  { n: 'No. of Jobs Completed', f: 'jobs_completed', hasTarget: true },
+  { n: 'Survey -> Job Conv Rate %', f: 'survey_to_job_rate', s: '%', c: true },
+  { n: 'Lead -> Job Conv Rate %', f: 'lead_to_job_rate', s: '%', c: true },
+  { n: 'Average Cost Per Job', f: 'avg_cost_per_job', p: '£', c: true },
+  { n: 'ROAS', f: 'roas', c: true },
+  { n: 'ROI £ (inc WBT Fee)', f: 'roi_pounds', p: '£', c: true },
+  { n: 'ROI % (inc WBT Fee)', f: 'roi_percent', s: '%', c: true },
+  { n: 'Total Google Reviews', f: 'google_reviews', hasTarget: true },
+  { n: 'Average Review Rating', f: 'review_rating', hasTarget: true },
 ];
 
 function PerformancePageContent() {
@@ -532,52 +522,180 @@ function PerformancePageContent() {
     return { total, completed, incomplete: total - completed, percentage };
   };
 
-  const TaskDonut = ({ type, title, color }: { type: 'reoccurring' | 'client' | 'team', title: string, color: string }) => {
+  const TaskCardWithGraph = ({ type, title, color, icon }: { type: 'client' | 'team', title: string, color: string, icon: any }) => {
     const stats = getTaskStats(type);
+    const typeTasks = tasks.filter(t => t.task_type === type);
     const data = [
       { name: 'Completed', value: stats.completed },
       { name: 'Todo', value: Math.max(0, stats.total - stats.completed) || (stats.total === 0 ? 1 : 0) }
     ];
 
+    const IconComponent = icon;
+    
     return (
-      <Card className="border-gray-100 shadow-sm relative overflow-hidden h-full rounded-xl">
+      <Card className="border-gray-100 shadow-sm rounded-xl overflow-hidden relative">
         <div className={`absolute top-0 left-0 w-full h-1`} style={{ backgroundColor: color }} />
-        <CardContent className="pt-6 flex flex-col items-center">
-          <p className="text-sm font-semibold text-gray-900 mb-4 text-center h-8 flex items-center">{title}</p>
-          <div className="relative w-32 h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={35}
-                  outerRadius={50}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="none"
-                  startAngle={90}
-                  endAngle={-270}
-                >
-                  <Cell fill={color} />
-                  <Cell fill="#f1f5f9" />
-                </Pie>
-                <RechartsTooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-gray-900">{stats.percentage}%</span>
-            </div>
+        <CardHeader className="px-6 py-3 border-b border-gray-100 bg-gray-50/30">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <IconComponent className="w-3.5 h-3.5 text-blue-600" />
+              {title}
+            </CardTitle>
+            {editMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleAddTaskClick(type)}
+                className="h-8 w-8 p-0 hover:bg-blue-50"
+              >
+                <Plus className="w-4 h-4 text-blue-600" />
+              </Button>
+            )}
           </div>
-          <div className="grid grid-cols-2 w-full gap-2 mt-4 text-xs font-medium">
-             <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
-                <span className="block text-gray-500 mb-0.5">Done</span>
-                <span className="text-gray-900 font-semibold">{stats.completed}</span>
-             </div>
-             <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
-                <span className="block text-gray-500 mb-0.5">Total</span>
-                <span className="text-gray-900 font-semibold">{stats.total}</span>
-             </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Side: Task List */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Tasks</h3>
+              <div className="space-y-1 max-h-[400px] overflow-y-auto">
+                {typeTasks.length > 0 ? (
+                  typeTasks.map((t, idx) => (
+                    <div 
+                      key={idx} 
+                      className="flex items-center gap-2 py-1.5 px-3 rounded-lg hover:bg-gray-50 transition-all group border border-gray-100"
+                    >
+                      <Checkbox 
+                        checked={t.status === 'completed'} 
+                        disabled={!editMode}
+                        onCheckedChange={() => setTasks(p => p.map((ta) => ta === t ? { ...ta, status: ta.status === 'completed' ? 'todo' : 'completed' } : ta))} 
+                        className="w-4 h-4 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${t.status === 'completed' ? 'text-gray-400' : 'text-gray-900'}`}>
+                          {t.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-[10px] uppercase tracking-wider font-bold h-5 px-1.5 ${
+                            t.status === 'completed' 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-100' 
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {t.status === 'completed' ? 'Complete' : 'Todo'}
+                        </Badge>
+                        {editMode && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setTasks(p => p.filter((ta) => ta !== t))}
+                            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition-opacity"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <p className="text-sm">No tasks added yet</p>
+                    {editMode && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddTaskClick(type)}
+                        className="mt-3 border-gray-200"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Task
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Side: Graph and Stats */}
+            <div className="flex flex-col items-center justify-center md:border-l md:border-gray-100 md:pl-6">
+              <div className="w-full mb-2">
+                <ChartContainer
+                  config={{
+                    completed: {
+                      label: "Completed",
+                      color: color,
+                    },
+                    todo: {
+                      label: "Todo",
+                      color: "#f1f5f9",
+                    },
+                  } satisfies ChartConfig}
+                  className="mx-auto aspect-square max-h-[240px]"
+                >
+                  <PieChart>
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Pie
+                      data={data}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={60}
+                      strokeWidth={5}
+                    >
+                      <Cell fill={color} />
+                      <Cell fill="#f1f5f9" />
+                      <RechartsLabel
+                        content={({ viewBox }: any) => {
+                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                            const cx = viewBox.cx as number;
+                            const cy = viewBox.cy as number;
+                            return (
+                              <text
+                                x={cx}
+                                y={cy}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                              >
+                                <tspan
+                                  x={cx}
+                                  y={cy}
+                                  className="fill-foreground text-3xl font-bold"
+                                >
+                                  {stats.percentage}%
+                                </tspan>
+                                <tspan
+                                  x={cx}
+                                  y={cy + 24}
+                                  className="fill-muted-foreground"
+                                >
+                                  Complete
+                                </tspan>
+                              </text>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </Pie>
+                  </PieChart>
+                </ChartContainer>
+              </div>
+              <div className="grid grid-cols-2 w-full gap-3 mt-1">
+                <div className="bg-gray-50 p-3 rounded-lg text-center border border-gray-100">
+                  <span className="block text-gray-500 mb-1 text-xs font-medium">Done</span>
+                  <span className="text-gray-900 font-bold text-lg">{stats.completed}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg text-center border border-gray-100">
+                  <span className="block text-gray-500 mb-1 text-xs font-medium">Total</span>
+                  <span className="text-gray-900 font-bold text-lg">{stats.total}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -601,7 +719,7 @@ function PerformancePageContent() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-medium text-gray-900">Monthly Performance</h1>
+            <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Monthly Performance</h1>
             <p className="text-sm text-gray-500 mt-1">
               {activeMonth} {activeYear} - Performance Tracking Session
             </p>
@@ -631,7 +749,7 @@ function PerformancePageContent() {
           {!editMode ? (
             <Button 
               onClick={() => setEditMode(true)} 
-              className="bg-blue-600 hover:bg-blue-700 h-10 px-6 font-medium text-sm text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Edit3 className="w-4 h-4 mr-2" />
               Edit Session
@@ -642,7 +760,7 @@ function PerformancePageContent() {
                 variant="outline" 
                 onClick={() => setEditMode(false)} 
                 disabled={saving} 
-                className="border-gray-200 h-10 px-6"
+                className="border-gray-200"
               >
                 Cancel
               </Button>
@@ -650,17 +768,17 @@ function PerformancePageContent() {
                 type="button"
                 onClick={handleSaveAll} 
                 disabled={saving} 
-                className="bg-blue-600 hover:bg-blue-700 h-10 px-6 font-medium text-sm text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
+                    Updating...
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Save Changes
+                    Update
                   </>
                 )}
               </Button>
@@ -679,185 +797,94 @@ function PerformancePageContent() {
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow className="border-b border-gray-200 hover:bg-gray-50/50">
-                      <TableHead className="w-[250px] py-2.5 text-sm font-semibold text-gray-700 px-6">Metric Name</TableHead>
-                      <TableHead className="w-[150px] py-2.5 text-sm font-semibold text-gray-700 px-6 border-l">Actual</TableHead>
-                      <TableHead className="w-[150px] py-2.5 text-sm font-semibold text-gray-700 px-6 border-l">Status</TableHead>
+                      <TableHead className="w-[250px] py-3.5 text-sm font-semibold text-gray-700 px-6">Metric Name</TableHead>
+                      <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Actual</TableHead>
+                      <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {metricGroups.map((group, groupIndex) => (
-                      <React.Fragment key={group.category}>
-                        {/* Category Header */}
-                        <TableRow className="bg-gray-50/50 border-b border-gray-200">
-                          <TableCell colSpan={3} className="px-6 py-2 text-sm font-semibold text-gray-900 border-l-0">
-                            {group.category}
+                    {metrics.map((r, index) => {
+                      const status = kpis[`${r.f}_status` as keyof KPIData] as string;
+                      const actualValue = kpis[r.f] as number;
+                      const targetField = `${r.f}_target` as keyof KPIData;
+                      const targetValue = kpis[targetField] as number | undefined;
+                      const isCalculated = r.c || false;
+                      const hasTarget = r.hasTarget || false;
+                      
+                      // Determine format type
+                      let formatType: 'currency' | 'percentage' | 'number' = 'number';
+                      if (r.p === '£' || r.p === '$') formatType = 'currency';
+                      else if (r.s === '%') formatType = 'percentage';
+                      
+                      // Debug log for first metric
+                      if (index === 0 && r.f === 'revenue') {
+                        console.log('Rendering Revenue:', {
+                          actualValue,
+                          type: typeof actualValue,
+                          kpisState: kpis.revenue,
+                          editMode
+                        });
+                      }
+                      
+                      return (
+                        <TableRow 
+                          key={r.f as string} 
+                          className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                        >
+                          <TableCell className="px-6 py-4 text-sm font-medium text-gray-700 w-[250px]">
+                            {r.n}
+                          </TableCell>
+                          <TableCell className="px-6 py-4 border-l w-[150px]">
+                            {editMode && !isCalculated ? (
+                              <Input 
+                                type="number" 
+                                step="0.01" 
+                                value={actualValue != null && actualValue !== 0 ? String(actualValue) : ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setKpis(p => ({ ...p, [r.f]: val === '' ? 0 : parseFloat(val) || 0 }));
+                                }}
+                                onBlur={calculateMetrics} 
+                                className="h-10 w-full text-sm bg-white border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500 font-medium" 
+                              />
+                            ) : (
+                              <span className={`text-sm font-semibold ${isCalculated ? 'text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg inline-block' : 'text-gray-900'}`}>
+                                {formatMetric(actualValue || 0, formatType, r.p || '', r.s || '')}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-6 py-4 border-l w-[150px] text-left">
+                            {getAutoStatus(actualValue) === 'complete' ? (
+                              <Badge className="bg-green-100 text-green-700 border-green-200">
+                                Complete
+                              </Badge>
+                            ) : (
+                              <span className="text-sm text-gray-500">Not Complete</span>
+                            )}
                           </TableCell>
                         </TableRow>
-                        {/* Category Metrics */}
-                        {group.metrics.map((r, index) => {
-                          const status = kpis[`${r.f}_status` as keyof KPIData] as string;
-                          const actualValue = kpis[r.f] as number;
-                          const targetField = `${r.f}_target` as keyof KPIData;
-                          const targetValue = kpis[targetField] as number | undefined;
-                          const isCalculated = r.c || false;
-                          const hasTarget = r.hasTarget || false;
-                          
-                          // Determine format type
-                          let formatType: 'currency' | 'percentage' | 'number' = 'number';
-                          if (r.p === '$') formatType = 'currency';
-                          else if (r.s === '%') formatType = 'percentage';
-                          
-                          // Debug log for first metric
-                          if (index === 0 && r.f === 'revenue') {
-                            console.log('Rendering Revenue:', {
-                              actualValue,
-                              type: typeof actualValue,
-                              kpisState: kpis.revenue,
-                              editMode
-                            });
-                          }
-                          
-                          return (
-                            <TableRow 
-                              key={r.f as string} 
-                              className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                            >
-                              <TableCell className="px-6 py-3 text-sm font-medium text-gray-700 w-[250px]">
-                                {r.n}
-                              </TableCell>
-                              <TableCell className="px-6 py-3 border-l w-[150px]">
-                                {editMode && !isCalculated ? (
-                                  <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    value={actualValue != null && actualValue !== 0 ? String(actualValue) : ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setKpis(p => ({ ...p, [r.f]: val === '' ? 0 : parseFloat(val) || 0 }));
-                                    }}
-                                    onBlur={calculateMetrics} 
-                                    className="h-10 w-full text-sm bg-white border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500 font-medium" 
-                                  />
-                                ) : (
-                                  <span className={`text-sm font-semibold ${isCalculated ? 'text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg inline-block' : 'text-gray-900'}`}>
-                                    {formatMetric(actualValue || 0, formatType, r.p || '', r.s || '')}
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell className="px-6 py-3 border-l w-[150px] text-left">
-                                {getAutoStatus(actualValue) === 'complete' ? (
-                                  <Badge className="bg-green-100 text-green-700 border-green-200">
-                                    Complete
-                                  </Badge>
-                                ) : (
-                                  <span className="text-sm text-gray-500">Not Complete</span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </React.Fragment>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
             </TooltipProvider>
           </Card>
 
-          {/* Graphs Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <TaskDonut type="client" title="New Client Projects" color="#eb4891" />
-            <TaskDonut type="team" title="New Team Projects" color="#f59e0b" />
-          </div>
-
-          {/* Tasks Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { t: "New Client Projects", type: 'client' as const, color: 'pink', icon: Users },
-              { t: "New Team Projects", type: 'team' as const, color: 'amber', icon: Target }
-            ].map((s) => (
-              <Card key={s.type} className="border-gray-100 shadow-sm rounded-xl overflow-hidden">
-                <CardHeader className="px-6 py-2 border-b border-gray-100 bg-gray-50/30">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                      <s.icon className="w-3.5 h-3.5 text-blue-600" />
-                      {s.t}
-                    </CardTitle>
-                    {editMode && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAddTaskClick(s.type)}
-                        className="h-8 w-8 p-0 hover:bg-blue-50"
-                      >
-                        <Plus className="w-4 h-4 text-blue-600" />
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-1">
-                  <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                    {tasks.filter(t => t.task_type === s.type).length > 0 ? (
-                      tasks.filter(t => t.task_type === s.type).map((t, idx) => (
-                        <div 
-                          key={idx} 
-                          className="flex items-center gap-2 py-1.5 px-3 rounded-lg hover:bg-gray-50 transition-all group border border-gray-100"
-                        >
-                          <Checkbox 
-                            checked={t.status === 'completed'} 
-                            disabled={!editMode}
-                            onCheckedChange={() => setTasks(p => p.map((ta) => ta === t ? { ...ta, status: ta.status === 'completed' ? 'todo' : 'completed' } : ta))} 
-                            className="w-4 h-4 flex-shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${t.status === 'completed' ? 'text-gray-400' : 'text-gray-900'}`}>
-                              {t.description}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant="secondary" 
-                              className={`text-[10px] uppercase tracking-wider font-bold h-5 px-1.5 ${
-                                t.status === 'completed' 
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-100' 
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-100'
-                              }`}
-                            >
-                              {t.status === 'completed' ? 'Complete' : 'Todo'}
-                            </Badge>
-                            {editMode && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setTasks(p => p.filter((ta) => ta !== t))}
-                                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition-opacity"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-400">
-                        <p className="text-sm">No tasks added yet</p>
-                        {editMode && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAddTaskClick(s.type)}
-                            className="mt-3 border-gray-200"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Task
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {/* Tasks with Graphs Section */}
+          <div className="space-y-6">
+            <TaskCardWithGraph 
+              type="client" 
+              title="New Client Projects" 
+              color="#eb4891" 
+              icon={Users}
+            />
+            <TaskCardWithGraph 
+              type="team" 
+              title="New Team Projects" 
+              color="#f59e0b" 
+              icon={Target}
+            />
           </div>
         </div>
 
@@ -865,7 +892,7 @@ function PerformancePageContent() {
         <div className="lg:col-span-4 space-y-4">
           {/* Session Information */}
           <Card className="border-gray-100 shadow-sm rounded-xl">
-            <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardHeader className="py-3 bg-gray-50/50 border-b border-gray-100">
               <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-blue-600" />
                 Session Information
