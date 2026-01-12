@@ -42,6 +42,8 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
   const audioChunksRef = useRef<Blob[]>([]);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Cache for TTS audio blobs (messageId -> object URL)
+  const audioCacheRef = useRef<Map<string, string>>(new Map());
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -82,6 +84,8 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
       // Clean up audio element
       const audioElement = audioRef.current;
       if (audioElement) {
+        // Remove error handler before clearing src to prevent false error toast
+        audioElement.onerror = null;
         // Revoke any object URLs before clearing
         if (audioElement.src && audioElement.src.startsWith("blob:")) {
           URL.revokeObjectURL(audioElement.src);
@@ -90,6 +94,15 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
         audioElement.src = "";
         audioRef.current = null;
       }
+      
+      // Clean up cached audio URLs
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:100',message:'Cleanup: clearing cache on unmount',data:{cacheSize:audioCacheRef.current.size,cacheKeys:Array.from(audioCacheRef.current.keys())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      audioCacheRef.current.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      audioCacheRef.current.clear();
     };
   }, []);
 
@@ -180,13 +193,61 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
 
   // Handle playback of assistant messages
   const handlePlayMessage = async (messageId: string, text: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:192',message:'handlePlayMessage called',data:{messageId,textLength:text.length,cacheSize:audioCacheRef.current.size,playingMessageId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     // If already playing this message, stop it
     if (playingMessageId === messageId && audioRef.current) {
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:197',message:'Already playing same message, stopping',data:{messageId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       // Remove error handler before clearing src to prevent false error toast
       audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current.src = "";
       setPlayingMessageId(null);
+      return;
+    }
+
+    // Check if we have cached audio for this message
+    const cachedAudioUrl = audioCacheRef.current.get(messageId);
+    // #region agent log
+    fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:206',message:'Cache lookup result',data:{messageId,cacheHit:!!cachedAudioUrl,cachedUrl:cachedAudioUrl?.substring(0,50)||null,cacheKeys:Array.from(audioCacheRef.current.keys())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    if (cachedAudioUrl) {
+      // Use cached audio - no API call needed
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+      
+      // Stop any currently playing audio
+      audioRef.current.pause();
+      audioRef.current.onerror = null;
+      
+      audioRef.current.src = cachedAudioUrl;
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:217',message:'Using cached audio, skipping API call',data:{messageId,cachedUrl:cachedAudioUrl.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      audioRef.current.onended = () => {
+        setPlayingMessageId(null);
+      };
+      audioRef.current.onerror = (e) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:222',message:'Cached audio playback error',data:{messageId,error:e},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
+        setPlayingMessageId(null);
+        // Remove from cache on error
+        audioCacheRef.current.delete(messageId);
+        URL.revokeObjectURL(cachedAudioUrl);
+        toast.error("Error playing audio");
+      };
+      
+      setPlayingMessageId(messageId);
+      await audioRef.current.play();
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:230',message:'Cached audio playback started',data:{messageId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       return;
     }
 
@@ -200,6 +261,10 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
 
     setIsGeneratingTTS(messageId);
     setPlayingMessageId(messageId);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:243',message:'Cache miss, making API call',data:{messageId,textLength:text.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     try {
       const response = await fetch("/api/ai-instructions/tts", {
@@ -217,6 +282,17 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
 
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:260',message:'API response received, caching audio',data:{messageId,audioUrl:audioUrl.substring(0,50),blobSize:audioBlob.size,cacheSizeBefore:audioCacheRef.current.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      // Cache the audio URL for this message
+      audioCacheRef.current.set(messageId, audioUrl);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:264',message:'Cache set completed',data:{messageId,cacheSizeAfter:audioCacheRef.current.size,cacheKeys:Array.from(audioCacheRef.current.keys())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
       // Create or reuse audio element
       if (!audioRef.current) {
@@ -226,18 +302,26 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
       audioRef.current.src = audioUrl;
       audioRef.current.onended = () => {
         setPlayingMessageId(null);
-        URL.revokeObjectURL(audioUrl);
+        // Don't revoke URL - we're caching it
       };
       audioRef.current.onerror = (e) => {
         setPlayingMessageId(null);
         setIsGeneratingTTS(null);
+        // Remove from cache on error
+        audioCacheRef.current.delete(messageId);
         URL.revokeObjectURL(audioUrl);
         toast.error("Error playing audio");
       };
 
       await audioRef.current.play();
       setIsGeneratingTTS(null);
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:285',message:'New audio playback started',data:{messageId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:288',message:'TTS API call failed',data:{messageId,error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.error("Error playing message:", error);
       toast.error(error instanceof Error ? error.message : "Failed to play audio");
       setPlayingMessageId(null);
@@ -334,11 +418,21 @@ export function ChatModal({ open, onOpenChange }: ChatModalProps) {
   const clearChat = () => {
     // Stop any playing audio
     if (audioRef.current) {
+      audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current.src = "";
     }
     setPlayingMessageId(null);
     setIsGeneratingTTS(null);
+    
+    // Clear audio cache when clearing chat
+    // #region agent log
+    fetch('http://127.0.0.1:7247/ingest/505504e9-b8cd-4e38-a622-9e897c164e3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat-modal.tsx:360',message:'Clear chat: clearing cache',data:{cacheSize:audioCacheRef.current.size,cacheKeys:Array.from(audioCacheRef.current.keys())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    audioCacheRef.current.forEach((url) => {
+      URL.revokeObjectURL(url);
+    });
+    audioCacheRef.current.clear();
     
     setMessages([
       {
