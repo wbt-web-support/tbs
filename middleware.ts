@@ -27,7 +27,7 @@ const dashboardPages = [
   '/member',
   '/member/playbook-planner',
   '/member/playbook-planner/edit',
-  
+  '/performance1',
 ]
 
 export async function middleware(request: NextRequest) {
