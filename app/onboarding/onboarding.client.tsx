@@ -1681,9 +1681,14 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
       <div className="w-full max-w-5xl">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3">
-           
+          <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-gray-500 font-medium">Trades Business School</span>
+            <form action={signOutAction}>
+              <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+            </form>
           </div>
         </div>
 
