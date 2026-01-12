@@ -500,7 +500,7 @@ Remember: ACCURACY IS CRITICAL. Copy exact URLs, names, and details. Never guess
     addDebugStep("Content building complete", { totalMessages: contents.length });
 
     const generationConfig: any = {
-      maxOutputTokens: 4096, // Increased output token limit for more detailed responses
+      maxOutputTokens: 1024, // Increased output token limit for more detailed responses
       temperature: 0.4,
       topK: 40,
       topP: 0.95,
