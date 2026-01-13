@@ -499,6 +499,10 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       onDataChange?.();
       setGeneratedData(null);
       
+      // Clear generated data from localStorage after successful save
+      localStorage.removeItem(STORAGE_KEY_GENERATED);
+      localStorage.removeItem(STORAGE_KEY_TIMESTAMP);
+      
       toast.success("Generated content saved successfully!");
       
     } catch (err: any) {
@@ -591,7 +595,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       </div>
 
       {/* AI Assistant Section */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg flex-wrap gap-4">
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
             <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
@@ -601,7 +605,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
             <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-              We've analysed your company data and our AI assistant can help map your fulfilment process. 
+              We've analysed your company data and our AI assistant can help map your fulfillment process. 
               You can also create it manually if you prefer.
             </p>
           </div>
@@ -630,56 +634,57 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Column One */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-          {/* Engine Name */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10">
+        {/* Left Column: Engine Info + Triggering/Ending Events */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* Combined Engine Info Card */}
           <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-              <CardTitle className="text-sm font-medium text-purple-800 uppercase">Engine Name</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b border-gray-200 !px-5 !py-2">
+              <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Engine Information</CardTitle>
+              <div className="bg-purple-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold !m-0">
+                {engineType}
+              </div>
             </CardHeader>
-            <div className="p-4">
-              {editMode ? (
-                <Input
-                  value={engineName}
-                  onChange={(e) => setEngineName(e.target.value)}
-                  placeholder="Enter name for this engine"
-                  className="w-full"
-                />
-              ) : (
-                <div className="text-xl md:text-2xl font-bold text-purple-800">{engineName || "—"}</div>
-              )}
+            <div className="p-6 space-y-4 pt-0">
+              {/* Engine Name */}
+              <div>
+                {editMode ? (
+                  <Input
+                    value={engineName}
+                    onChange={(e) => setEngineName(e.target.value)}
+                    placeholder="Enter name for this engine"
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="text-xl font-medium text-gray-900">{engineName || "—"}</div>
+                )}
+              </div>
+              
+              {/* Description */}
+              <div>
+                {editMode ? (
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe what this engine does and its purpose"
+                    className="min-h-[100px] w-full"
+                  />
+                ) : (
+                  <div className="text-gray-600 whitespace-pre-line text-sm leading-relaxed">{description || "No description provided"}</div>
+                )}
+              </div>
             </div>
           </Card>
 
-          {/* Description */}
-          <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-200">
-              <CardTitle className="text-sm font-medium text-amber-800 uppercase">Description</CardTitle>
-            </CardHeader>
-            <div className="p-4">
-              {editMode ? (
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe what this engine does and its purpose"
-                  className="min-h-[100px] w-full"
-                />
-              ) : (
-                <div className="text-gray-600 whitespace-pre-line">{description || "No description provided"}</div>
-              )}
-            </div>
-          </Card>
-
-          {/* Triggering Events and Ending Events - Two column layout */}
+          {/* Triggering Events and Ending Events */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Triggering Event */}
-            <div className="col-span-5">
+            <div className="md:col-span-5">
               <Card className="overflow-hidden border-gray-200 h-full">
-                <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-                  <CardTitle className="text-sm font-medium text-purple-800 uppercase">Triggering Event</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between !py-2 !px-4 bg-gray-50 border-b border-gray-200 mb-0">
+                  <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Triggering Event</CardTitle>
                 </CardHeader>
-                <div className="p-4">
+                <div className="p-0">
                   {editMode ? (
                     <DynamicInputList
                       items={triggeringEvents}
@@ -688,14 +693,14 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
                       editMode={editMode}
                     />
                   ) : (
-                    <div className="space-y-2">
+                    <div className="max-h-[400px] overflow-y-auto">
                       {triggeringEvents.length === 0 ? (
-                        <p className="text-center text-gray-400 italic py-2 text-sm">No triggering events defined</p>
+                        <p className="text-center text-gray-400 italic py-4 text-xs">No triggering events defined</p>
                       ) : (
                         triggeringEvents.map((event, index) => (
-                          <div key={index} className="bg-purple-50 px-3 py-2 rounded-md flex items-start">
-                            <CircleDot className="h-4 w-4 text-purple-600 mt-0.5 mr-2 flex-shrink-0" />
-                            <div className="text-sm">{event.value}</div>
+                          <div key={index} className={`px-3 py-2.5 flex items-start ${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
+                            <div className="h-3 w-3 bg-purple-600 rounded-full mt-1 mr-2 flex-shrink-0" />
+                            <div className="text-sm leading-relaxed text-gray-700">{event.value}</div>
                           </div>
                         ))
                       )}
@@ -706,19 +711,19 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
             </div>
 
             {/* Arrow */}
-            <div className="col-span-2 flex items-center justify-center">
-              <div className="w-12 h-12 flex items-center justify-center bg-purple-50 rounded-full border border-purple-200">
-                <ArrowRight className="h-6 w-6 text-purple-700" />
+            <div className="md:col-span-2 flex items-center justify-center py-4 md:py-0">
+              <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full border border-gray-300">
+                <ArrowRight className="h-5 w-5 text-gray-600" />
               </div>
             </div>
 
             {/* Ending Event */}
-            <div className="col-span-5">
+            <div className="md:col-span-5">
               <Card className="overflow-hidden border-gray-200 h-full">
-                <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
-                  <CardTitle className="text-sm font-medium text-red-800 uppercase">Ending Event</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between !py-2 !px-4 bg-gray-50 border-b border-gray-200 mb-0 !m-0">
+                  <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Ending Event</CardTitle>
                 </CardHeader>
-                <div className="p-4">
+                <div className="p-0">
                   {editMode ? (
                     <DynamicInputList
                       items={endingEvent}
@@ -727,14 +732,14 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
                       editMode={editMode}
                     />
                   ) : (
-                    <div className="space-y-2">
+                    <div className="max-h-[400px] overflow-y-auto">
                       {endingEvent.length === 0 ? (
-                        <p className="text-center text-gray-400 italic py-2 text-sm">No ending events defined</p>
+                        <p className="text-center text-gray-400 italic py-4 text-xs">No ending events defined</p>
                       ) : (
                         endingEvent.map((event, index) => (
-                          <div key={index} className="bg-red-50 px-3 py-2 rounded-md flex items-start">
-                            <CircleDot className="h-4 w-4 text-red-600 mt-0.5 mr-2 flex-shrink-0" />
-                            <div className="text-sm">{event.value}</div>
+                          <div key={index} className={`px-3 py-2.5 flex items-start ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                            <div className="h-3 w-3 bg-green-600 rounded-full mt-1 mr-2 flex-shrink-0" />
+                            <div className="text-sm leading-relaxed text-gray-700">{event.value}</div>
                           </div>
                         ))
                       )}
@@ -746,28 +751,13 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           </div>
         </div>
 
-        {/* Column Two */}
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-          {/* Engine Type (no edit option) */}
-          <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-              <CardTitle className="text-sm font-medium text-purple-800 uppercase">Engine Type</CardTitle>
+        {/* Right Column: Actions/Activities - Full Height */}
+        <div className="lg:col-span-4">
+          <Card className="overflow-hidden border-gray-200 h-full">
+            <CardHeader className="flex flex-row items-center justify-between !py-2 !px-5 bg-gray-50 border-b border-gray-200 mb-0 !m-0">
+              <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Actions/Activities</CardTitle>
             </CardHeader>
-            <div className="p-4">
-              <div className="flex items-center">
-                <div className="bg-purple-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold">
-                  {engineType}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Actions/Activities */}
-          <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-emerald-50 to-emerald-100 border-b border-emerald-200">
-              <CardTitle className="text-sm font-medium text-emerald-800 uppercase">Actions/Activities</CardTitle>
-            </CardHeader>
-            <div className="p-4">
+            <div className="p-0">
               {editMode ? (
                 <DynamicInputList
                   items={actionsActivities}
@@ -776,14 +766,14 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
                   editMode={editMode}
                 />
               ) : (
-                <div className="space-y-2">
+                <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
                   {actionsActivities.length === 0 ? (
-                    <p className="text-center text-gray-400 italic py-2 text-sm">No actions or activities defined</p>
+                    <p className="text-center text-gray-400 italic py-4 text-xs">No actions or activities defined</p>
                   ) : (
                     actionsActivities.map((item, index) => (
-                      <div key={index} className="bg-emerald-50 px-3 py-2 rounded-md flex items-start">
-                        <CircleDot className="h-4 w-4 text-emerald-600 mt-0.5 mr-2 flex-shrink-0" />
-                        <div className="text-sm">{item.value}</div>
+                      <div key={index} className={`px-3 py-2.5 flex items-start ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                        <div className="h-3 w-3 bg-purple-600 rounded-full mt-1 mr-2 flex-shrink-0" />
+                        <div className="text-sm leading-relaxed text-gray-700">{item.value}</div>
                       </div>
                     ))
                   )}

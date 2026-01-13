@@ -323,8 +323,7 @@ export default function FulfillmentMachinePage() {
         <>
           {/* Header with machine name and main tab navigation */}
           <div className="">
-            
-            
+           
             {/* Main Tab Navigation */}
             <Tabs value={mainActiveTab} onValueChange={setMainActiveTab} className="w-full border-b border-gray-200 rounded-none pb-4 mb-4">
               <TabsList className="grid grid-cols-2 w-full sm:w-auto max-w-[400px] bg-white  p-0 w-full h-full mb-2 gap-2">
@@ -351,7 +350,7 @@ export default function FulfillmentMachinePage() {
                       No design or image added yet
                     </h2>
                     <p className="text-gray-600 mb-6">
-                      Upload an image of your fulfilment machine design to get started.
+                      Upload an image of your fulfillment machine design to get started.
                     </p>
                     
                     <div className="flex flex-col items-center space-y-4">
