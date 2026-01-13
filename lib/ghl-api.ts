@@ -1,4 +1,28 @@
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { GHLTokenResponse, GHLContact, GHLOpportunity, GHLPipeline, GHLCalendar, GHLAppointment, GHLSlot, GHLContactResponse } from './ghl-types'
+
+// Use service role for backend operations that need to bypass RLS (like caching)
+// Check for required environment variables early
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SERVICE_ROLE_KEY) {
+  console.error('❌ CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing!');
+} else {
+  console.log('✅ SUPABASE_SERVICE_ROLE_KEY is present (length:', SERVICE_ROLE_KEY.length, ')');
+}
+
+if (!SUPABASE_URL) {
+  console.error('❌ CRITICAL: NEXT_PUBLIC_SUPABASE_URL is missing!');
+} else {
+  console.log('✅ NEXT_PUBLIC_SUPABASE_URL is present:', SUPABASE_URL);
+}
+
+const supabaseAdmin = createAdminClient(
+  SUPABASE_URL || '',
+  SERVICE_ROLE_KEY || ''
+)
 
 // GHL API Configuration
 const GHL_BASE_URL = 'https://services.leadconnectorhq.com'
@@ -8,38 +32,6 @@ const GHL_TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token'
 // Environment variables
 const GHL_CLIENT_ID = process.env.GHL_CLIENT_ID
 const GHL_CLIENT_SECRET = process.env.GHL_CLIENT_SECRET
-
-export interface GHLTokenResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-  refresh_token: string
-  scope: string
-  refreshTokenId?: string
-  userType: 'Company' | 'Location'
-  companyId: string
-  locationId?: string
-  userId?: string
-  isBulkInstallation?: boolean
-  traceId?: string
-}
-
-export interface GHLContact {
-  firstName: string
-  lastName: string
-  email: string
-  phone?: string
-  address1?: string
-  address2?: string
-  city?: string
-  state?: string
-  postalCode?: string
-  country?: string
-  customFields?: Record<string, any>
-  source?: string
-  tags?: string[]
-}
-
 
 export interface GHLIntegration {
   integration_id: string
@@ -115,9 +107,33 @@ export class GHLAPIService {
       throw new Error('GHL_CLIENT_ID environment variable is not set')
     }
 
-    // Simplified scope list as per user selection
+    // Targeted list of scopes to avoid "Invalid scope" errors
     const scopes = [
-      'oauth.readonly', 'oauth.write'
+      'contacts.write', 
+      'contacts.readonly', 
+      'opportunities.readonly', 
+      'opportunities.write', 
+      'locations/customFields.readonly', 
+      'calendars.readonly', 
+      'calendars.write', 
+      'calendars/events.readonly', 
+      'calendars/events.write', 
+      'calendars/groups.readonly', 
+      'calendars/groups.write', 
+      'calendars/resources.readonly', 
+      'calendars/resources.write', 
+      'invoices.write',  
+      'users.readonly', 
+      'oauth.readonly', 
+      'oauth.write', 
+      'locations/templates.readonly', 
+      'locations/tags.write', 
+      'locations/tags.readonly', 
+      'locations/tasks.write', 
+      'locations/tasks.readonly', 
+      'locations/customValues.write', 
+      'locations/customValues.readonly',  
+      'locations/customFields.write'
     ].join(' ')
 
     const params = new URLSearchParams({
@@ -256,12 +272,82 @@ export class GHLAPIService {
     })
   }
 
+  async deleteContact(contactId: string): Promise<any> {
+    return this.makeRequest(`/contacts/${contactId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async getContact(contactId: string): Promise<any> {
     return this.makeRequest(`/contacts/${contactId}`)
   }
 
+  async getContacts(params: { limit?: number; offset?: number; query?: string } = {}): Promise<{ contacts: GHLContactResponse[]; meta: any }> {
+    let endpoint = '/contacts'
+    const queryParams = new URLSearchParams()
+    
+    if (this.locationId) {
+      queryParams.append('locationId', this.locationId)
+    } else if (this.userType === 'Location') {
+      console.warn('⚠️ GHLAPIService: locationId is missing for Location-level request')
+    }
 
-  // Calendars
+    if (params.limit) queryParams.append('limit', params.limit.toString())
+    if (params.offset) queryParams.append('offset', params.offset.toString())
+    if (params.query) queryParams.append('query', params.query)
+
+    const url = `${endpoint}?${queryParams.toString()}`
+    console.log(`🔍 GHL getContacts: fetching from ${url}`)
+    return this.makeRequest(url)
+  }
+
+  async searchContacts(query: string): Promise<GHLContactResponse[]> {
+    const response = await this.getContacts({ query })
+    return response.contacts
+  }
+
+  // --- Pipelines & Opportunities ---
+
+  async getPipelines(): Promise<any[]> {
+    let endpoint = '/pipelines'
+    if (this.locationId) {
+      endpoint += `?locationId=${this.locationId}`
+    }
+    const response = await this.makeRequest(endpoint)
+    return response.pipelines || []
+  }
+
+  async createOpportunity(data: {
+    pipelineId: string
+    pipelineStageId: string
+    name: string
+    contactId: string
+    status?: 'open' | 'won' | 'lost' | 'abandoned'
+    monetaryValue?: number
+  }): Promise<any> {
+    const payload = {
+      ...data,
+      locationId: this.locationId,
+      status: data.status || 'open'
+    }
+    return this.makeRequest('/opportunities', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  }
+
+  async getOpportunities(params: { pipelineId?: string; limit?: number; query?: string } = {}): Promise<any> {
+    const queryParams = new URLSearchParams()
+    if (this.locationId) queryParams.append('locationId', this.locationId)
+    if (params.pipelineId) queryParams.append('pipelineId', params.pipelineId)
+    if (params.limit) queryParams.append('limit', params.limit.toString())
+    
+    const endpoint = `/opportunities?${queryParams.toString()}`
+    return this.makeRequest(endpoint)
+  }
+
+  // --- Calendars & Appointments ---
+
   async getCalendars(): Promise<any[]> {
     try {
       let endpoint = '/calendars'
@@ -275,16 +361,26 @@ export class GHLAPIService {
        return []
     }
   }
-  
+
   async getCalendarSlots(calendarId: string, startDate: string, endDate: string): Promise<any> {
-      // NOTE: GHL API for slots often varies, using standard one
-      // startDate/endDate should be epoch milliseconds for some endpoints, or YYYY-MM-DD for others.
-      // Assuming YYYY-MM-DD based on common usage or adapting if needed.
-      // Reference 'nu-home-main' didn't show this explicit method in `ghl-api.ts` but `ghl-appointments.ts` used manual logic.
-      // We will check standard GHL API patterns. standardized to /appointments/slots in newer API or specific construct.
-      
-      const endpoint = `/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`
+      // Use the public free-slots endpoint for better compatibility
+      const params = new URLSearchParams({
+        startDate,
+        endDate
+      })
+      const endpoint = `/calendars/${calendarId}/free-slots?${params.toString()}`
       return this.makeRequest(endpoint)
+  }
+
+  async getAppointments(params: { startDate?: string; endDate?: string } = {}): Promise<any[]> {
+    const queryParams = new URLSearchParams()
+    if (this.locationId) queryParams.append('locationId', this.locationId)
+    if (params.startDate) queryParams.append('startDate', params.startDate)
+    if (params.endDate) queryParams.append('endDate', params.endDate)
+
+    const endpoint = `/appointments?${queryParams.toString()}`
+    const response = await this.makeRequest(endpoint)
+    return response.appointments || []
   }
 
   /*
@@ -489,4 +585,182 @@ export async function refreshGHLIntegration(integration: GHLIntegration): Promis
         console.error('Failed to refresh GHL token:', e)
         return null
     }
+}
+
+/**
+ * Save GHL Contact to Cache
+ */
+export async function saveGHLContactCache(
+  userId: string,
+  contact: GHLContactResponse,
+  teamId?: string
+): Promise<void> {
+  if (!contact || !contact.id) {
+    console.error('❌ Error caching GHL contact: Invalid contact data provided', contact)
+    throw new Error('Invalid contact data provided to saveGHLContactCache')
+  }
+
+  const payload = {
+    user_id: userId,
+    team_id: teamId || null,
+    ghl_contact_id: contact.id,
+    first_name: contact.firstName,
+    last_name: contact.lastName,
+    contact_name: contact.contactName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unnamed Contact',
+    email: contact.email,
+    phone: contact.phone,
+    type: contact.type || 'lead',
+    source: contact.source,
+    assigned_to: contact.assignedTo,
+    address1: contact.address1,
+    city: contact.city,
+    state: contact.state,
+    country: contact.country,
+    postal_code: contact.postalCode,
+    custom_fields: contact.customFields || [],
+    tags: contact.tags || [],
+    date_added: contact.dateAdded,
+    last_synced_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+
+  // Aggressive logging for debug
+  console.log(`--- Sync Heart-beat for ${userId} ---`)
+  console.log('ENV URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log('ENV ROLE KEY LENGTH:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 'MISSING')
+  
+  try {
+    // 1. Verify admin connectivity
+    const { data: test, error: testErr } = await supabaseAdmin.from('users').select('id').limit(1)
+    if (testErr) {
+      console.error('❌ Admin client connectivity test FAILED!')
+      console.error('Test Error:', testErr.message, testErr.code)
+    } else {
+      console.log('✅ Admin client connectivity test PASSED')
+    }
+
+    // 2. Perform the upsert
+    const response = await supabaseAdmin
+      .from('ghl_contacts_cache')
+      .upsert(payload, { 
+        onConflict: 'user_id,ghl_contact_id' 
+      })
+
+    if (response.error) {
+      console.error('❌ Supabase Upsert Error Detected!')
+      console.error('Type of error object:', typeof response.error)
+      console.error('Error constructor:', response.error?.constructor?.name)
+      
+      // Force reveal all properties
+      const errorKeys = Object.getOwnPropertyNames(response.error)
+      const errorObj: any = {}
+      errorKeys.forEach(key => errorObj[key] = (response.error as any)[key])
+      console.error('Detailed Error Object:', errorObj)
+      
+      throw response.error
+    } else {
+      console.log(`✅ Successfully cached contact: ${contact.id}`)
+    }
+  } catch (err: any) {
+    console.error('❌ Exception caught during upsert:', err?.name || 'Error', err?.message || 'No message')
+    const errKeys = err ? Object.getOwnPropertyNames(err) : []
+    const detailedErr: any = {}
+    errKeys.forEach(key => detailedErr[key] = err[key])
+    console.error('Detailed caught error:', detailedErr)
+    throw err
+  }
+}
+
+/**
+ * Save GHL Appointment to Local DB
+ */
+export async function saveGHLAppointment(
+  userId: string,
+  appointment: any,
+  teamId?: string
+): Promise<void> {
+  const supabase = await createClient()
+  
+  const payload = {
+    user_id: userId,
+    team_id: teamId,
+    ghl_appointment_id: appointment.id || appointment.appointmentId,
+    ghl_calendar_id: appointment.calendarId,
+    ghl_contact_id: appointment.contactId,
+    title: appointment.title,
+    description: appointment.notes || appointment.description,
+    start_time: appointment.startTime,
+    end_time: appointment.endTime,
+    status: appointment.status,
+    updated_at: new Date().toISOString()
+  }
+
+  const { error } = await supabase
+    .from('ghl_appointments')
+    .upsert(payload, { onConflict: 'ghl_appointment_id' })
+
+  if (error) {
+    console.error('Error saving GHL appointment:', error)
+    throw error
+  }
+}
+
+/**
+ * Get GHL Calendar Settings
+ */
+export async function getGHLCalendarSettings(userId: string): Promise<any[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('ghl_calendar_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+
+  if (error) {
+    console.error('Error fetching GHL calendar settings:', error)
+    return []
+  }
+  return data
+}
+
+/**
+ * Save GHL Calendar setting
+ */
+export async function saveGHLCalendarSetting(
+  userId: string,
+  setting: { ghl_calendar_id: string; name: string; description?: string; purpose?: string; team_id?: string }
+): Promise<void> {
+  const supabase = await createClient()
+  const payload = {
+    user_id: userId,
+    ...setting,
+    updated_at: new Date().toISOString()
+  }
+
+  const { error } = await supabase
+    .from('ghl_calendar_settings')
+    .upsert(payload)
+
+  if (error) {
+    console.error('Error saving GHL calendar setting:', error)
+    throw error
+  }
+}
+
+/**
+ * Get GHL Field Mappings
+ */
+export async function getGHLFieldMappings(userId: string): Promise<any[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('ghl_field_mappings')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+
+  if (error) {
+    console.error('Error fetching GHL field mappings:', error)
+    return []
+  }
+  return data
 }
