@@ -3,7 +3,6 @@ import { createClient } from '@/utils/supabase/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import pdfParse from 'pdf-parse';
 import * as XLSX from 'xlsx';
-import { generateGoogleEmbedding } from '@/lib/google-embeddings';
 
 const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -75,6 +74,7 @@ export async function POST(req: NextRequest) {
                 "category": "one of the categories above",
                 "subtitle": "Short sub-heading or model variant",
                 "power_rating": "Power details like 24kW, 5kW, etc.",
+                "base_price": numeric price value or null,
                 "description": "Short summary of the product",
                 "product_specs": {
                     "key": "value"
@@ -102,11 +102,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'AI failed to extract required fields (title, category)' }, { status: 422 });
         }
 
-        // Generate AI Vector
-        // Reuse the text construction logic or construct here
-        const vectorText = `${productData.title} ${productData.category} ${productData.subtitle || ''} ${productData.power_rating || ''} ${productData.description || ''}`.trim();
-        const embedding = await generateGoogleEmbedding(vectorText);
-
         // Upload file to Supabase Storage
         const fileExt = fileName.split('.').pop();
         const storagePath = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -124,38 +119,32 @@ export async function POST(req: NextRequest) {
             .from('product-docs')
             .getPublicUrl(storagePath);
 
-        // Save to database
-        const finalProduct = {
-            ...productData,
-            client_id: clientId || null,
-            ai_vector: embedding,
-            doc_link: publicUrl,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
+        // Prepare product data - only include fields that exist in schema
+        // Convert base_price to number if it's a string
+        const basePrice = productData.base_price ? 
+            (typeof productData.base_price === 'string' ? parseFloat(productData.base_price) : productData.base_price) : 
+            null;
 
-        const { data, error } = await supabase
-            .from('products')
-            .upsert([finalProduct], { 
-                onConflict: 'title,category,power_rating',
-                ignoreDuplicates: false 
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-
+        // Only return extracted data; do NOT save to database
         return NextResponse.json({ 
             success: true, 
-            product: data,
-            message: "Product extracted and saved successfully" 
+            product: {
+                title: productData.title,
+                category: productData.category,
+                subtitle: productData.subtitle || null,
+                power_rating: productData.power_rating || null,
+                base_price: basePrice,
+                description: productData.description || null,
+                product_specs: productData.product_specs || {},
+                doc_link: publicUrl
+            },
+            message: "Product extracted successfully (not saved). Review and click Save to store it."
         });
 
     } catch (error: any) {
         console.error('Extraction Error:', error);
         return NextResponse.json({ 
-            error: 'Failed to extract and save product', 
+            error: 'Failed to extract product data', 
             details: error.message 
         }, { status: 500 });
     }

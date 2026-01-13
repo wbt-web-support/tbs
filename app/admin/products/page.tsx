@@ -78,6 +78,7 @@ interface Product {
     title: string;
     subtitle: string | null;
     power_rating: string | null;
+    base_price: number | null;
     image: string | null;
     description: string | null;
     width: string | null;
@@ -96,6 +97,7 @@ type ProductFormState = {
     category: Category;
     subtitle: string;
     power_rating: string;
+    base_price: string;
     image: string;
     description: string;
     width: string;
@@ -112,6 +114,7 @@ const initialFormState: ProductFormState = {
     category: "boiler",
     subtitle: "",
     power_rating: "",
+    base_price: "",
     image: "",
     description: "",
     width: "",
@@ -121,6 +124,27 @@ const initialFormState: ProductFormState = {
     product_specs: {},
     is_active: true,
     doc_link: ""
+};
+
+// Normalize product name for comparison (remove extra spaces, dashes, commas, etc.)
+const normalizeProductName = (name: string): string => {
+    return name
+        .toLowerCase()
+        .replace(/[-\s,._]/g, '') // Remove dashes, spaces, commas, dots, underscores
+        .trim();
+};
+
+// Check if two products are duplicates based on normalized name, category, power, and price
+const isDuplicateProduct = (product1: { title: string; category: string; power_rating: string | null; base_price: number | null }, product2: { title: string; category: string; power_rating: string | null; base_price: number | null }): boolean => {
+    const name1 = normalizeProductName(product1.title);
+    const name2 = normalizeProductName(product2.title);
+    
+    return (
+        name1 === name2 &&
+        product1.category === product2.category &&
+        (product1.power_rating || '') === (product2.power_rating || '') &&
+        (product1.base_price || 0) === (product2.base_price || 0)
+    );
 };
 
 const CATEGORY_SPECS: Record<Category, { label: string; key: string; placeholder: string }[]> = {
@@ -171,6 +195,7 @@ const SQL_IMPORT_CONFIGS: Record<string, {
             title: p.boiler_main_title || "Untitled Boiler",
             subtitle: p.boiler_size ? `Size: ${p.boiler_size}` : null,
             power_rating: p.boiler_power ? `${p.boiler_power}kW` : null,
+            base_price: p.boiler_cost ? parseFloat(p.boiler_cost) : null,
             description: p.boiler_description || p.boilerProperties,
             width: p.boiler_width,
             height: p.boiler_height,
@@ -191,6 +216,7 @@ const SQL_IMPORT_CONFIGS: Record<string, {
         mapping: (p) => ({
             title: p.pro_ac_title,
             subtitle: p.pro_ac_subtitle,
+            base_price: p.pro_base_price ? parseFloat(p.pro_base_price) : null,
             width: p.pro_ac_width,
             height: p.pro_ac_height,
             depth: p.pro_ac_depth,
@@ -275,6 +301,10 @@ export default function ProductsPage() {
     const [syncRemainingTime, setSyncRemainingTime] = useState<number>(0);
     const [isExtractingDoc, setIsExtractingDoc] = useState(false);
     const [selectedErrorCodes, setSelectedErrorCodes] = useState<number[]>([]);
+    const [duplicateProducts, setDuplicateProducts] = useState<Array<{ new: any; existing: Product }>>([]);
+    const [duplicateAction, setDuplicateAction] = useState<'replace' | 'skip' | null>(null);
+    const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+    const [pendingImportProducts, setPendingImportProducts] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -334,6 +364,7 @@ export default function ProductsPage() {
             category: product.category || "boiler",
             subtitle: product.subtitle || "",
             power_rating: product.power_rating || "",
+            base_price: product.base_price?.toString() || "",
             image: product.image || "",
             description: product.description || "",
             width: product.width || "",
@@ -364,13 +395,61 @@ export default function ProductsPage() {
         try {
             setIsSubmitting(true);
 
-            const productData = {
-                ...form,
-                client_id: clientId,
+            const basePrice = form.base_price ? parseFloat(form.base_price) : null;
+
+            // Check for duplicates if creating new product
+            if (!editingProduct) {
+                const { data: existingProducts } = await supabase
+                    .from('products')
+                    .select('id, title, category, power_rating, base_price');
+
+                if (existingProducts) {
+                    const newProduct = {
+                        title: form.title,
+                        category: form.category,
+                        power_rating: form.power_rating || null,
+                        base_price: basePrice
+                    };
+
+                    const duplicate = existingProducts.find((existing: Product) => 
+                        isDuplicateProduct(newProduct, {
+                            title: existing.title,
+                            category: existing.category,
+                            power_rating: existing.power_rating,
+                            base_price: existing.base_price
+                        })
+                    );
+
+                    if (duplicate) {
+                        toast.error(`Duplicate product found! A product with the same name "${duplicate.title}", category, power rating, and price already exists.`);
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
+            }
+
+            // Build product data, only including valid fields
+            const productData: any = {
+                title: form.title,
+                category: form.category,
+                subtitle: form.subtitle || null,
+                power_rating: form.power_rating || null,
+                description: form.description || null,
+                image: form.image || null,
+                width: form.width || null,
+                height: form.height || null,
+                depth: form.depth || null,
                 brand_id: form.brand_id ? parseInt(form.brand_id) : null,
+                client_id: clientId,
                 product_specs: form.product_specs,
-                doc_link: form.doc_link
+                doc_link: form.doc_link || null,
+                is_active: form.is_active
             };
+
+            // Only add base_price if it's a valid number
+            if (basePrice !== null && !isNaN(basePrice)) {
+                productData.base_price = basePrice;
+            }
 
             let productId: number;
 
@@ -388,45 +467,129 @@ export default function ProductsPage() {
             } else {
                 const { data, error } = await supabase
                     .from('products')
-                    .upsert([productData], {
-                        onConflict: 'title,category,power_rating'
-                    })
+                    .insert([productData])
                     .select()
                     .single();
 
-                if (error) throw error;
+                if (error) {
+                    if (error.code === '23505') {
+                        toast.error("A product with similar details already exists. Please check the product name, category, power rating, and price.");
+                    } else {
+                        throw error;
+                    }
+                    return;
+                }
                 productId = data.id;
-                toast.success("Product saved successfully (Duplicate merged if existed)");
+                toast.success("Product created successfully");
             }
 
             // Update error codes association
             if (productId) {
-                // Delete existing associations
-                await supabase
-                    .from('product_error_codes')
-                    .delete()
-                    .eq('product_id', productId);
-
-                // Insert new associations
-                if (selectedErrorCodes.length > 0) {
-                    const associations = selectedErrorCodes.map(errorCodeId => ({
-                        product_id: productId,
-                        error_code_id: errorCodeId
-                    }));
-
-                    const { error: assocError } = await supabase
+                try {
+                    // Delete existing associations
+                    const { error: deleteError } = await supabase
                         .from('product_error_codes')
-                        .insert(associations);
+                        .delete()
+                        .eq('product_id', productId);
 
-                    if (assocError) throw assocError;
+                    if (deleteError) {
+                        console.warn("Warning: Failed to delete existing error code associations:", deleteError);
+                        toast.warning("Product saved but failed to update error code associations");
+                    }
+
+                    // Insert new associations
+                    if (selectedErrorCodes.length > 0) {
+                        const associations = selectedErrorCodes.map(errorCodeId => ({
+                            product_id: productId,
+                            error_code_id: errorCodeId
+                        }));
+
+                        const { error: assocError } = await supabase
+                            .from('product_error_codes')
+                            .insert(associations);
+
+                        if (assocError) {
+                            console.warn("Warning: Failed to associate error codes:", assocError);
+                            toast.warning("Product saved but failed to associate some error codes");
+                        }
+                    }
+                } catch (assocErr) {
+                    console.warn("Warning: Error code association failed:", assocErr);
+                    toast.warning("Product saved successfully, but there was an issue updating error codes");
                 }
             }
 
             setIsDialogOpen(false);
             fetchProducts();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving product:", error);
-            toast.error(editingProduct ? "Failed to update product" : "Failed to create product");
+            
+            // Parse Supabase error to show specific field issues
+            let errorMessage = editingProduct ? "Failed to update product" : "Failed to create product";
+            
+            if (error?.code) {
+                switch (error.code) {
+                    case '23505':
+                        errorMessage = "Duplicate entry: A product with this combination of title, category, and power rating already exists.";
+                        break;
+                    case '23503':
+                        errorMessage = "Invalid reference: One of the referenced fields (brand_id, client_id) doesn't exist.";
+                        break;
+                    case '23502':
+                        // Extract field name from error message
+                        const fieldMatch = error.message?.match(/column "(\w+)"/i);
+                        if (fieldMatch) {
+                            const fieldName = fieldMatch[1].replace(/_/g, ' ');
+                            errorMessage = `Required field missing: ${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required but was not provided.`;
+                        } else {
+                            errorMessage = "Required field missing: Please check all required fields are filled.";
+                        }
+                        break;
+                    case '22001':
+                        errorMessage = "Field too long: One of the text fields exceeds the maximum length. Please shorten the value.";
+                        break;
+                    case '22P02':
+                        errorMessage = "Invalid data type: One of the numeric fields contains invalid data. Please check brand_id and base_price.";
+                        break;
+                    default:
+                        // Try to extract field name from error message
+                        if (error.message) {
+                            // Check for schema cache errors (column doesn't exist)
+                            if (error.message.includes('schema cache') || error.message.includes('Could not find')) {
+                                const fieldMatch = error.message.match(/column ['"](\w+)['"]/i);
+                                if (fieldMatch) {
+                                    const fieldName = fieldMatch[1].replace(/_/g, ' ');
+                                    errorMessage = `Database schema error: The field "${fieldName}" doesn't exist in the database. Please run the migration to add this column.`;
+                                } else {
+                                    errorMessage = `Database schema error: A field in your data doesn't exist in the database schema. Please check your migrations.`;
+                                }
+                            } else {
+                                const fieldMatch = error.message.match(/column "(\w+)"|field "(\w+)"/i);
+                                if (fieldMatch) {
+                                    const fieldName = (fieldMatch[1] || fieldMatch[2]).replace(/_/g, ' ');
+                                    errorMessage = `Error in field "${fieldName}": ${error.message}`;
+                                } else {
+                                    errorMessage = `Database error: ${error.message}`;
+                                }
+                            }
+                        }
+                }
+            } else if (error?.message) {
+                // Check for schema cache errors in generic error messages
+                if (error.message.includes('schema cache') || error.message.includes('Could not find')) {
+                    const fieldMatch = error.message.match(/column ['"](\w+)['"]/i);
+                    if (fieldMatch) {
+                        const fieldName = fieldMatch[1].replace(/_/g, ' ');
+                        errorMessage = `Database schema error: The field "${fieldName}" doesn't exist in the database. Please run the migration to add this column.`;
+                    } else {
+                        errorMessage = `Database schema error: A field doesn't exist in the database schema. Please check your migrations.`;
+                    }
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            toast.error(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -495,26 +658,68 @@ export default function ProductsPage() {
             // 3.5 Client-side Deduplication (Handle duplicates within the same SQL file)
             const uniqueMap = new Map();
             mappedProducts.forEach(p => {
-                const key = `${p.title}-${p.category}-${p.power_rating}`;
-                uniqueMap.set(key, p); // Later entries overwrite earlier ones
+                const normalizedKey = `${normalizeProductName(p.title || '')}-${p.category}-${p.power_rating || ''}-${p.base_price || 0}`;
+                uniqueMap.set(normalizedKey, p); // Later entries overwrite earlier ones
             });
             const deduplicatedProducts = Array.from(uniqueMap.values());
 
-            // 4. Bulk Upsert (Prevents duplicates based on title, category, power_rating)
-            const { error } = await supabase
+            // 4. Check for duplicates against existing products
+            const { data: existingProducts } = await supabase
                 .from('products')
-                .upsert(deduplicatedProducts, {
-                    onConflict: 'title,category,power_rating',
-                    ignoreDuplicates: false // Set to true if you want to leave existing ones ELITE as-is
-                });
+                .select('id, title, category, power_rating, base_price');
 
-            if (error) throw error;
+            const duplicates: Array<{ new: any; existing: Product }> = [];
+            const newProducts: any[] = [];
 
-            setImportResults({ count: deduplicatedProducts.length });
-            toast.success(`Successfully imported ${deduplicatedProducts.length} ${config.category} products!`);
+            deduplicatedProducts.forEach(newProduct => {
+                const duplicate = existingProducts?.find((existing: Product) => 
+                    isDuplicateProduct(
+                        {
+                            title: newProduct.title,
+                            category: newProduct.category,
+                            power_rating: newProduct.power_rating || null,
+                            base_price: newProduct.base_price || null
+                        },
+                        {
+                            title: existing.title,
+                            category: existing.category,
+                            power_rating: existing.power_rating,
+                            base_price: existing.base_price
+                        }
+                    )
+                );
 
-            // 5. Trigger Automated AI Vector Sync with Progress
-            const estSeconds = Math.ceil(deduplicatedProducts.length * 1.5);
+                if (duplicate) {
+                    duplicates.push({ new: newProduct, existing: duplicate });
+                } else {
+                    newProducts.push(newProduct);
+                }
+            });
+
+            // If duplicates found, show dialog for user to choose action
+            if (duplicates.length > 0) {
+                setDuplicateProducts(duplicates);
+                setPendingImportProducts(newProducts);
+                setShowDuplicateDialog(true);
+                setIsImporting(false);
+                return;
+            }
+
+            // 5. Insert new products
+            if (newProducts.length > 0) {
+                const { error } = await supabase
+                    .from('products')
+                    .insert(newProducts);
+
+                if (error) throw error;
+            }
+
+            setImportResults({ count: newProducts.length });
+            toast.success(`Successfully imported ${newProducts.length} ${config.category} products!${duplicates.length > 0 ? ` (${duplicates.length} duplicates skipped)` : ''}`);
+
+            // 6. Trigger Automated AI Vector Sync with Progress
+            const totalImported = newProducts.length;
+            const estSeconds = Math.ceil(totalImported * 1.5);
             setSyncRemainingTime(estSeconds);
             setIsSyncingAI(true);
 
@@ -600,18 +805,18 @@ export default function ProductsPage() {
 
             if (!res.ok) throw new Error(result.error || "Extraction failed");
 
-            toast.success("Product details populated from document!");
+            toast.success("Product details extracted. Review and click Save to store it.");
             setForm(prev => ({
                 ...prev,
                 title: result.product.title,
                 category: result.product.category,
                 subtitle: result.product.subtitle || "",
                 power_rating: result.product.power_rating || "",
+                base_price: result.product.base_price?.toString() || "",
                 description: result.product.description || "",
                 doc_link: result.product.doc_link || "",
                 product_specs: { ...prev.product_specs, ...result.product.product_specs }
             }));
-            fetchProducts();
         } catch (error: any) {
             console.error("Doc Extraction Error:", error);
             toast.error(error.message || "Failed to process document");
@@ -737,7 +942,7 @@ export default function ProductsPage() {
                                 <div className="grid grid-cols-2 gap-3 py-2">
                                     <div className="bg-white/60 p-3 rounded-lg flex flex-col items-center">
                                         <span className="text-2xl font-black text-emerald-700">{importResults.count}</span>
-                                        <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">Rows Added</span>
+                                        <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">Products Imported</span>
                                     </div>
                                     <div className="bg-white/60 p-3 rounded-lg flex flex-col items-center">
                                         <span className="text-2xl font-black text-emerald-700">100%</span>
@@ -927,7 +1132,7 @@ export default function ProductsPage() {
                                     <Tag className="w-4 h-4" />
                                     General Specs
                                 </h3>
-                                <div className="grid grid-cols-1 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="power_rating">Public Power Rating</Label>
                                         <Input
@@ -935,6 +1140,17 @@ export default function ProductsPage() {
                                             placeholder="e.g. 30kW / 12000 BTU"
                                             value={form.power_rating}
                                             onChange={(e) => setForm({ ...form, power_rating: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="base_price">Base Price</Label>
+                                        <Input
+                                            id="base_price"
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="e.g. 1500.00"
+                                            value={form.base_price}
+                                            onChange={(e) => setForm({ ...form, base_price: e.target.value })}
                                         />
                                     </div>
                                 </div>
@@ -1205,6 +1421,145 @@ export default function ProductsPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Duplicate Products Dialog */}
+            <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+                <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Duplicate Products Found</DialogTitle>
+                        <DialogDescription>
+                            Found {duplicateProducts.length} duplicate product(s). Choose how to handle them.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        <div className="max-h-[300px] overflow-y-auto border rounded-lg p-4 space-y-2">
+                            {duplicateProducts.map((dup, idx) => (
+                                <div key={idx} className="p-3 border rounded-lg bg-gray-50">
+                                    <div className="font-medium text-sm">{dup.new.title}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        Category: {dup.new.category} | Power: {dup.new.power_rating || 'N/A'} | Price: {dup.new.base_price ? `£${dup.new.base_price}` : 'N/A'}
+                                    </div>
+                                    <div className="text-xs text-orange-600 mt-1">
+                                        Matches existing product ID: {dup.existing.id}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Action for duplicates:</Label>
+                            <div className="flex gap-3">
+                                <Button
+                                    variant={duplicateAction === 'replace' ? 'default' : 'outline'}
+                                    onClick={() => setDuplicateAction('replace')}
+                                    className="flex-1"
+                                >
+                                    Replace Existing
+                                </Button>
+                                <Button
+                                    variant={duplicateAction === 'skip' ? 'default' : 'outline'}
+                                    onClick={() => setDuplicateAction('skip')}
+                                    className="flex-1"
+                                >
+                                    Skip Duplicates
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setShowDuplicateDialog(false);
+                            setDuplicateProducts([]);
+                            setPendingImportProducts([]);
+                            setDuplicateAction(null);
+                        }}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={async () => {
+                                if (!duplicateAction) {
+                                    toast.error("Please select an action for duplicates");
+                                    return;
+                                }
+
+                                try {
+                                    setIsImporting(true);
+                                    let productsToInsert = [...pendingImportProducts];
+
+                                    if (duplicateAction === 'replace') {
+                                        // Update existing products
+                                        for (const dup of duplicateProducts) {
+                                            const { error } = await supabase
+                                                .from('products')
+                                                .update({
+                                                    ...dup.new,
+                                                    updated_at: new Date().toISOString()
+                                                })
+                                                .eq('id', dup.existing.id);
+                                            
+                                            if (error) throw error;
+                                        }
+                                    }
+                                    // If skip, we don't add duplicates, they're already filtered out
+
+                                    // Insert new products
+                                    if (productsToInsert.length > 0) {
+                                        const { error } = await supabase
+                                            .from('products')
+                                            .insert(productsToInsert);
+
+                                        if (error) throw error;
+                                    }
+
+                                    const totalImported = productsToInsert.length + (duplicateAction === 'replace' ? duplicateProducts.length : 0);
+                                    setImportResults({ count: totalImported });
+                                    toast.success(`Successfully imported ${totalImported} products!`);
+                                    
+                                    setShowDuplicateDialog(false);
+                                    setDuplicateProducts([]);
+                                    setPendingImportProducts([]);
+                                    setDuplicateAction(null);
+                                    
+                                    // Trigger AI sync
+                                    const estSeconds = Math.ceil(totalImported * 1.5);
+                                    setSyncRemainingTime(estSeconds);
+                                    setIsSyncingAI(true);
+                                    
+                                    const timer = setInterval(() => {
+                                        setSyncRemainingTime(prev => (prev > 0 ? prev - 1 : 0));
+                                    }, 1000);
+
+                                    try {
+                                        const res = await fetch("/api/ai-instructions/generate-embedding", {
+                                            method: "POST",
+                                            body: JSON.stringify({ batch: true })
+                                        });
+                                        if (!res.ok) console.error("Auto-sync failed");
+                                    } catch (err) {
+                                        console.error("Auto-sync error:", err);
+                                    } finally {
+                                        clearInterval(timer);
+                                        setIsSyncingAI(false);
+                                        setSyncRemainingTime(0);
+                                        fetchProducts();
+                                    }
+                                } catch (error) {
+                                    console.error("Error processing duplicates:", error);
+                                    toast.error("Failed to process duplicates");
+                                } finally {
+                                    setIsImporting(false);
+                                }
+                            }}
+                            disabled={!duplicateAction || isImporting}
+                        >
+                            {isImporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Process
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div >
     );
 }

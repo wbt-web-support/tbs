@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +66,13 @@ export default function ErrorCodeForm({ errorCode, isOpen, onClose, onSuccess }:
       setIsActive(true);
     }
   };
+
+  // Ensure form fields populate when opening dialog or switching records
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen, errorCode]);
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
