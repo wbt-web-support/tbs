@@ -20,6 +20,8 @@ import {
   BookOpen,
   HelpCircle,
   Brain,
+  Package,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,7 +55,7 @@ const navigationSections = [
         icon: Clock,
       },
       {
-        name: "Modules", 
+        name: "Modules",
         href: "/admin/courses",
         icon: BookOpen,
       },
@@ -74,12 +76,13 @@ const navigationSections = [
       },
       {
         name: "AI Assistant Instructions",
-        href: "/admin/instructions", 
+        href: "/admin/instructions",
         icon: MessageSquare,
       },
+
       {
         name: "AI Instructions",
-        href: "/admin/ai-instructions", 
+        href: "/admin/ai-instructions",
         icon: Brain,
       },
       {
@@ -91,6 +94,16 @@ const navigationSections = [
         name: "Prompts",
         href: "/admin/prompt",
         icon: BookOpen,
+      },
+      {
+        name: "Products",
+        href: "/admin/products",
+        icon: Package,
+      },
+      {
+        name: "Error Codes",
+        href: "/admin/error-codes",
+        icon: AlertTriangle,
       }
     ]
   },
@@ -131,7 +144,7 @@ export default function AdminLayoutClient({
 
     // Add event listener
     window.addEventListener('resize', handleResize);
-    
+
     // Clean up
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -146,7 +159,7 @@ export default function AdminLayoutClient({
           .select('full_name, email')
           .eq('user_id', user.id)
           .single();
-          
+
         if (data) {
           setUserDetails({
             email: data.email,
@@ -173,12 +186,12 @@ export default function AdminLayoutClient({
     <div className="flex h-screen w-full overflow-hidden bg-gray-100">
       {/* Backdrop for mobile - appears when sidebar is open on small screens */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-      
+
       {/* Sidebar */}
       <aside
         className={cn(
@@ -193,7 +206,7 @@ export default function AdminLayoutClient({
             </div>
             <h1 className="text-lg font-semibold text-gray-900">Admin Panel</h1>
           </div>
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(false)}
             className="ml-auto p-2 text-gray-500 hover:bg-blue-50 rounded-md lg:hidden"
           >
@@ -212,7 +225,7 @@ export default function AdminLayoutClient({
                   {section.items.map((item) => {
                     const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                     const isHelpCenter = item.href === '/help';
-                    
+
                     return (
                       <Link
                         key={item.href}
@@ -231,7 +244,7 @@ export default function AdminLayoutClient({
                           isActive ? "bg-blue-50/60 text-blue-700 font-bold" : "text-gray-600"
                         )}
                       >
-                        <item.icon 
+                        <item.icon
                           className={cn(
                             "h-5 w-5 transition-transform group-hover:scale-110",
                             isActive ? "text-blue-600" : "text-blue-500"
@@ -261,7 +274,7 @@ export default function AdminLayoutClient({
                 <Menu className="h-5 w-5" />
               </button>
             </div>
-            
+
             {userDetails && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -282,7 +295,7 @@ export default function AdminLayoutClient({
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
-                    <button 
+                    <button
                       onClick={handleSignOut}
                       className="w-full text-left flex items-center gap-2"
                     >
@@ -295,7 +308,7 @@ export default function AdminLayoutClient({
             )}
           </div>
         </header>
-        
+
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {children}
         </div>
