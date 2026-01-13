@@ -5,6 +5,46 @@ import { createClient } from '@/utils/supabase/server';
 const MODEL_NAME = "gemini-3-flash-preview";
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
+// Fixed JSON structure and rules for question generation
+const QUESTIONS_JSON_STRUCTURE = `
+CRITICAL: You must respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON. The JSON must have this exact structure:
+
+{
+  "questions": [
+    {
+      "question_text": "Question text here (concise but can include context)",
+      "question_category": "Strategic Planning|Operations|Sales|Marketing|Customer Experience|Growth|Process Documentation",
+      "question_type": "text|textarea|select",
+      "is_required": true|false,
+      "options": null
+    }
+  ]
+}
+
+IMPORTANT RULES:
+- For select questions, include relevant options in the options field as an array of strings
+- Create a balanced mix of question types to gather both quick answers and detailed insights
+- Each question must have a valid question_category from the list above
+- question_type must be one of: "text", "textarea", or "select"
+- If question_type is "select", options must be an array of strings (not null)
+- If question_type is "text" or "textarea", options should be null
+`;
+
+// Helper to fetch prompt body from database
+async function getPromptBody(promptKey: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('prompt_text')
+    .eq('prompt_key', promptKey)
+    .single();
+  if (error) {
+    console.error('Error loading prompt body:', error);
+    return null;
+  }
+  return data?.prompt_text || null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!API_KEY) {
@@ -100,65 +140,24 @@ Machine #${index + 1}:
       machinesContext += '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## ⚙️ EXISTING MACHINES\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nNo existing machines found.\n';
     }
 
+    // Load prompt body (instructions) from DB
+    let promptBody = await getPromptBody('growth_machine_questions');
+    if (!promptBody) {
+      throw new Error('Prompt body not found for growth_machine_questions');
+    }
+    
+    // Replace placeholders with actual data
+    promptBody = promptBody
+      .replace(/{{businessContext}}/g, businessContext)
+      .replace(/{{machinesContext}}/g, machinesContext)
+      .replace(/{{responseFormat}}/g, QUESTIONS_JSON_STRUCTURE);
+
     // Initialize Gemini client
     const ai = new GoogleGenerativeAI(API_KEY);
     const model = ai.getGenerativeModel({ model: MODEL_NAME });
 
-    // Create AI prompt for generating growth machine planning questions
-    const prompt = `You are an expert business consultant helping to identify the key components of a Growth Machine - a process that maps how a business grows from initial customer contact to successful outcome.
-
-A Growth Machine consists of:
-1. Triggering Events: What initiates the growth process (e.g., "Customer visits website", "Referral received")
-2. Ending Events: What signals successful completion (e.g., "Sale closed", "Customer onboarded")
-3. Actions/Activities: The steps taken between triggering and ending events (e.g., "Send welcome email", "Schedule consultation", "Provide quote")
-
-Based on this comprehensive business information, generate 5-8 personalized questions to help identify the most accurate Growth Machine components.
-
-${businessContext}${machinesContext}
-
-CRITICAL: Generate questions that specifically help determine:
-1. What events trigger their growth/sales process
-2. What outcomes signal successful completion
-3. What key activities/steps happen between trigger and completion
-4. How their current sales/lead process works
-5. What customer touchpoints exist in their process
-6. What bottlenecks or friction points exist
-
-Question Requirements:
-- Use UK English spelling and terminology
-- Make questions specific to this business's situation and industry
-- Keep questions CONCISE but allow for some detail (2-3 sentences maximum)
-- Questions should be clear and easy to understand
-- Use simple language - avoid complex business jargon
-- Focus on practical, actionable insights
-- Questions should directly help identify triggering events, ending events, and activities
-- Create a MIX of question types:
-  * Use "select" for questions with clear, limited options (e.g., choosing between process types, customer types, or outcome types)
-  * Use "text" for short, specific answers (e.g., naming a trigger, identifying an outcome)
-  * Use "textarea" for questions requiring more detailed explanations (e.g., describing the full process, explaining steps)
-- Aim for approximately: 2-3 select questions, 2-3 text questions, 1-2 textarea questions
-- Make questions conversational and engaging
-- Avoid generic questions - make them specific to their business context
-
-Examples of good questions:
-- Select: "What type of customer interaction typically starts your sales process?" (options: Website inquiry, Phone call, Referral, Social media contact, Trade show meeting)
-- Text: "What specific event indicates a successful sale has been completed?"
-- Textarea: "Describe the key steps a customer goes through from first contact to becoming a paying customer."
-
-Return the questions in this exact JSON format:
-{
-  "questions": [
-    {
-      "question_text": "Question text here (concise but can include context)",
-      "question_category": "Strategic Planning|Operations|Sales|Marketing|Customer Experience|Growth|Process Documentation",
-      "question_type": "text|textarea|select",
-      "is_required": true|false,
-      "options": null
-    }
-  ]
-}
-
-For select questions, include relevant options in the options field as an array of strings. Create a balanced mix of question types to gather both quick answers and detailed insights.`;
+    // Use the prompt from database with replaced placeholders
+    const prompt = promptBody;
 
     const result = await model.generateContent(prompt);
     const response = result.response;

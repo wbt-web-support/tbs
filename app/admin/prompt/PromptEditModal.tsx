@@ -10,6 +10,8 @@ const responseFormat = `## 📝 RESPONSE FORMAT\nReturn ONLY a valid JSON object
 
 const dynamicFields = [
   { name: 'Company Context', code: '{{companyContext}}', description: 'Automatically fills in all the company information (name, industry, size, etc.) when the prompt is used. This includes the company name, what they do, who their customers are, and other details from their profile.' },
+  { name: 'Business Context', code: '{{businessContext}}', description: 'Automatically fills in comprehensive business information including company details, sales process, customer experience process, and operations data from the onboarding data.' },
+  { name: 'Machines Context', code: '{{machinesContext}}', description: 'Automatically fills in information about existing machines (growth, fulfillment, innovation) including their triggering events, ending events, and actions/activities.' },
   { name: 'Response Format', code: '{{responseFormat}}', description: 'Automatically adds the required structure and rules for how the AI should format its response. This includes the exact JSON format, what fields are required, and specific instructions for the AI to follow.' },
 ];
 
@@ -26,6 +28,8 @@ export default function PromptEditModal({ prompt, onClose, onSaved }: { prompt: 
   const preview = useMemo(() => {
     return text
       .replace(/{{companyContext}}/g, '[Company Context Here]')
+      .replace(/{{businessContext}}/g, '[Business Context Here]')
+      .replace(/{{machinesContext}}/g, '[Machines Context Here]')
       .replace(/{{responseFormat}}/g, responseFormat);
   }, [text]);
 
