@@ -104,39 +104,78 @@ const formatAnswer = (value: any): string => {
 };
 
 // Helper to flatten nested objects into question-answer pairs
-const flattenData = (data: any, prefix: string = ''): Array<{ question: string; answer: string }> => {
-  const results: Array<{ question: string; answer: string }> = [];
+const flattenData = (data: any, questionLabels: Record<string, string> = {}, prefix: string = ''): Array<{ question: string; answer: string; key: string }> => {
+  const results: Array<{ question: string; answer: string; key: string }> = [];
   
   if (!data || typeof data !== 'object') {
     return results;
   }
   
-  Object.entries(data).forEach(([key, value]) => {
-    const questionKey = prefix ? `${prefix} - ${key}` : key;
-    const formattedQuestion = formatQuestionKey(questionKey);
-    
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      // Check if this object has simple key-value pairs or if it should be flattened further
-      const entries = Object.entries(value);
-      const hasNestedObjects = entries.some(([_, val]) => typeof val === 'object' && val !== null && !Array.isArray(val));
+  // Skip question_labels itself
+  if (prefix === '' && data.question_labels) {
+    // Process other fields but skip question_labels
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'question_labels') return;
       
-      if (hasNestedObjects && entries.length > 1) {
-        // Flatten further
-        results.push(...flattenData(value, questionKey));
+      const questionKey = key;
+      // Use question_labels if available, otherwise format the key
+      const questionText = questionLabels[questionKey] || formatQuestionKey(questionKey);
+      
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Check if this object has simple key-value pairs or if it should be flattened further
+        const entries = Object.entries(value);
+        const hasNestedObjects = entries.some(([_, val]) => typeof val === 'object' && val !== null && !Array.isArray(val));
+        
+        if (hasNestedObjects && entries.length > 1) {
+          // Flatten further
+          results.push(...flattenData(value, questionLabels, questionKey));
+        } else {
+          // Treat as a single answer
+          results.push({
+            question: questionText,
+            answer: formatAnswer(value),
+            key: questionKey
+          });
+        }
       } else {
-        // Treat as a single answer
         results.push({
-          question: formattedQuestion,
-          answer: formatAnswer(value)
+          question: questionText,
+          answer: formatAnswer(value),
+          key: questionKey
         });
       }
-    } else {
-      results.push({
-        question: formattedQuestion,
-        answer: formatAnswer(value)
-      });
-    }
-  });
+    });
+  } else {
+    Object.entries(data).forEach(([key, value]) => {
+      const questionKey = prefix ? `${prefix} - ${key}` : key;
+      // Use question_labels if available, otherwise format the key
+      const questionText = questionLabels[questionKey] || formatQuestionKey(questionKey);
+      
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Check if this object has simple key-value pairs or if it should be flattened further
+        const entries = Object.entries(value);
+        const hasNestedObjects = entries.some(([_, val]) => typeof val === 'object' && val !== null && !Array.isArray(val));
+        
+        if (hasNestedObjects && entries.length > 1) {
+          // Flatten further
+          results.push(...flattenData(value, questionLabels, questionKey));
+        } else {
+          // Treat as a single answer
+          results.push({
+            question: questionText,
+            answer: formatAnswer(value),
+            key: questionKey
+          });
+        }
+      } else {
+        results.push({
+          question: questionText,
+          answer: formatAnswer(value),
+          key: questionKey
+        });
+      }
+    });
+  }
   
   return results;
 };
@@ -144,7 +183,9 @@ const flattenData = (data: any, prefix: string = ''): Array<{ question: string; 
 const OnboardingDataModal: React.FC<OnboardingDataModalProps> = ({ isOpen, onClose, data, companyName }) => {
   if (!isOpen) return null;
 
-  const questionAnswers = data ? flattenData(data) : [];
+  // Extract question_labels from data if available
+  const questionLabels = data?.question_labels || {};
+  const questionAnswers = data ? flattenData(data, questionLabels) : [];
 
   const downloadPdf = async () => {
     try {
@@ -335,21 +376,12 @@ const OnboardingDataModal: React.FC<OnboardingDataModalProps> = ({ isOpen, onClo
           {questionAnswers.length > 0 ? (
             <div className="space-y-4">
               {questionAnswers.map((qa, index) => (
-                <div key={index} className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg px-5 py-3 border border-gray-200 hover:border-blue-300 transition-colors">
-                  <div className="space-y-3">
-                    {/* Question */}
-                    <div className="flex items-start gap-3">
-                   
-                      <div className="flex-1">
-                        <h3 className="text-sm font-semibold text-blue-800 mb-2">{qa.question}</h3>
-                        {/* Answer */}
-                        <div className="">
-                          <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-                            {qa.answer}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+                  <div className="text-sm font-medium text-gray-700">
+                    {qa.question}
+                  </div>
+                  <div className="text-sm text-gray-600 pl-0">
+                    <p className="whitespace-pre-wrap">{qa.answer}</p>
                   </div>
                 </div>
               ))}

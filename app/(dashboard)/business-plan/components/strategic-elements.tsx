@@ -641,13 +641,13 @@ export default function StrategicElements({
                   };
                   return (
                     <div key={index} className="flex items-start gap-2">
-                      {isTargetSection(section) && (
-                        <CustomCheckbox
-                          checked={item.completed || false}
-                          onCheckedChange={(checked: boolean) => handleToggleComplete(section, index, checked)}
+                        {isTargetSection(section) && (
+                          <CustomCheckbox
+                            checked={item.completed || false}
+                            onCheckedChange={(checked: boolean) => handleToggleComplete(section, index, checked)}
                           className="mt-1 flex-shrink-0"
-                        />
-                      )}
+                          />
+                        )}
                       <div className="flex-1 space-y-2">
                         <textarea
                           ref={setTextareaRef}
@@ -660,29 +660,29 @@ export default function StrategicElements({
                           rows={1}
                           style={{ overflow: 'hidden' }}
                         />
-                        {isTargetSection(section) && (
+                      {isTargetSection(section) && (
                           <div className="flex items-center space-x-2">
-                            <Calendar className={`h-4 w-4 ${
+                          <Calendar className={`h-4 w-4 ${
+                            isDeadlineOverdue(item.deadline || '') && !item.completed 
+                              ? 'text-red-500' 
+                              : 'text-gray-400'
+                          }`} />
+                          <input
+                            type="date"
+                            value={item.deadline || ''}
+                            onChange={(e) => handleChangeDeadline(section, index, e.target.value)}
+                            className={`text-xs border rounded px-2 py-1 bg-white ${
                               isDeadlineOverdue(item.deadline || '') && !item.completed 
-                                ? 'text-red-500' 
-                                : 'text-gray-400'
-                            }`} />
-                            <input
-                              type="date"
-                              value={item.deadline || ''}
-                              onChange={(e) => handleChangeDeadline(section, index, e.target.value)}
-                              className={`text-xs border rounded px-2 py-1 bg-white ${
-                                isDeadlineOverdue(item.deadline || '') && !item.completed 
-                                  ? 'border-red-300' 
-                                  : 'border-gray-300'
-                              }`}
-                              placeholder="Set deadline"
-                            />
-                            {isDeadlineOverdue(item.deadline || '') && !item.completed && (
-                              <span className="text-xs text-red-600 font-medium">Overdue</span>
-                            )}
-                          </div>
-                        )}
+                                ? 'border-red-300' 
+                                : 'border-gray-300'
+                            }`}
+                            placeholder="Set deadline"
+                          />
+                          {isDeadlineOverdue(item.deadline || '') && !item.completed && (
+                            <span className="text-xs text-red-600 font-medium">Overdue</span>
+                          )}
+                        </div>
+                      )}
                       </div>
                       <Button
                         type="button"
@@ -734,27 +734,27 @@ export default function StrategicElements({
                 <p className="text-center text-gray-400 italic py-4 text-xs">{emptyMessage}</p>
               ) : (
                 items.map((item, index) => (
-                  <div 
-                    key={index} 
+                    <div 
+                      key={index} 
                     className={`px-3 py-2.5 flex items-start ${
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    }`}
-                  >
-                    {isTargetSection(section) && (
-                      <CustomCheckbox
-                        checked={item.completed || false}
-                        onCheckedChange={(checked: boolean) => handleToggleComplete(section, index, checked)}
+                      }`}
+                    >
+                        {isTargetSection(section) && (
+                          <CustomCheckbox
+                            checked={item.completed || false}
+                            onCheckedChange={(checked: boolean) => handleToggleComplete(section, index, checked)}
                         className="mt-1 mr-2 flex-shrink-0"
-                      />
-                    )}
+                          />
+                        )}
                     {!isTargetSection(section) && (
                       <div className={`h-3 w-3 ${style.dotColor} rounded-full mt-1 mr-2 flex-shrink-0`} />
                     )}
-                    <div className="flex-1">
+                        <div className="flex-1">
                       <div className={`text-sm leading-relaxed text-gray-700 ${
                         isTargetSection(section) && item.completed ? 'line-through text-gray-500' : ''
-                      }`}>
-                        {item.value}
+                          }`}>
+                            {item.value}
                       </div>
                       {isTargetSection(section) && item.deadline && (
                         <div className="flex items-center space-x-2 mt-1">
@@ -774,7 +774,7 @@ export default function StrategicElements({
                         </div>
                       )}
                     </div>
-                  </div>
+                </div>
                 ))
               )}
             </div>
@@ -810,9 +810,9 @@ export default function StrategicElements({
     
       {/* Strategic Foundation */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {renderSection("purposeWhy")}
-        {renderSection("strategicAnchors")}
-        {renderSection("coreValues")}
+          {renderSection("purposeWhy")}
+          {renderSection("strategicAnchors")}
+          {renderSection("coreValues")}
       </div>
 
       {/* Strategic Targets */}
