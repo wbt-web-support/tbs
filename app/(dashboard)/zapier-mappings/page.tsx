@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -58,9 +59,9 @@ export default function ZapierMappingsPage() {
   }, [userId]);
 
   const fetchUserIdAndAppUrl = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
+    const effectiveUserId = await getEffectiveUserId();
+    if (effectiveUserId) {
+      setUserId(effectiveUserId);
     }
     setAppUrl(window.location.origin);
   };

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +12,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, CheckCircle, ArrowRight, Brain, Target, Users, TrendingUp, Building, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { tr } from 'date-fns/locale';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface AIQuestion {
@@ -36,7 +35,13 @@ interface QuestionsData {
   };
 }
 
-export default function AIOnboardingPage() {
+interface AIOnboardingClientProps {
+  redirectTo?: string; // Optional redirect path after completion
+  onSaveRef?: React.MutableRefObject<(() => void) | null>; // Ref to expose save function
+  onSavingState?: (saving: boolean) => void; // Callback to update saving state
+}
+
+export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingState }: AIOnboardingClientProps) {
   // Configuration for minimum loader times (in milliseconds)
   // Set to 0 or false to disable minimum timing and work as normal
   const MIN_LOADER_TIME = 15000000000; // 1.5 seconds minimum for loading states
@@ -64,6 +69,8 @@ export default function AIOnboardingPage() {
   const { toast } = useToast();
   const router = useRouter();
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const isEditMode = searchParams.get('edit') === 'true';
 
   // Helper function to check if minimum time has elapsed
   const hasMinimumTimeElapsed = (startTime: number | null, minTime: number): boolean => {
@@ -83,6 +90,13 @@ export default function AIOnboardingPage() {
       setProgress((completedCount / questions.length) * 100);
     }
   }, [questions]);
+
+  // Update parent saving state
+  useEffect(() => {
+    if (onSavingState) {
+      onSavingState(isSaving);
+    }
+  }, [onSavingState, isSaving]);
 
     const checkExistingQuestions = async () => {
     try {
@@ -113,9 +127,13 @@ export default function AIOnboardingPage() {
           });
           setAnswers(existingAnswers);
           
-          // Set current question to first incomplete one
-          const firstIncomplete = sortedQuestions.findIndex((q: AIQuestion) => !q.is_completed);
-          setCurrentQuestionIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
+          // Set current question to first incomplete one (or first question in edit mode)
+          if (isEditMode) {
+            setCurrentQuestionIndex(0);
+          } else {
+            const firstIncomplete = sortedQuestions.findIndex((q: AIQuestion) => !q.is_completed);
+            setCurrentQuestionIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
+          }
         } else {
           // No questions exist, automatically generate them
           await generateQuestions();
@@ -237,6 +255,61 @@ export default function AIOnboardingPage() {
     }
   };
 
+  // Expose save function to parent via ref (for header button)
+  useEffect(() => {
+    if (onSaveRef) {
+      onSaveRef.current = () => {
+        // In edit mode, save directly without showing dialog
+        if (isEditMode) {
+          saveAnswers();
+        } else {
+          handleSubmitClick();
+        }
+      };
+    }
+  }, [onSaveRef, isEditMode, answers, questions]);
+
+  // Auto-save function that saves silently without showing toasts or redirecting
+  const autoSaveAnswers = async () => {
+    try {
+      const answersToSave = Object.entries(answers).map(([questionId, answer]) => ({
+        questionId,
+        answer
+      }));
+
+      const response = await fetch('/api/ai-onboarding/save-answers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: answersToSave })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Silently update completion status without toasts or redirects
+        if (data.isCompleted) {
+          setIsCompleted(true);
+        }
+        
+        // Update questions completion status locally without full refresh
+        setQuestions(prev => prev.map(q => {
+          const savedAnswer = answersToSave.find(a => a.questionId === q.id);
+          if (savedAnswer) {
+            return { 
+              ...q, 
+              is_completed: savedAnswer.answer.trim() !== '', 
+              user_answer: savedAnswer.answer 
+            };
+          }
+          return q;
+        }));
+      }
+    } catch (error) {
+      // Silently fail for auto-save - errors are logged but not shown to user
+      console.error('Auto-save failed:', error);
+    }
+  };
+
   const saveAnswers = async () => {
     setIsSaving(true);
     setShowSubmitDialog(false);
@@ -266,14 +339,16 @@ export default function AIOnboardingPage() {
             title: "AI Onboarding Complete!",
             description: "You've completed all the AI-generated questions.",
           });
-          // Redirect to dashboard after successful completion
+          // Redirect based on edit mode or custom redirect
+          const redirectPath = redirectTo || (isEditMode ? '/thank-you' : '/dashboard');
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push(redirectPath);
           }, 2000);
         } else {
-          // Redirect to dashboard even if not all questions completed
+          // Redirect based on edit mode or custom redirect
+          const redirectPath = redirectTo || (isEditMode ? '/thank-you' : '/dashboard');
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push(redirectPath);
           }, 1500);
         }
         
@@ -295,6 +370,11 @@ export default function AIOnboardingPage() {
 
   const nextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
+      // Auto-save current answers in the background (non-blocking)
+      autoSaveAnswers().catch(error => {
+        console.error('Auto-save failed:', error);
+      });
+      
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentQuestionIndex(prev => prev + 1);
@@ -305,6 +385,11 @@ export default function AIOnboardingPage() {
 
   const previousQuestion = () => {
     if (currentQuestionIndex > 0) {
+      // Auto-save current answers in the background (non-blocking)
+      autoSaveAnswers().catch(error => {
+        console.error('Auto-save failed:', error);
+      });
+      
       setCurrentQuestionIndex(prev => prev - 1);
     }
   };
@@ -470,7 +555,9 @@ export default function AIOnboardingPage() {
     );
   }
 
-  if (isCompleted) {
+  // In edit mode, skip the completion screen and show questions for editing
+  if (isCompleted && !isEditMode) {
+    const redirectPath = redirectTo || '/dashboard';
     return (
       <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
         <Card className="max-w-2xl w-full mx-4">
@@ -485,7 +572,7 @@ export default function AIOnboardingPage() {
           </CardHeader>
           <CardContent className="text-center">
             <Button 
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push(redirectPath)}
               className="w-full max-w-xs"
               size="lg"
             >
@@ -503,10 +590,16 @@ export default function AIOnboardingPage() {
     <div className="min-h-[calc(100vh-10rem)]">
       <div className="max-w-3xl mx-auto px-4 py-8">
                  {/* Header */}
-         <div className="text-left mb-12">
-         
-           <h1 className="text-3xl font-bold text-slate-900 mb-3">AI Business Insights</h1>
-           <p className="text-slate-600 text-lg">Answer personalised questions to unlock deeper business insights</p>
+         <div className="text-left mb-6">
+           <h1 className="text-3xl font-medium text-slate-900 mb-3">
+             {isEditMode ? 'Edit AI Onboarding Questions' : 'AI Business Insights'}
+           </h1>
+           <p className="text-slate-600 text-lg">
+             {isEditMode 
+               ? 'Review and update your answers to the AI-generated questions'
+               : 'Answer personalised questions to unlock deeper business insights'
+             }
+           </p>
          </div>
 
          {/* Duplicate Warning */}
@@ -533,12 +626,11 @@ export default function AIOnboardingPage() {
 
 
         {/* Question Card */}
-        <Card className="mb-8 shadow-sm border-slate-200">
+        <Card className="mb-8 border-slate-200">
           <CardHeader className="pb-6">
                          <div className="flex items-center gap-3 mb-4">
-               {getCategoryIcon(currentQuestion.question_category)}
                <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">
-                 {currentQuestion.question_category}
+                 {currentQuestion.question_category.replace(/\|/g, ' | ')}
                </Badge>
              </div>
             <CardTitle className="text-xl text-slate-900 leading-relaxed">
@@ -570,11 +662,11 @@ export default function AIOnboardingPage() {
                 </SelectContent>
               </Select>
             ) : (
-              <Input
+              <Textarea
                 value={answers[currentQuestion.id] || ''}
                 onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                 placeholder="Enter your answer..."
-                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                className="min-h-[120px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 resize-none"
               />
             )}
           </CardContent>
@@ -639,7 +731,13 @@ export default function AIOnboardingPage() {
             return (
               <button
                 key={index}
-                onClick={() => setCurrentQuestionIndex(index)}
+                onClick={() => {
+                  // Auto-save current answers in the background (non-blocking)
+                  autoSaveAnswers().catch(error => {
+                    console.error('Auto-save failed:', error);
+                  });
+                  setCurrentQuestionIndex(index);
+                }}
                 className={`w-3 h-3 rounded-full transition-colors ${
                   index === currentQuestionIndex
                     ? 'bg-blue-600'
@@ -704,3 +802,4 @@ export default function AIOnboardingPage() {
     </div>
   );
 }
+

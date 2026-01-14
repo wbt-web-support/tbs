@@ -8,11 +8,11 @@ import { useEffect, useState } from "react";
 export default function DiscoveryCallPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [iframeUrl, setIframeUrl] = useState('https://api.leadconnectorhq.com/widget/booking/NB7G58FsleME5Aprb062');
+  const [iframeUrl, setIframeUrl] = useState('https://api.leadconnectorhq.com/widget/booking/7sPkfen64Bo3UObW1EWa');
 
   // Build iframe URL with parameters
   useEffect(() => {
-    const baseUrl = 'https://api.leadconnectorhq.com/widget/booking/NB7G58FsleME5Aprb062';
+    const baseUrl = 'https://api.leadconnectorhq.com/widget/booking/7sPkfen64Bo3UObW1EWa';
     const params = new URLSearchParams();
     
     // Get parameters from URL
@@ -41,14 +41,14 @@ export default function DiscoveryCallPage() {
   // Load the calendar script when component mounts
   useEffect(() => {
     const script = document.createElement('script');
-    script.src = 'https://api.leadconnectorhq.com/js/form_embed.js';
+    script.src = 'https://link.msgsndr.com/js/form_embed.js';
     script.type = 'text/javascript';
     script.async = true;
     document.head.appendChild(script);
 
     return () => {
       // Cleanup script when component unmounts
-      const existingScript = document.querySelector('script[src="https://api.leadconnectorhq.com/js/form_embed.js"]');
+      const existingScript = document.querySelector('script[src="https://link.msgsndr.com/js/form_embed.js"]');
       if (existingScript) {
         document.head.removeChild(existingScript);
       }
@@ -57,7 +57,7 @@ export default function DiscoveryCallPage() {
 
   const handleSkipToDashboard = () => {
     // Add URL parameter to indicate fresh onboarding completion and show welcome popup
-    router.push('/dashboard?onboarding=completed&welcome=true');
+    router.push('/thank-you?onboarding=completed&welcome=true');
     router.refresh();
   };
 
@@ -68,10 +68,10 @@ export default function DiscoveryCallPage() {
         <div className="text-left mt-10">
          
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Schedule Your Discovery Call
+            Trade Business Bootcamp: 3-1 Strategy Session
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl">
-            Let's book a time to discuss your business goals and create a personalized discovery call for your success.
+          <p className="text-lg text-gray-600 max-w-3xl">
+            Trade Business School 60 Minute strategy session With Daniel, Stephen & Al
           </p>
         </div>
 
@@ -84,14 +84,14 @@ export default function DiscoveryCallPage() {
                src={iframeUrl}
                style={{ width: '100%', border: 'none', overflow: 'hidden' }} 
                scrolling="no" 
-               id="NB7G58FsleME5Aprb062_1756967093868"
+               id="QMNTP0yoJPYVYdLveOVB_1767875345713"
                className="min-h-[600px] rounded-lg"
              />
            </div>
         </div>
 
         {/* Skip Button */}
-        <div className="text-center">
+        <div className="text-center hidden">
           <Button
             onClick={handleSkipToDashboard}
             variant="outline"

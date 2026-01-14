@@ -134,7 +134,7 @@ export default function LeaveRequest({ onLeaveRequested }: LeaveRequestProps) {
         .eq("is_active", true);
 
       if (error) throw error;
-      return (data || []).map((h) => h.holiday_date);
+      return (data || []).map((h: { holiday_date: any; }) => h.holiday_date);
     } catch (error) {
       console.error("Error fetching bank holidays:", error);
       return [];
@@ -211,9 +211,10 @@ export default function LeaveRequest({ onLeaveRequested }: LeaveRequestProps) {
     }
 
     // Check if requesting more days than remaining
+    // Note: remaining_days is the leave entitlement remaining (excluding bank holidays which are already given)
     if (remainingDays && calculatedDuration > remainingDays.remaining_days) {
       errors.push(
-        `You only have ${remainingDays.remaining_days} days remaining, but requesting ${calculatedDuration} days`
+        `You only have ${remainingDays.remaining_days} leave days remaining, but requesting ${calculatedDuration} days`
       );
     }
 
@@ -330,7 +331,8 @@ export default function LeaveRequest({ onLeaveRequested }: LeaveRequestProps) {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-600">Total Entitlement:</span>
-                      <span className="font-semibold ml-2">{remainingDays.total_entitlement} days</span>
+                      <span className="font-semibold ml-2">{remainingDays.total_entitlement + remainingDays.bank_holidays} days</span>
+                     
                     </div>
                     <div>
                       <span className="text-gray-600">Used:</span>
@@ -341,7 +343,7 @@ export default function LeaveRequest({ onLeaveRequested }: LeaveRequestProps) {
                       <span className="font-semibold ml-2">{remainingDays.bank_holidays} days</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Remaining:</span>
+                      <span className="text-gray-600">Remaining Leave:</span>
                       <span className="font-semibold ml-2 text-blue-600">{remainingDays.remaining_days} days</span>
                     </div>
                   </div>

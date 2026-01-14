@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { initializeSupabaseStorage } from "@/utils/supabase/storage-init";
 import { Toaster as SonnerToaster } from "sonner";
 import GoogleAnalyticsScript from "@/components/google-analytics-script";
+import { ImpersonationIndicator } from "@/components/impersonation-indicator";
 // import { FloatingChat } from "@/components/floating-chat";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -68,6 +69,7 @@ export default async function RootLayout({
           </main>
           <Toaster />
           <SonnerToaster position="top-right" />
+          <ImpersonationIndicator />
           
       </body>
     </html>

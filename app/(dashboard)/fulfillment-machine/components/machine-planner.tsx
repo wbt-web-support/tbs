@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles } from "lucide-react";
+import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles, Target, Building, Users, TrendingUp, Zap, Brain, CheckCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DynamicInputList } from "./dynamic-input-list";
 import { toast } from "sonner";
 
@@ -61,10 +64,41 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
   const [generating, setGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<any>(null);
   const supabase = createClient();
+  
+  // Question flow state
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [answers, setAnswers] = useState<{[key: string]: string}>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  
+  // Local storage keys
+  const STORAGE_KEY_QUESTIONS = 'fulfillment-machine-questions';
+  const STORAGE_KEY_ANSWERS = 'fulfillment-machine-answers';
+  const STORAGE_KEY_GENERATED = 'fulfillment-machine-generated-data';
+  const STORAGE_KEY_TIMESTAMP = 'fulfillment-machine-timestamp';
 
   useEffect(() => {
     fetchMachineData();
+    loadFromLocalStorage();
   }, []);
+  
+  // Update progress when questions or answers change
+  useEffect(() => {
+    if (questions.length > 0) {
+      const completedCount = questions.filter(q => q.is_completed).length;
+      setProgress((completedCount / questions.length) * 100);
+    }
+  }, [questions, answers]);
+  
+  // Save to local storage whenever generatedData changes
+  useEffect(() => {
+    if (generatedData) {
+      saveGeneratedDataToStorage(generatedData);
+    }
+  }, [generatedData]);
 
   useEffect(() => {
     if (machineData) {
@@ -175,21 +209,215 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     setActionsActivities(originalData.actionsActivities);
     setEditMode(false);
   };
+  
+  // LocalStorage functions
+  const loadFromLocalStorage = () => {
+    try {
+      // Load questions
+      const storedQuestions = localStorage.getItem(STORAGE_KEY_QUESTIONS);
+      if (storedQuestions) {
+        const data = JSON.parse(storedQuestions);
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+          setQuestions(data.questions);
+          // Load answers if they exist
+          const storedAnswers = localStorage.getItem(STORAGE_KEY_ANSWERS);
+          if (storedAnswers) {
+            const answersData = JSON.parse(storedAnswers);
+            setAnswers(answersData);
+            // Update question completion status
+            setQuestions(data.questions.map((q: any) => ({
+              ...q,
+              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
+              user_answer: answersData[q.id] || null
+            })));
+          }
+        }
+      }
+      
+      // Load generated data if exists
+      const storedGenerated = localStorage.getItem(STORAGE_KEY_GENERATED);
+      if (storedGenerated) {
+        const generated = JSON.parse(storedGenerated);
+        setGeneratedData(generated);
+      }
+    } catch (error) {
+      console.error('Error loading from local storage:', error);
+    }
+  };
+  
+  const saveQuestionsToStorage = (questionsData: any[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY_QUESTIONS, JSON.stringify({
+        questions: questionsData,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.error('Error saving questions to storage:', error);
+    }
+  };
+  
+  const saveAnswersToStorage = (answersData: {[key: string]: string}) => {
+    try {
+      localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(answersData));
+    } catch (error) {
+      console.error('Error saving answers to storage:', error);
+    }
+  };
+  
+  const saveGeneratedDataToStorage = (data: any) => {
+    try {
+      localStorage.setItem(STORAGE_KEY_GENERATED, JSON.stringify(data));
+      localStorage.setItem(STORAGE_KEY_TIMESTAMP, new Date().toISOString());
+    } catch (error) {
+      console.error('Error saving generated data to storage:', error);
+    }
+  };
+  
+  const clearLocalStorage = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY_QUESTIONS);
+      localStorage.removeItem(STORAGE_KEY_ANSWERS);
+      localStorage.removeItem(STORAGE_KEY_GENERATED);
+      localStorage.removeItem(STORAGE_KEY_TIMESTAMP);
+    } catch (error) {
+      console.error('Error clearing local storage:', error);
+    }
+  };
+  
+  // Question generation
+  const generateQuestions = async () => {
+    try {
+      setIsLoadingQuestions(true);
+      
+      // Check if we have cached questions
+      const stored = localStorage.getItem(STORAGE_KEY_QUESTIONS);
+      if (stored) {
+        const data = JSON.parse(stored);
+        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
+        const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0 && cacheAge < cacheMaxAge) {
+          setQuestions(data.questions);
+          setCurrentQuestionIndex(0);
+          const storedAnswers = localStorage.getItem(STORAGE_KEY_ANSWERS);
+          if (storedAnswers) {
+            const answersData = JSON.parse(storedAnswers);
+            setAnswers(answersData);
+            setQuestions(data.questions.map((q: any) => ({
+              ...q,
+              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
+              user_answer: answersData[q.id] || null
+            })));
+          } else {
+            setAnswers({});
+          }
+          setShowQuestions(true);
+          setProgress(0);
+          setIsLoadingQuestions(false);
+          return;
+        }
+      }
+      
+      const response = await fetch('/api/gemini/fulfillment-machine/generate-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-  // When AI generates content, auto-fill and enter edit mode
-  const handleGenerateWithAI = async () => {
+      if (!response.ok) {
+        throw new Error('Failed to create questions');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.questions) {
+        setQuestions(result.questions);
+        saveQuestionsToStorage(result.questions);
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        setShowQuestions(true);
+        setProgress(0);
+      } else {
+        throw new Error('No questions data received');
+      }
+    } catch (error) {
+      console.error('Error creating questions:', error);
+      toast.error('Failed to create questions. Please try again.');
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  };
+  
+  // Handle answer change
+  const handleAnswerChange = (questionId: string, value: string) => {
+    const newAnswers = { ...answers, [questionId]: value };
+    setAnswers(newAnswers);
+    saveAnswersToStorage(newAnswers);
+    
+    // Update the question's completion status
+    setQuestions(prev => prev.map(q => 
+      q.id === questionId 
+        ? { ...q, is_completed: value.trim() !== '', user_answer: value }
+        : q
+    ));
+  };
+  
+  // Navigate to next question
+  const nextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentQuestionIndex(prev => prev + 1);
+        setIsTransitioning(false);
+      }, 300);
+    }
+  };
+  
+  // Navigate to previous question
+  const previousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentQuestionIndex(prev => prev - 1);
+        setIsTransitioning(false);
+      }, 300);
+    }
+  };
+  
+  // Save answers and proceed to generation
+  const handleCompleteQuestions = async () => {
     try {
       setGenerating(true);
-      setError("");
+      
+      // Save answers
+      await fetch('/api/gemini/fulfillment-machine/save-answers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ answers }),
+      });
+
+      // Close question flow
+      setShowQuestions(false);
+      
+      // Generate fulfillment machine with answers
       const response = await fetch('/api/gemini/fulfillment-machine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'generate' }),
+        body: JSON.stringify({ 
+          action: 'generate',
+          userAnswers: answers,
+          questions: questions
+        }),
       });
+      
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || result.details || 'Failed to generate content');
       }
+      
       setGeneratedData(result.data);
       // Auto-fill and enter edit mode
       if (result.data) {
@@ -207,6 +435,39 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     } finally {
       setGenerating(false);
     }
+  };
+  
+  // Get category icon
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'Strategic Planning': return <Target className="w-4 h-4" />;
+      case 'Operations': return <Building className="w-4 h-4" />;
+      case 'Team': return <Users className="w-4 h-4" />;
+      case 'Marketing': return <TrendingUp className="w-4 h-4" />;
+      case 'Sales': return <TrendingUp className="w-4 h-4" />;
+      case 'Finance': return <Zap className="w-4 h-4" />;
+      case 'Customer Experience': return <Users className="w-4 h-4" />;
+      case 'Quality Control': return <CheckCircle className="w-4 h-4" />;
+      case 'Delivery': return <TrendingUp className="w-4 h-4" />;
+      case 'Process Documentation': return <Brain className="w-4 h-4" />;
+      default: return <Brain className="w-4 h-4" />;
+    }
+  };
+
+  // When AI generates content, start question flow
+  const handleGenerateWithAI = async () => {
+    // First create questions
+    await generateQuestions();
+  };
+  
+  // Regenerate - clear cache and start over
+  const handleRegenerate = () => {
+    clearLocalStorage();
+    setGeneratedData(null);
+    setQuestions([]);
+    setAnswers({});
+    setCurrentQuestionIndex(0);
+    handleGenerateWithAI();
   };
 
   const handleSaveGeneratedContent = async () => {
@@ -238,6 +499,10 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       onDataChange?.();
       setGeneratedData(null);
       
+      // Clear generated data from localStorage after successful save
+      localStorage.removeItem(STORAGE_KEY_GENERATED);
+      localStorage.removeItem(STORAGE_KEY_TIMESTAMP);
+      
       toast.success("Generated content saved successfully!");
       
     } catch (err: any) {
@@ -248,6 +513,50 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       setSaving(false);
     }
   };
+
+  // Show loading state while creating questions
+  if (isLoadingQuestions) {
+    return (
+      <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <Card className="bg-transparent shadow-none border-none p-0">
+            <CardHeader className="text-left pb-6">
+              <CardTitle className="text-2xl text-slate-900 mb-2">
+                AI Analysis in Progress
+              </CardTitle>
+              <CardDescription className="text-slate-600">
+                Our AI is analysing your business data to create personalised questions
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <span className="text-sm text-slate-700">Analysing your business profile</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  </div>
+                  <span className="text-sm text-slate-700 font-medium">Creating personalised questions</span>
+                </div>
+              </div>
+              
+              <div className="text-left">
+                <p className="text-xs text-slate-400 mt-1">
+                  This process is powered by advanced AI technology
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -286,17 +595,17 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       </div>
 
       {/* AI Assistant Section */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg flex-wrap gap-4">
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
             <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-              We've analysed your company data and our AI assistant can help map your fulfilment process. 
+              We've analysed your company data and our AI assistant can help map your fulfillment process. 
               You can also create it manually if you prefer.
             </p>
           </div>
@@ -315,66 +624,67 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           )}
           <Button
             size="sm"
-            className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={handleGenerateWithAI}
-            disabled={generating}
+            className="h-8 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+            onClick={generatedData ? handleRegenerate : handleGenerateWithAI}
+            disabled={generating || isLoadingQuestions}
           >
-            {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            {generating ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Map This'}
+            {(generating || isLoadingQuestions) ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+            {(generating || isLoadingQuestions) ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Map This'}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Column One */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-          {/* Engine Name */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10">
+        {/* Left Column: Engine Info + Triggering/Ending Events */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* Combined Engine Info Card */}
           <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-              <CardTitle className="text-sm font-medium text-purple-800 uppercase">Engine Name</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b border-gray-200 !px-5 !py-2">
+              <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Engine Information</CardTitle>
+              <div className="bg-purple-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold !m-0">
+                {engineType}
+              </div>
             </CardHeader>
-            <div className="p-4">
-              {editMode ? (
-                <Input
-                  value={engineName}
-                  onChange={(e) => setEngineName(e.target.value)}
-                  placeholder="Enter name for this engine"
-                  className="w-full"
-                />
-              ) : (
-                <div className="text-xl md:text-2xl font-bold text-purple-800">{engineName || "—"}</div>
-              )}
+            <div className="p-6 space-y-4 pt-0">
+              {/* Engine Name */}
+              <div>
+                {editMode ? (
+                  <Input
+                    value={engineName}
+                    onChange={(e) => setEngineName(e.target.value)}
+                    placeholder="Enter name for this engine"
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="text-xl font-medium text-gray-900">{engineName || "—"}</div>
+                )}
+              </div>
+              
+              {/* Description */}
+              <div>
+                {editMode ? (
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe what this engine does and its purpose"
+                    className="min-h-[100px] w-full"
+                  />
+                ) : (
+                  <div className="text-gray-600 whitespace-pre-line text-sm leading-relaxed">{description || "No description provided"}</div>
+                )}
+              </div>
             </div>
           </Card>
 
-          {/* Description */}
-          <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-200">
-              <CardTitle className="text-sm font-medium text-amber-800 uppercase">Description</CardTitle>
-            </CardHeader>
-            <div className="p-4">
-              {editMode ? (
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe what this engine does and its purpose"
-                  className="min-h-[100px] w-full"
-                />
-              ) : (
-                <div className="text-gray-600 whitespace-pre-line">{description || "No description provided"}</div>
-              )}
-            </div>
-          </Card>
-
-          {/* Triggering Events and Ending Events - Two column layout */}
+          {/* Triggering Events and Ending Events */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Triggering Event */}
-            <div className="col-span-5">
+            <div className="md:col-span-5">
               <Card className="overflow-hidden border-gray-200 h-full">
-                <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-                  <CardTitle className="text-sm font-medium text-purple-800 uppercase">Triggering Event</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between !py-2 !px-4 bg-gray-50 border-b border-gray-200 mb-0">
+                  <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Triggering Event</CardTitle>
                 </CardHeader>
-                <div className="p-4">
+                <div className="p-0">
                   {editMode ? (
                     <DynamicInputList
                       items={triggeringEvents}
@@ -383,14 +693,14 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
                       editMode={editMode}
                     />
                   ) : (
-                    <div className="space-y-2">
+                    <div className="max-h-[400px] overflow-y-auto">
                       {triggeringEvents.length === 0 ? (
-                        <p className="text-center text-gray-400 italic py-2 text-sm">No triggering events defined</p>
+                        <p className="text-center text-gray-400 italic py-4 text-xs">No triggering events defined</p>
                       ) : (
                         triggeringEvents.map((event, index) => (
-                          <div key={index} className="bg-purple-50 px-3 py-2 rounded-md flex items-start">
-                            <CircleDot className="h-4 w-4 text-purple-600 mt-0.5 mr-2 flex-shrink-0" />
-                            <div className="text-sm">{event.value}</div>
+                          <div key={index} className={`px-3 py-2.5 flex items-start ${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
+                            <div className="h-3 w-3 bg-purple-600 rounded-full mt-1 mr-2 flex-shrink-0" />
+                            <div className="text-sm leading-relaxed text-gray-700">{event.value}</div>
                           </div>
                         ))
                       )}
@@ -401,19 +711,19 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
             </div>
 
             {/* Arrow */}
-            <div className="col-span-2 flex items-center justify-center">
-              <div className="w-12 h-12 flex items-center justify-center bg-purple-50 rounded-full border border-purple-200">
-                <ArrowRight className="h-6 w-6 text-purple-700" />
+            <div className="md:col-span-2 flex items-center justify-center py-4 md:py-0">
+              <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full border border-gray-300">
+                <ArrowRight className="h-5 w-5 text-gray-600" />
               </div>
             </div>
 
             {/* Ending Event */}
-            <div className="col-span-5">
+            <div className="md:col-span-5">
               <Card className="overflow-hidden border-gray-200 h-full">
-                <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
-                  <CardTitle className="text-sm font-medium text-red-800 uppercase">Ending Event</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between !py-2 !px-4 bg-gray-50 border-b border-gray-200 mb-0 !m-0">
+                  <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Ending Event</CardTitle>
                 </CardHeader>
-                <div className="p-4">
+                <div className="p-0">
                   {editMode ? (
                     <DynamicInputList
                       items={endingEvent}
@@ -422,14 +732,14 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
                       editMode={editMode}
                     />
                   ) : (
-                    <div className="space-y-2">
+                    <div className="max-h-[400px] overflow-y-auto">
                       {endingEvent.length === 0 ? (
-                        <p className="text-center text-gray-400 italic py-2 text-sm">No ending events defined</p>
+                        <p className="text-center text-gray-400 italic py-4 text-xs">No ending events defined</p>
                       ) : (
                         endingEvent.map((event, index) => (
-                          <div key={index} className="bg-red-50 px-3 py-2 rounded-md flex items-start">
-                            <CircleDot className="h-4 w-4 text-red-600 mt-0.5 mr-2 flex-shrink-0" />
-                            <div className="text-sm">{event.value}</div>
+                          <div key={index} className={`px-3 py-2.5 flex items-start ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                            <div className="h-3 w-3 bg-green-600 rounded-full mt-1 mr-2 flex-shrink-0" />
+                            <div className="text-sm leading-relaxed text-gray-700">{event.value}</div>
                           </div>
                         ))
                       )}
@@ -441,28 +751,13 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           </div>
         </div>
 
-        {/* Column Two */}
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-          {/* Engine Type (no edit option) */}
-          <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-              <CardTitle className="text-sm font-medium text-purple-800 uppercase">Engine Type</CardTitle>
+        {/* Right Column: Actions/Activities - Full Height */}
+        <div className="lg:col-span-4">
+          <Card className="overflow-hidden border-gray-200 h-full">
+            <CardHeader className="flex flex-row items-center justify-between !py-2 !px-5 bg-gray-50 border-b border-gray-200 mb-0 !m-0">
+              <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Actions/Activities</CardTitle>
             </CardHeader>
-            <div className="p-4">
-              <div className="flex items-center">
-                <div className="bg-purple-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold">
-                  {engineType}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Actions/Activities */}
-          <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between py-1 px-4 bg-gradient-to-r from-emerald-50 to-emerald-100 border-b border-emerald-200">
-              <CardTitle className="text-sm font-medium text-emerald-800 uppercase">Actions/Activities</CardTitle>
-            </CardHeader>
-            <div className="p-4">
+            <div className="p-0">
               {editMode ? (
                 <DynamicInputList
                   items={actionsActivities}
@@ -471,14 +766,14 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
                   editMode={editMode}
                 />
               ) : (
-                <div className="space-y-2">
+                <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
                   {actionsActivities.length === 0 ? (
-                    <p className="text-center text-gray-400 italic py-2 text-sm">No actions or activities defined</p>
+                    <p className="text-center text-gray-400 italic py-4 text-xs">No actions or activities defined</p>
                   ) : (
                     actionsActivities.map((item, index) => (
-                      <div key={index} className="bg-emerald-50 px-3 py-2 rounded-md flex items-start">
-                        <CircleDot className="h-4 w-4 text-emerald-600 mt-0.5 mr-2 flex-shrink-0" />
-                        <div className="text-sm">{item.value}</div>
+                      <div key={index} className={`px-3 py-2.5 flex items-start ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                        <div className="h-3 w-3 bg-purple-600 rounded-full mt-1 mr-2 flex-shrink-0" />
+                        <div className="text-sm leading-relaxed text-gray-700">{item.value}</div>
                       </div>
                     ))
                   )}
@@ -488,6 +783,173 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           </Card>
         </div>
       </div>
+      
+      {/* Question Flow Dialog */}
+      <Dialog 
+        open={showQuestions} 
+        onOpenChange={(open) => {
+          // Prevent closing while questions are loading
+          if (!open && isLoadingQuestions) {
+            return;
+          }
+          setShowQuestions(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden p-0 gap-0">
+          {/* Header with Progress */}
+          <div className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <DialogTitle className="text-2xl font-semibold text-gray-900 mb-2">
+                  Let's Personalise Your Fulfillment Machine
+                </DialogTitle>
+                <p className="text-sm text-gray-500">
+                  Answer {questions.length} questions to help us create a tailored fulfillment process
+                </p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-full">
+                <span className="text-xs font-medium text-purple-700">
+                  {currentQuestionIndex + 1} / {questions.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="relative w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="absolute top-0 left-0 h-full bg-purple-600 transition-all duration-300 ease-out"
+                style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {questions.length > 0 && (
+            <>
+              {/* Question Content */}
+              <div className="px-8 py-8 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 240px)' }}>
+                {(() => {
+                  const currentQuestion = questions[currentQuestionIndex];
+                  if (!currentQuestion) return null;
+
+                  return (
+                    <div className="space-y-6">
+                      {/* Question Text */}
+                      <div>
+                        <h2 className="text-xl font-medium text-gray-900 leading-relaxed">
+                          {currentQuestion.question_text}
+                        </h2>
+                      </div>
+
+                      {/* Answer Input */}
+                      <div>
+                        {currentQuestion.question_type === 'select' && currentQuestion.options ? (
+                          <Select
+                            value={answers[currentQuestion.id] || ''}
+                            onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
+                          >
+                            <SelectTrigger className="h-12 text-base border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
+                              <SelectValue placeholder="Select an option..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {currentQuestion.options.map((option: string, index: number) => (
+                                <SelectItem key={index} value={option} className="text-base py-3">
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Textarea
+                            value={answers[currentQuestion.id] || ''}
+                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                            placeholder="Type your answer here..."
+                            className="min-h-[160px] text-base border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 resize-none placeholder:text-gray-400"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Footer Navigation */}
+              <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50">
+                <div className="flex items-center justify-between">
+                  {/* Previous Button */}
+                  <Button
+                    variant="ghost"
+                    onClick={previousQuestion}
+                    disabled={currentQuestionIndex === 0}
+                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-0"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
+                    Previous
+                  </Button>
+
+                  {/* Question Dots */}
+                  <div className="flex gap-1.5">
+                    {questions.map((question, index) => {
+                      const hasAnswer = answers[question.id] && answers[question.id].trim() !== '';
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentQuestionIndex(index)}
+                          className={`h-1.5 rounded-full transition-all duration-200 ${
+                            index === currentQuestionIndex
+                              ? 'bg-purple-600 w-8'
+                              : hasAnswer
+                              ? 'bg-purple-400 w-1.5'
+                              : 'bg-gray-300 w-1.5 hover:bg-gray-400'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Next/Complete Button */}
+                  {currentQuestionIndex < questions.length - 1 ? (
+                    <Button
+                      onClick={nextQuestion}
+                      disabled={isTransitioning}
+                      className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+                    >
+                      {isTransitioning ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          Next
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleCompleteQuestions}
+                      disabled={generating}
+                      className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-sm"
+                    >
+                      {generating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Complete
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

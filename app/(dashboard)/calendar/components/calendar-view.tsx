@@ -119,8 +119,8 @@ export default function CalendarView({ events }: CalendarViewProps) {
       return {
         className: "rbc-event-holiday",
         style: {
-          backgroundColor: "#10b981",
-          borderColor: "#059669",
+          backgroundColor: "#166534",
+          borderColor: "#14532d",
         },
       };
     }

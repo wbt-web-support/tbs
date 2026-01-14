@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   // The `/auth/callback` route is required for the server-side auth flow implemented
-  // by the SSR package. It exchanges an auth code for the user's session.
+  // by the SSR package. It exchanges an auth code for the user's session.s
   // https://supabase.com/docs/guides/auth/server-side/nextjs
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
@@ -59,9 +59,12 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .single();
 
-    // Redirect super_admin to /admin, users with role "user" to /member/dashboard, others to /dashboard
+    // Redirect super_admin to /admin, admin to /thank-you, users with role "user" to /member/dashboard, others to /thank-you
     if (userProfile?.role === 'super_admin') {
       return NextResponse.redirect(`${origin}/admin`);
+    }
+    if (userProfile?.role === 'admin') {
+      return NextResponse.redirect(`${origin}/thank-you`);
     }
     if (userProfile?.role === 'user') {
       return NextResponse.redirect(`${origin}/member/dashboard`);
@@ -69,5 +72,5 @@ export async function GET(request: Request) {
   }
 
   // URL to redirect to after sign up process completes
-  return NextResponse.redirect(`${origin}/dashboard`);
+  return NextResponse.redirect(`${origin}/thank-you`);
 }

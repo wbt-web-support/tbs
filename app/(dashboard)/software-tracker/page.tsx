@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Package, DollarSign, Building2, TrendingUp } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import { Input, ExpandableInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -102,11 +103,10 @@ export default function SoftwareTrackerPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
       
-      if (!user) throw new Error("No authenticated user");
-      
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
       
       const { data, error } = await supabase
         .from("software")
@@ -130,10 +130,10 @@ export default function SoftwareTrackerPage() {
 
   const fetchDropdownData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) return;
 
-      const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+      const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
 
       // Fetch departments
       const { data: departmentsData, error: departmentsError } = await supabase
@@ -204,16 +204,16 @@ export default function SoftwareTrackerPage() {
     try {
       setIsSaving(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
       const { data: adminBusinessInfo } = await supabase
         .from('business_info')
         .select('team_id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
       
-      const teamId = adminBusinessInfo?.team_id || user.id;
+      const teamId = adminBusinessInfo?.team_id || effectiveUserId;
 
       if (currentSoftware) {
         // Update existing software
@@ -271,6 +271,55 @@ export default function SoftwareTrackerPage() {
     return `${formattedPrice}/month`;
   };
 
+  // Calculate stats from softwareData
+  const stats = useMemo(() => {
+    const totalSoftware = softwareData.length;
+    
+    // Calculate total monthly spend (convert yearly to monthly)
+    const totalMonthlySpend = softwareData.reduce((sum, software) => {
+      if (!software.price_monthly || software.pricing_period === 'n/a' || software.pricing_period === 'custom') {
+        return sum;
+      }
+      if (software.pricing_period === 'yearly') {
+        return sum + (software.price_monthly / 12);
+      }
+      return sum + software.price_monthly;
+    }, 0);
+
+    // Calculate total yearly spend (convert monthly to yearly)
+    const totalYearlySpend = softwareData.reduce((sum, software) => {
+      if (!software.price_monthly || software.pricing_period === 'n/a' || software.pricing_period === 'custom') {
+        return sum;
+      }
+      if (software.pricing_period === 'monthly') {
+        return sum + (software.price_monthly * 12);
+      }
+      return sum + software.price_monthly;
+    }, 0);
+
+    // Count unique departments
+    const uniqueDepartments = new Set(
+      softwareData
+        .filter(software => software.department_id !== null)
+        .map(software => software.department_id)
+    ).size;
+
+    // Count excluded software (pay-as-you-go, custom, n/a)
+    const excludedCount = softwareData.filter(software => 
+      !software.price_monthly || 
+      software.pricing_period === 'n/a' || 
+      software.pricing_period === 'custom'
+    ).length;
+
+    return {
+      totalSoftware,
+      totalMonthlySpend,
+      totalYearlySpend,
+      uniqueDepartments,
+      excludedCount,
+    };
+  }, [softwareData]);
+
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
@@ -288,6 +337,71 @@ export default function SoftwareTrackerPage() {
           Add Software
         </Button>
       </div>
+
+      {/* Stats Summary Boxes */}
+      {!loading && softwareData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Total Software</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.totalSoftware}</p>
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <Package className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-gray-600">Monthly Spend</p>
+                  <span className="text-xs text-gray-500 font-normal">(Estimate)</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-600">
+                  £{stats.totalMonthlySpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+             
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-gray-600">Yearly Spend</p>
+                  <span className="text-xs text-gray-500 font-normal">(Estimate)</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-600">
+                  £{stats.totalYearlySpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+           
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Departments</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.uniqueDepartments}</p>
+              </div>
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+                <Building2 className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
@@ -310,13 +424,13 @@ export default function SoftwareTrackerPage() {
                     lined={true}
                   />
                 </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-between ">
                   <DepartmentFilterDropdown
                     value={activeDepartment}
                     onChange={setActiveDepartment}
                     departments={departments}
                     placeholder="All Departments"
-                    className="w-full sm:w-[200px]"
+                    className="w-full sm:w-[270px]"
                   />
                   <div className="flex items-center text-sm text-gray-500 whitespace-nowrap">
                     <Filter className="h-4 w-4 mr-1" />
@@ -344,7 +458,7 @@ export default function SoftwareTrackerPage() {
                           key={software.id} 
                           className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors"
                         >
-                          <TableCell className="font-medium text-blue-700 py-4 px-6">{software.software || "—"}</TableCell>
+                          <TableCell className="font-medium text-gray-600 py-4 px-6">{software.software || "—"}</TableCell>
                           <TableCell className="py-4 px-6 border-l">
                             {software.url ? (
                               <a 

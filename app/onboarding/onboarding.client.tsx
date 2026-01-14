@@ -10,14 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling, Globe } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling, Globe, MessageSquare, Star } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -1503,6 +1503,15 @@ const questions: Question[] = [
   { name: 'additional_comments_or_items_for_attention', label: 'Please list any additional comments or items that you would like to bring to our attention before we get started.', type: 'textarea', required: false, aiAssist: true, icon: FileText, description: 'Anything else we should know?' },
 ];
 
+// Helper function to create question labels mapping
+const getQuestionLabelsMapping = (): Record<string, string> => {
+  const labels: Record<string, string> = {};
+  questions.forEach((question) => {
+    labels[question.name] = question.label;
+  });
+  return labels;
+};
+
 // Define categories
 const categories = [
   {
@@ -1589,7 +1598,21 @@ function StepIndicator({ step, title, description, isActive, isCompleted, onClic
   );
 }
 
-function OnboardingHeader({ userName }: { userName: string }) {
+function OnboardingHeader({ 
+  userName, 
+  isEditMode, 
+  onSaveProgress, 
+  isSavingProgress,
+  onCancel,
+  onFeedbackClick
+}: { 
+  userName: string;
+  isEditMode?: boolean;
+  onSaveProgress?: () => void;
+  isSavingProgress?: boolean;
+  onCancel?: () => void;
+  onFeedbackClick?: () => void;
+}) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b">
       <div className="px-4 h-16 flex items-center justify-between">
@@ -1598,21 +1621,52 @@ function OnboardingHeader({ userName }: { userName: string }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild className="flex items-center gap-2">
-            <Link href="/help" target="_blank" rel="noopener noreferrer">
-              <HelpCircle className="h-4 w-4" />
-              Complete Help Guide
-            </Link>
-          </Button>
-          <div className="text-sm text-gray-600">
-            {userName}
-          </div>
-          <form action={signOutAction}>
-            <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
-              <LogOut className="h-4 w-4" />
-              Sign out
+          {onFeedbackClick && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={onFeedbackClick}
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden md:inline">Leave Your Feedback</span>
+              <span className="md:hidden">Feedback</span>
             </Button>
-          </form>
+          )}
+          {isEditMode && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onSaveProgress}
+                disabled={isSavingProgress}
+                className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {isSavingProgress ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Save
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -1627,9 +1681,14 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
       <div className="w-full max-w-5xl">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3">
-           
+          <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-gray-500 font-medium">Trades Business School</span>
+            <form action={signOutAction}>
+              <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+            </form>
           </div>
         </div>
 
@@ -2669,13 +2728,14 @@ function generatePasswordFromCompanyName(companyName: string): string {
   return password
 }
 
-export default function OnboardingClient() {
+export default function OnboardingClient({ isEditMode = false }: { isEditMode?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(0);
   const [userName, setUserName] = useState<string>("");
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(!isEditMode);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [submissionSteps, setSubmissionSteps] = useState<{
     title: string;
@@ -2698,6 +2758,14 @@ export default function OnboardingClient() {
   
   // State for Terms & Conditions and Privacy Policy checkbox
   const [termsAndPrivacyAccepted, setTermsAndPrivacyAccepted] = useState(false);
+
+  // State for feedback dialog
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
+  const [feedbackType, setFeedbackType] = useState<string>('general');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -2800,13 +2868,29 @@ export default function OnboardingClient() {
           // Legacy string format - keep as is
         }
         
+        // Check existing onboarding data to preserve completed status
+        const { data: existingOnboarding } = await supabase
+          .from('company_onboarding')
+          .select('completed')
+          .eq('user_id', user.id)
+          .single();
+        
+        // Preserve existing completed status, or set to false for new records
+        const completedStatus = existingOnboarding?.completed ?? false;
+        
+        // Add question labels to the saved data
+        const dataWithLabels = {
+          ...dataToSave,
+          question_labels: getQuestionLabelsMapping()
+        };
+        
         await supabase
           .from('company_onboarding')
           .upsert(
             {
               user_id: user.id,
-              onboarding_data: dataToSave,
-              completed: false,
+              onboarding_data: dataWithLabels,
+              completed: completedStatus, // Preserve existing completed status
             },
             {
               onConflict: 'user_id',
@@ -3559,6 +3643,12 @@ export default function OnboardingClient() {
       dataToSubmit.software_and_tools_used_for_operations = softwareToolsToSave;
     }
 
+    // Add question labels to the submitted data
+    const dataToSubmitWithLabels = {
+      ...dataToSubmit,
+      question_labels: getQuestionLabelsMapping()
+    };
+
     try {
       // Update first step - Saving your information
       setSubmissionSteps(steps => steps.map((step, i) =>
@@ -3582,7 +3672,7 @@ export default function OnboardingClient() {
         await supabase
           .from('company_onboarding')
           .update({
-            onboarding_data: dataToSubmit,
+            onboarding_data: dataToSubmitWithLabels,
             competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
             updated_at: new Date().toISOString()
@@ -3596,7 +3686,7 @@ export default function OnboardingClient() {
           .from('company_onboarding')
           .insert({
             user_id: user.id,
-            onboarding_data: dataToSubmit,
+            onboarding_data: dataToSubmitWithLabels,
             competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
           });
@@ -3808,6 +3898,13 @@ export default function OnboardingClient() {
 
       toast({ title: "Success", description: "Your company information has been saved successfully!" });
       
+      // If in edit mode, redirect to thank-you page
+      if (isEditMode) {
+        router.push('/thank-you');
+        router.refresh();
+        return;
+      }
+      
       // Prepare parameters for discovery call page
       const formValues = form.getValues();
       const businessOwners = formValues.list_of_business_owners_full_names;
@@ -3841,9 +3938,139 @@ export default function OnboardingClient() {
     }
   };
 
+  // Save progress function for edit mode - saves without completing
+  const saveProgress = async () => {
+    setIsSavingProgress(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      const allFormValues = form.getValues();
+      const dataToSave = { ...allFormValues } as any;
+      
+      // Keep arrays as arrays for edit mode (don't convert to strings)
+      // The auto-save already handles this, but we'll ensure consistency
+      
+      // Add question labels to the saved data
+      const dataToSaveWithLabels = {
+        ...dataToSave,
+        question_labels: getQuestionLabelsMapping()
+      };
+      
+      // Check if user already has onboarding data
+      const { data: existingOnboarding } = await supabase
+        .from('company_onboarding')
+        .select('id, completed')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingOnboarding) {
+        // Preserve the existing completed status when updating
+        await supabase
+          .from('company_onboarding')
+          .update({
+            onboarding_data: dataToSaveWithLabels,
+            completed: existingOnboarding.completed, // Explicitly preserve existing completed status
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Only set completed: false for new records
+        await supabase
+          .from('company_onboarding')
+          .insert({
+            user_id: user.id,
+            onboarding_data: dataToSaveWithLabels,
+            completed: false,
+          });
+      }
+
+      toast({ 
+        title: "Progress Saved", 
+        description: "Your changes have been saved successfully." 
+      });
+      
+      // Redirect to thank-you page after saving (small delay to show toast)
+      setTimeout(() => {
+        window.location.href = '/thank-you';
+      }, 500);
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to save your progress. Please try again.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingProgress(false);
+    }
+  };
+
   // AI Content Accept Handler for inline assistant
   const handleAiContentAccept = (questionName: string, content: string) => {
     form.setValue(questionName as keyof z.infer<typeof formSchema>, content, { shouldValidate: true });
+  };
+
+  // Handle feedback submission
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackText.trim()) {
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('onboarding_feedback')
+        .insert({
+          user_id: user.id,
+          feedback_text: feedbackText.trim(),
+          rating: feedbackRating,
+          feedback_type: feedbackType,
+        });
+
+      if (error) {
+        console.error('Error submitting feedback:', error);
+        toast({
+          title: "Error",
+          description: "Failed to submit feedback. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Reset form and show success
+      setFeedbackText('');
+      setFeedbackRating(null);
+      setFeedbackType('general');
+      setFeedbackSubmitted(true);
+
+      // Close dialog after a short delay
+      setTimeout(() => {
+        setShowFeedbackDialog(false);
+        setFeedbackSubmitted(false);
+      }, 2000);
+
+      toast({
+        title: "Success",
+        description: "Thank you for your feedback!",
+      });
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit feedback. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
   };
 
 
@@ -3864,7 +4091,16 @@ export default function OnboardingClient() {
       ) : (
         <>
           {isLoading && <SubmissionLoader loadingSteps={submissionSteps} />}
-          <OnboardingHeader userName={userName} />
+          <OnboardingHeader 
+            userName={userName}
+            isEditMode={isEditMode}
+            onSaveProgress={saveProgress}
+            isSavingProgress={isSavingProgress}
+            onCancel={() => {
+              window.location.href = '/thank-you';
+            }}
+            onFeedbackClick={() => setShowFeedbackDialog(true)}
+          />
           <main className="mx-auto p-0">
             {showWelcome ? (
               <WelcomeScreen userEmail={userName} onStart={handleStartOnboarding} />
@@ -3913,6 +4149,21 @@ export default function OnboardingClient() {
                       </div>
                       <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
                     </div>
+
+                    {/* User info and signout at bottom */}
+                    <div className="p-6 border-t bg-white">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                          {userName}
+                        </div>
+                        <form action={signOutAction}>
+                          <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                            <LogOut className="h-4 w-4" />
+                            Sign out
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -3953,6 +4204,21 @@ export default function OnboardingClient() {
                           <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
                         </div>
                         <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
+                      </div>
+
+                      {/* User info and signout at bottom */}
+                      <div className="p-6 border-t bg-white">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            {userName}
+                          </div>
+                          <form action={signOutAction}>
+                            <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                              <LogOut className="h-4 w-4" />
+                              Sign out
+                            </Button>
+                          </form>
+                        </div>
                       </div>
                     </div>
                   </SheetContent>
@@ -4237,6 +4503,25 @@ export default function OnboardingClient() {
                             Next
                             <ChevronRight className="h-4 w-4" />
                           </Button>
+                        ) : isEditMode ? (
+                          <Button
+                            type="button"
+                            onClick={saveProgress}
+                            disabled={isSavingProgress}
+                            className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            {isSavingProgress ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4" />
+                                Save
+                              </>
+                            )}
+                          </Button>
                         ) : (
                           <div className="w-full">
                             {/* Terms & Conditions and Privacy Policy checkbox */}
@@ -4306,7 +4591,7 @@ export default function OnboardingClient() {
                   {/* Mobile AI is now inline - no floating assistant needed */}
 
                   {/* Mobile Terms & Conditions and Privacy Policy checkbox */}
-                  {currentCategory === categories.length - 1 && (
+                  {currentCategory === categories.length - 1 && !isEditMode && (
                     <div className="md:hidden fixed bottom-20 left-0 right-0 bg-white border-t p-4">
                       <div className="flex items-start space-x-2">
                         <Checkbox
@@ -4343,32 +4628,208 @@ export default function OnboardingClient() {
                     <span className="text-sm font-medium text-gray-500">
                       Step {currentCategory + 1} of {categories.length}
                     </span>
-                    {currentCategory < categories.length - 1 ? (
-                      <Button
-                        type="button"
-                        onClick={handleNext}
-                        disabled={isLoading}
-                        className="flex items-center gap-2"
-                      >
-                        Next
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={isLoading || !termsAndPrivacyAccepted}
-                        className="flex items-center gap-2"
-                      >
-                        {isLoading ? "Saving..." : "Complete"}
-                        <CheckCircle className="h-4 w-4" />
-                      </Button>
-                    )}
+                      {currentCategory < categories.length - 1 ? (
+                        <Button
+                          type="button"
+                          onClick={handleNext}
+                          disabled={isLoading}
+                          className="flex items-center gap-2"
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      ) : isEditMode ? (
+                        <Button
+                          type="button"
+                          onClick={saveProgress}
+                          disabled={isSavingProgress}
+                          className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          {isSavingProgress ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={isLoading || !termsAndPrivacyAccepted}
+                          className="flex items-center gap-2"
+                        >
+                          {isLoading ? "Saving..." : "Complete"}
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                   </div>
                 </div>
               </div>
             )}
           </main>
+
+          {/* Feedback Dialog */}
+          <Dialog 
+            open={showFeedbackDialog} 
+            onOpenChange={(open) => {
+              setShowFeedbackDialog(open);
+              if (!open) {
+                // Reset form when dialog closes
+                setFeedbackText('');
+                setFeedbackRating(null);
+                setFeedbackType('general');
+                setFeedbackSubmitted(false);
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                  <MessageSquare className="h-6 w-6 text-blue-600" />
+                  Share Your Feedback
+                </DialogTitle>
+                <DialogDescription>
+                  We'd love to hear about your onboarding experience. Your feedback helps us improve the process.
+                </DialogDescription>
+              </DialogHeader>
+
+              {feedbackSubmitted ? (
+                <div className="py-8 text-center">
+                  <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Thank You!</h3>
+                  <p className="text-gray-600">Your feedback has been submitted successfully.</p>
+                </div>
+              ) : (
+                <div className="space-y-6 py-4">
+                  {/* Rating Section */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      How would you rate your onboarding experience? (Optional)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((rating) => (
+                        <button
+                          key={rating}
+                          type="button"
+                          onClick={() => setFeedbackRating(rating)}
+                          className={`p-2 rounded-lg transition-all ${
+                            feedbackRating === rating
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          }`}
+                        >
+                          <Star
+                            className={`h-6 w-6 ${
+                              feedbackRating && feedbackRating >= rating
+                                ? 'fill-current'
+                                : ''
+                            }`}
+                          />
+                        </button>
+                      ))}
+                      {feedbackRating && (
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackRating(null)}
+                          className="text-sm text-gray-500 hover:text-gray-700 ml-2"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Feedback Type */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Feedback Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'general', label: 'General Feedback' },
+                        { value: 'positive', label: 'Positive' },
+                        { value: 'negative', label: 'Issue/Concern' },
+                        { value: 'suggestion', label: 'Suggestion' },
+                      ].map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setFeedbackType(type.value)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            feedbackType === type.value
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Feedback Text */}
+                  <div className="space-y-2">
+                    <label htmlFor="feedback-text" className="text-sm font-medium text-gray-700">
+                      Your Feedback <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      id="feedback-text"
+                      placeholder="Please share your thoughts about the onboarding process..."
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      rows={6}
+                      className="resize-none"
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      {feedbackText.length} characters
+                    </p>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowFeedbackDialog(false);
+                        setFeedbackText('');
+                        setFeedbackRating(null);
+                        setFeedbackType('general');
+                      }}
+                      disabled={isSubmittingFeedback}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleFeedbackSubmit}
+                      disabled={!feedbackText.trim() || isSubmittingFeedback}
+                      className="flex items-center gap-2"
+                    >
+                      {isSubmittingFeedback ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Submit Feedback
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

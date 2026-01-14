@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -137,9 +138,9 @@ export default function IntegrationsPage() {
   const fetchConnectionStatus = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = await getEffectiveUserId();
       
-      if (!user) {
+      if (!effectiveUserId) {
         setError("Please log in to access integrations");
         return;
       }
@@ -148,7 +149,7 @@ export default function IntegrationsPage() {
       const { data: qbConnection } = await supabase
         .from('quickbooks_data')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .eq('status', 'active')
         .single();
 
@@ -491,12 +492,12 @@ export default function IntegrationsPage() {
     setError(null);
     try {
       // Remove user's own connection (not assignment)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error('Not authenticated');
       const { error: deleteError } = await supabase
         .from('google_analytics_tokens')
         .delete()
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
       if (deleteError) throw deleteError;
       setGoogleAnalyticsConnection({ connected: false, dataSource: null });
     } catch (err) {

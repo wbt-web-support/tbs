@@ -21,6 +21,7 @@ import {
 } from "./ui/dialog";
 import { Switch } from "./ui/switch";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import ReactMarkdown from 'react-markdown';
 import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
@@ -1306,8 +1307,9 @@ export function RealtimeChat() {
       setIsLoadingHistory(true);
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (!session || !session.user) {
-        logger.log('No user found in chat session');
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) {
+        logger.log('No effective user ID found in chat session');
         // Add a default welcome message if no user is found
         setMessages([
           {
@@ -1324,7 +1326,7 @@ export function RealtimeChat() {
       const { data, error } = await supabase
         .from('chat_history')
         .select('messages')
-        .eq('user_id', session.user.id)
+        .eq('user_id', effectiveUserId)
         .single();
 
       if (error) {
@@ -1382,8 +1384,9 @@ export function RealtimeChat() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
-        if (!session?.user) {
-          logger.log('No user found, skipping chat history save');
+        const effectiveUserId = await getEffectiveUserId();
+        if (!effectiveUserId) {
+          logger.log('No effective user ID found, skipping chat history save');
           return;
         }
 
@@ -1397,7 +1400,7 @@ export function RealtimeChat() {
           .from('chat_history')
           .upsert(
             {
-              user_id: session.user.id,
+              user_id: effectiveUserId,
               messages: messages
             },
             {
@@ -1433,10 +1436,10 @@ export function RealtimeChat() {
   const clearChatHistory = async () => {
     try {
       setIsClearingChat(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const effectiveUserId = await getEffectiveUserId();
       
-      if (!session?.user) {
-        console.log('No user found, skipping chat history clear');
+      if (!effectiveUserId) {
+        console.log('No effective user ID found, skipping chat history clear');
         return;
       }
 
@@ -1445,7 +1448,7 @@ export function RealtimeChat() {
         .from('chat_history')
         .upsert(
           {
-            user_id: session.user.id,
+            user_id: effectiveUserId,
             messages: [{
               role: "assistant",
               content: "Welcome. How can I help you?",
