@@ -66,8 +66,20 @@ const formatQuestionKey = (key: string): string => {
     .trim();
 };
 
+// Helper to format currency values
+const formatCurrency = (value: number | string): string => {
+  const numValue = typeof value === 'string' ? parseFloat(value.replace(/[£,\s]/g, '')) : value;
+  if (isNaN(numValue)) return String(value);
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numValue);
+};
+
 // Helper to format answer values
-const formatAnswer = (value: any): string => {
+const formatAnswer = (value: any, fieldKey?: string): string => {
   if (value === null || value === undefined) {
     return 'Not provided';
   }
@@ -76,19 +88,123 @@ const formatAnswer = (value: any): string => {
     return value ? 'Yes' : 'No';
   }
   
+  // Handle currency fields
+  if (fieldKey && (
+    fieldKey.includes('revenue') || 
+    fieldKey.includes('payment') || 
+    fieldKey.includes('amount') ||
+    fieldKey.includes('price') ||
+    fieldKey.includes('cost')
+  )) {
+    // Try to parse as number
+    const numValue = typeof value === 'string' ? parseFloat(value.replace(/[£,\s]/g, '')) : Number(value);
+    if (!isNaN(numValue)) {
+      return formatCurrency(numValue);
+    }
+  }
+  
+  // Handle percentage fields
+  if (fieldKey && fieldKey.includes('percentage') || fieldKey?.includes('margin')) {
+    const numValue = typeof value === 'string' ? parseFloat(value.replace(/[%,\s]/g, '')) : Number(value);
+    if (!isNaN(numValue)) {
+      return `${numValue}%`;
+    }
+  }
+  
   if (Array.isArray(value)) {
     if (value.length === 0) return 'None provided';
+    
+    // Special handling for business owners
+    if (fieldKey?.includes('business_owners') || fieldKey?.includes('owners')) {
+      return value.map((item, index) => {
+        if (typeof item === 'object' && item !== null) {
+          const fullName = item.fullName || item.full_name || item.name || 'N/A';
+          const role = item.role || '';
+          return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+        }
+        // If it's a string that looks like JSON, try to parse it
+        if (typeof item === 'string' && item.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(item);
+            const fullName = parsed.fullName || parsed.full_name || parsed.name || 'N/A';
+            const role = parsed.role || '';
+            return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+          } catch {
+            return `${index + 1}. ${item}`;
+          }
+        }
+        return `${index + 1}. ${item}`;
+      }).join('\n');
+    }
+    
     return value.map((item, index) => {
       if (typeof item === 'object' && item !== null) {
         // Try to extract meaningful text from objects
         const text = item.text || item.value || item.name || item.title || JSON.stringify(item);
         return `${index + 1}. ${text}`;
       }
+      // If it's a string that looks like JSON, try to parse it
+      if (typeof item === 'string' && item.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(item);
+          const fullName = parsed.fullName || parsed.full_name || parsed.name || 'N/A';
+          const role = parsed.role || '';
+          return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+        } catch {
+          return `${index + 1}. ${item}`;
+        }
+      }
       return `${index + 1}. ${item}`;
     }).join('\n');
   }
   
+  // Handle string values that might be JSON (for business owners stored as string)
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        if (fieldKey?.includes('business_owners') || fieldKey?.includes('owners')) {
+          return parsed.map((item, index) => {
+            if (typeof item === 'object' && item !== null) {
+              const fullName = item.fullName || item.full_name || item.name || 'N/A';
+              const role = item.role || '';
+              return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+            }
+            return `${index + 1}. ${item}`;
+          }).join('\n');
+        }
+      }
+    } catch {
+      // Not valid JSON, continue with normal string handling
+    }
+  }
+  
+  // Handle business owners stored as comma-separated string: "John Doe (CEO), Jane Smith (CTO)"
+  if (fieldKey && (fieldKey.includes('business_owners') || fieldKey.includes('owners'))) {
+    if (typeof value === 'string' && value.includes('(') && value.includes(')')) {
+      const ownersList = value.split(',').map((item: string) => {
+        const trimmed = item.trim();
+        const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+        if (match) {
+          return { fullName: match[1].trim(), role: match[2].trim() };
+        }
+        return { fullName: trimmed, role: '' };
+      });
+      
+      return ownersList.map((owner: any, index: number) => {
+        return `${index + 1}. ${owner.fullName}${owner.role ? ` (${owner.role})` : ''}`;
+      }).join('\n');
+    }
+  }
+  
   if (typeof value === 'object' && value !== null) {
+    // Special handling for business owner objects
+    if (value.fullName || value.full_name || value.name) {
+      const fullName = value.fullName || value.full_name || value.name;
+      const role = value.role || '';
+      return `${fullName}${role ? ` (${role})` : ''}`;
+    }
+    
     // For objects, try to extract meaningful information
     const entries = Object.entries(value);
     if (entries.length === 0) return 'Not provided';
@@ -133,14 +249,14 @@ const flattenData = (data: any, questionLabels: Record<string, string> = {}, pre
           // Treat as a single answer
           results.push({
             question: questionText,
-            answer: formatAnswer(value),
+            answer: formatAnswer(value, questionKey),
             key: questionKey
           });
         }
       } else {
         results.push({
           question: questionText,
-          answer: formatAnswer(value),
+          answer: formatAnswer(value, questionKey),
           key: questionKey
         });
       }
@@ -163,14 +279,14 @@ const flattenData = (data: any, questionLabels: Record<string, string> = {}, pre
           // Treat as a single answer
           results.push({
             question: questionText,
-            answer: formatAnswer(value),
+            answer: formatAnswer(value, questionKey),
             key: questionKey
           });
         }
       } else {
         results.push({
           question: questionText,
-          answer: formatAnswer(value),
+          answer: formatAnswer(value, questionKey),
           key: questionKey
         });
       }
