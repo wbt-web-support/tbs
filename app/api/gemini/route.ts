@@ -902,10 +902,10 @@ function formatTableData(table: string, data: any) {
       }
     }
     
-    if (data.threeyeartarget) {
-      parts.push(`- Three Year Target:`);
-      if (typeof data.threeyeartarget === 'object') {
-        Object.entries(data.threeyeartarget).forEach(([key, val]) => {
+    if (data.fiveyeartarget) {
+      parts.push(`- Five Year Target:`);
+      if (typeof data.fiveyeartarget === 'object') {
+        Object.entries(data.fiveyeartarget).forEach(([key, val]) => {
           if (val !== null && val !== undefined && val !== '') {
             parts.push(`  ${formatFieldName(key)}: ${formatValue(val, 2)}`);
           }
@@ -922,7 +922,7 @@ function formatTableData(table: string, data: any) {
     
     // Handle any remaining fields
     Object.entries(data)
-      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'missionstatement', 'visionstatement', 'purposewhy', 'strategicanchors', 'corevalues', 'threeyeartarget', 'businessplanlink'].includes(key))
+      .filter(([key]) => !['id', 'user_id', 'created_at', 'updated_at', 'missionstatement', 'visionstatement', 'purposewhy', 'strategicanchors', 'corevalues', 'fiveyeartarget', 'businessplanlink'].includes(key))
       .forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
           parts.push(`- ${formatFieldName(key)}: ${formatValue(value)}`);
