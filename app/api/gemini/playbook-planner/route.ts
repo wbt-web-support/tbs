@@ -250,7 +250,7 @@ NOTE: Use IDs only for the recommended_department_id field in JSON. In playbook 
 - Core Values: ${plan.corevalues ? JSON.stringify(plan.corevalues) : 'None'}
 - Strategic Anchors: ${plan.strategicanchors ? JSON.stringify(plan.strategicanchors) : 'None'}
 - Purpose Why: ${plan.purposewhy ? JSON.stringify(plan.purposewhy) : 'None'}
-- Three Year Target: ${plan.threeyeartarget ? JSON.stringify(plan.threeyeartarget) : 'None'}`);
+- Five Year Target: ${plan.fiveyeartarget ? JSON.stringify(plan.fiveyeartarget) : 'None'}`);
     });
   }
 

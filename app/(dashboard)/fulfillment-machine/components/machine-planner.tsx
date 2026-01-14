@@ -648,30 +648,30 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
             <div className="p-6 space-y-4 pt-0">
               {/* Engine Name */}
               <div>
-                {editMode ? (
-                  <Input
-                    value={engineName}
-                    onChange={(e) => setEngineName(e.target.value)}
-                    placeholder="Enter name for this engine"
-                    className="w-full"
-                  />
-                ) : (
+              {editMode ? (
+                <Input
+                  value={engineName}
+                  onChange={(e) => setEngineName(e.target.value)}
+                  placeholder="Enter name for this engine"
+                  className="w-full"
+                />
+              ) : (
                   <div className="text-xl font-medium text-gray-900">{engineName || "—"}</div>
-                )}
-              </div>
-              
-              {/* Description */}
+              )}
+            </div>
+
+          {/* Description */}
               <div>
-                {editMode ? (
-                  <Textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe what this engine does and its purpose"
-                    className="min-h-[100px] w-full"
-                  />
-                ) : (
+              {editMode ? (
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe what this engine does and its purpose"
+                  className="min-h-[100px] w-full"
+                />
+              ) : (
                   <div className="text-gray-600 whitespace-pre-line text-sm leading-relaxed">{description || "No description provided"}</div>
-                )}
+              )}
               </div>
             </div>
           </Card>

@@ -2,6 +2,13 @@
 import { useState } from "react";
 import PromptEditModal from "./PromptEditModal";
 
+function formatPromptTitle(key: string): string {
+  return key
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 export default function PromptTable({ prompts }: { prompts: any[] }) {
   const [editingPrompt, setEditingPrompt] = useState<any | null>(null);
 
@@ -14,7 +21,7 @@ export default function PromptTable({ prompts }: { prompts: any[] }) {
         >
           {/* Prompt Key Badge */}
           <span className="text-lg font-medium text-neutral-900">
-            {prompt.prompt_key}
+            {formatPromptTitle(prompt.prompt_key)}
           </span>
           {/* Description */}
           <div className="text-sm text-neutral-700 mb-1">
