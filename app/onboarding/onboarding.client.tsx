@@ -660,7 +660,8 @@ function EmployeesRepeater({
   required,
   fieldId,
   departments,
-  companyName
+  companyName,
+  setCurrentFocusedQuestion
 }: { 
   value: Employee[]; 
   onChange: (employees: Employee[]) => void; 
@@ -668,6 +669,7 @@ function EmployeesRepeater({
   fieldId: string;
   departments: Array<{ id: string; name: string }>;
   companyName?: string;
+  setCurrentFocusedQuestion: (question: string | null) => void;
 }) {
   const addEmployee = () => {
     const newEmployee: Employee = {
@@ -770,8 +772,10 @@ function EmployeesRepeater({
                 Main Responsibilities <span className="text-red-500">*</span>
               </label>
               <Textarea
+                id={`employee_responsibility_${employee.id}`}
                 value={employee.responsibilities}
                 onChange={(e) => updateEmployee(employee.id, 'responsibilities', e.target.value)}
+                onFocus={() => setCurrentFocusedQuestion(`employee_responsibility_${employee.id}`)}
                 placeholder="e.g. Managing daily operations, overseeing team performance, handling customer inquiries"
                 className="w-full min-h-[80px]"
               />
@@ -1818,8 +1822,31 @@ function FloatingAIAssistant({
   // Removed chatContainerRef since we now use editable content instead of chat history display
   const { toast } = useToast();
 
-  const currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
-  const currentValue = focusedQuestion ? form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "" : "";
+  // Check if this is an employee responsibility field
+  const isEmployeeResponsibility = focusedQuestion?.startsWith('employee_responsibility_');
+  const employeeId = isEmployeeResponsibility ? focusedQuestion?.replace('employee_responsibility_', '') : null;
+  
+  // Get current question or create a virtual one for employee responsibilities
+  let currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
+  let currentValue: any = focusedQuestion ? form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "" : "";
+  
+  // Handle employee responsibility fields specially
+  if (isEmployeeResponsibility && employeeId) {
+    const employees = form.watch('current_employees_and_roles_responsibilities') as Employee[] || [];
+    const employee = employees.find((e: Employee) => e.id === employeeId);
+    currentValue = employee?.responsibilities || "";
+    // Create a virtual question for the AI assistant
+    currentQuestion = {
+      name: focusedQuestion!,
+      label: "Main Responsibilities",
+      type: 'textarea',
+      required: true,
+      aiAssist: true,
+      icon: Users,
+      description: "Describe the key responsibilities for this team member"
+    };
+  }
+  
   const hasContent = currentQuestion ? (
     currentQuestion.type === 'business-owners-repeater'
       ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
@@ -2357,7 +2384,26 @@ function MobileAIAssistant({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
+  // Check if this is an employee responsibility field
+  const isEmployeeResponsibility = focusedQuestion?.startsWith('employee_responsibility_');
+  const employeeId = isEmployeeResponsibility ? focusedQuestion?.replace('employee_responsibility_', '') : null;
+  
+  // Get current question or create a virtual one for employee responsibilities
+  let currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
+  
+  // Handle employee responsibility fields specially
+  if (isEmployeeResponsibility && employeeId) {
+    // Create a virtual question for the AI assistant
+    currentQuestion = {
+      name: focusedQuestion!,
+      label: "Main Responsibilities",
+      type: 'textarea',
+      required: true,
+      aiAssist: true,
+      icon: Users,
+      description: "Describe the key responsibilities for this team member"
+    };
+  }
 
   // Helper function to extract short label from suggestion (mobile version)
   const getSuggestionLabel = (suggestion: string) => {
@@ -2378,7 +2424,16 @@ function MobileAIAssistant({
   const getSmartSuggestions = () => {
     if (!currentQuestion) return [];
 
-    const currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    // Get current value - handle employee responsibility fields specially
+    let currentValue: any = "";
+    if (isEmployeeResponsibility && employeeId) {
+      const employees = form.watch('current_employees_and_roles_responsibilities') as Employee[] || [];
+      const employee = employees.find((e: Employee) => e.id === employeeId);
+      currentValue = employee?.responsibilities || "";
+    } else {
+      currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    }
+    
     const hasContent = currentQuestion ? (
       currentQuestion.type === 'business-owners-repeater'
         ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
@@ -2395,7 +2450,11 @@ function MobileAIAssistant({
 
     const suggestions = [];
     
-    if (currentQuestion.name.includes('competitor')) {
+    // Special suggestions for employee responsibilities
+    if (isEmployeeResponsibility || currentQuestion.name.includes('responsibilit')) {
+      suggestions.push("Make it more specific and detailed with clear action items. Return only the improved content.");
+      suggestions.push("Make it more professional and polished. Return only the improved content.");
+    } else if (currentQuestion.name.includes('competitor')) {
       suggestions.push("Rewrite with better competitive analysis structure. Focus on specific competitors and how you differentiate. Return only the improved content.");
       suggestions.push("Enhance the comparison clarity. Make the competitive landscape clearer with specific examples. Return only the improved content.");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
@@ -2423,7 +2482,16 @@ function MobileAIAssistant({
     const currentFormValues = form.getValues();
     const currentCategoryObj = categories.find(cat => cat.questions.some((q: any) => q.name === focusedQuestion));
     const promptToUse = prompt || customPrompt;
-    const currentValue = form.getValues(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    
+    // Get current value - handle employee responsibility fields specially
+    let currentValue: any = "";
+    if (isEmployeeResponsibility && employeeId) {
+      const employees = form.getValues('current_employees_and_roles_responsibilities') as Employee[];
+      const employee = employees.find((e: Employee) => e.id === employeeId);
+      currentValue = employee?.responsibilities || "";
+    } else {
+      currentValue = form.getValues(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    }
 
     try {
       const response = await fetch('/api/gemini/generate-content', {
@@ -2435,7 +2503,7 @@ function MobileAIAssistant({
           currentFormValues,
           questionName: focusedQuestion,
           questionLabel: currentQuestion?.label,
-          categoryTitle: currentCategoryObj?.title,
+          categoryTitle: currentCategoryObj?.title || 'Team Information',
           customPrompt: promptToUse + " Please provide a plain text response without any markdown formatting, asterisks, or special characters.",
           existingContent: currentValue,
           action: currentValue ? 'improve' : 'generate',
@@ -2457,8 +2525,18 @@ function MobileAIAssistant({
         .replace(/```[\s\S]*?```/g, '')
         .replace(/`([^`]+)`/g, '$1');
       
-      // Write directly to the form field
-      form.setValue(focusedQuestion as keyof z.infer<typeof formSchema>, cleanedContent, { shouldValidate: true });
+      // Write directly to the form field - handle employee responsibility fields specially
+      if (isEmployeeResponsibility && employeeId) {
+        const currentEmployees = form.getValues('current_employees_and_roles_responsibilities') as Employee[];
+        const updatedEmployees = currentEmployees.map((emp: Employee) => 
+          emp.id === employeeId 
+            ? { ...emp, responsibilities: cleanedContent }
+            : emp
+        );
+        form.setValue('current_employees_and_roles_responsibilities', updatedEmployees, { shouldValidate: true });
+      } else {
+        form.setValue(focusedQuestion as keyof z.infer<typeof formSchema>, cleanedContent, { shouldValidate: true });
+      }
       
       // Keep the AI assistant open after generating content (to match desktop behavior)
       // onClose();  // Removed to allow continued editing
@@ -2475,20 +2553,29 @@ function MobileAIAssistant({
     }
   };
 
-  const currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+  // Get current value for display - handle employee responsibility fields specially
+  let currentValueForDisplay: any = "";
+  if (isEmployeeResponsibility && employeeId) {
+    const employees = form.watch('current_employees_and_roles_responsibilities') as Employee[] || [];
+    const employee = employees.find((e: Employee) => e.id === employeeId);
+    currentValueForDisplay = employee?.responsibilities || "";
+  } else {
+    currentValueForDisplay = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+  }
+  
   const hasContent = currentQuestion ? (
     currentQuestion.type === 'business-owners-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((owner: any) => owner.fullName && owner.role)
       : currentQuestion.type === 'competitors-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((competitor: any) => competitor.name)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((competitor: any) => competitor.name)
       : currentQuestion.type === 'employees-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((employee: any) => employee.name && employee.role && employee.responsibilities)
       : currentQuestion.type === 'sop-links-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
-      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length >= 10 : false)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((link: any) => link.title && link.url)
+      : !!(currentValueForDisplay && typeof currentValueForDisplay === 'string' ? currentValueForDisplay.trim().split(/\s+/).filter(Boolean).length >= 10 : false)
   ) : false;
 
-  const wordCount = currentQuestion && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length : 0;
+  const wordCount = currentQuestion && typeof currentValueForDisplay === 'string' ? currentValueForDisplay.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return (
     <div className="lg:hidden mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
@@ -4008,7 +4095,19 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
 
   // AI Content Accept Handler for inline assistant
   const handleAiContentAccept = (questionName: string, content: string) => {
-    form.setValue(questionName as keyof z.infer<typeof formSchema>, content, { shouldValidate: true });
+    // Check if this is an employee responsibility field
+    if (questionName.startsWith('employee_responsibility_')) {
+      const employeeId = questionName.replace('employee_responsibility_', '');
+      const currentEmployees = form.getValues('current_employees_and_roles_responsibilities') as Employee[];
+      const updatedEmployees = currentEmployees.map((emp: Employee) => 
+        emp.id === employeeId 
+          ? { ...emp, responsibilities: content }
+          : emp
+      );
+      form.setValue('current_employees_and_roles_responsibilities', updatedEmployees, { shouldValidate: true });
+    } else {
+      form.setValue(questionName as keyof z.infer<typeof formSchema>, content, { shouldValidate: true });
+    }
   };
 
   // Handle feedback submission
@@ -4318,6 +4417,7 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
                                   fieldId={q.name}
                                   departments={departments}
                                   companyName={form.getValues('company_name_official_registered') as string}
+                                  setCurrentFocusedQuestion={setCurrentFocusedQuestion}
                                 />
                             ) : q.type === 'date-picker' ? (
                                 <DatePicker
