@@ -430,7 +430,6 @@ export default function GoHighLevelPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">Connected to GoHighLevel</p>
-                        <p className="text-sm text-muted-foreground">Location ID: {connection.location_id || connection.company_id}</p>
                       </div>
                       <Badge variant="default" className="bg-green-100 text-green-800 border-none">
                         <CheckCircle className="w-3 h-3 mr-1" />
@@ -438,24 +437,27 @@ export default function GoHighLevelPage() {
                       </Badge>
                     </div>
                     
-                    <Separator />
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">User Type</p>
-                        <p className="font-medium capitalize">{connection.user_type}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Connected On</p>
-                        <p className="font-medium">{new Date(connection.created_at).toLocaleDateString()}</p>
-                      </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Account connected on {new Date(connection.created_at).toLocaleDateString()}
+                      </p>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => window.open('https://app.gohighlevel.com/', '_blank')}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Manage
+                      </Button>
                       <Button 
                         onClick={handleSyncContacts}
                         variant="outline"
-                        className="flex-1"
+                        size="sm"
+                        className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                         disabled={contactsSyncing}
                       >
                         <RefreshCw className={`h-4 w-4 mr-2 ${contactsSyncing ? 'animate-spin' : ''}`} />
@@ -463,8 +465,11 @@ export default function GoHighLevelPage() {
                       </Button>
                       <Button 
                         onClick={handleDisconnect}
-                        variant="destructive"
+                        variant="outline"
+                        size="sm"
+                        className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100 font-medium"
                       >
+                        <XCircle className="h-4 w-4 mr-2" />
                         Disconnect
                       </Button>
                     </div>

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, RefreshCw, CheckCircle, XCircle, Wrench, Users, Calendar, PoundSterling, Clock, TrendingUp, Star } from 'lucide-react'
+import { Loader2, RefreshCw, CheckCircle, XCircle, Wrench, Users, Calendar, PoundSterling, Clock, TrendingUp, Star, ExternalLink } from 'lucide-react'
 
 interface ServiceM8Data {
   connected: boolean
@@ -323,25 +323,38 @@ export default function ServiceM8Integration() {
                   Last synced: {data.last_sync_at ? new Date(data.last_sync_at).toLocaleString() : 'Never'}
                 </CardDescription>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
                 {getStatusBadge(data.sync_status)}
+                <Button
+                  onClick={() => window.open('https://platform.servicem8.com/', '_blank')}
+                  variant="outline"
+                  size="sm"
+                  className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Manage
+                </Button>
                 <Button
                   onClick={syncData}
                   disabled={syncing}
                   variant="outline"
                   size="sm"
+                  className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                 >
                   {syncing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <RefreshCw className="h-4 w-4" />)}
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {syncing ? 'Syncing...' : 'Sync'}
                 </Button>
                 <Button
                   onClick={disconnectServiceM8}
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="text-destructive"
+                  className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100 font-medium"
                 >
+                  <XCircle className="h-4 w-4 mr-2" />
                   Disconnect
                 </Button>
               </div>

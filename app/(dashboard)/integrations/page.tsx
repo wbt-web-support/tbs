@@ -42,6 +42,10 @@ interface QuickBooksConnection {
   last_sync: string | null;
   status: 'active' | 'expired' | 'error';
   expires_at: string;
+  revenue?: number;
+  invoicesCount?: number;
+  qb_data?: any;
+  current_kpis?: any;
 }
 
 interface ServiceM8Connection {
@@ -68,6 +72,10 @@ interface XeroConnection {
   last_sync_at: string | null;
   organization_name?: string;
   tenant_id?: string;
+  invoicesCount?: number;
+  contactsCount?: number;
+  invoices?: any[];
+  contacts?: any[];
 }
 
 interface GHLConnection {
@@ -75,6 +83,8 @@ interface GHLConnection {
   location_id?: string;
   company_id?: string;
   user_type?: string;
+  contactsCount?: number;
+  appointmentsCount?: number;
 }
 
 export default function IntegrationsPage() {
@@ -89,6 +99,7 @@ export default function IntegrationsPage() {
   const [connectingGoogleAnalytics, setConnectingGoogleAnalytics] = useState(false);
   const [connectingXero, setConnectingXero] = useState(false);
   const [connectingGhl, setConnectingGhl] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [refreshingGoogleAnalytics, setRefreshingGoogleAnalytics] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -383,6 +394,28 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleDisconnectGhl = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/ghls/integration', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect integration');
+      }
+
+      setGhlConnection({ connected: false });
+      setSuccessMessage('Successfully disconnected from GoHighLevel');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      console.error('Error disconnecting GHL:', err);
+      setError('Failed to disconnect from GoHighLevel');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDisconnectQuickBooks = async () => {
     try {
       setLoading(true);
@@ -526,8 +559,27 @@ export default function IntegrationsPage() {
     alert('Syncing QuickBooks...');
   };
   const handleSyncServiceM8 = async () => {
-    // TODO: Implement sync logic
-    alert('Syncing ServiceM8...');
+    try {
+      setSyncing(true);
+      setError(null);
+      const response = await fetch('/api/servicem8/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync ServiceM8 data');
+      }
+
+      await fetchConnectionStatus();
+      setSuccessMessage('ServiceM8 data synchronized successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Error syncing ServiceM8:', error);
+      setError('Failed to sync data');
+    } finally {
+      setSyncing(false);
+    }
   };
   const handleSyncXero = async () => {
     try {
@@ -548,6 +600,26 @@ export default function IntegrationsPage() {
       setError('Failed to sync data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncGhl = async () => {
+    try {
+      setSyncing(true);
+      setError(null);
+      const response = await fetch('/api/ghls/contacts?sync=true');
+      if (response.ok) {
+        await fetchConnectionStatus();
+        setSuccessMessage('GoHighLevel data synchronized successfully');
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to sync GHL data');
+      }
+    } catch (error) {
+      setError('Failed to sync data');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -665,37 +737,49 @@ export default function IntegrationsPage() {
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Last Sync</p>
+                    <p className="text-muted-foreground">Monthly Revenue</p>
                     <p className="font-medium">
-                      {quickbooksConnection.last_sync 
-                        ? new Date(quickbooksConnection.last_sync).toLocaleDateString()
-                        : 'Never'
+                      {quickbooksConnection.revenue 
+                        ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(quickbooksConnection.revenue)
+                        : '£0.00'
                       }
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Token Expires</p>
-                    <p className="font-medium">{new Date(quickbooksConnection.expires_at).toLocaleDateString()}</p>
+                    <p className="text-muted-foreground">Total Invoices</p>
+                    <p className="font-medium">{quickbooksConnection.invoicesCount || 0}</p>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
                   <Button 
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                  >
+                    <Link href="/integrations/quickbooks">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Manage
+                    </Link>
+                  </Button>
+                  <Button 
                     onClick={handleSyncQuickBooks}
                     variant="outline"
                     size="sm"
-                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                    disabled={syncing}
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Sync
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectQuickBooks}
                     variant="outline"
                     size="sm"
-                    className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900 "
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
                   >
-                    <XCircle className="h-4 w-4 mr-2" />
+                    <XCircle className="h-4 w-4 mr-1" />
                     Disconnect
                   </Button>
                 </div>
@@ -762,42 +846,36 @@ export default function IntegrationsPage() {
                     {servicem8Connection.jobs.length} jobs, {servicem8Connection.staff.length} staff
                   </p>
                 </div>
-                
-                <Separator />
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Last Sync</p>
-                    <p className="font-medium">
-                      {servicem8Connection.last_sync_at 
-                        ? new Date(servicem8Connection.last_sync_at).toLocaleDateString()
-                        : 'Never'
-                      }
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Status</p>
-                    <p className="font-medium capitalize">{servicem8Connection.sync_status}</p>
-                  </div>
-                </div>
 
                 <div className="flex gap-2">
+                  <Button 
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                  >
+                    <Link href="/integrations/servicem8">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Manage
+                    </Link>
+                  </Button>
                   <Button 
                     onClick={handleSyncServiceM8}
                     variant="outline"
                     size="sm"
-                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                    disabled={syncing}
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Sync
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectServiceM8}
                     variant="outline"
                     size="sm"
-                    className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
                   >
-                    <XCircle className="h-4 w-4 mr-2" />
+                    <XCircle className="h-4 w-4 mr-1" />
                     Disconnect
                   </Button>
                 </div>
@@ -864,44 +942,48 @@ export default function IntegrationsPage() {
               <div className="space-y-3">
                 <div>
                   <p className="font-medium">{xeroConnection.organization_name || 'Xero Account'}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Last synced: {xeroConnection.last_sync_at 
-                      ? new Date(xeroConnection.last_sync_at).toLocaleDateString()
-                      : 'Never'
-                    }
-                  </p>
                 </div>
-                
-                <Separator />
-                
+
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Sync Status</p>
-                    <p className="font-medium capitalize">{xeroConnection.sync_status}</p>
+                    <p className="text-muted-foreground">Invoices</p>
+                    <p className="font-medium">{xeroConnection.invoicesCount || 0}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Tenant ID</p>
-                    <p className="font-medium break-all">{xeroConnection.tenant_id}</p>
+                    <p className="text-muted-foreground">Contacts</p>
+                    <p className="font-medium">{xeroConnection.contactsCount || 0}</p>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
                   <Button 
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                  >
+                    <Link href="/integrations/xero">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Manage
+                    </Link>
+                  </Button>
+                  <Button 
                     onClick={handleSyncXero}
                     variant="outline"
                     size="sm"
-                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                    disabled={syncing}
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Sync
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectXero}
                     variant="outline"
                     size="sm"
-                    className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
                   >
-                    <XCircle className="h-4 w-4 mr-2" />
+                    <XCircle className="h-4 w-4 mr-1" />
                     Disconnect
                   </Button>
                 </div>
@@ -1060,7 +1142,50 @@ export default function IntegrationsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-             <div className="space-y-4">
+            {ghlConnection?.connected ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">GoHighLevel CRM Data</p>
+                  <p className="text-sm text-muted-foreground">
+                    {ghlConnection.contactsCount || 0} contacts, {ghlConnection.appointmentsCount || 0} appointments
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                  >
+                    <Link href="/integrations/ghl">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Manage
+                    </Link>
+                  </Button>
+                  <Button 
+                    onClick={handleSyncGhl}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                    disabled={syncing}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? 'Syncing...' : 'Sync'}
+                  </Button>
+                  <Button 
+                    onClick={handleDisconnectGhl}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <h4 className="font-medium">Features:</h4>
                   <div className="flex flex-wrap gap-2">
@@ -1074,31 +1199,20 @@ export default function IntegrationsPage() {
                     </Badge>
                   </div>
                 </div>
-                {ghlConnection?.connected ? (
-                  <Button 
-                    asChild
-                    className="w-full"
-                  >
-                    <Link href="/integrations/ghl">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Manage Integration
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={handleConnectGhl}
-                    disabled={connectingGhl}
-                    className="w-full"
-                  >
-                    {connectingGhl ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                    )}
-                    {connectingGhl ? 'Connecting...' : 'Connect GoHighLevel'}
-                  </Button>
-                )}
+                <Button 
+                  onClick={handleConnectGhl}
+                  disabled={connectingGhl}
+                  className="w-full"
+                >
+                  {connectingGhl ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                  )}
+                  {connectingGhl ? 'Connecting...' : 'Connect GoHighLevel'}
+                </Button>
               </div>
+            )}
           </CardContent>
         </Card>
       </div>
