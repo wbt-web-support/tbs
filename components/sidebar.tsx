@@ -37,6 +37,7 @@ import {
   RefreshCw,
   HelpCircle,
   CheckSquare,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -103,6 +104,16 @@ const navigationSections: NavigationSection[] = [
         icon: CheckSquare,
       },
  
+      {
+        name: "Performance",
+        href: "/performance",
+        icon: Wallet,
+      },
+      // {
+      //   name: "Key Initiatives",
+      //   href: "/key-Initiatives",
+      //   icon: Flag,
+      // }
     ],
   },
   {
