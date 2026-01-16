@@ -402,36 +402,18 @@ const AiOnboardingQuestionsModal: React.FC<AiOnboardingQuestionsModalProps> = ({
           {questionAnswers.length > 0 ? (
             <div className="space-y-4">
               {questionAnswers.map((qa, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg px-5 py-4 border border-gray-200 hover:border-gray-300 transition-colors">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-gray-500">#{qa.order}</span>
-                          <span className="text-xs text-gray-400">
-                            {qa.category.replace('|', ' | ')}
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-semibold mb-3 text-black">
-                          {qa.question}
-                        </h3>
-                        <div className="">
-                          {qa.answer === 'Not answered yet' ? (
-                            <p className="text-sm text-gray-500 italic">
-                              {qa.answer}
-                            </p>
-                          ) : (
-                            <div className="text-sm text-gray-700 space-y-2">
-                              {qa.answer.split('\n').map((line, lineIndex) => (
-                                <div key={lineIndex} className="leading-relaxed">
-                                  {line}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+                  <div className="text-sm font-medium text-gray-700">
+                    {qa.question}
+                  </div>
+                  <div className="text-sm text-gray-600 pl-0">
+                    {qa.answer === 'Not answered yet' ? (
+                      <p className="text-sm text-gray-500 italic">
+                        {qa.answer}
+                      </p>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{qa.answer}</p>
+                    )}
                   </div>
                 </div>
               ))}

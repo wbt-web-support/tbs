@@ -1,28 +1,29 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from 'next/navigation';
+import { getEffectiveUser } from '@/lib/get-effective-user';
 import { ExportClientContent } from './export-client-content';
 
 // Make the page component async
 export default async function ExportPage() {
   const supabase = await createClient();
 
-  // Fetch user session server-side
-  const { data: { user } } = await supabase.auth.getUser();
+  // Get effective user (impersonated if active, otherwise actual user)
+  const effectiveUser = await getEffectiveUser();
 
   // Redirect to login if no user
-  if (!user) {
+  if (!effectiveUser) {
     return redirect('/sign-in');
   }
 
   // Fetch all user data (similar to getUserData function from route.ts)
   try {
-    console.log(`🔄 [Export] Fetching data for user: ${user.id}`);
+    console.log(`🔄 [Export] Fetching data for user: ${effectiveUser.userId}`);
 
     // Fetch business info
     const { data: businessInfo, error: businessError } = await supabase
       .from('business_info')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUser.userId)
       .single();
 
     if (businessError && businessError.code !== "PGRST116") {
@@ -47,7 +48,7 @@ export default async function ExportPage() {
       return supabase
         .from(table)
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUser.userId)
         .order('created_at', { ascending: false })
         .then(({ data, error }) => {
           if (error) {
@@ -87,8 +88,15 @@ export default async function ExportPage() {
 
     console.log('✅ [Export] All user data fetched successfully');
 
+    // Get auth user for client component structure
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const effectiveUserForClient = authUser ? {
+      ...authUser,
+      id: effectiveUser.userId,
+    } : null;
+
     // Render the client component with the fetched data
-    return <ExportClientContent user={user} userData={userData} />;
+    return <ExportClientContent user={effectiveUserForClient} userData={userData} />;
 
   } catch (error) {
     console.error('Error fetching user data for export:', error);

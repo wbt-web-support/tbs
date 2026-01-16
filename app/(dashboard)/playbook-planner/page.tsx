@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Edit, Settings, Sparkles, Save, X, XCircle } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, Filter, ExternalLink, Building2, Hash, BarChart3, Target, Edit, Settings, Sparkles, Save, X, XCircle, ArrowRight, Brain, Users, TrendingUp, Building, Zap, CheckCircle } from "lucide-react";
 import ReusableTiptapEditor from '@/components/reusable-tiptap-editor';
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamMemberIds } from "@/utils/supabase/teams";
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import { FormField, FormItem, FormControl, FormLabel } from "@/components/ui/for
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 type PlaybookOwner = {
   id: string;
@@ -281,9 +284,22 @@ export default function GrowthEngineLibraryPage() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [viewingPlaybook, setViewingPlaybook] = useState<any | null>(null);
   const [viewPlaybookContent, setViewPlaybookContent] = useState<string>('');
+  const [showManualPlaybooks, setShowManualPlaybooks] = useState(false);
   
-  // Local storage key
+  // State for question flow
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [answers, setAnswers] = useState<{[key: string]: string}>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  
+  // Local storage keys
   const STORAGE_KEY = 'playbook-planner-generated-playbooks';
+  const QUESTIONS_STORAGE_KEY = 'playbook-planner-questions';
+  const SUGGESTIONS_STORAGE_KEY = 'playbook-planner-suggestions';
+  const ANSWERS_STORAGE_KEY = 'playbook-planner-answers';
   
 
   
@@ -305,6 +321,8 @@ export default function GrowthEngineLibraryPage() {
     fetchPlaybooksData();
     fetchDropdownData();
     loadFromLocalStorage();
+    loadQuestionsFromStorage();
+    loadSuggestionsFromStorage();
   }, []);
 
   // Save to local storage whenever generatedPlaybooks changes
@@ -382,15 +400,14 @@ export default function GrowthEngineLibraryPage() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
       
       // Get user role first
       const { data: userData } = await supabase
         .from('business_info')
         .select('role')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
       
       setUserRole(userData?.role || null);
@@ -409,11 +426,11 @@ export default function GrowthEngineLibraryPage() {
               business_info!inner ( id, full_name, profile_picture_url )
             )
           `)
-          .eq('playbook_assignments.business_info.user_id', user.id)
+          .eq('playbook_assignments.business_info.user_id', effectiveUserId)
           .order("created_at", { ascending: false });
       } else {
         // For admin and super_admin, show all team playbooks
-        const teamMemberIds = await getTeamMemberIds(supabase, user.id);
+        const teamMemberIds = await getTeamMemberIds(supabase, effectiveUserId);
         
         query = supabase
           .from("playbooks")
@@ -547,8 +564,8 @@ export default function GrowthEngineLibraryPage() {
         throw new Error("Playbook name is required.");
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      const effectiveUserId = await getEffectiveUserId();
+      if (!effectiveUserId) throw new Error("No effective user ID");
 
       const playbookPayload = {
         playbookname: data.playbookname,
@@ -557,7 +574,7 @@ export default function GrowthEngineLibraryPage() {
         status: data.status,
         link: data.link,
         department_id: data.department_id,
-        user_id: user.id
+        user_id: effectiveUserId
       };
 
       let playbookId: string;
@@ -631,21 +648,229 @@ export default function GrowthEngineLibraryPage() {
     }
   };
 
-  // Open generation modal and fetch suggestions
+  // Load questions from localStorage
+  const loadQuestionsFromStorage = () => {
+    try {
+      const stored = localStorage.getItem(QUESTIONS_STORAGE_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+          setQuestions(data.questions);
+          // Load answers if they exist
+          const storedAnswers = localStorage.getItem(ANSWERS_STORAGE_KEY);
+          if (storedAnswers) {
+            const answersData = JSON.parse(storedAnswers);
+            setAnswers(answersData);
+            // Update question completion status
+            setQuestions(data.questions.map((q: any) => ({
+              ...q,
+              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
+              user_answer: answersData[q.id] || null
+            })));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading questions from storage:', error);
+    }
+  };
+
+  // Save questions to localStorage
+  const saveQuestionsToStorage = (questionsData: any[]) => {
+    try {
+      localStorage.setItem(QUESTIONS_STORAGE_KEY, JSON.stringify({
+        questions: questionsData,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.error('Error saving questions to storage:', error);
+    }
+  };
+
+  // Save answers to localStorage
+  const saveAnswersToStorage = (answersData: {[key: string]: string}) => {
+    try {
+      localStorage.setItem(ANSWERS_STORAGE_KEY, JSON.stringify(answersData));
+    } catch (error) {
+      console.error('Error saving answers to storage:', error);
+    }
+  };
+
+  // Load suggestions from localStorage
+  const loadSuggestionsFromStorage = () => {
+    try {
+      const stored = localStorage.getItem(SUGGESTIONS_STORAGE_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          const suggestionsWithIds = data.suggestions.map((s: any, index: number) => ({
+            ...s,
+            suggestionId: index,
+            selected: false
+          }));
+          setPlaybookSuggestions(suggestionsWithIds);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading suggestions from storage:', error);
+    }
+  };
+
+  // Save suggestions to localStorage
+  const saveSuggestionsToStorage = (suggestionsData: any[]) => {
+    try {
+      localStorage.setItem(SUGGESTIONS_STORAGE_KEY, JSON.stringify({
+        suggestions: suggestionsData,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.error('Error saving suggestions to storage:', error);
+    }
+  };
+
+  // Create questions for playbook planning
+  const generateQuestions = async () => {
+    try {
+      setIsLoadingQuestions(true);
+      
+      // Check if we have cached questions
+      const stored = localStorage.getItem(QUESTIONS_STORAGE_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
+        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
+        const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0 && cacheAge < cacheMaxAge) {
+          setQuestions(data.questions);
+          setCurrentQuestionIndex(0);
+          const storedAnswers = localStorage.getItem(ANSWERS_STORAGE_KEY);
+          if (storedAnswers) {
+            const answersData = JSON.parse(storedAnswers);
+            setAnswers(answersData);
+            setQuestions(data.questions.map((q: any) => ({
+              ...q,
+              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
+              user_answer: answersData[q.id] || null
+            })));
+          } else {
+            setAnswers({});
+          }
+          setShowQuestions(true);
+          setProgress(0);
+          setIsLoadingQuestions(false);
+          return;
+        }
+      }
+      
+      const response = await fetch('/api/gemini/playbook-planner/generate-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create questions');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.questions) {
+        setQuestions(result.questions);
+        saveQuestionsToStorage(result.questions);
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        setShowQuestions(true);
+        setProgress(0);
+      } else {
+        throw new Error('No questions data received');
+      }
+    } catch (error) {
+      console.error('Error creating questions:', error);
+      alert('Failed to create questions. Please try again.');
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  };
+
+  // Handle answer change
+  const handleAnswerChange = (questionId: string, value: string) => {
+    const newAnswers = { ...answers, [questionId]: value };
+    setAnswers(newAnswers);
+    saveAnswersToStorage(newAnswers);
+    
+    // Update the question's completion status
+    setQuestions(prev => prev.map(q => 
+      q.id === questionId 
+        ? { ...q, is_completed: value.trim() !== '', user_answer: value }
+        : q
+    ));
+  };
+
+  // Update progress when questions or answers change
+  useEffect(() => {
+    if (questions.length > 0) {
+      const completedCount = questions.filter(q => q.is_completed).length;
+      setProgress((completedCount / questions.length) * 100);
+    }
+  }, [questions, answers]);
+
+  // Navigate to next question
+  const nextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentQuestionIndex(prev => prev + 1);
+        setIsTransitioning(false);
+      }, 300);
+    }
+  };
+
+  // Navigate to previous question
+  const previousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentQuestionIndex(prev => prev - 1);
+        setIsTransitioning(false);
+      }, 300);
+    }
+  };
+
+  // Save answers and proceed to suggestions
+  const handleCompleteQuestions = async () => {
+    try {
+      setIsLoadingSuggestions(true);
+      
+      // Save answers
+      await fetch('/api/gemini/playbook-planner/save-answers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ answers }),
+      });
+
+      // Close question flow and open generation dialog
+      setShowQuestions(false);
+      setGenerationDialogOpen(true);
+      setSelectedSuggestions(new Set());
+      setManualPlaybooks([]);
+      setShowManualPlaybooks(false);
+      
+      // Fetch suggestions with answers
+      await fetchSuggestions();
+    } catch (error) {
+      console.error('Error completing questions:', error);
+      alert('Failed to save answers. Please try again.');
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // Open creation flow and fetch suggestions
   const handleGeneratePlaybook = async () => {
-    setGenerationDialogOpen(true);
-    setSelectedSuggestions(new Set());
-    // Initialize with one empty manual playbook
-    const defaultManual = {
-      id: `manual-${Date.now()}-${Math.random()}`,
-      playbookname: '',
-      enginetype: 'GROWTH' as const,
-      department_id: null,
-      owner_ids: [] as string[],
-      description: ''
-    };
-    setManualPlaybooks([defaultManual]);
-    await fetchSuggestions();
+    // First create questions
+    await generateQuestions();
   };
 
   // Fetch playbook suggestions
@@ -653,13 +878,40 @@ export default function GrowthEngineLibraryPage() {
     try {
       setIsLoadingSuggestions(true);
       
+      // Check if we have cached suggestions with matching answers
+      const stored = localStorage.getItem(SUGGESTIONS_STORAGE_KEY);
+      const storedAnswers = localStorage.getItem(ANSWERS_STORAGE_KEY);
+      if (stored && storedAnswers) {
+        const data = JSON.parse(stored);
+        const answersData = JSON.parse(storedAnswers);
+        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
+        const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        // Check if answers match (simple check - could be improved)
+        const answersMatch = JSON.stringify(answersData) === JSON.stringify(answers);
+        
+        if (data.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0 && 
+            cacheAge < cacheMaxAge && answersMatch) {
+          const suggestionsWithIds = data.suggestions.map((s: any, index: number) => ({
+            ...s,
+            suggestionId: index,
+            selected: false
+          }));
+          setPlaybookSuggestions(suggestionsWithIds);
+          setIsLoadingSuggestions(false);
+          return;
+        }
+      }
+      
       const response = await fetch('/api/gemini/playbook-planner', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: 'suggest'
+          action: 'suggest',
+          userAnswers: answers,
+          questions: questions
         }),
       });
 
@@ -677,6 +929,7 @@ export default function GrowthEngineLibraryPage() {
           selected: false
         }));
         setPlaybookSuggestions(suggestionsWithIds);
+        saveSuggestionsToStorage(result.data.suggestions);
       } else {
         throw new Error('No suggestions data received');
       }
@@ -795,13 +1048,13 @@ export default function GrowthEngineLibraryPage() {
           generatedAt: new Date().toISOString()
         }));
         setGeneratedPlaybooks([...generatedPlaybooks, ...newPlaybooks]);
-        alert(`${newPlaybooks.length} playbook(s) generated successfully!`);
+        alert(`${newPlaybooks.length} playbook(s) created successfully!`);
       } else {
         throw new Error('No playbooks data received from generation');
       }
     } catch (error) {
-      console.error('Error generating playbooks:', error);
-      alert('Failed to generate playbooks. Please try again.');
+      console.error('Error creating playbooks:', error);
+      alert('Failed to create playbooks. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -903,7 +1156,7 @@ export default function GrowthEngineLibraryPage() {
         setGeneratedPlaybooks([]);
         clearLocalStorage();
         await fetchPlaybooksData();
-        alert(`${count} playbooks generated and saved successfully!`);
+        alert(`${count} playbooks created and saved successfully!`);
       } else {
         throw new Error('Failed to save playbooks');
       }
@@ -948,13 +1201,224 @@ export default function GrowthEngineLibraryPage() {
       case "GROWTH":
         return "bg-blue-100 text-blue-800";
       case "FULFILLMENT":
-        return "bg-purple-100 text-purple-800";
+        return "bg-blue-100 text-blue-800";
       case "INNOVATION":
         return "bg-amber-100 text-amber-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'Strategic Planning': return <Target className="w-4 h-4" />;
+      case 'Operations': return <Building className="w-4 h-4" />;
+      case 'Team': return <Users className="w-4 h-4" />;
+      case 'Marketing': return <TrendingUp className="w-4 h-4" />;
+      case 'Finance': return <Zap className="w-4 h-4" />;
+      case 'Growth': return <TrendingUp className="w-4 h-4" />;
+      case 'Process Documentation': return <Brain className="w-4 h-4" />;
+      default: return <Brain className="w-4 h-4" />;
+    }
+  };
+
+  // Show question flow if questions are being displayed
+  if (showQuestions && questions.length > 0) {
+    const currentQuestion = questions[currentQuestionIndex];
+    
+    return (
+      <div className="min-h-[calc(100vh-10rem)]">
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          {/* Header - Smaller */}
+          <div className="text-left mb-6">
+            <h1 className="text-2xl font-bold text-slate-900 mb-1">Playbook Planning Questions</h1>
+            <p className="text-slate-600 text-sm">Answer personalised questions to help us suggest the best playbooks for your business</p>
+          </div>
+
+          {/* Progress Bar - Smaller */}
+          <div className="mb-6">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="text-slate-600">Progress</span>
+              <span className="text-slate-700 font-medium">{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-1.5">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Question Card - More Compact */}
+          <Card className="mb-6 shadow-sm border-slate-200">
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                {getCategoryIcon(currentQuestion.question_category)}
+                <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200 text-xs">
+                  {currentQuestion.question_category}
+                </Badge>
+              </div>
+              <h2 className="text-base text-slate-900 leading-relaxed mb-4">
+                {currentQuestion.question_text}
+              </h2>
+              <div>
+                {currentQuestion.question_type === 'textarea' ? (
+                  <Textarea
+                    value={answers[currentQuestion.id] || ''}
+                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                    placeholder="Enter your answer..."
+                    className="min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  />
+                ) : currentQuestion.question_type === 'select' && currentQuestion.options ? (
+                  <Select
+                    value={answers[currentQuestion.id] || ''}
+                    onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
+                  >
+                    <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+                      <SelectValue placeholder="Select an option..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currentQuestion.options.map((option: string, index: number) => (
+                        <SelectItem key={index} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={answers[currentQuestion.id] || ''}
+                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                    placeholder="Enter your answer..."
+                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  />
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Navigation */}
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={previousQuestion}
+              disabled={currentQuestionIndex === 0}
+              className="border-slate-200 text-slate-700 hover:bg-slate-50"
+            >
+              Previous
+            </Button>
+            
+            <div className="flex gap-3">
+              {currentQuestionIndex < questions.length - 1 ? (
+                <Button
+                  onClick={nextQuestion}
+                  disabled={isTransitioning}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isTransitioning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      Next Question
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleCompleteQuestions}
+                  disabled={isLoadingSuggestions}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isLoadingSuggestions ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Creating Suggestions...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Get Playbook Suggestions
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Question Navigation Dots */}
+          <div className="flex justify-center mt-8 gap-1.5">
+            {questions.map((question, index) => {
+              const hasAnswer = answers[question.id] && answers[question.id].trim() !== '';
+              return (
+                <button
+                  key={index}
+                  onClick={() => setCurrentQuestionIndex(index)}
+                  className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                    index === currentQuestionIndex
+                      ? 'bg-blue-600'
+                      : hasAnswer
+                      ? 'bg-green-500'
+                      : 'bg-slate-300'
+                  }`}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while creating questions
+  if (isLoadingQuestions) {
+    return (
+      <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <Card className="bg-transparent shadow-none border-none p-0">
+            <CardHeader className="text-left pb-6">
+              <CardTitle className="text-2xl text-slate-900 mb-2">
+                AI Analysis in Progress
+              </CardTitle>
+              <CardDescription className="text-slate-600">
+                Our AI is analysing your business data to create personalised questions
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-6">
+              {/* Progress Steps */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm text-slate-700">Analysing your business profile</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  </div>
+                  <span className="text-sm text-slate-700 font-medium">Creating personalised questions</span>
+                </div>
+              
+              </div>
+              
+              {/* Estimated Time */}
+              <div className="text-left">
+                <p className="text-xs text-slate-400 mt-1">
+                  This process is powered by advanced AI technology
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1440px] mx-auto">
@@ -970,7 +1434,7 @@ export default function GrowthEngineLibraryPage() {
             <Button 
               onClick={handleGeneratePlaybook}
               disabled={isGenerating}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isGenerating ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1081,12 +1545,12 @@ export default function GrowthEngineLibraryPage() {
                   {generatedPlaybooks.map((playbook, index) => (
                     <TableRow 
                       key={`generated-${index}`} 
-                      className="border-b border-gray-100 hover:bg-purple-50/30 bg-purple-50/20"
+                      className="border-b border-gray-100 hover:bg-blue-50/30 bg-blue-50/20"
                     >
                       <TableCell className="px-6 py-4">
                         <div>
                           <div 
-                            className="font-medium text-purple-700 flex items-center gap-2 cursor-pointer hover:text-purple-800 hover:underline transition-colors"
+                            className="font-medium text-blue-700 flex items-center gap-2 cursor-pointer hover:text-blue-800 hover:underline transition-colors"
                             onClick={() => handleViewPlaybook(index)}
                           >
                             <Sparkles className="h-4 w-4" />
@@ -1127,7 +1591,7 @@ export default function GrowthEngineLibraryPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleSaveGeneratedPlaybook(index)}
-                            className="h-8 px-3 hover:bg-purple-100 rounded-full transition-colors text-purple-600"
+                            className="h-8 px-3 hover:bg-blue-100 rounded-full transition-colors text-blue-600"
                             title="Save generated playbook"
                             disabled={savingPlaybookIds.includes(`generated-${index}`)}
                           >
@@ -1272,24 +1736,125 @@ export default function GrowthEngineLibraryPage() {
           // Reset state when closing
           setSelectedSuggestions(new Set());
           setManualPlaybooks([]);
+          setShowManualPlaybooks(false);
         }
       }}>
-        <DialogContent className="sm:max-w-[1200px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Generate Playbooks</DialogTitle>
+            <DialogTitle className="text-2xl">Create Playbooks</DialogTitle>
+            <p className="text-base text-gray-600 mt-2">
+              Here are the playbooks we think will be best for your business based on your answers, select the playbooks you'd like to create
+            </p>
           </DialogHeader>
           <div className="py-4">
-            <div className="grid grid-cols-2 gap-6">
-              {/* Left Side: Manual Playbook Input */}
-              <div className="space-y-4">
+            {/* AI Suggestions Section */}
+            <div className="space-y-4">
+          
+              {isLoadingSuggestions ? (
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-sm text-gray-500">Creating suggestions...</span>
+                </div>
+              ) : playbookSuggestions.length > 0 ? (
+                <div className="space-y-3 max-h-[calc(90vh-350px)] overflow-y-auto">
+                  {playbookSuggestions.map((suggestion, index) => {
+                    const recommendedOwners = suggestion.recommended_owner_ids 
+                      ? teamMembers.filter((m: any) => suggestion.recommended_owner_ids.includes(m.id))
+                      : [];
+                    const recommendedDepartment = suggestion.recommended_department_id
+                      ? departments.find(d => d.id === suggestion.recommended_department_id)
+                      : null;
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          selectedSuggestions.has(index)
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 hover:border-blue-300 hover:shadow-sm bg-white'
+                        }`}
+                        onClick={() => toggleSuggestion(index)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            checked={selectedSuggestions.has(index)}
+                            onCheckedChange={() => toggleSuggestion(index)}
+                            className="mt-0.5 h-5 w-5"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex-1 space-y-3 min-w-0">
+                            <div>
+                              <div className="font-semibold text-base text-gray-900 mb-1">{suggestion.playbookname}</div>
+                              <div className="text-sm text-gray-600 leading-relaxed">{suggestion.description}</div>
+                            </div>
+                            
+                            {/* Details Section */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-gray-200">
+                              {/* Engine Type */}
+                              <div>
+                                <div className="text-xs font-medium text-gray-500 mb-1">Engine Type</div>
+                                <Badge variant="outline" className={`text-xs px-2 py-1 ${getEngineTypeColor(suggestion.enginetype)}`}>
+                                  {suggestion.enginetype}
+                                </Badge>
+                              </div>
+                              
+                              {/* Department */}
+                              <div>
+                                <div className="text-xs font-medium text-gray-500 mb-1">Department</div>
+                                {recommendedDepartment ? (
+                                  <div className="text-sm text-gray-900 font-medium">{recommendedDepartment.name}</div>
+                                ) : (
+                                  <div className="text-sm text-gray-400">Not assigned</div>
+                                )}
+                              </div>
+                              
+                              {/* Team Members */}
+                              <div>
+                                <div className="text-xs font-medium text-gray-500 mb-1">Recommended Owners</div>
+                                {recommendedOwners.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {recommendedOwners.slice(0, 3).map((owner: any) => (
+                                      <div key={owner.id} className="flex items-center gap-1.5">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage src={owner.profile_picture_url || ''} alt={owner.full_name} />
+                                          <AvatarFallback className="text-xs">{owner.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs text-gray-700">{owner.full_name}</span>
+                                      </div>
+                                    ))}
+                                    {recommendedOwners.length > 3 && (
+                                      <span className="text-xs text-gray-500">+{recommendedOwners.length - 3} more</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-gray-400">Not assigned</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500 border border-gray-200 rounded-lg">
+                  <p className="text-sm">No suggestions available. Please try again.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Manual Playbooks Section - Hidden by default */}
+            {showManualPlaybooks && (
+              <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Manual Playbooks</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Custom Playbooks</h3>
                 </div>
                 <div className="space-y-4">
                   {manualPlaybooks.map((manual) => (
                     <div key={manual.id} className="border rounded-lg p-4 space-y-3 bg-gray-50">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-sm text-gray-700">Manual Playbook Entry</h4>
+                        <h4 className="font-medium text-sm text-gray-700">Custom Playbook Entry</h4>
                         {manualPlaybooks.length > 1 && (
                           <Button
                             type="button"
@@ -1382,95 +1947,56 @@ export default function GrowthEngineLibraryPage() {
                   className="w-full flex items-center justify-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
-                  Add More
+                  Add Another Custom Playbook
                 </Button>
               </div>
-
-              {/* Right Side: AI Suggestions */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">AI Suggestions</h3>
-                  {isLoadingSuggestions && (
-                    <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
-                  )}
-                </div>
-                {isLoadingSuggestions ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
-                    <span className="ml-2 text-sm text-gray-500">Loading suggestions...</span>
-                  </div>
-                ) : playbookSuggestions.length > 0 ? (
-                  <div className="space-y-2 max-h-[calc(90vh-200px)] overflow-y-auto">
-                    {playbookSuggestions.map((suggestion, index) => (
-                      <div
-                        key={index}
-                        className={`border rounded-md p-2.5 cursor-pointer transition-all ${
-                          selectedSuggestions.has(index)
-                            ? 'border-purple-500 bg-purple-50 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                        }`}
-                        onClick={() => toggleSuggestion(index)}
-                      >
-                        <div className="flex items-start gap-2">
-                          <Checkbox
-                            checked={selectedSuggestions.has(index)}
-                            onCheckedChange={() => toggleSuggestion(index)}
-                            className="mt-0.5 h-4 w-4"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <div className="flex-1 space-y-1 min-w-0">
-                            <div className="font-medium text-sm text-gray-900 line-clamp-1">{suggestion.playbookname}</div>
-                            <div className="text-xs text-gray-600 line-clamp-2 leading-relaxed">{suggestion.description}</div>
-                            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${getEngineTypeColor(suggestion.enginetype)}`}>
-                                {suggestion.enginetype}
-                              </Badge>
-                              {suggestion.recommended_department_id && (
-                                <span className="text-[10px] text-gray-500 truncate">
-                                  {departments.find(d => d.id === suggestion.recommended_department_id)?.name || 'N/A'}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No suggestions available. Try again later.
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
 
             {/* Action Buttons */}
-            <div className="flex justify-end space-x-3 pt-6 mt-6 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setGenerationDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleGenerateFromModal}
-                disabled={isGenerating || (selectedSuggestions.size === 0 && manualPlaybooks.length === 0)}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Playbooks
-                  </>
-                )}
-              </Button>
+            <div className="flex flex-col gap-3 pt-6 mt-6 border-t">
+              {!showManualPlaybooks && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowManualPlaybooks(true);
+                    if (manualPlaybooks.length === 0) {
+                      addManualPlaybook();
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Custom Playbook
+                </Button>
+              )}
+              <div className="flex justify-end space-x-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setGenerationDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleGenerateFromModal}
+                  disabled={isGenerating || (selectedSuggestions.size === 0 && manualPlaybooks.filter(m => m.playbookname.trim()).length === 0)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Create Playbooks
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -1551,7 +2077,7 @@ export default function GrowthEngineLibraryPage() {
                     }
                   }}
                   disabled={viewingPlaybook.index !== undefined && savingPlaybookIds.includes(`generated-${viewingPlaybook.index}`)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {viewingPlaybook.index !== undefined && savingPlaybookIds.includes(`generated-${viewingPlaybook.index}`) ? (
                     <>

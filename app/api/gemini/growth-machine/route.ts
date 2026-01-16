@@ -384,12 +384,24 @@ export async function POST(req: Request) {
 
     // Read the request body once
     const body = await req.json();
-    const { action, generatedData } = body;
+    const { action, generatedData, userAnswers, questions } = body;
 
     if (action === "generate") {
       // Generate content using Gemini
       const companyData = await getCompanyData(userId, teamId);
       const companyContext = formatCompanyContext(companyData);
+
+      // Format user answers if provided
+      let userAnswersContext = '';
+      if (userAnswers && questions && Object.keys(userAnswers).length > 0) {
+        userAnswersContext = '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## 💬 USER RESPONSES TO PERSONALIZED QUESTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+        questions.forEach((q: any) => {
+          const answer = userAnswers[q.id];
+          if (answer && answer.trim() !== '') {
+            userAnswersContext += `Question: ${q.question_text}\nAnswer: ${answer}\n\n`;
+          }
+        });
+      }
 
       // Load prompt body (instructions) from DB using the old key
       let promptBody = await getPromptBody('growth_machine');
@@ -397,7 +409,7 @@ export async function POST(req: Request) {
         throw new Error('Prompt body not found for growth_machine');
       }
       // Replace placeholders
-      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext)
+      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext + userAnswersContext)
         .replace(/{{responseFormat}}/g, GROWTH_MACHINE_JSON_STRUCTURE);
 
       // The final prompt is the body + the fixed structure

@@ -268,7 +268,7 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       corevalues: generatedData.corevalues,
       strategicanchors: generatedData.strategicanchors,
       purposewhy: generatedData.purposewhy,
-      threeyeartarget: generatedData.threeyeartarget,
+      fiveyeartarget: generatedData.fiveyeartarget,
       oneyeartarget: { targets: generatedData.oneyeartarget },
       tenyeartarget: { targets: generatedData.tenyeartarget },
       business_plan_content: generatedData.business_plan_document_html,
@@ -330,10 +330,10 @@ CRITICAL: You must respond with ONLY a valid JSON object. Do not include any exp
     {"value": "Second one year target", "completed": false, "deadline": "2024-12-31"},
     {"value": "Third one year target", "completed": false, "deadline": "2024-12-31"}
   ],
-  "threeyeartarget": [
-    {"value": "First three year target", "completed": false, "deadline": "2026-12-31"},
-    {"value": "Second three year target", "completed": false, "deadline": "2026-12-31"},
-    {"value": "Third three year target", "completed": false, "deadline": "2026-12-31"}
+  "fiveyeartarget": [
+    {"value": "First five year target", "completed": false, "deadline": "2028-12-31"},
+    {"value": "Second five year target", "completed": false, "deadline": "2028-12-31"},
+    {"value": "Third five year target", "completed": false, "deadline": "2028-12-31"}
   ],
   "tenyeartarget": [
     {"value": "First ten year target", "completed": false, "deadline": "2033-12-31"},
@@ -352,12 +352,14 @@ IMPORTANT RULES:
 - Focus on their specific industry, business model, and current situation
 - Make all statements practical and implementable for their specific business
 - Ensure alignment with their existing machines and business processes
-- For target sections (oneyeartarget, threeyeartarget, tenyeartarget), each item must include "completed": false and a realistic "deadline" date
-- 1-year targets should have deadlines within the next 12 months (please get the current date from the internet and add 12 months)
-- 3-year targets should have deadlines within the next 3 years (please get the current date from the internet and add 3 years)
-- 10-year targets should have deadlines within the next 10 years (please get the current date from the internet and add 10 years)
+- For target sections (oneyeartarget, fiveyeartarget, tenyeartarget), each item must include "completed": false and a realistic "deadline" date
+- IMPORTANT: The current date and target date ranges are provided in the context above. Use those dates when setting deadlines.
+- 1-year targets should have deadlines within the next 12 months from the current date provided
+- 5-year targets should have deadlines within the next 5 years from the current date provided
+- 10-year targets should have deadlines within the next 10 years from the current date provided
+- All deadline dates must be in YYYY-MM-DD format (e.g., "2025-12-31")
 - The business_plan_document_html must be a comprehensive, actionable business plan for the company, formatted in HTML (use <h2>, <h3>, <p>, <ul>, <li>, <strong> etc). It should synthesize the structured data and company context into a readable, professional document ready to share with stakeholders.
-- The HTML must be well-structured, readable, and include all major sections of a business plan (executive summary, mission, vision, core values, strategic anchors, purpose/why, 1-year targets, 3-year targets, 10-year targets, and any other relevant sections based on the context).
+- The HTML must be well-structured, readable, and include all major sections of a business plan (executive summary, mission, vision, core values, strategic anchors, purpose/why, 1-year targets, 5-year targets, 10-year targets, and any other relevant sections based on the context).
 - Do NOT include markdown or any non-HTML formatting.
 `;
 
@@ -390,12 +392,55 @@ export async function POST(req: Request) {
 
     // Read the request body once
     const body = await req.json();
-    const { action, generatedData } = body;
+    const { action, generatedData, userAnswers, questions } = body;
 
     if (action === "generate") {
       // Generate content using Gemini
       const companyData = await getCompanyData(userId, teamId);
       const companyContext = formatCompanyContext(companyData);
+
+      // Format user answers if provided
+      let userAnswersContext = '';
+      if (userAnswers && questions && Object.keys(userAnswers).length > 0) {
+        userAnswersContext = '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## 💬 USER RESPONSES TO PERSONALIZED QUESTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+        questions.forEach((q: any) => {
+          const answer = userAnswers[q.id];
+          if (answer && answer.trim() !== '') {
+            userAnswersContext += `Question: ${q.question_text}\nAnswer: ${answer}\n\n`;
+          }
+        });
+      }
+
+      // Get current date and calculate target dates
+      const now = new Date();
+      const currentDate = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      
+      // Calculate dates for targets
+      const oneYearFromNow = new Date(now);
+      oneYearFromNow.setFullYear(now.getFullYear() + 1);
+      const oneYearDate = oneYearFromNow.toISOString().split('T')[0];
+      
+      const fiveYearsFromNow = new Date(now);
+      fiveYearsFromNow.setFullYear(now.getFullYear() + 5);
+      const fiveYearsDate = fiveYearsFromNow.toISOString().split('T')[0];
+      
+      const tenYearsFromNow = new Date(now);
+      tenYearsFromNow.setFullYear(now.getFullYear() + 10);
+      const tenYearsDate = tenYearsFromNow.toISOString().split('T')[0];
+
+      // Add current date context
+      const currentDateContext = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📅 CURRENT DATE INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Today's Date: ${currentDate}
+- 1-year targets should have deadlines around: ${oneYearDate} (approximately 12 months from today)
+- 5-year targets should have deadlines around: ${fiveYearsDate} (approximately 5 years from today)
+- 10-year targets should have deadlines around: ${tenYearsDate} (approximately 10 years from today)
+
+IMPORTANT: Use these dates as reference points when setting deadlines for targets. You can adjust individual target deadlines slightly (within a few months) based on the specific target, but they should generally align with these timeframes.
+`;
 
       // Load prompt body (instructions) from DB using the old key
       let promptBody = await getPromptBody('business_plan');
@@ -403,7 +448,7 @@ export async function POST(req: Request) {
         throw new Error('Prompt body not found for business_plan');
       }
       // Replace placeholders
-      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext)
+      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext + userAnswersContext + currentDateContext)
         .replace(/{{responseFormat}}/g, BUSINESS_PLAN_JSON_STRUCTURE);
 
       // The final prompt is the body + the fixed structure
@@ -450,8 +495,8 @@ export async function POST(req: Request) {
           throw new Error("Purpose/why array is empty or invalid");
         }
 
-        if (!Array.isArray(generatedData.threeyeartarget) || generatedData.threeyeartarget.length === 0) {
-          throw new Error("Three year targets array is empty or invalid");
+        if (!Array.isArray(generatedData.fiveyeartarget) || generatedData.fiveyeartarget.length === 0) {
+          throw new Error("Five year targets array is empty or invalid");
         }
 
         if (!Array.isArray(generatedData.oneyeartarget) || generatedData.oneyeartarget.length === 0) {
@@ -479,7 +524,7 @@ export async function POST(req: Request) {
           .filter((item: any) => item && item.value && item.value.trim() !== '')
           .map((item: any) => ({ value: item.value.trim() }));
 
-        generatedData.threeyeartarget = generatedData.threeyeartarget
+        generatedData.fiveyeartarget = generatedData.fiveyeartarget
           .filter((item: any) => item && item.value && item.value.trim() !== '')
           .map((item: any) => ({ 
             value: item.value.trim(),
@@ -516,8 +561,8 @@ export async function POST(req: Request) {
           throw new Error("Not enough purpose/why items generated");
         }
 
-        if (generatedData.threeyeartarget.length < 2) {
-          throw new Error("Not enough three year targets generated");
+        if (generatedData.fiveyeartarget.length < 2) {
+          throw new Error("Not enough five year targets generated");
         }
 
         if (generatedData.oneyeartarget.length < 2) {

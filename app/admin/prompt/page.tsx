@@ -1,12 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
-import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
-import { Suspense, useState } from "react";
 import PromptTable from "./PromptTable";
 
 async function getCurrentUserRole() {

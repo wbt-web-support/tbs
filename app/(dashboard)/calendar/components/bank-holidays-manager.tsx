@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Spinner } from "@/components/ui/spinner";
 import { Calendar, Plus, Edit, Trash2, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -27,9 +28,10 @@ type BankHoliday = {
 
 type BankHolidaysManagerProps = {
   onHolidaysUpdated?: () => void;
+  hideHeader?: boolean;
 };
 
-export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysManagerProps) {
+export default function BankHolidaysManager({ onHolidaysUpdated, hideHeader = false }: BankHolidaysManagerProps) {
   const [holidays, setHolidays] = useState<BankHoliday[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -158,7 +160,8 @@ export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysM
     setIsLoading(true);
     try {
       if (currentHoliday) {
-        // Update existing holiday
+        // Update existing holiday (team_id should not change - RLS ensures it belongs to the team)
+        // Only update fields that can be changed, not team_id
         const { error } = await supabase
           .from("bank_holidays")
           .update({
@@ -166,8 +169,10 @@ export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysM
             holiday_date: formData.holiday_date,
             year: formData.year,
             is_active: formData.is_active,
+            // team_id is not updated - it should remain the same
           })
-          .eq("id", currentHoliday.id);
+          .eq("id", currentHoliday.id)
+          .eq("team_id", teamId); // Extra safety: ensure we're only updating holidays for this team
 
         if (error) throw error;
         toast({
@@ -217,14 +222,15 @@ export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysM
   };
 
   const handleDeleteHoliday = async () => {
-    if (!currentHoliday) return;
+    if (!currentHoliday || !teamId) return;
 
     setIsLoading(true);
     try {
       const { error } = await supabase
         .from("bank_holidays")
         .delete()
-        .eq("id", currentHoliday.id);
+        .eq("id", currentHoliday.id)
+        .eq("team_id", teamId); // Ensure we're only deleting holidays for this team
 
       if (error) throw error;
       toast({
@@ -250,12 +256,15 @@ export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysM
   };
 
   const handleToggleActive = async (holiday: BankHoliday) => {
+    if (!teamId) return;
+    
     setIsLoading(true);
     try {
       const { error } = await supabase
         .from("bank_holidays")
         .update({ is_active: !holiday.is_active })
-        .eq("id", holiday.id);
+        .eq("id", holiday.id)
+        .eq("team_id", teamId); // Ensure we're only toggling holidays for this team
 
       if (error) throw error;
       toast({
@@ -291,6 +300,119 @@ export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysM
     );
   }
 
+  // When hideHeader is true, use Card structure for consistency with SimplifiedLeaveEntitlement
+  if (hideHeader) {
+    return (
+      <>
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <CardTitle className="flex items-center gap-2">
+                  Bank Holidays ({selectedYear})
+                </CardTitle>
+              </div>
+              <Button onClick={() => handleOpenDialog()} size="sm" className="gap-2 flex-shrink-0">
+                <Plus className="h-4 w-4" />
+                Add Holiday
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading && holidays.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <Spinner className="h-8 w-8 text-blue-600" />
+                  <p className="text-sm text-gray-500">Loading holidays...</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Year Filter */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="year-select">Filter by Year:</Label>
+                    <Select
+                      value={selectedYear.toString()}
+                      onValueChange={(value) => setSelectedYear(parseInt(value))}
+                    >
+                      <SelectTrigger id="year-select" className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableYears().map((year) => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Badge variant="outline" className="text-xs">{holidays.length} holidays</Badge>
+                  </div>
+                </div>
+
+                {/* Holidays List */}
+                {holidays.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No holidays found for {selectedYear}</div>
+                ) : (
+                  <div className="space-y-2">
+                    {holidays.map((holiday) => (
+                      <Card key={holiday.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-medium text-gray-900">{holiday.holiday_name}</h4>
+                                <Badge variant={holiday.is_active ? "default" : "secondary"}>
+                                  {holiday.is_active ? "Active" : "Inactive"}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-500">
+                                {format(parseISO(holiday.holiday_date), "EEEE, MMMM d, yyyy")}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={holiday.is_active}
+                                onCheckedChange={() => handleToggleActive(holiday)}
+                                disabled={isLoading}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenDialog(holiday)}
+                                disabled={isLoading}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setCurrentHoliday(holiday);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                                disabled={isLoading}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
+
+  // Original layout when header is shown (standalone component)
   return (
     <>
       <div className="space-y-6">
@@ -307,6 +429,7 @@ export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysM
             Add Holiday
           </Button>
         </div>
+      
         {isLoading && holidays.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-3">
@@ -334,18 +457,16 @@ export default function BankHolidaysManager({ onHolidaysUpdated }: BankHolidaysM
                   ))}
                 </SelectContent>
               </Select>
-              <Badge variant="outline">{holidays.length} holidays</Badge>
+              <Badge variant="outline" className="text-xs">{holidays.length} holidays</Badge>
             </div>
 
             {/* Holidays List */}
-            {isLoading && holidays.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Loading holidays...</div>
-            ) : holidays.length === 0 ? (
+            {holidays.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No holidays found for {selectedYear}</div>
             ) : (
               <div className="space-y-2">
                 {holidays.map((holiday) => (
-                  <Card key={holiday.id} className="border-l-4 border-l-blue-500">
+                  <Card key={holiday.id}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">

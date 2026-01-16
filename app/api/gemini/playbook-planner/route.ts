@@ -250,7 +250,7 @@ NOTE: Use IDs only for the recommended_department_id field in JSON. In playbook 
 - Core Values: ${plan.corevalues ? JSON.stringify(plan.corevalues) : 'None'}
 - Strategic Anchors: ${plan.strategicanchors ? JSON.stringify(plan.strategicanchors) : 'None'}
 - Purpose Why: ${plan.purposewhy ? JSON.stringify(plan.purposewhy) : 'None'}
-- Three Year Target: ${plan.threeyeartarget ? JSON.stringify(plan.threeyeartarget) : 'None'}`);
+- Five Year Target: ${plan.fiveyeartarget ? JSON.stringify(plan.fiveyeartarget) : 'None'}`);
     });
   }
 
@@ -348,27 +348,57 @@ async function getPromptTemplate(promptKey: string): Promise<string | null> {
   return data?.prompt_text || null;
 }
 
+// Helper function to format user answers for context
+function formatUserAnswers(answers: { [key: string]: string }, questions: any[]): string {
+  if (!answers || Object.keys(answers).length === 0 || !questions || questions.length === 0) {
+    return '';
+  }
+
+  const parts: string[] = ['\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## 💬 USER RESPONSES TO PLAYBOOK PLANNING QUESTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'];
+  
+  // Sort questions by order
+  const sortedQuestions = [...questions].sort((a, b) => (a.question_order || 0) - (b.question_order || 0));
+  
+  sortedQuestions.forEach((question, index) => {
+    const answer = answers[question.id];
+    if (answer && answer.trim()) {
+      parts.push(`\nQuestion ${index + 1} (${question.question_category}): ${question.question_text}`);
+      parts.push(`Answer: ${answer}\n`);
+    }
+  });
+  
+  parts.push('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  
+  return parts.join('\n');
+}
+
 // Helper function to generate playbook suggestions (metadata only)
-async function suggestPlaybooks(userId: string, teamId: string) {
+async function suggestPlaybooks(userId: string, teamId: string, userAnswers?: { [key: string]: string }, questions?: any[]) {
   try {
     const playbookData = await getPlaybookData(userId, teamId);
     const playbookContext = formatPlaybookContext(playbookData);
 
+    // Format user answers if provided
+    const userAnswersContext = userAnswers && questions ? formatUserAnswers(userAnswers, questions) : '';
+
     const promptBody = `You are an expert business consultant specialising in creating comprehensive Standard Operating Procedures (SOPs) for companies. 
 
-Based on the company context provided, suggest 4-5 playbook ideas that would help the organisation improve their processes and achieve their goals.
+Based on the company context provided${userAnswersContext ? ' and the user\'s responses to playbook planning questions' : ''}, suggest 4-5 playbook ideas that would help the organisation improve their processes and achieve their goals.
+
+${userAnswersContext ? 'IMPORTANT: Use the user\'s responses to the questions to generate highly targeted and relevant playbook suggestions. The user has already provided specific information about their needs, so tailor your suggestions accordingly.\n' : ''}
 
 Only provide suggestions (metadata) - do NOT generate full content. Focus on identifying key business processes that need playbooks.
 
 IMPORTANT: Write all content in UK English (e.g., "organise" not "organize", "colour" not "color", "centre" not "center", "optimise" not "optimize").
 
-{{companyContext}}
+{{companyContext}}{{userAnswers}}
 
 {{responseFormat}}`;
     
     // Replace placeholders
     const fullPrompt = promptBody
       .replace(/{{companyContext}}/g, playbookContext)
+      .replace(/{{userAnswers}}/g, userAnswersContext)
       .replace(/{{responseFormat}}/g, SUGGESTION_JSON_STRUCTURE);
 
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
@@ -491,10 +521,12 @@ PLAYBOOK SPECIFICATIONS TO GENERATE:
           playbook.playbookname = playbookSpecs[index].playbookname || playbook.playbookname;
           playbook.description = playbookSpecs[index].description || playbook.description;
           playbook.enginetype = playbookSpecs[index].enginetype || playbook.enginetype;
-          // Preserve department_id from spec (including null values)
-          if (playbookSpecs[index].hasOwnProperty('department_id')) {
-            playbook.recommended_department_id = playbookSpecs[index].department_id;
-          }
+          // Preserve department_id from spec (including null values) - use both names for compatibility
+          // Always set department_id from spec, even if it's null
+          const specDeptId = playbookSpecs[index].department_id;
+          playbook.recommended_department_id = specDeptId;
+          playbook.department_id = specDeptId; // Also set department_id directly
+          console.log(`[Generate Playbook] Preserving department_id from spec: ${specDeptId} for playbook: ${playbook.playbookname}`);
           // Preserve owner_ids from spec (including empty arrays)
           if (playbookSpecs[index].hasOwnProperty('owner_ids')) {
             playbook.recommended_owner_ids = playbookSpecs[index].owner_ids;
@@ -532,20 +564,50 @@ async function saveGeneratedPlaybooks(userId: string, generatedData: any) {
       throw new Error('No playbooks array found in generated data');
     }
 
+    // Get team_id for department validation
+    const { data: businessInfo } = await supabase
+      .from('business_info')
+      .select('team_id')
+      .eq('user_id', userId)
+      .single();
+    
+    const teamId = businessInfo?.team_id;
+
     for (const playbookData of generatedData.playbooks) {
-      // Validate and get department_id if provided
+      // Validate and get department_id if provided - check both recommended_department_id and department_id
       let departmentId = null;
-      if (playbookData.recommended_department_id) {
-        // Validate that the department ID exists
-        const { data: department } = await supabase
+      const deptIdToCheck = playbookData.department_id || playbookData.recommended_department_id;
+      
+      console.log(`[Save Playbook] Checking department for playbook: ${playbookData.playbookname}`);
+      console.log(`[Save Playbook] department_id: ${playbookData.department_id}, recommended_department_id: ${playbookData.recommended_department_id}`);
+      console.log(`[Save Playbook] deptIdToCheck: ${deptIdToCheck}, teamId: ${teamId}`);
+      
+      if (deptIdToCheck) {
+        // Validate that the department ID exists and belongs to the user's team
+        let departmentQuery = supabase
           .from('departments')
-          .select('id')
-          .eq('id', playbookData.recommended_department_id)
-          .single();
+          .select('id, name, team_id')
+          .eq('id', deptIdToCheck);
+        
+        // If we have a team_id, also filter by team_id to ensure it belongs to the user's team
+        if (teamId) {
+          departmentQuery = departmentQuery.eq('team_id', teamId);
+        }
+        
+        const { data: department, error: deptError } = await departmentQuery.single();
+        
+        if (deptError) {
+          console.error(`[Save Playbook] Error validating department:`, deptError);
+        }
         
         if (department) {
-          departmentId = playbookData.recommended_department_id;
+          departmentId = deptIdToCheck;
+          console.log(`[Save Playbook] Department validated: ${department.name} (ID: ${departmentId})`);
+        } else {
+          console.warn(`[Save Playbook] Department ID ${deptIdToCheck} not found or doesn't belong to user's team (teamId: ${teamId})`);
         }
+      } else {
+        console.log(`[Save Playbook] No department ID provided for playbook: ${playbookData.playbookname}`);
       }
 
       // Create new playbook entry
@@ -610,10 +672,10 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, generatedData, playbookSpecs } = body;
+    const { action, generatedData, playbookSpecs, userAnswers, questions } = body;
 
     if (action === 'suggest') {
-      const suggestions = await suggestPlaybooks(userId, teamId);
+      const suggestions = await suggestPlaybooks(userId, teamId, userAnswers, questions);
       return NextResponse.json({ 
         success: true, 
         data: suggestions 

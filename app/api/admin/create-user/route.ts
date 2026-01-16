@@ -147,6 +147,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email to the new user
+    // DISABLED: Account creation emails are turned off for now
+    /*
     try {
       // Get admin user details for email
       const { data: adminProfile } = await supabaseAdmin
@@ -183,6 +185,7 @@ export async function POST(request: NextRequest) {
       console.error('Error sending welcome email:', emailError);
       // Don't fail the user creation if email fails
     }
+    */
 
     return NextResponse.json({ 
       success: true, 

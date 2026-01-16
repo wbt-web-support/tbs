@@ -97,10 +97,14 @@ export const signInAction = async (formData: FormData) => {
       console.error("Error fetching user role:", roleError);
     } else if (userData?.role === 'super_admin') {
       return redirect("/admin");
+    } else if (userData?.role === 'admin') {
+      return redirect("/thank-you");
+    } else if (userData?.role === 'user') {
+      return redirect("/member/dashboard");
     }
   }
 
-  return redirect("/dashboard");
+  return redirect("/thank-you");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {

@@ -66,8 +66,20 @@ const formatQuestionKey = (key: string): string => {
     .trim();
 };
 
+// Helper to format currency values
+const formatCurrency = (value: number | string): string => {
+  const numValue = typeof value === 'string' ? parseFloat(value.replace(/[£,\s]/g, '')) : value;
+  if (isNaN(numValue)) return String(value);
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numValue);
+};
+
 // Helper to format answer values
-const formatAnswer = (value: any): string => {
+const formatAnswer = (value: any, fieldKey?: string): string => {
   if (value === null || value === undefined) {
     return 'Not provided';
   }
@@ -76,19 +88,123 @@ const formatAnswer = (value: any): string => {
     return value ? 'Yes' : 'No';
   }
   
+  // Handle currency fields
+  if (fieldKey && (
+    fieldKey.includes('revenue') || 
+    fieldKey.includes('payment') || 
+    fieldKey.includes('amount') ||
+    fieldKey.includes('price') ||
+    fieldKey.includes('cost')
+  )) {
+    // Try to parse as number
+    const numValue = typeof value === 'string' ? parseFloat(value.replace(/[£,\s]/g, '')) : Number(value);
+    if (!isNaN(numValue)) {
+      return formatCurrency(numValue);
+    }
+  }
+  
+  // Handle percentage fields
+  if (fieldKey && fieldKey.includes('percentage') || fieldKey?.includes('margin')) {
+    const numValue = typeof value === 'string' ? parseFloat(value.replace(/[%,\s]/g, '')) : Number(value);
+    if (!isNaN(numValue)) {
+      return `${numValue}%`;
+    }
+  }
+  
   if (Array.isArray(value)) {
     if (value.length === 0) return 'None provided';
+    
+    // Special handling for business owners
+    if (fieldKey?.includes('business_owners') || fieldKey?.includes('owners')) {
+      return value.map((item, index) => {
+        if (typeof item === 'object' && item !== null) {
+          const fullName = item.fullName || item.full_name || item.name || 'N/A';
+          const role = item.role || '';
+          return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+        }
+        // If it's a string that looks like JSON, try to parse it
+        if (typeof item === 'string' && item.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(item);
+            const fullName = parsed.fullName || parsed.full_name || parsed.name || 'N/A';
+            const role = parsed.role || '';
+            return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+          } catch {
+            return `${index + 1}. ${item}`;
+          }
+        }
+        return `${index + 1}. ${item}`;
+      }).join('\n');
+    }
+    
     return value.map((item, index) => {
       if (typeof item === 'object' && item !== null) {
         // Try to extract meaningful text from objects
         const text = item.text || item.value || item.name || item.title || JSON.stringify(item);
         return `${index + 1}. ${text}`;
       }
+      // If it's a string that looks like JSON, try to parse it
+      if (typeof item === 'string' && item.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(item);
+          const fullName = parsed.fullName || parsed.full_name || parsed.name || 'N/A';
+          const role = parsed.role || '';
+          return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+        } catch {
+          return `${index + 1}. ${item}`;
+        }
+      }
       return `${index + 1}. ${item}`;
     }).join('\n');
   }
   
+  // Handle string values that might be JSON (for business owners stored as string)
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        if (fieldKey?.includes('business_owners') || fieldKey?.includes('owners')) {
+          return parsed.map((item, index) => {
+            if (typeof item === 'object' && item !== null) {
+              const fullName = item.fullName || item.full_name || item.name || 'N/A';
+              const role = item.role || '';
+              return `${index + 1}. ${fullName}${role ? ` (${role})` : ''}`;
+            }
+            return `${index + 1}. ${item}`;
+          }).join('\n');
+        }
+      }
+    } catch {
+      // Not valid JSON, continue with normal string handling
+    }
+  }
+  
+  // Handle business owners stored as comma-separated string: "John Doe (CEO), Jane Smith (CTO)"
+  if (fieldKey && (fieldKey.includes('business_owners') || fieldKey.includes('owners'))) {
+    if (typeof value === 'string' && value.includes('(') && value.includes(')')) {
+      const ownersList = value.split(',').map((item: string) => {
+        const trimmed = item.trim();
+        const match = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+        if (match) {
+          return { fullName: match[1].trim(), role: match[2].trim() };
+        }
+        return { fullName: trimmed, role: '' };
+      });
+      
+      return ownersList.map((owner: any, index: number) => {
+        return `${index + 1}. ${owner.fullName}${owner.role ? ` (${owner.role})` : ''}`;
+      }).join('\n');
+    }
+  }
+  
   if (typeof value === 'object' && value !== null) {
+    // Special handling for business owner objects
+    if (value.fullName || value.full_name || value.name) {
+      const fullName = value.fullName || value.full_name || value.name;
+      const role = value.role || '';
+      return `${fullName}${role ? ` (${role})` : ''}`;
+    }
+    
     // For objects, try to extract meaningful information
     const entries = Object.entries(value);
     if (entries.length === 0) return 'Not provided';
@@ -104,39 +220,78 @@ const formatAnswer = (value: any): string => {
 };
 
 // Helper to flatten nested objects into question-answer pairs
-const flattenData = (data: any, prefix: string = ''): Array<{ question: string; answer: string }> => {
-  const results: Array<{ question: string; answer: string }> = [];
+const flattenData = (data: any, questionLabels: Record<string, string> = {}, prefix: string = ''): Array<{ question: string; answer: string; key: string }> => {
+  const results: Array<{ question: string; answer: string; key: string }> = [];
   
   if (!data || typeof data !== 'object') {
     return results;
   }
   
-  Object.entries(data).forEach(([key, value]) => {
-    const questionKey = prefix ? `${prefix} - ${key}` : key;
-    const formattedQuestion = formatQuestionKey(questionKey);
-    
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      // Check if this object has simple key-value pairs or if it should be flattened further
-      const entries = Object.entries(value);
-      const hasNestedObjects = entries.some(([_, val]) => typeof val === 'object' && val !== null && !Array.isArray(val));
+  // Skip question_labels itself
+  if (prefix === '' && data.question_labels) {
+    // Process other fields but skip question_labels
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'question_labels') return;
       
-      if (hasNestedObjects && entries.length > 1) {
-        // Flatten further
-        results.push(...flattenData(value, questionKey));
+      const questionKey = key;
+      // Use question_labels if available, otherwise format the key
+      const questionText = questionLabels[questionKey] || formatQuestionKey(questionKey);
+      
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Check if this object has simple key-value pairs or if it should be flattened further
+        const entries = Object.entries(value);
+        const hasNestedObjects = entries.some(([_, val]) => typeof val === 'object' && val !== null && !Array.isArray(val));
+        
+        if (hasNestedObjects && entries.length > 1) {
+          // Flatten further
+          results.push(...flattenData(value, questionLabels, questionKey));
+        } else {
+          // Treat as a single answer
+          results.push({
+            question: questionText,
+            answer: formatAnswer(value, questionKey),
+            key: questionKey
+          });
+        }
       } else {
-        // Treat as a single answer
         results.push({
-          question: formattedQuestion,
-          answer: formatAnswer(value)
+          question: questionText,
+          answer: formatAnswer(value, questionKey),
+          key: questionKey
         });
       }
-    } else {
-      results.push({
-        question: formattedQuestion,
-        answer: formatAnswer(value)
-      });
-    }
-  });
+    });
+  } else {
+    Object.entries(data).forEach(([key, value]) => {
+      const questionKey = prefix ? `${prefix} - ${key}` : key;
+      // Use question_labels if available, otherwise format the key
+      const questionText = questionLabels[questionKey] || formatQuestionKey(questionKey);
+      
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Check if this object has simple key-value pairs or if it should be flattened further
+        const entries = Object.entries(value);
+        const hasNestedObjects = entries.some(([_, val]) => typeof val === 'object' && val !== null && !Array.isArray(val));
+        
+        if (hasNestedObjects && entries.length > 1) {
+          // Flatten further
+          results.push(...flattenData(value, questionLabels, questionKey));
+        } else {
+          // Treat as a single answer
+          results.push({
+            question: questionText,
+            answer: formatAnswer(value, questionKey),
+            key: questionKey
+          });
+        }
+      } else {
+        results.push({
+          question: questionText,
+          answer: formatAnswer(value, questionKey),
+          key: questionKey
+        });
+      }
+    });
+  }
   
   return results;
 };
@@ -144,7 +299,9 @@ const flattenData = (data: any, prefix: string = ''): Array<{ question: string; 
 const OnboardingDataModal: React.FC<OnboardingDataModalProps> = ({ isOpen, onClose, data, companyName }) => {
   if (!isOpen) return null;
 
-  const questionAnswers = data ? flattenData(data) : [];
+  // Extract question_labels from data if available
+  const questionLabels = data?.question_labels || {};
+  const questionAnswers = data ? flattenData(data, questionLabels) : [];
 
   const downloadPdf = async () => {
     try {
@@ -335,21 +492,12 @@ const OnboardingDataModal: React.FC<OnboardingDataModalProps> = ({ isOpen, onClo
           {questionAnswers.length > 0 ? (
             <div className="space-y-4">
               {questionAnswers.map((qa, index) => (
-                <div key={index} className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg px-5 py-3 border border-gray-200 hover:border-blue-300 transition-colors">
-                  <div className="space-y-3">
-                    {/* Question */}
-                    <div className="flex items-start gap-3">
-                   
-                      <div className="flex-1">
-                        <h3 className="text-sm font-semibold text-blue-800 mb-2">{qa.question}</h3>
-                        {/* Answer */}
-                        <div className="">
-                          <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-                            {qa.answer}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+                  <div className="text-sm font-medium text-gray-700">
+                    {qa.question}
+                  </div>
+                  <div className="text-sm text-gray-600 pl-0">
+                    <p className="whitespace-pre-wrap">{qa.answer}</p>
                   </div>
                 </div>
               ))}

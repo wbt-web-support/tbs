@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { decodeImpersonationStateEdge, IMPERSONATION_COOKIE_NAME } from '@/lib/impersonation-edge'
 
 const dashboardPages = [
   '/dashboard',
@@ -63,31 +64,63 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Use getUser() instead of getSession() for security (validates with Supabase Auth server)
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
   const isDashboardPage =
     dashboardPages.some((p) => request.nextUrl.pathname.startsWith(p)) ||
     request.nextUrl.pathname.startsWith('/admin')
 
-  if (!session && isDashboardPage) {
+  if (!user && isDashboardPage) {
     const redirectUrl = new URL('/sign-in', request.url)
     redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (session) {
+  if (user) {
+    // Check for impersonation and get effective user ID
+    let effectiveUserId = user.id
+    let isImpersonated = false
+
+    const impersonationCookie = request.cookies.get(IMPERSONATION_COOKIE_NAME)
+    if (impersonationCookie?.value) {
+      const impersonationState = await decodeImpersonationStateEdge(impersonationCookie.value)
+
+      if (impersonationState) {
+        // Verify the actual user is a superadmin before allowing impersonation
+        const { data: actualUserData } = await supabase
+          .from('business_info')
+          .select('role')
+          .eq('user_id', user.id)
+          .single()
+
+        if (actualUserData?.role === 'super_admin') {
+          effectiveUserId = impersonationState.impersonatedUserId
+          isImpersonated = true
+        } else {
+          // Invalid impersonation state - clear the cookie
+          response.cookies.delete(IMPERSONATION_COOKIE_NAME)
+        }
+      } else {
+        // Invalid or expired impersonation state - clear the cookie
+        response.cookies.delete(IMPERSONATION_COOKIE_NAME)
+      }
+    }
+
+    // Fetch userData using effectiveUserId instead of session.user.id
     const { data: userData } = await supabase
       .from('business_info')
       .select('role, permissions')
-      .eq('user_id', session.user.id)
+      .eq('user_id', effectiveUserId)
       .single()
 
     const { data: onboardingData } = await supabase
       .from('company_onboarding')
       .select('completed')
-      .eq('user_id', session.user.id)
+      .eq('user_id', effectiveUserId)
       .single()
 
     // Redirect to onboarding if not completed and not already on onboarding page
@@ -107,12 +140,16 @@ export async function middleware(request: NextRequest) {
     }
 
     // Prevent users with completed onboarding or super_admin from accessing onboarding page
+    // BUT allow access if edit=true query parameter is present (coming from thank-you page)
+    const isEditMode = request.nextUrl.searchParams.get('edit') === 'true'
     if (
       (onboardingData?.completed || userData?.role === 'super_admin') &&
-      request.nextUrl.pathname.startsWith('/onboarding')
+      request.nextUrl.pathname.startsWith('/onboarding') &&
+      !isEditMode
     ) {
       // Redirect super_admin to /admin, users with role "user" to /member/dashboard, others to /dashboard
-      let redirectUrl = '/dashboard'
+      let redirectUrl = '/thank-you'
+      // let redirectUrl = '/dashboard'
       if (userData?.role === 'super_admin') {
         redirectUrl = '/admin'
       } else if (userData?.role === 'user') {
@@ -131,26 +168,34 @@ export async function middleware(request: NextRequest) {
       if (!onboardingData?.completed) {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       }
-      // Redirect users with role "user" to /member/dashboard, others to /dashboard
-      const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
-      return NextResponse.redirect(new URL(redirectUrl, request.url))
+      // Redirect based on role: super_admin -> /admin, admin -> /thank-you, user -> /member/dashboard, others -> /thank-you
+      if (userData?.role === 'user') {
+        return NextResponse.redirect(new URL('/member/dashboard', request.url))
+      }
+      if (userData?.role === 'admin') {
+        return NextResponse.redirect(new URL('/thank-you', request.url))
+      }
+      // Default redirect for other roles (including admin)
+      return NextResponse.redirect(new URL('/thank-you', request.url))
+      // const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
+      // return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
     if (request.nextUrl.pathname.startsWith('/admin')) {
       if (userData?.role !== 'super_admin') {
-        const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
+        const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/thank-you'
         return NextResponse.redirect(new URL(redirectUrl, request.url))
       }
     }
 
     // Redirect users with role "user" from /dashboard to /member/dashboard
-    if (userData?.role === 'user' && request.nextUrl.pathname === '/dashboard') {
+    if (userData?.role === 'user' && request.nextUrl.pathname === '/thank-you') {
       return NextResponse.redirect(new URL('/member/dashboard', request.url))
     }
 
     // Prevent non-user roles from accessing /member routes
     if (request.nextUrl.pathname.startsWith('/member') && userData?.role !== 'user') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/thank-you', request.url))
     }
 
     if (isDashboardPage && userData?.role === 'user') {

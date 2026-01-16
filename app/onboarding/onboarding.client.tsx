@@ -10,14 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Progress } from "@/components/ui/progress";
 import { signOutAction } from "@/app/actions";
 import Link from "next/link";
-import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling, Globe } from "lucide-react";
+import { HelpCircle, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, Check, Menu, Clock, Settings, Zap, Target, Sparkles, Wand2, RefreshCw, Loader2, MessageCircle, Bot, Send, X, ArrowRight, Users, Building, TrendingUp, Calendar as CalendarIcon, MapPin, Mail, Phone, FileText, Lightbulb, PoundSterling, Globe, MessageSquare, Star } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -660,7 +660,8 @@ function EmployeesRepeater({
   required,
   fieldId,
   departments,
-  companyName
+  companyName,
+  setCurrentFocusedQuestion
 }: { 
   value: Employee[]; 
   onChange: (employees: Employee[]) => void; 
@@ -668,6 +669,7 @@ function EmployeesRepeater({
   fieldId: string;
   departments: Array<{ id: string; name: string }>;
   companyName?: string;
+  setCurrentFocusedQuestion: (question: string | null) => void;
 }) {
   const addEmployee = () => {
     const newEmployee: Employee = {
@@ -770,8 +772,10 @@ function EmployeesRepeater({
                 Main Responsibilities <span className="text-red-500">*</span>
               </label>
               <Textarea
+                id={`employee_responsibility_${employee.id}`}
                 value={employee.responsibilities}
                 onChange={(e) => updateEmployee(employee.id, 'responsibilities', e.target.value)}
+                onFocus={() => setCurrentFocusedQuestion(`employee_responsibility_${employee.id}`)}
                 placeholder="e.g. Managing daily operations, overseeing team performance, handling customer inquiries"
                 className="w-full min-h-[80px]"
               />
@@ -1503,6 +1507,15 @@ const questions: Question[] = [
   { name: 'additional_comments_or_items_for_attention', label: 'Please list any additional comments or items that you would like to bring to our attention before we get started.', type: 'textarea', required: false, aiAssist: true, icon: FileText, description: 'Anything else we should know?' },
 ];
 
+// Helper function to create question labels mapping
+const getQuestionLabelsMapping = (): Record<string, string> => {
+  const labels: Record<string, string> = {};
+  questions.forEach((question) => {
+    labels[question.name] = question.label;
+  });
+  return labels;
+};
+
 // Define categories
 const categories = [
   {
@@ -1589,7 +1602,21 @@ function StepIndicator({ step, title, description, isActive, isCompleted, onClic
   );
 }
 
-function OnboardingHeader({ userName }: { userName: string }) {
+function OnboardingHeader({ 
+  userName, 
+  isEditMode, 
+  onSaveProgress, 
+  isSavingProgress,
+  onCancel,
+  onFeedbackClick
+}: { 
+  userName: string;
+  isEditMode?: boolean;
+  onSaveProgress?: () => void;
+  isSavingProgress?: boolean;
+  onCancel?: () => void;
+  onFeedbackClick?: () => void;
+}) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b">
       <div className="px-4 h-16 flex items-center justify-between">
@@ -1598,21 +1625,52 @@ function OnboardingHeader({ userName }: { userName: string }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild className="flex items-center gap-2">
-            <Link href="/help" target="_blank" rel="noopener noreferrer">
-              <HelpCircle className="h-4 w-4" />
-              Complete Help Guide
-            </Link>
-          </Button>
-          <div className="text-sm text-gray-600">
-            {userName}
-          </div>
-          <form action={signOutAction}>
-            <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
-              <LogOut className="h-4 w-4" />
-              Sign out
+          {onFeedbackClick && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={onFeedbackClick}
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden md:inline">Leave Your Feedback</span>
+              <span className="md:hidden">Feedback</span>
             </Button>
-          </form>
+          )}
+          {isEditMode && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onSaveProgress}
+                disabled={isSavingProgress}
+                className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {isSavingProgress ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Save
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -1627,9 +1685,14 @@ function WelcomeScreen({ userEmail = "user@example.com", onStart = () => console
       <div className="w-full max-w-5xl">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3">
-           
+          <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-gray-500 font-medium">Trades Business School</span>
+            <form action={signOutAction}>
+              <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+            </form>
           </div>
         </div>
 
@@ -1759,8 +1822,31 @@ function FloatingAIAssistant({
   // Removed chatContainerRef since we now use editable content instead of chat history display
   const { toast } = useToast();
 
-  const currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
-  const currentValue = focusedQuestion ? form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "" : "";
+  // Check if this is an employee responsibility field
+  const isEmployeeResponsibility = focusedQuestion?.startsWith('employee_responsibility_');
+  const employeeId = isEmployeeResponsibility ? focusedQuestion?.replace('employee_responsibility_', '') : null;
+  
+  // Get current question or create a virtual one for employee responsibilities
+  let currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
+  let currentValue: any = focusedQuestion ? form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "" : "";
+  
+  // Handle employee responsibility fields specially
+  if (isEmployeeResponsibility && employeeId) {
+    const employees = form.watch('current_employees_and_roles_responsibilities') as Employee[] || [];
+    const employee = employees.find((e: Employee) => e.id === employeeId);
+    currentValue = employee?.responsibilities || "";
+    // Create a virtual question for the AI assistant
+    currentQuestion = {
+      name: focusedQuestion!,
+      label: "Main Responsibilities",
+      type: 'textarea',
+      required: true,
+      aiAssist: true,
+      icon: Users,
+      description: "Describe the key responsibilities for this team member"
+    };
+  }
+  
   const hasContent = currentQuestion ? (
     currentQuestion.type === 'business-owners-repeater'
       ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
@@ -2298,7 +2384,26 @@ function MobileAIAssistant({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
+  // Check if this is an employee responsibility field
+  const isEmployeeResponsibility = focusedQuestion?.startsWith('employee_responsibility_');
+  const employeeId = isEmployeeResponsibility ? focusedQuestion?.replace('employee_responsibility_', '') : null;
+  
+  // Get current question or create a virtual one for employee responsibilities
+  let currentQuestion = focusedQuestion ? questions.find(q => q.name === focusedQuestion) : null;
+  
+  // Handle employee responsibility fields specially
+  if (isEmployeeResponsibility && employeeId) {
+    // Create a virtual question for the AI assistant
+    currentQuestion = {
+      name: focusedQuestion!,
+      label: "Main Responsibilities",
+      type: 'textarea',
+      required: true,
+      aiAssist: true,
+      icon: Users,
+      description: "Describe the key responsibilities for this team member"
+    };
+  }
 
   // Helper function to extract short label from suggestion (mobile version)
   const getSuggestionLabel = (suggestion: string) => {
@@ -2319,7 +2424,16 @@ function MobileAIAssistant({
   const getSmartSuggestions = () => {
     if (!currentQuestion) return [];
 
-    const currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    // Get current value - handle employee responsibility fields specially
+    let currentValue: any = "";
+    if (isEmployeeResponsibility && employeeId) {
+      const employees = form.watch('current_employees_and_roles_responsibilities') as Employee[] || [];
+      const employee = employees.find((e: Employee) => e.id === employeeId);
+      currentValue = employee?.responsibilities || "";
+    } else {
+      currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    }
+    
     const hasContent = currentQuestion ? (
       currentQuestion.type === 'business-owners-repeater'
         ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
@@ -2336,7 +2450,11 @@ function MobileAIAssistant({
 
     const suggestions = [];
     
-    if (currentQuestion.name.includes('competitor')) {
+    // Special suggestions for employee responsibilities
+    if (isEmployeeResponsibility || currentQuestion.name.includes('responsibilit')) {
+      suggestions.push("Make it more specific and detailed with clear action items. Return only the improved content.");
+      suggestions.push("Make it more professional and polished. Return only the improved content.");
+    } else if (currentQuestion.name.includes('competitor')) {
       suggestions.push("Rewrite with better competitive analysis structure. Focus on specific competitors and how you differentiate. Return only the improved content.");
       suggestions.push("Enhance the comparison clarity. Make the competitive landscape clearer with specific examples. Return only the improved content.");
     } else if (currentQuestion.name.includes('vision') || currentQuestion.name.includes('goal')) {
@@ -2364,7 +2482,16 @@ function MobileAIAssistant({
     const currentFormValues = form.getValues();
     const currentCategoryObj = categories.find(cat => cat.questions.some((q: any) => q.name === focusedQuestion));
     const promptToUse = prompt || customPrompt;
-    const currentValue = form.getValues(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    
+    // Get current value - handle employee responsibility fields specially
+    let currentValue: any = "";
+    if (isEmployeeResponsibility && employeeId) {
+      const employees = form.getValues('current_employees_and_roles_responsibilities') as Employee[];
+      const employee = employees.find((e: Employee) => e.id === employeeId);
+      currentValue = employee?.responsibilities || "";
+    } else {
+      currentValue = form.getValues(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+    }
 
     try {
       const response = await fetch('/api/gemini/generate-content', {
@@ -2376,7 +2503,7 @@ function MobileAIAssistant({
           currentFormValues,
           questionName: focusedQuestion,
           questionLabel: currentQuestion?.label,
-          categoryTitle: currentCategoryObj?.title,
+          categoryTitle: currentCategoryObj?.title || 'Team Information',
           customPrompt: promptToUse + " Please provide a plain text response without any markdown formatting, asterisks, or special characters.",
           existingContent: currentValue,
           action: currentValue ? 'improve' : 'generate',
@@ -2398,8 +2525,18 @@ function MobileAIAssistant({
         .replace(/```[\s\S]*?```/g, '')
         .replace(/`([^`]+)`/g, '$1');
       
-      // Write directly to the form field
-      form.setValue(focusedQuestion as keyof z.infer<typeof formSchema>, cleanedContent, { shouldValidate: true });
+      // Write directly to the form field - handle employee responsibility fields specially
+      if (isEmployeeResponsibility && employeeId) {
+        const currentEmployees = form.getValues('current_employees_and_roles_responsibilities') as Employee[];
+        const updatedEmployees = currentEmployees.map((emp: Employee) => 
+          emp.id === employeeId 
+            ? { ...emp, responsibilities: cleanedContent }
+            : emp
+        );
+        form.setValue('current_employees_and_roles_responsibilities', updatedEmployees, { shouldValidate: true });
+      } else {
+        form.setValue(focusedQuestion as keyof z.infer<typeof formSchema>, cleanedContent, { shouldValidate: true });
+      }
       
       // Keep the AI assistant open after generating content (to match desktop behavior)
       // onClose();  // Removed to allow continued editing
@@ -2416,20 +2553,29 @@ function MobileAIAssistant({
     }
   };
 
-  const currentValue = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+  // Get current value for display - handle employee responsibility fields specially
+  let currentValueForDisplay: any = "";
+  if (isEmployeeResponsibility && employeeId) {
+    const employees = form.watch('current_employees_and_roles_responsibilities') as Employee[] || [];
+    const employee = employees.find((e: Employee) => e.id === employeeId);
+    currentValueForDisplay = employee?.responsibilities || "";
+  } else {
+    currentValueForDisplay = form.watch(focusedQuestion as keyof z.infer<typeof formSchema>) || "";
+  }
+  
   const hasContent = currentQuestion ? (
     currentQuestion.type === 'business-owners-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((owner: any) => owner.fullName && owner.role)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((owner: any) => owner.fullName && owner.role)
       : currentQuestion.type === 'competitors-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((competitor: any) => competitor.name)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((competitor: any) => competitor.name)
       : currentQuestion.type === 'employees-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((employee: any) => employee.name && employee.role && employee.responsibilities)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((employee: any) => employee.name && employee.role && employee.responsibilities)
       : currentQuestion.type === 'sop-links-repeater'
-      ? Array.isArray(currentValue) && currentValue.length > 0 && currentValue.every((link: any) => link.title && link.url)
-      : !!(currentValue && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length >= 10 : false)
+      ? Array.isArray(currentValueForDisplay) && currentValueForDisplay.length > 0 && currentValueForDisplay.every((link: any) => link.title && link.url)
+      : !!(currentValueForDisplay && typeof currentValueForDisplay === 'string' ? currentValueForDisplay.trim().split(/\s+/).filter(Boolean).length >= 10 : false)
   ) : false;
 
-  const wordCount = currentQuestion && typeof currentValue === 'string' ? currentValue.trim().split(/\s+/).filter(Boolean).length : 0;
+  const wordCount = currentQuestion && typeof currentValueForDisplay === 'string' ? currentValueForDisplay.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return (
     <div className="lg:hidden mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
@@ -2669,13 +2815,14 @@ function generatePasswordFromCompanyName(companyName: string): string {
   return password
 }
 
-export default function OnboardingClient() {
+export default function OnboardingClient({ isEditMode = false }: { isEditMode?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(0);
   const [userName, setUserName] = useState<string>("");
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(!isEditMode);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [submissionSteps, setSubmissionSteps] = useState<{
     title: string;
@@ -2698,6 +2845,14 @@ export default function OnboardingClient() {
   
   // State for Terms & Conditions and Privacy Policy checkbox
   const [termsAndPrivacyAccepted, setTermsAndPrivacyAccepted] = useState(false);
+
+  // State for feedback dialog
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
+  const [feedbackType, setFeedbackType] = useState<string>('general');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -2800,13 +2955,29 @@ export default function OnboardingClient() {
           // Legacy string format - keep as is
         }
         
+        // Check existing onboarding data to preserve completed status
+        const { data: existingOnboarding } = await supabase
+          .from('company_onboarding')
+          .select('completed')
+          .eq('user_id', user.id)
+          .single();
+        
+        // Preserve existing completed status, or set to false for new records
+        const completedStatus = existingOnboarding?.completed ?? false;
+        
+        // Add question labels to the saved data
+        const dataWithLabels = {
+          ...dataToSave,
+          question_labels: getQuestionLabelsMapping()
+        };
+        
         await supabase
           .from('company_onboarding')
           .upsert(
             {
               user_id: user.id,
-              onboarding_data: dataToSave,
-              completed: false,
+              onboarding_data: dataWithLabels,
+              completed: completedStatus, // Preserve existing completed status
             },
             {
               onConflict: 'user_id',
@@ -3559,6 +3730,12 @@ export default function OnboardingClient() {
       dataToSubmit.software_and_tools_used_for_operations = softwareToolsToSave;
     }
 
+    // Add question labels to the submitted data
+    const dataToSubmitWithLabels = {
+      ...dataToSubmit,
+      question_labels: getQuestionLabelsMapping()
+    };
+
     try {
       // Update first step - Saving your information
       setSubmissionSteps(steps => steps.map((step, i) =>
@@ -3582,7 +3759,7 @@ export default function OnboardingClient() {
         await supabase
           .from('company_onboarding')
           .update({
-            onboarding_data: dataToSubmit,
+            onboarding_data: dataToSubmitWithLabels,
             competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
             updated_at: new Date().toISOString()
@@ -3596,7 +3773,7 @@ export default function OnboardingClient() {
           .from('company_onboarding')
           .insert({
             user_id: user.id,
-            onboarding_data: dataToSubmit,
+            onboarding_data: dataToSubmitWithLabels,
             competitor_data: Object.keys(competitorDataForDatabase).length > 0 ? competitorDataForDatabase : undefined,
             completed: true,
           });
@@ -3808,6 +3985,13 @@ export default function OnboardingClient() {
 
       toast({ title: "Success", description: "Your company information has been saved successfully!" });
       
+      // If in edit mode, redirect to thank-you page
+      if (isEditMode) {
+        router.push('/thank-you');
+        router.refresh();
+        return;
+      }
+      
       // Prepare parameters for discovery call page
       const formValues = form.getValues();
       const businessOwners = formValues.list_of_business_owners_full_names;
@@ -3841,9 +4025,151 @@ export default function OnboardingClient() {
     }
   };
 
+  // Save progress function for edit mode - saves without completing
+  const saveProgress = async () => {
+    setIsSavingProgress(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      const allFormValues = form.getValues();
+      const dataToSave = { ...allFormValues } as any;
+      
+      // Keep arrays as arrays for edit mode (don't convert to strings)
+      // The auto-save already handles this, but we'll ensure consistency
+      
+      // Add question labels to the saved data
+      const dataToSaveWithLabels = {
+        ...dataToSave,
+        question_labels: getQuestionLabelsMapping()
+      };
+      
+      // Check if user already has onboarding data
+      const { data: existingOnboarding } = await supabase
+        .from('company_onboarding')
+        .select('id, completed')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingOnboarding) {
+        // Preserve the existing completed status when updating
+        await supabase
+          .from('company_onboarding')
+          .update({
+            onboarding_data: dataToSaveWithLabels,
+            completed: existingOnboarding.completed, // Explicitly preserve existing completed status
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Only set completed: false for new records
+        await supabase
+          .from('company_onboarding')
+          .insert({
+            user_id: user.id,
+            onboarding_data: dataToSaveWithLabels,
+            completed: false,
+          });
+      }
+
+      toast({ 
+        title: "Progress Saved", 
+        description: "Your changes have been saved successfully." 
+      });
+      
+      // Redirect to thank-you page after saving (small delay to show toast)
+      setTimeout(() => {
+        window.location.href = '/thank-you';
+      }, 500);
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to save your progress. Please try again.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingProgress(false);
+    }
+  };
+
   // AI Content Accept Handler for inline assistant
   const handleAiContentAccept = (questionName: string, content: string) => {
-    form.setValue(questionName as keyof z.infer<typeof formSchema>, content, { shouldValidate: true });
+    // Check if this is an employee responsibility field
+    if (questionName.startsWith('employee_responsibility_')) {
+      const employeeId = questionName.replace('employee_responsibility_', '');
+      const currentEmployees = form.getValues('current_employees_and_roles_responsibilities') as Employee[];
+      const updatedEmployees = currentEmployees.map((emp: Employee) => 
+        emp.id === employeeId 
+          ? { ...emp, responsibilities: content }
+          : emp
+      );
+      form.setValue('current_employees_and_roles_responsibilities', updatedEmployees, { shouldValidate: true });
+    } else {
+      form.setValue(questionName as keyof z.infer<typeof formSchema>, content, { shouldValidate: true });
+    }
+  };
+
+  // Handle feedback submission
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackText.trim()) {
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('onboarding_feedback')
+        .insert({
+          user_id: user.id,
+          feedback_text: feedbackText.trim(),
+          rating: feedbackRating,
+          feedback_type: feedbackType,
+        });
+
+      if (error) {
+        console.error('Error submitting feedback:', error);
+        toast({
+          title: "Error",
+          description: "Failed to submit feedback. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Reset form and show success
+      setFeedbackText('');
+      setFeedbackRating(null);
+      setFeedbackType('general');
+      setFeedbackSubmitted(true);
+
+      // Close dialog after a short delay
+      setTimeout(() => {
+        setShowFeedbackDialog(false);
+        setFeedbackSubmitted(false);
+      }, 2000);
+
+      toast({
+        title: "Success",
+        description: "Thank you for your feedback!",
+      });
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit feedback. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
   };
 
 
@@ -3864,7 +4190,16 @@ export default function OnboardingClient() {
       ) : (
         <>
           {isLoading && <SubmissionLoader loadingSteps={submissionSteps} />}
-          <OnboardingHeader userName={userName} />
+          <OnboardingHeader 
+            userName={userName}
+            isEditMode={isEditMode}
+            onSaveProgress={saveProgress}
+            isSavingProgress={isSavingProgress}
+            onCancel={() => {
+              window.location.href = '/thank-you';
+            }}
+            onFeedbackClick={() => setShowFeedbackDialog(true)}
+          />
           <main className="mx-auto p-0">
             {showWelcome ? (
               <WelcomeScreen userEmail={userName} onStart={handleStartOnboarding} />
@@ -3913,6 +4248,21 @@ export default function OnboardingClient() {
                       </div>
                       <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
                     </div>
+
+                    {/* User info and signout at bottom */}
+                    <div className="p-6 border-t bg-white">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                          {userName}
+                        </div>
+                        <form action={signOutAction}>
+                          <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                            <LogOut className="h-4 w-4" />
+                            Sign out
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -3953,6 +4303,21 @@ export default function OnboardingClient() {
                           <span className="text-sm font-medium text-blue-600">{Math.round((currentCategory / (categories.length - 1)) * 100)}%</span>
                         </div>
                         <Progress value={(currentCategory / (categories.length - 1)) * 100} className="h-2" />
+                      </div>
+
+                      {/* User info and signout at bottom */}
+                      <div className="p-6 border-t bg-white">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            {userName}
+                          </div>
+                          <form action={signOutAction}>
+                            <Button type="submit" variant="outline" size="sm" className="flex items-center gap-2">
+                              <LogOut className="h-4 w-4" />
+                              Sign out
+                            </Button>
+                          </form>
+                        </div>
                       </div>
                     </div>
                   </SheetContent>
@@ -4052,6 +4417,7 @@ export default function OnboardingClient() {
                                   fieldId={q.name}
                                   departments={departments}
                                   companyName={form.getValues('company_name_official_registered') as string}
+                                  setCurrentFocusedQuestion={setCurrentFocusedQuestion}
                                 />
                             ) : q.type === 'date-picker' ? (
                                 <DatePicker
@@ -4237,6 +4603,25 @@ export default function OnboardingClient() {
                             Next
                             <ChevronRight className="h-4 w-4" />
                           </Button>
+                        ) : isEditMode ? (
+                          <Button
+                            type="button"
+                            onClick={saveProgress}
+                            disabled={isSavingProgress}
+                            className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            {isSavingProgress ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4" />
+                                Save
+                              </>
+                            )}
+                          </Button>
                         ) : (
                           <div className="w-full">
                             {/* Terms & Conditions and Privacy Policy checkbox */}
@@ -4306,7 +4691,7 @@ export default function OnboardingClient() {
                   {/* Mobile AI is now inline - no floating assistant needed */}
 
                   {/* Mobile Terms & Conditions and Privacy Policy checkbox */}
-                  {currentCategory === categories.length - 1 && (
+                  {currentCategory === categories.length - 1 && !isEditMode && (
                     <div className="md:hidden fixed bottom-20 left-0 right-0 bg-white border-t p-4">
                       <div className="flex items-start space-x-2">
                         <Checkbox
@@ -4343,32 +4728,208 @@ export default function OnboardingClient() {
                     <span className="text-sm font-medium text-gray-500">
                       Step {currentCategory + 1} of {categories.length}
                     </span>
-                    {currentCategory < categories.length - 1 ? (
-                      <Button
-                        type="button"
-                        onClick={handleNext}
-                        disabled={isLoading}
-                        className="flex items-center gap-2"
-                      >
-                        Next
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={isLoading || !termsAndPrivacyAccepted}
-                        className="flex items-center gap-2"
-                      >
-                        {isLoading ? "Saving..." : "Complete"}
-                        <CheckCircle className="h-4 w-4" />
-                      </Button>
-                    )}
+                      {currentCategory < categories.length - 1 ? (
+                        <Button
+                          type="button"
+                          onClick={handleNext}
+                          disabled={isLoading}
+                          className="flex items-center gap-2"
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      ) : isEditMode ? (
+                        <Button
+                          type="button"
+                          onClick={saveProgress}
+                          disabled={isSavingProgress}
+                          className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          {isSavingProgress ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={isLoading || !termsAndPrivacyAccepted}
+                          className="flex items-center gap-2"
+                        >
+                          {isLoading ? "Saving..." : "Complete"}
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                   </div>
                 </div>
               </div>
             )}
           </main>
+
+          {/* Feedback Dialog */}
+          <Dialog 
+            open={showFeedbackDialog} 
+            onOpenChange={(open) => {
+              setShowFeedbackDialog(open);
+              if (!open) {
+                // Reset form when dialog closes
+                setFeedbackText('');
+                setFeedbackRating(null);
+                setFeedbackType('general');
+                setFeedbackSubmitted(false);
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                  <MessageSquare className="h-6 w-6 text-blue-600" />
+                  Share Your Feedback
+                </DialogTitle>
+                <DialogDescription>
+                  We'd love to hear about your onboarding experience. Your feedback helps us improve the process.
+                </DialogDescription>
+              </DialogHeader>
+
+              {feedbackSubmitted ? (
+                <div className="py-8 text-center">
+                  <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Thank You!</h3>
+                  <p className="text-gray-600">Your feedback has been submitted successfully.</p>
+                </div>
+              ) : (
+                <div className="space-y-6 py-4">
+                  {/* Rating Section */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      How would you rate your onboarding experience? (Optional)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((rating) => (
+                        <button
+                          key={rating}
+                          type="button"
+                          onClick={() => setFeedbackRating(rating)}
+                          className={`p-2 rounded-lg transition-all ${
+                            feedbackRating === rating
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          }`}
+                        >
+                          <Star
+                            className={`h-6 w-6 ${
+                              feedbackRating && feedbackRating >= rating
+                                ? 'fill-current'
+                                : ''
+                            }`}
+                          />
+                        </button>
+                      ))}
+                      {feedbackRating && (
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackRating(null)}
+                          className="text-sm text-gray-500 hover:text-gray-700 ml-2"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Feedback Type */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Feedback Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'general', label: 'General Feedback' },
+                        { value: 'positive', label: 'Positive' },
+                        { value: 'negative', label: 'Issue/Concern' },
+                        { value: 'suggestion', label: 'Suggestion' },
+                      ].map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setFeedbackType(type.value)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            feedbackType === type.value
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Feedback Text */}
+                  <div className="space-y-2">
+                    <label htmlFor="feedback-text" className="text-sm font-medium text-gray-700">
+                      Your Feedback <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      id="feedback-text"
+                      placeholder="Please share your thoughts about the onboarding process..."
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      rows={6}
+                      className="resize-none"
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      {feedbackText.length} characters
+                    </p>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowFeedbackDialog(false);
+                        setFeedbackText('');
+                        setFeedbackRating(null);
+                        setFeedbackType('general');
+                      }}
+                      disabled={isSubmittingFeedback}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleFeedbackSubmit}
+                      disabled={!feedbackText.trim() || isSubmittingFeedback}
+                      className="flex items-center gap-2"
+                    >
+                      {isSubmittingFeedback ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Submit Feedback
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>
