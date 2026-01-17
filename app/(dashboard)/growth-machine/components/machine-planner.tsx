@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles, Target, Building, Users, TrendingUp, Zap, Brain, CheckCircle } from "lucide-react";
+import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles, Target, Building, Users, TrendingUp, Zap, Brain, CheckCircle, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -26,13 +26,19 @@ type MachineData = {
   created_at: string;
   updated_at: string;
   figma_link: string | null;
+  welcome_completed?: boolean;
+  questions?: any;
+  answers?: any;
+  questions_completed?: boolean;
+  ai_assisted?: boolean;
 };
 
 interface MachinePlannerProps {
   onDataChange?: () => void;
+  isPlannerTabActive?: boolean;
 }
 
-export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
+export default function MachinePlanner({ onDataChange, isPlannerTabActive = true }: MachinePlannerProps) {
   const [machineData, setMachineData] = useState<MachineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -71,16 +77,9 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
   const [showQuestions, setShowQuestions] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
-  
-  // Local storage keys
-  const STORAGE_KEY_QUESTIONS = 'growth-machine-questions';
-  const STORAGE_KEY_ANSWERS = 'growth-machine-answers';
-  const STORAGE_KEY_GENERATED = 'growth-machine-generated-data';
-  const STORAGE_KEY_TIMESTAMP = 'growth-machine-timestamp';
 
   useEffect(() => {
     fetchMachineData();
-    loadFromLocalStorage();
   }, []);
   
   // Update progress when questions or answers change
@@ -90,13 +89,36 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       setProgress((completedCount / questions.length) * 100);
     }
   }, [questions, answers]);
-  
-  // Save to local storage whenever generatedData changes
+
+  // Load questions and answers from database when machineData changes
   useEffect(() => {
-    if (generatedData) {
-      saveGeneratedDataToStorage(generatedData);
+    if (machineData) {
+      // Load questions from database
+      if (machineData.questions?.questions && Array.isArray(machineData.questions.questions)) {
+        setQuestions(machineData.questions.questions);
+        
+        // Load answers from database
+        if (machineData.answers && typeof machineData.answers === 'object') {
+          setAnswers(machineData.answers);
+          // Update question completion status based on answers
+          setQuestions(machineData.questions.questions.map((q: any) => ({
+            ...q,
+            is_completed: !!(machineData.answers[q.id] && machineData.answers[q.id].trim() !== ''),
+            user_answer: machineData.answers[q.id] || null
+          })));
+        }
+        
+        // Show questions dialog if questions exist and are not completed
+        if (!machineData.questions_completed && machineData.questions.questions.length > 0) {
+          setShowQuestions(true);
+        }
+      } else if (!machineData.welcome_completed || !machineData.questions_completed) {
+        // If no questions yet but welcome not completed, show dialog
+        // User can click button to generate questions
+        setShowQuestions(true);
+      }
     }
-  }, [generatedData]);
+  }, [machineData]);
 
   useEffect(() => {
     if (machineData) {
@@ -208,114 +230,14 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     setEditMode(false);
   };
   
-  // LocalStorage functions
-  const loadFromLocalStorage = () => {
-    try {
-      // Load questions
-      const storedQuestions = localStorage.getItem(STORAGE_KEY_QUESTIONS);
-      if (storedQuestions) {
-        const data = JSON.parse(storedQuestions);
-        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-          setQuestions(data.questions);
-          // Load answers if they exist
-          const storedAnswers = localStorage.getItem(STORAGE_KEY_ANSWERS);
-          if (storedAnswers) {
-            const answersData = JSON.parse(storedAnswers);
-            setAnswers(answersData);
-            // Update question completion status
-            setQuestions(data.questions.map((q: any) => ({
-              ...q,
-              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
-              user_answer: answersData[q.id] || null
-            })));
-          }
-        }
-      }
-      
-      // Load generated data if exists
-      const storedGenerated = localStorage.getItem(STORAGE_KEY_GENERATED);
-      if (storedGenerated) {
-        const generated = JSON.parse(storedGenerated);
-        setGeneratedData(generated);
-      }
-    } catch (error) {
-      console.error('Error loading from local storage:', error);
-    }
-  };
-  
-  const saveQuestionsToStorage = (questionsData: any[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_QUESTIONS, JSON.stringify({
-        questions: questionsData,
-        timestamp: new Date().toISOString()
-      }));
-    } catch (error) {
-      console.error('Error saving questions to storage:', error);
-    }
-  };
-  
-  const saveAnswersToStorage = (answersData: {[key: string]: string}) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(answersData));
-    } catch (error) {
-      console.error('Error saving answers to storage:', error);
-    }
-  };
-  
-  const saveGeneratedDataToStorage = (data: any) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_GENERATED, JSON.stringify(data));
-      localStorage.setItem(STORAGE_KEY_TIMESTAMP, new Date().toISOString());
-    } catch (error) {
-      console.error('Error saving generated data to storage:', error);
-    }
-  };
-  
-  const clearLocalStorage = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY_QUESTIONS);
-      localStorage.removeItem(STORAGE_KEY_ANSWERS);
-      localStorage.removeItem(STORAGE_KEY_GENERATED);
-      localStorage.removeItem(STORAGE_KEY_TIMESTAMP);
-    } catch (error) {
-      console.error('Error clearing local storage:', error);
-    }
-  };
   
   // Question generation
   const generateQuestions = async () => {
     try {
       setIsLoadingQuestions(true);
       
-      // Check if we have cached questions
-      const stored = localStorage.getItem(STORAGE_KEY_QUESTIONS);
-      if (stored) {
-        const data = JSON.parse(stored);
-        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
-        const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0 && cacheAge < cacheMaxAge) {
-          setQuestions(data.questions);
-          setCurrentQuestionIndex(0);
-          const storedAnswers = localStorage.getItem(STORAGE_KEY_ANSWERS);
-          if (storedAnswers) {
-            const answersData = JSON.parse(storedAnswers);
-            setAnswers(answersData);
-            setQuestions(data.questions.map((q: any) => ({
-              ...q,
-              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
-              user_answer: answersData[q.id] || null
-            })));
-          } else {
-            setAnswers({});
-          }
-          setShowQuestions(true);
-          setProgress(0);
-          setIsLoadingQuestions(false);
-          return;
-        }
-      }
-      
+      // Questions are now stored in database, so we just need to fetch them
+      // The API will return existing questions if they exist, or generate new ones
       const response = await fetch('/api/gemini/growth-machine/generate-questions', {
         method: 'POST',
         headers: {
@@ -331,11 +253,22 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       
       if (result.success && result.questions) {
         setQuestions(result.questions);
-        saveQuestionsToStorage(result.questions);
         setCurrentQuestionIndex(0);
-        setAnswers({});
+        // Load answers from database if they exist
+        if (machineData?.answers) {
+          setAnswers(machineData.answers);
+          setQuestions(result.questions.map((q: any) => ({
+            ...q,
+            is_completed: !!(machineData.answers[q.id] && machineData.answers[q.id].trim() !== ''),
+            user_answer: machineData.answers[q.id] || null
+          })));
+        } else {
+          setAnswers({});
+        }
         setShowQuestions(true);
         setProgress(0);
+        // Refresh machine data to get updated questions
+        await fetchMachineData();
       } else {
         throw new Error('No questions data received');
       }
@@ -351,7 +284,6 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
   const handleAnswerChange = (questionId: string, value: string) => {
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers);
-    saveAnswersToStorage(newAnswers);
     
     // Update the question's completion status
     setQuestions(prev => prev.map(q => 
@@ -364,6 +296,21 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
   // Navigate to next question
   const nextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
+      // Save answers in the background (non-blocking)
+      fetch('/api/gemini/growth-machine/save-answers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          answers,
+          questions 
+        }),
+      }).catch((error) => {
+        console.error('Error saving answers:', error);
+      });
+      
+      // Navigate immediately without waiting for save
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentQuestionIndex(prev => prev + 1);
@@ -388,17 +335,23 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     try {
       setGenerating(true);
       
-      // Save answers
+      // Save answers to database (this will also mark questions_completed as true)
       await fetch('/api/gemini/growth-machine/save-answers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ 
+          answers,
+          questions 
+        }),
       });
 
-      // Close question flow
-      setShowQuestions(false);
+      // Refresh machine data to get updated flags
+      await fetchMachineData();
+
+      // DON'T close question flow yet - keep it open during generation
+      // setShowQuestions(false);
       
       // Generate growth machine with answers
       const response = await fetch('/api/gemini/growth-machine', {
@@ -417,16 +370,62 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       }
       
       setGeneratedData(result.data);
-      // Auto-fill and enter edit mode
+      // Auto-fill data
       if (result.data) {
-        setEngineName(result.data.enginename || "");
-        setDescription(result.data.description || "");
-        setTriggeringEvents(Array.isArray(result.data.triggeringevents) ? result.data.triggeringevents.filter((item: any) => item && item.value && item.value.trim() !== '') : []);
-        setEndingEvent(Array.isArray(result.data.endingevent) ? result.data.endingevent.filter((item: any) => item && item.value && item.value.trim() !== '') : []);
-        setActionsActivities(Array.isArray(result.data.actionsactivities) ? result.data.actionsactivities.filter((item: any) => item && item.value && item.value.trim() !== '') : []);
-        setEditMode(true);
+        const engineNameValue = result.data.enginename || "";
+        const descriptionValue = result.data.description || "";
+        const triggeringEventsValue = Array.isArray(result.data.triggeringevents) ? result.data.triggeringevents.filter((item: any) => item && item.value && item.value.trim() !== '') : [];
+        const endingEventValue = Array.isArray(result.data.endingevent) ? result.data.endingevent.filter((item: any) => item && item.value && item.value.trim() !== '') : [];
+        const actionsActivitiesValue = Array.isArray(result.data.actionsactivities) ? result.data.actionsactivities.filter((item: any) => item && item.value && item.value.trim() !== '') : [];
+        
+        setEngineName(engineNameValue);
+        setDescription(descriptionValue);
+        setTriggeringEvents(triggeringEventsValue);
+        setEndingEvent(endingEventValue);
+        setActionsActivities(actionsActivitiesValue);
+        
+        // Automatically save the generated content to database using growth-machine API
+        try {
+          setSaving(true);
+          const saveResponse = await fetch('/api/gemini/growth-machine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'save',
+              generatedData: {
+                enginename: engineNameValue,
+                enginetype: engineType,
+                description: descriptionValue,
+                triggeringevents: triggeringEventsValue,
+                endingevent: endingEventValue,
+                actionsactivities: actionsActivitiesValue,
+              }
+            }),
+          });
+
+          if (!saveResponse.ok) {
+            const errorData = await saveResponse.json();
+            throw new Error(errorData.error || 'Failed to save machine data');
+          }
+
+          // Refresh machine data
+          await fetchMachineData();
+          if (onDataChange) onDataChange();
+        } catch (saveErr: any) {
+          console.error('Error auto-saving generated content:', saveErr);
+          toast.error('Generated content saved but update failed. Please save manually.');
+        } finally {
+          setSaving(false);
+        }
+        
+        // Don't enter edit mode automatically - show the saved content
+        setEditMode(false);
       }
-      toast.success("AI assistant has mapped out your growth process! Review and save when ready.");
+      
+      // Now close question flow after generation is complete
+      setShowQuestions(false);
+      
+      toast.success("AI assistant has mapped out your growth process and saved it automatically!");
     } catch (err: any) {
       setError(err.message || 'Failed to map your Growth Machine process');
       toast.error(err.message || 'Failed to map your Growth Machine process');
@@ -457,9 +456,8 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     await generateQuestions();
   };
   
-  // Regenerate - clear cache and start over
+  // Regenerate - clear data and start over
   const handleRegenerate = () => {
-    clearLocalStorage();
     setGeneratedData(null);
     setQuestions([]);
     setAnswers({});
@@ -496,10 +494,6 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
       onDataChange?.();
       setGeneratedData(null);
       
-      // Clear generated data from localStorage after successful save
-      localStorage.removeItem(STORAGE_KEY_GENERATED);
-      localStorage.removeItem(STORAGE_KEY_TIMESTAMP);
-      
       toast.success("Generated content saved successfully!");
       
     } catch (err: any) {
@@ -514,7 +508,7 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
   // Show loading state while creating questions
   if (isLoadingQuestions) {
     return (
-      <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
+      <div className="min-h-[calc(100vh-15rem)] flex items-center justify-center">
         <div className="max-w-md w-full mx-4">
           <Card className="bg-transparent shadow-none border-none p-0">
             <CardHeader className="text-left pb-6">
@@ -563,6 +557,10 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
     );
   }
 
+  // Show question/welcome content instead of planner content when appropriate
+  // Keep showing during generation even after questions are completed
+  const shouldShowQuestionsContent = showQuestions && isPlannerTabActive && (!machineData?.questions_completed || isLoadingQuestions || generating);
+
   return (
     <div className="space-y-5">
       {error && (
@@ -570,69 +568,314 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           {error}
         </div>
       )}
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Growth Machine</h1>
-          <p className="text-sm text-gray-500 mt-1">Define and manage your growth machine process</p>
-        </div>
-        {!editMode ? (
-          <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
-            Edit All
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={handleCancelAll} disabled={saving}>
-              Cancel
-            </Button>
-            <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll} disabled={saving}>
-              Save All
-            </Button>
-          </div>
-        )}
-      </div>
-      
 
-      {/* AI Assistant Section */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg flex-wrap gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-white" />
+      {shouldShowQuestionsContent ? (
+        // Question/Welcome Content - Replaces planner content - Centered
+        <div className="flex items-center justify-center min-h-[calc(100vh-500px)] py-8">
+          <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
+            <CardContent className="p-0">
+            {generating && !isLoadingQuestions && questions.length > 0 ? (
+              // Show simple loading state during generation - hide header and other content
+              <div className="px-8 py-20 flex flex-col items-center justify-center min-h-[500px]">
+                <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6" />
+                <h3 className="text-2xl font-semibold text-gray-900 mb-3">Generating Your Growth Machine</h3>
+                <p className="text-base text-gray-600 text-center max-w-md">
+                  Our AI is analyzing your answers and creating a personalized growth process for you...
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Header with Progress - Only show when not generating */}
+                <div className="px-8 pt-10 pb-7">
+                  {/* Welcome Message - Show when welcome_completed is false */}
+                  {!machineData?.welcome_completed && (
+                    <div className="pb-6 border-b border-gray-200">
+                      <div>
+                        <h3 className="text-2xl font-medium text-gray-900 mb-3">
+                          Welcome to Growth Engine
+                        </h3>
+                        <p className="text-base text-gray-600 leading-relaxed">
+                          This is Growth Engine - here you can define and manage your growth machine process. 
+                          We've analysed your company data and our AI assistant can help map your growth process. 
+                          Let's get started!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {questions.length > 0 && (
+                    <div className="flex items-start justify-between mb-5 mt-6">
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                          Let's Personalise Your Growth Machine
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Answer {questions.length} questions to help us create a tailored growth process
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full ml-4">
+                        <span className="text-sm font-semibold text-blue-700">
+                          {currentQuestionIndex + 1} / {questions.length}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {isLoadingQuestions && (
+                    <div className="flex items-start justify-between mb-5 mt-6">
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                          Setting Up Your Growth Machine
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Our AI is creating personalised questions for you...
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Progress Bar - Only show when questions exist */}
+                  {questions.length > 0 && !isLoadingQuestions && (
+                    <div className="relative w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1">
+                      <div
+                        className="absolute top-0 left-0 h-full bg-blue-600 transition-all duration-300 ease-out rounded-full"
+                        style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {questions.length > 0 ? (
+              <>
+                {/* Question Content */}
+                <div className="px-8 py-8 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 240px)' }}>
+                  {(() => {
+                    const currentQuestion = questions[currentQuestionIndex];
+                    if (!currentQuestion) return null;
+
+                    return (
+                      <div className="space-y-6">
+                        {/* Question Text */}
+                        <div>
+                          <h2 className="text-xl font-medium text-gray-900 leading-relaxed">
+                            {currentQuestion.question_text}
+                          </h2>
+                        </div>
+
+                        {/* Answer Input */}
+                        <div>
+                          {currentQuestion.question_type === 'select' && currentQuestion.options ? (
+                            <Select
+                              value={answers[currentQuestion.id] || ''}
+                              onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
+                            >
+                              <SelectTrigger className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                <SelectValue placeholder="Select an option..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {currentQuestion.options.map((option: string, index: number) => (
+                                  <SelectItem key={index} value={option} className="text-base py-3">
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Textarea
+                              value={answers[currentQuestion.id] || ''}
+                              onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                              placeholder="Type your answer here..."
+                              className="min-h-[160px] text-base border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none placeholder:text-gray-400"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Footer Navigation */}
+                <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50">
+                  <div className="flex items-center justify-between">
+                    {/* Previous Button */}
+                    <Button
+                      variant="ghost"
+                      onClick={previousQuestion}
+                      disabled={currentQuestionIndex === 0}
+                      className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-0"
+                    >
+                      <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
+                      Previous
+                    </Button>
+
+                    {/* Question Dots */}
+                    <div className="flex gap-1.5">
+                      {questions.map((question, index) => {
+                        const hasAnswer = answers[question.id] && answers[question.id].trim() !== '';
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentQuestionIndex(index)}
+                            className={`h-1.5 rounded-full transition-all duration-200 ${
+                              index === currentQuestionIndex
+                                ? 'bg-blue-600 w-8'
+                                : hasAnswer
+                                ? 'bg-blue-400 w-1.5'
+                                : 'bg-gray-300 w-1.5 hover:bg-gray-400'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+
+                    {/* Next/Complete Button */}
+                    {currentQuestionIndex < questions.length - 1 ? (
+                      <Button
+                        onClick={nextQuestion}
+                        disabled={isTransitioning}
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                      >
+                        {isTransitioning ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            Next
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleCompleteQuestions}
+                        disabled={generating}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
+                      >
+                        {generating ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            Complete
+                          </>
+                          
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </>
+                ) : (
+              // No questions yet - Show button to start AI generation
+              <div className="p-8 pt-0">
+                <div className="mx-auto space-y-6 bg-white rounded-lg p-8 border border-gray-200">
+                  <div>
+                    <h3 className="text-xl font-medium text-gray-900 mb-3">
+                      AI Assistant Ready
+                    </h3>
+                    <p className="text-base text-gray-600 leading-relaxed mb-6">
+                      Our AI assistant can help map your growth process. Click the button below to get started.
+                    </p>
+                    <div className="flex justify-start">
+                      <Button
+                        onClick={handleGenerateWithAI}
+                        disabled={isLoadingQuestions}
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-md px-8 py-6 text-base"
+                        size="lg"
+                      >
+                        {isLoadingQuestions ? (
+                          <>
+                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                            Creating questions...
+                          </>
+                        ) : (
+                          "Let AI Help Create Machine"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+        </div>
+      ) : (
+        // Normal Planner Content
+        <>
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Growth Machine</h1>
+              <p className="text-sm text-gray-500 mt-1">Define and manage your growth machine process</p>
+            </div>
+            {!editMode ? (
+              <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
+                Edit All
+              </Button>
+            ) : (
+              <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save All'
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* AI Assistant Section - Hide if questions completed and ai_assisted */}
+          {!(machineData?.questions_completed && machineData?.ai_assisted) && (
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg flex-wrap gap-4">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  We've analysed your company data and our AI assistant can help map your growth process. 
+                  You can also create it manually if you prefer.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 ml-4">
+              {generatedData && (
+                <Button
+                  size="sm"
+                  className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleSaveGeneratedContent}
+                  disabled={saving}
+                >
+                  {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                  Save AI Content
+                </Button>
+              )}
+              <Button
+                size="sm"
+                className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={generatedData ? handleRegenerate : handleGenerateWithAI}
+                disabled={generating || isLoadingQuestions}
+              >
+                {(generating || isLoadingQuestions) ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                {(generating || isLoadingQuestions) ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Map This'}
+              </Button>
             </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
-            <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-              We've analysed your company data and our AI assistant can help map your growth process. 
-              You can also create it manually if you prefer.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2 ml-4">
-          {generatedData && (
-            <Button
-              size="sm"
-              className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
-              onClick={handleSaveGeneratedContent}
-              disabled={saving}
-            >
-              {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-              Save AI Content
-            </Button>
           )}
-          <Button
-            size="sm"
-            className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={generatedData ? handleRegenerate : handleGenerateWithAI}
-            disabled={generating || isLoadingQuestions}
-          >
-            {(generating || isLoadingQuestions) ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            {(generating || isLoadingQuestions) ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Map This'}
-          </Button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10">
         {/* Left Column: Engine Info + Triggering/Ending Events */}
         <div className="lg:col-span-8 space-y-4">
           {/* Combined Engine Info Card */}
@@ -781,173 +1024,8 @@ export default function MachinePlanner({ onDataChange }: MachinePlannerProps) {
           </Card>
         </div>
       </div>
-      
-      {/* Question Flow Dialog */}
-      <Dialog 
-        open={showQuestions} 
-        onOpenChange={(open) => {
-          // Prevent closing while questions are loading
-          if (!open && isLoadingQuestions) {
-            return;
-          }
-          setShowQuestions(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden p-0 gap-0">
-          {/* Header with Progress */}
-          <div className="px-8 pt-8 pb-6 border-b border-gray-100">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <DialogTitle className="text-2xl font-semibold text-gray-900 mb-2">
-                  Let's Personalise Your Growth Machine
-                </DialogTitle>
-                <p className="text-sm text-gray-500">
-                  Answer {questions.length} questions to help us create a tailored growth process
-                </p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full">
-                <span className="text-xs font-medium text-blue-700">
-                  {currentQuestionIndex + 1} / {questions.length}
-                </span>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="relative w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="absolute top-0 left-0 h-full bg-blue-600 transition-all duration-300 ease-out"
-                style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {questions.length > 0 && (
-            <>
-              {/* Question Content */}
-              <div className="px-8 py-8 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 240px)' }}>
-                {(() => {
-                  const currentQuestion = questions[currentQuestionIndex];
-                  if (!currentQuestion) return null;
-
-                  return (
-                    <div className="space-y-6">
-                      {/* Question Text */}
-                      <div>
-                        <h2 className="text-xl font-medium text-gray-900 leading-relaxed">
-                          {currentQuestion.question_text}
-                        </h2>
-                      </div>
-
-                      {/* Answer Input */}
-                      <div>
-                        {currentQuestion.question_type === 'select' && currentQuestion.options ? (
-                          <Select
-                            value={answers[currentQuestion.id] || ''}
-                            onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
-                          >
-                            <SelectTrigger className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                              <SelectValue placeholder="Select an option..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {currentQuestion.options.map((option: string, index: number) => (
-                                <SelectItem key={index} value={option} className="text-base py-3">
-                                  {option}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Textarea
-                            value={answers[currentQuestion.id] || ''}
-                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                            placeholder="Type your answer here..."
-                            className="min-h-[160px] text-base border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none placeholder:text-gray-400"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Footer Navigation */}
-              <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50">
-                <div className="flex items-center justify-between">
-                  {/* Previous Button */}
-                  <Button
-                    variant="ghost"
-                    onClick={previousQuestion}
-                    disabled={currentQuestionIndex === 0}
-                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-0"
-                  >
-                    <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
-                    Previous
-                  </Button>
-
-                  {/* Question Dots */}
-                  <div className="flex gap-1.5">
-                    {questions.map((question, index) => {
-                      const hasAnswer = answers[question.id] && answers[question.id].trim() !== '';
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentQuestionIndex(index)}
-                          className={`h-1.5 rounded-full transition-all duration-200 ${
-                            index === currentQuestionIndex
-                              ? 'bg-blue-600 w-8'
-                              : hasAnswer
-                              ? 'bg-blue-400 w-1.5'
-                              : 'bg-gray-300 w-1.5 hover:bg-gray-400'
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Next/Complete Button */}
-                  {currentQuestionIndex < questions.length - 1 ? (
-                    <Button
-                      onClick={nextQuestion}
-                      disabled={isTransitioning}
-                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                    >
-                      {isTransitioning ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          Next
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleCompleteQuestions}
-                      disabled={generating}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
-                    >
-                      {generating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Complete
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+        </>
+      )}
     </div>
   );
 } 

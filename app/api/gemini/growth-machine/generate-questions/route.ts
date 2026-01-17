@@ -89,6 +89,24 @@ export async function POST(request: NextRequest) {
       .eq('user_id', teamId)
       .order('created_at', { ascending: false });
 
+    // Check if GROWTH machine exists and has questions
+    const { data: growthMachine } = await supabase
+      .from('machines')
+      .select('*')
+      .eq('user_id', teamId)
+      .eq('enginetype', 'GROWTH')
+      .single();
+
+    // If questions already exist in database, return them
+    if (growthMachine?.questions && growthMachine.questions.questions && Array.isArray(growthMachine.questions.questions) && growthMachine.questions.questions.length > 0) {
+      return NextResponse.json({
+        success: true,
+        message: `Retrieved ${growthMachine.questions.questions.length} existing questions for growth machine planning`,
+        questions: growthMachine.questions.questions,
+        questionsData: growthMachine.questions
+      });
+    }
+
     // Build comprehensive business context from complete onboarding data
     let businessContext = '';
     if (onboardingData?.onboarding_data) {
@@ -202,6 +220,50 @@ Machine #${index + 1}:
         type: 'growth_machine'
       }
     };
+
+    // Save questions to database
+    // First, ensure the GROWTH machine exists
+    let machineId = growthMachine?.id;
+    if (!machineId) {
+      // Create a new GROWTH machine if it doesn't exist
+      const { data: newMachine, error: createError } = await supabase
+        .from('machines')
+        .insert({
+          user_id: teamId,
+          enginename: 'Growth Machine',
+          enginetype: 'GROWTH',
+          description: '',
+          triggeringevents: [],
+          endingevent: [],
+          actionsactivities: [],
+          welcome_completed: true, // Set to true when questions are generated
+          questions: questionsDataToStore,
+          answers: null,
+          questions_completed: false,
+          ai_assisted: true
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        throw new Error(`Failed to create growth machine: ${createError.message}`);
+      }
+      machineId = newMachine.id;
+    } else {
+      // Update existing machine with questions
+      const { error: updateError } = await supabase
+        .from('machines')
+        .update({
+          questions: questionsDataToStore,
+          welcome_completed: true, // Set to true when questions are generated
+          ai_assisted: true
+        })
+        .eq('id', machineId);
+
+      if (updateError) {
+        throw new Error(`Failed to save questions to database: ${updateError.message}`);
+      }
+    }
 
     return NextResponse.json({
       success: true,

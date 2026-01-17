@@ -199,14 +199,55 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       if (effectiveUserId) {
         const { data: businessInfo } = await supabase
           .from('business_info')
-          .select('role, permissions')
+          .select('id, role, permissions')
           .eq('user_id', effectiveUserId)
           .single();
 
         if (businessInfo) {
           setUserRole(businessInfo.role);
-          if (businessInfo.role !== 'admin' && businessInfo.role !== 'super_admin') {
-            setUserPermissions(businessInfo.permissions?.pages || []);
+          
+          if (businessInfo.role === 'super_admin') {
+            // Super admins see all pages - no need to fetch permissions
+            setUserPermissions([]); // Empty array means show all
+          } else if (businessInfo.role === 'admin') {
+            // Admin users: fetch permissions from admin_page_permissions table
+            // Handle both old structure (page_path) and new structure (page_paths)
+            const { data: newStructureData, error: newError } = await supabase
+              .from('admin_page_permissions')
+              .select('page_paths')
+              .eq('admin_user_id', businessInfo.id)
+              .maybeSingle();
+            
+            let pagePaths: string[] = [];
+            
+            if (newError && newError.code === '42703') {
+              // Column doesn't exist, use old structure
+              const { data: oldStructureData } = await supabase
+                .from('admin_page_permissions')
+                .select('page_path')
+                .eq('admin_user_id', businessInfo.id);
+              
+              pagePaths = oldStructureData?.map((p: any) => p.page_path) || [];
+            } else if (newStructureData) {
+              // New structure
+              pagePaths = Array.isArray(newStructureData.page_paths) 
+                ? newStructureData.page_paths 
+                : [];
+            }
+            
+            // Always include dashboard by default for admin users
+            if (!pagePaths.includes('dashboard')) {
+              pagePaths.push('dashboard');
+            }
+            setUserPermissions(pagePaths);
+          } else {
+            // Regular users: use permissions from business_info.permissions
+            const pagePaths = businessInfo.permissions?.pages || [];
+            // Always include dashboard by default for regular users
+            if (!pagePaths.includes('dashboard')) {
+              pagePaths.push('dashboard');
+            }
+            setUserPermissions(pagePaths);
           }
         }
       }
@@ -216,22 +257,32 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     fetchUserPermissions();
   }, [supabase]);
   
-  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin';
+  const isAdmin = userRole === 'admin';
 
   const visibleSections = useMemo(() => {
     if (isLoading) return [];
-    if (isAdmin) return navigationSections;
+    
+    // Super admins see all pages
+    if (isSuperAdmin) return navigationSections;
+    
+    // Admin and regular users: filter based on permissions
+    // Always show dashboard, even if permissions array is empty
+    const effectivePermissions = [...userPermissions];
+    if (!effectivePermissions.includes('dashboard')) {
+      effectivePermissions.push('dashboard');
+    }
 
     return navigationSections
       .map(section => ({
         ...section,
         items: section.items.filter(item => {
           const pageKey = item.href.substring(1);
-          return userPermissions.includes(pageKey);
+          return effectivePermissions.includes(pageKey);
         }),
       }))
       .filter(section => section.items.length > 0);
-  }, [isAdmin, userPermissions, isLoading]);
+  }, [isSuperAdmin, isAdmin, userPermissions, isLoading]);
 
 
   return (

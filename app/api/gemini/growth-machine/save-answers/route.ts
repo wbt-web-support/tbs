@@ -12,21 +12,78 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { answers } = body;
+    const { answers, questions } = body;
 
     if (!answers || typeof answers !== 'object') {
       return NextResponse.json({ error: 'Answers are required' }, { status: 400 });
     }
 
-    // Answers is an object mapping question IDs to answer strings
-    // We'll return the answers so they can be used in the generation API
-    // For now, we'll just validate and return success
-    // The frontend can store these temporarily or we can store them in a session
+    // Get team ID
+    const { data: businessInfo } = await supabase
+      .from('business_info')
+      .select('team_id')
+      .eq('user_id', user.id)
+      .single();
+
+    const teamId = businessInfo?.team_id || user.id;
+
+    // Find the GROWTH machine for this team
+    const { data: growthMachine, error: machineError } = await supabase
+      .from('machines')
+      .select('*')
+      .eq('user_id', teamId)
+      .eq('enginetype', 'GROWTH')
+      .single();
+
+    if (machineError || !growthMachine) {
+      return NextResponse.json({ error: 'Growth machine not found' }, { status: 404 });
+    }
+
+    // Update answers in the database
+    // Also update questions to mark which ones are completed
+    let updatedQuestions = growthMachine.questions;
+    if (questions && Array.isArray(questions)) {
+      updatedQuestions = {
+        ...updatedQuestions,
+        questions: questions.map((q: any) => ({
+          ...q,
+          is_completed: !!(answers[q.id] && answers[q.id].trim() !== ''),
+          user_answer: answers[q.id] || null
+        }))
+      };
+      
+      // Update metadata completed_count
+      if (updatedQuestions.metadata) {
+        const completedCount = updatedQuestions.questions.filter((q: any) => q.is_completed).length;
+        updatedQuestions.metadata.completed_count = completedCount;
+      }
+    }
+
+    // Determine if all questions are completed
+    const allQuestionsCompleted = updatedQuestions?.questions
+      ? updatedQuestions.questions.every((q: any) => q.is_completed)
+      : false;
+
+    // Update the machine with answers and completion status
+    const { error: updateError } = await supabase
+      .from('machines')
+      .update({
+        answers: answers,
+        questions: updatedQuestions,
+        questions_completed: allQuestionsCompleted,
+        ai_assisted: true
+      })
+      .eq('id', growthMachine.id);
+
+    if (updateError) {
+      throw new Error(`Failed to save answers to database: ${updateError.message}`);
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Answers saved successfully',
-      answers: answers
+      answers: answers,
+      questions_completed: allQuestionsCompleted
     });
 
   } catch (error) {
