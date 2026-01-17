@@ -15,8 +15,8 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 async function getUserId(req: Request) {
   try { 
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.user?.id; 
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id; 
   } catch (error) {
     console.error("Error getting user session:", error);
     return null;
