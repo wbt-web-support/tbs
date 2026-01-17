@@ -206,20 +206,22 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
             key={index} 
             className={`relative p-2 border rounded-lg ${getInsightBgColor(index)} transition-all hover:shadow-sm group`}
           >
-                        <div className="flex items-start gap-2">
+            <div className="flex items-start gap-2">
               <div className="flex-shrink-0 mt-0">
                 {getInsightIcon(index)}
               </div>
-              <p className="text-xs text-gray-700 leading-relaxed pr-6">
-                  {insightItem.insight}
-                </p>
-                
-                {/* Lightbulb icon in corner with hover tooltip */}
-                <div className="absolute top-1 right-1 group/tooltip">
-                                  <Lightbulb className="h-3 w-3 text-yellow-500 cursor-help hover:text-yellow-600 transition-colors" />
-                
+              <p className="text-xs text-gray-700 leading-relaxed">
+                {insightItem.insight}
+              </p>
+            </div>
+            
+            {/* Lightbulb icon in corner with hover tooltip - hidden for now */}
+            {false && (
+              <div className="absolute top-1 right-1 group/tooltip">
+                <Lightbulb className="h-3 w-3 text-yellow-500 cursor-help hover:text-yellow-600 transition-colors" />
+              
                 {/* Tooltip on hover */}
-                                  <div className="absolute right-0 top-5 w-80 p-3 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50">
+                <div className="absolute right-0 top-5 w-80 p-3 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50">
                   <div className="text-xs font-semibold text-gray-900 mb-2">How to implement this:</div>
                   <div className="text-xs text-gray-700 mb-3 leading-relaxed">
                     {insightItem.howTo}
@@ -246,7 +248,7 @@ export default function AIInsights({ className = '' }: AIInsightsProps) {
                   <div className="absolute top-[-4px] right-4 w-2 h-2 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         ))}
         
