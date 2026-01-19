@@ -52,9 +52,14 @@ interface ServiceM8Connection {
   connected: boolean;
   sync_status: string;
   last_sync_at: string | null;
-  jobs: any[];
-  staff: any[];
-  companies: any[];
+  jobs?: any[];
+  staff?: any[];
+  companies?: any[];
+  counts?: {
+    jobs: number;
+    staff: number;
+    companies: number;
+  };
 }
 
 interface GoogleAnalyticsConnection {
@@ -843,7 +848,7 @@ export default function IntegrationsPage() {
                 <div>
                   <p className="font-medium">Field Service Data</p>
                   <p className="text-sm text-muted-foreground">
-                    {servicem8Connection.jobs.length} jobs, {servicem8Connection.staff.length} staff
+                    {servicem8Connection.counts?.jobs || servicem8Connection.jobs?.length || 0} jobs, {servicem8Connection.counts?.staff || servicem8Connection.staff?.length || 0} staff
                   </p>
                 </div>
 
