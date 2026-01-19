@@ -3,42 +3,124 @@ import { createClient } from '@/utils/supabase/server';
 interface ServiceM8Job {
   uuid: string;
   job_number: string;
-  job_date: string;
-  completed_date?: string;
+  generated_job_id: string;
   status: string;
+  date: string;
+  completion_date: string;
+  total_invoice_amount: string;
+  payment_amount: string;
+  payment_method: string;
+  payment_received: string;
+  payment_processed: string;
+  payment_received_stamp: string;
+  payment_processed_stamp: string;
+  invoice_sent: string;
+  invoice_sent_stamp: string;
+  ready_to_invoice: string;
+  ready_to_invoice_stamp: string;
+  quote_date: string;
+  quote_sent: string;
+  quote_sent_stamp: string;
+  work_order_date: string;
   company_uuid: string;
-  staff_uuid: string;
-  total: number;
-  description: string;
+  category_uuid: string;
+  created_by_staff_uuid: string;
+  job_address: string;
+  billing_address: string;
+  job_description: string;
+  work_done_description: string;
+  purchase_order_number: string;
+  badges: string;
+  active: number;
 }
 
 interface ServiceM8Staff {
   uuid: string;
-  first_name: string;
-  last_name: string;
+  first: string;
+  last: string;
   email: string;
-  active: boolean;
+  mobile: string;
+  job_title: string;
+  color: string;
+  status_message: string;
+  hide_from_schedule: string;
+  active: number;
 }
 
 interface ServiceM8Company {
   uuid: string;
   name: string;
+  abn_number: string;
+  address: string;
+  billing_address: string;
   email: string;
   phone: string;
-  address_line_1: string;
-  address_line_2: string;
-  suburb: string;
-  state: string;
-  postcode: string;
+  website: string;
+  is_individual: string;
+  fax_number: string;
+  badges: string;
+  payment_terms: string;
+  active: number;
 }
 
-interface ServiceM8JobActivity {
+interface ServiceM8Category {
+  uuid: string;
+  name: string;
+  color: string;
+  active: number;
+}
+
+interface ServiceM8Contact {
+  uuid: string;
+  company_uuid: string;
+  first: string;
+  last: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  type: string;
+  is_primary_contact: string;
+  active: number;
+}
+
+interface ServiceM8JobContact {
+  uuid: string;
+  job_uuid: string;
+  first: string;
+  last: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  type: string;
+  active: number;
+}
+
+interface ServiceM8Activity {
   uuid: string;
   job_uuid: string;
   staff_uuid: string;
-  start_time: string;
-  end_time?: string;
-  description: string;
+  start_date: string;
+  end_date: string;
+  travel_time_in_seconds: string;
+  travel_distance_in_meters: string;
+  activity_was_scheduled: string;
+  activity_was_recorded: string;
+  activity_was_automated: string;
+  has_been_opened: string;
+  has_been_opened_timestamp: string;
+  active: number;
+}
+
+interface ServiceM8Payment {
+  uuid: string;
+  job_uuid: string;
+  amount: string;
+  timestamp: string;
+  method: string;
+  note: string;
+  actioned_by_uuid: string;
+  is_deposit: string;
+  active: number;
 }
 
 interface ServiceM8JobMaterial {
@@ -68,7 +150,7 @@ export class ServiceM8API {
     clientId: process.env.SERVICEM8_CLIENT_ID!,
     clientSecret: process.env.SERVICEM8_CLIENT_SECRET!,
     redirectUri: process.env.SERVICEM8_REDIRECT_URI!,
-    scope: process.env.SERVICEM8_SCOPE || 'read_jobs read_staff read_customers read_schedule read_inventory',
+    scope: (process.env.SERVICEM8_SCOPE || 'read_jobs read_staff read_customers read_schedule read_inventory read_job_payments read_job_materials read_job_categories read_customer_contacts read_job_contacts staff_activity').replace(/^"|"$/g, ''),
   };
 
   constructor(private supabase?: any) {
@@ -91,9 +173,44 @@ export class ServiceM8API {
     return this.supabase;
   }
 
+  /**
+   * Helper to ensure UUIDs are valid or null (converts empty strings to null)
+   */
+  private sanitizeUUID(uuid: string | undefined | null): string | null {
+    if (!uuid || uuid.trim() === '' || uuid === '00000000-0000-0000-0000-000000000000') {
+      return null;
+    }
+    return uuid;
+  }
+
+  /**
+   * Helper to ensure dates are valid (converts "0000-00-00 00:00:00" or empty to null)
+   */
+  /**
+   * Helper to ensure dates are valid (converts "0000-00-00 00:00:00" or empty to null)
+   */
+  private sanitizeDate(dateStr: string | undefined | null): string | null {
+    if (!dateStr || dateStr.trim() === '' || dateStr.startsWith('0000-00-00')) {
+      return null;
+    }
+    return dateStr;
+  }
+
+  /**
+   * Helper to parse boolean from API 
+   */
+  private sanitizeBoolean(val: string | number | boolean | undefined): boolean {
+    if (val === undefined || val === null) return true; // Default to true if missing? or false. Schema defaults true.
+    if (typeof val === 'number') return val === 1;
+    if (typeof val === 'string') return val === '1' || val.toLowerCase() === 'true';
+    return val === true;
+  }
+
   // Generate OAuth authorization URL for a specific user
   getAuthorizationUrl(userId: string, state?: string): string {
     const stateParam = state || `${userId}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    
+    console.log('🔍 ServiceM8 OAuth Scopes being requested:', this.config.scope);
     
     const params = new URLSearchParams({
       response_type: 'code',
@@ -103,7 +220,10 @@ export class ServiceM8API {
       state: stateParam,
     });
 
-    return `${this.config.authUrl}?${params.toString()}`;
+    const authUrl = `${this.config.authUrl}?${params.toString()}`;
+    console.log('🔗 ServiceM8 Authorization URL:', authUrl);
+    
+    return authUrl;
   }
 
   // Exchange authorization code for access tokens
@@ -138,7 +258,12 @@ export class ServiceM8API {
       throw new Error(`ServiceM8 token exchange failed: ${response.status} - ${errorText}`);
     }
 
-    const tokens = await response.json();
+    const tokens = await response.json() as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+      token_type: string;
+    };
     console.log('✓ ServiceM8 tokens obtained successfully');
     return tokens;
   }
@@ -174,7 +299,12 @@ export class ServiceM8API {
       throw new Error(`ServiceM8 token refresh failed: ${response.status} - ${errorText}`);
     }
 
-    const tokens = await response.json();
+    const tokens = await response.json() as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+      token_type: string;
+    };
     console.log('✓ ServiceM8 access token refreshed successfully');
     return tokens;
   }
@@ -318,8 +448,8 @@ export class ServiceM8API {
   }
 
   // Make authenticated API request for a specific user
-  private async makeAuthenticatedRequest(userId: string, endpoint: string): Promise<any> {
-    const accessToken = await this.getValidAccessToken(userId);
+  private async makeAuthenticatedRequest(userId: string, endpoint: string, manualAccessToken?: string): Promise<any> {
+    const accessToken = manualAccessToken || await this.getValidAccessToken(userId);
     
     console.log(`Making ServiceM8 API request to: ${this.config.baseUrl}${endpoint}`);
     
@@ -348,61 +478,128 @@ export class ServiceM8API {
   }
 
   // API methods for specific user
-  async getJobs(userId: string): Promise<ServiceM8Job[]> {
-    return this.makeAuthenticatedRequest(userId, '/job.json');
+  async getJobs(userId: string, accessToken?: string): Promise<ServiceM8Job[]> {
+    return this.makeAuthenticatedRequest(userId, '/job.json', accessToken);
   }
 
-  async getStaff(userId: string): Promise<ServiceM8Staff[]> {
+  async getStaff(userId: string, accessToken?: string): Promise<ServiceM8Staff[]> {
     try {
-      return await this.makeAuthenticatedRequest(userId, '/staff.json');
+      return await this.makeAuthenticatedRequest(userId, '/staff.json', accessToken);
     } catch (error) {
       console.log('Trying alternative staff endpoint: /technician.json');
       try {
-        return await this.makeAuthenticatedRequest(userId, '/technician.json');
+        return await this.makeAuthenticatedRequest(userId, '/technician.json', accessToken);
       } catch (error2) {
         console.log('Trying alternative staff endpoint: /employee.json');
-        return await this.makeAuthenticatedRequest(userId, '/employee.json');
+        return await this.makeAuthenticatedRequest(userId, '/employee.json', accessToken);
       }
     }
   }
 
-  async getCompanies(userId: string): Promise<ServiceM8Company[]> {
-    return this.makeAuthenticatedRequest(userId, '/company.json');
+  async getCompanies(userId: string, accessToken?: string): Promise<ServiceM8Company[]> {
+    return this.makeAuthenticatedRequest(userId, '/company.json', accessToken);
   }
 
-  async getJobActivities(userId: string): Promise<ServiceM8JobActivity[]> {
-    return this.makeAuthenticatedRequest(userId, '/jobactivity.json');
+  async getJobMaterials(userId: string, accessToken?: string): Promise<ServiceM8JobMaterial[]> {
+    return this.makeAuthenticatedRequest(userId, '/jobmaterial.json', accessToken);
   }
 
-  async getJobMaterials(userId: string): Promise<ServiceM8JobMaterial[]> {
-    return this.makeAuthenticatedRequest(userId, '/job_material.json');
+  async getPayments(userId: string, accessToken?: string): Promise<ServiceM8Payment[]> {
+    return this.makeAuthenticatedRequest(userId, '/jobpayment.json', accessToken);
+  }
+
+  async getCategories(userId: string, accessToken?: string): Promise<ServiceM8Category[]> {
+    return this.makeAuthenticatedRequest(userId, '/category.json', accessToken);
+  }
+
+  async getCompanyContacts(userId: string, accessToken?: string): Promise<ServiceM8Contact[]> {
+    return this.makeAuthenticatedRequest(userId, '/companycontact.json', accessToken);
+  }
+
+  async getJobContacts(userId: string, accessToken?: string): Promise<ServiceM8JobContact[]> {
+    return this.makeAuthenticatedRequest(userId, '/jobcontact.json', accessToken);
+  }
+
+  async getJobActivities(userId: string, accessToken?: string): Promise<ServiceM8Activity[]> {
+    return this.makeAuthenticatedRequest(userId, '/jobactivity.json', accessToken);
   }
 
   // Get all data for a specific user
-  async getAllData(userId: string) {
+  async getAllData(userId: string, accessToken?: string) {
     console.log(`Fetching ServiceM8 data for user: ${userId}`);
     
     try {
-      console.log('Fetching jobs...');
-      const jobs = await this.getJobs(userId);
-      console.log(`✓ Jobs: ${jobs.length} records`);
-
       console.log('Fetching companies...');
-      const companies = await this.getCompanies(userId);
+      const companies = await this.getCompanies(userId, accessToken);
       console.log(`✓ Companies: ${companies.length} records`);
 
-      let staff = [];
+      console.log('Fetching categories...');
+      let categories: ServiceM8Category[] = [];
       try {
-        console.log('Fetching staff...');
-        staff = await this.getStaff(userId);
-        console.log(`✓ Staff: ${staff.length} records`);
+        categories = await this.getCategories(userId, accessToken);
+        console.log(`✓ Categories: ${categories.length} records`);
       } catch (error) {
-        console.warn('Staff endpoint failed:', error.message);
+        console.warn('Categories endpoint failed:', error instanceof Error ? error.message : String(error));
       }
 
-      // Skip potentially problematic endpoints for now
-      const jobActivities = [];
-      const jobMaterials = [];
+      console.log('Fetching staff...');
+      let staff: ServiceM8Staff[] = [];
+      try {
+        staff = await this.getStaff(userId, accessToken);
+        console.log(`✓ Staff: ${staff.length} records`);
+      } catch (error) {
+        console.warn('Staff endpoint failed:', error instanceof Error ? error.message : String(error));
+      }
+
+      console.log('Fetching jobs...');
+      const jobs = await this.getJobs(userId, accessToken);
+      console.log(`✓ Jobs: ${Array.isArray(jobs) ? jobs.length : 'not an array'} records`);
+      if (jobs && jobs.length > 0) console.log('First job sample:', JSON.stringify(jobs[0]).substring(0, 200));
+
+      console.log('Fetching company contacts...');
+      let companyContacts: ServiceM8Contact[] = [];
+      try {
+        companyContacts = await this.getCompanyContacts(userId, accessToken);
+        console.log(`✓ Company Contacts: ${companyContacts.length} records`);
+      } catch (error) {
+        console.warn('Company Contacts endpoint failed:', error instanceof Error ? error.message : String(error));
+      }
+
+      console.log('Fetching job contacts...');
+      let jobContacts: ServiceM8JobContact[] = [];
+      try {
+        jobContacts = await this.getJobContacts(userId, accessToken);
+        console.log(`✓ Job Contacts: ${jobContacts.length} records`);
+      } catch (error) {
+        console.warn('Job Contacts endpoint failed:', error instanceof Error ? error.message : String(error));
+      }
+
+      console.log('Fetching job activities...');
+      let jobActivities: ServiceM8Activity[] = [];
+      try {
+        jobActivities = await this.getJobActivities(userId, accessToken);
+        console.log(`✓ Activities: ${jobActivities.length} records`);
+      } catch (error) {
+        console.warn('Job Activities endpoint failed:', error instanceof Error ? error.message : String(error));
+      }
+
+      console.log('Fetching job materials...');
+      let jobMaterials: ServiceM8JobMaterial[] = [];
+      try {
+        jobMaterials = await this.getJobMaterials(userId, accessToken);
+        console.log(`✓ Materials: ${jobMaterials.length} records`);
+      } catch (error) {
+        console.warn('Job Materials endpoint failed:', error instanceof Error ? error.message : String(error));
+      }
+
+      console.log('Fetching payments...');
+      let payments: ServiceM8Payment[] = [];
+      try {
+        payments = await this.getPayments(userId, accessToken);
+        console.log(`✓ Payments: ${payments.length} records`);
+      } catch (error) {
+        console.warn('Payments endpoint failed:', error instanceof Error ? error.message : String(error));
+      }
 
       return {
         jobs,
@@ -410,6 +607,10 @@ export class ServiceM8API {
         companies,
         job_activities: jobActivities,
         job_materials: jobMaterials,
+        payments,
+        categories,
+        company_contacts: companyContacts,
+        job_contacts: jobContacts
       };
     } catch (error) {
       console.error(`Error in getAllData for user ${userId}:`, error);
@@ -417,24 +618,256 @@ export class ServiceM8API {
     }
   }
 
+  /**
+   * Performs a complete relational sync for a user
+   */
+  async performRelationalSync(userId: string, accessToken?: string) {
+    const supabase = await this.getSupabaseClient();
+    
+    // 1. Fetch all data
+    const data = await this.getAllData(userId, accessToken);
+
+    // 2. Perform Batch Upserts
+    
+    // 2.1 Sync Companies (Clients)
+    try {
+      if (data.companies.length > 0) {
+        const companiesToUpsert = data.companies.map(c => ({
+          uuid: this.sanitizeUUID(c.uuid)!,
+          user_id: userId,
+          name: c.name,
+          address: c.address,
+          billing_address: c.billing_address,
+          email: c.email,
+          phone: c.phone,
+          abn_number: c.abn_number,
+          is_individual: c.is_individual,
+          website: c.website,
+          fax_number: c.fax_number,
+          badges: c.badges,
+          payment_terms: c.payment_terms,
+          active: this.sanitizeBoolean(c.active),
+          updated_at: new Date().toISOString()
+        }));
+        
+        const { error } = await supabase.from('servicem8_companies').upsert(companiesToUpsert);
+        if (error) console.error('Error syncing companies:', error);
+        else console.log(`✓ Synced ${companiesToUpsert.length} companies`);
+      }
+    } catch (e) { console.error('Error syncing companies:', e); }
+
+    // 2.2 Sync Categories
+    try {
+      if (data.categories.length > 0) {
+        const categoriesToUpsert = data.categories.map(c => ({
+          uuid: this.sanitizeUUID(c.uuid)!,
+          user_id: userId,
+          name: c.name,
+          color: c.color,
+          active: this.sanitizeBoolean(c.active),
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('servicem8_categories').upsert(categoriesToUpsert);
+        if (error) console.error('Error syncing categories:', error);
+        else console.log(`✓ Synced ${categoriesToUpsert.length} categories`);
+      }
+    } catch (e) { console.error('Error syncing categories:', e); }
+
+    // 2.3 Sync Staff
+    try {
+      if (data.staff.length > 0) {
+        const staffToUpsert = data.staff.map(s => ({
+          uuid: this.sanitizeUUID(s.uuid)!,
+          user_id: userId,
+          first_name: s.first,
+          last_name: s.last,
+          email: s.email,
+          mobile: s.mobile,
+          job_title: s.job_title,
+          color: s.color,
+          status_message: s.status_message,
+          hide_from_schedule: s.hide_from_schedule,
+          active: this.sanitizeBoolean(s.active),
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('servicem8_staff').upsert(staffToUpsert);
+        if (error) console.error('Error syncing staff:', error);
+        else console.log(`✓ Synced ${staffToUpsert.length} staff`);
+      }
+    } catch (e) { console.error('Error syncing staff:', e); }
+
+    // 2.4 Sync Jobs
+    try {
+      if (data.jobs && Array.isArray(data.jobs) && data.jobs.length > 0) {
+        const jobsToUpsert = data.jobs.map(j => ({
+          uuid: this.sanitizeUUID(j.uuid)!,
+          user_id: userId,
+          job_number: j.job_number,
+          generated_job_id: j.generated_job_id,
+          status: j.status,
+          date: this.sanitizeDate(j.date),
+          completion_date: this.sanitizeDate(j.completion_date),
+          total_invoice_amount: parseFloat(j.total_invoice_amount || '0'),
+          payment_amount: parseFloat(j.payment_amount || '0'),
+          payment_method: j.payment_method,
+          payment_received: j.payment_received,
+          payment_processed: j.payment_processed,
+          payment_received_stamp: this.sanitizeDate(j.payment_received_stamp),
+          payment_processed_stamp: this.sanitizeDate(j.payment_processed_stamp),
+          invoice_sent: j.invoice_sent,
+          invoice_sent_stamp: this.sanitizeDate(j.invoice_sent_stamp),
+          ready_to_invoice: j.ready_to_invoice,
+          ready_to_invoice_stamp: this.sanitizeDate(j.ready_to_invoice_stamp),
+          quote_date: this.sanitizeDate(j.quote_date),
+          quote_sent: j.quote_sent,
+          quote_sent_stamp: this.sanitizeDate(j.quote_sent_stamp),
+          work_order_date: this.sanitizeDate(j.work_order_date),
+          company_uuid: this.sanitizeUUID(j.company_uuid),
+          category_uuid: this.sanitizeUUID(j.category_uuid),
+          created_by_staff_uuid: this.sanitizeUUID(j.created_by_staff_uuid),
+          job_address: j.job_address,
+          billing_address: j.billing_address,
+          job_description: j.job_description,
+          work_done_description: j.work_done_description,
+          purchase_order_number: j.purchase_order_number,
+          badges: j.badges,
+          active: this.sanitizeBoolean(j.active),
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('servicem8_jobs').upsert(jobsToUpsert);
+        if (error) console.error('Error syncing jobs:', error);
+        else console.log(`✓ Synced ${jobsToUpsert.length} jobs`);
+      }
+    } catch (e) { console.error('Error syncing jobs:', e); }
+
+    // 2.5 Sync Company Contacts
+    try {
+      if (data.company_contacts.length > 0) {
+        const contactsToUpsert = data.company_contacts.map(c => ({
+          uuid: this.sanitizeUUID(c.uuid)!,
+          user_id: userId,
+          company_uuid: this.sanitizeUUID(c.company_uuid),
+          first_name: c.first,
+          last_name: c.last,
+          email: c.email,
+          phone: c.phone,
+          mobile: c.mobile,
+          type: c.type,
+          is_primary_contact: c.is_primary_contact,
+          active: this.sanitizeBoolean(c.active),
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('servicem8_contacts').upsert(contactsToUpsert);
+        if (error) console.error('Error syncing company contacts:', error);
+        else console.log(`✓ Synced ${contactsToUpsert.length} company contacts`);
+      }
+    } catch (e) { console.error('Error syncing company contacts:', e); }
+
+    // 2.6 Sync Job Contacts
+    try {
+      if (data.job_contacts.length > 0) {
+        const jobContactsToUpsert = data.job_contacts.map(c => ({
+          uuid: this.sanitizeUUID(c.uuid)!,
+          user_id: userId,
+          job_uuid: this.sanitizeUUID(c.job_uuid),
+          first_name: c.first,
+          last_name: c.last,
+          email: c.email,
+          phone: c.phone,
+          mobile: c.mobile,
+          type: c.type,
+          active: this.sanitizeBoolean(c.active),
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('servicem8_job_contacts').upsert(jobContactsToUpsert);
+        if (error) console.error('Error syncing job contacts:', error);
+        else console.log(`✓ Synced ${jobContactsToUpsert.length} job contacts`);
+      }
+    } catch (e) { console.error('Error syncing job contacts:', e); }
+
+    // 2.7 Sync Activities
+    try {
+      if (data.job_activities.length > 0) {
+        const activitiesToUpsert = data.job_activities.map(a => ({
+          uuid: this.sanitizeUUID(a.uuid)!,
+          user_id: userId,
+          job_uuid: this.sanitizeUUID(a.job_uuid),
+          staff_uuid: this.sanitizeUUID(a.staff_uuid),
+          start_date: this.sanitizeDate(a.start_date),
+          end_date: this.sanitizeDate(a.end_date),
+          travel_time_in_seconds: parseInt(a.travel_time_in_seconds || '0'),
+          travel_distance_in_meters: parseInt(a.travel_distance_in_meters || '0'),
+          activity_was_scheduled: a.activity_was_scheduled,
+          activity_was_recorded: a.activity_was_recorded,
+          activity_was_automated: a.activity_was_automated,
+          has_been_opened: a.has_been_opened,
+          has_been_opened_timestamp: this.sanitizeDate(a.has_been_opened_timestamp),
+          active: this.sanitizeBoolean(a.active),
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('servicem8_job_activities').upsert(activitiesToUpsert);
+        if (error) console.error('Supabase activities upsert error:', error);
+        else console.log('✓ Activities upserted successfully');
+      } else {
+        console.log('No activities found to sync');
+      }
+    } catch (e) { console.error('Error syncing activities:', e); }
+
+    // 2.8 Sync Payments
+    try {
+      if (data.payments.length > 0) {
+        const paymentsToUpsert = data.payments.map(p => ({
+          uuid: this.sanitizeUUID(p.uuid)!,
+          user_id: userId,
+          job_uuid: this.sanitizeUUID(p.job_uuid),
+          amount: parseFloat(p.amount || '0'),
+          timestamp: this.sanitizeDate(p.timestamp),
+          method: p.method,
+          note: p.note,
+          actioned_by_uuid: this.sanitizeUUID(p.actioned_by_uuid),
+          is_deposit: p.is_deposit,
+          active: this.sanitizeBoolean(p.active),
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('servicem8_job_payments').upsert(paymentsToUpsert);
+        if (error) console.error('Supabase payments upsert error:', error);
+        else console.log('✓ Payments upserted successfully');
+      } else {
+        console.log('No payments found to sync');
+      }
+    } catch (e) { console.error('Error syncing payments:', e); }
+
+    // 3. Update Sync Metadata
+    await supabase.from('servicem8_data').update({
+      sync_status: 'completed',
+      last_sync_at: new Date().toISOString(),
+      error_message: null,
+      jobs: data.jobs.slice(0, 10) 
+    }).eq('user_id', userId);
+
+    return data;
+  }
+
+
+
+
   // Disconnect ServiceM8 for a specific user
   async disconnect(userId: string): Promise<void> {
     try {
       const supabase = await this.getSupabaseClient();
-
-      console.log(`Attempting to disconnect ServiceM8 for user: ${userId}`);
-
       const { error } = await supabase
         .from('servicem8_data')
         .delete()
         .eq('user_id', userId);
 
-      if (error) {
-        console.error('ServiceM8 disconnect database error:', error);
-        throw new Error(`Failed to delete ServiceM8 connection: ${error.message}`);
-      }
-
-      console.log(`✓ ServiceM8 connection disconnected for user: ${userId}`);
+      if (error) throw new Error(`Failed to delete ServiceM8 connection: ${error.message}`);
     } catch (error) {
       console.error('ServiceM8 disconnect error:', error);
       throw error;
