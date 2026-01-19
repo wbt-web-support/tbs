@@ -66,14 +66,15 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .single();
 
-    const teamId = businessInfo?.team_id;
+    const teamId = businessInfo?.team_id || user.id;
 
-    // Fetch all team members
-    const { data: teamMembers } = await supabase
-      .from('business_info')
+    // Find the FULFILLMENT machine for this team
+    const { data: fulfillmentMachine, error: machineError } = await supabase
+      .from('machines')
       .select('*')
-      .eq('team_id', teamId)
-      .order('full_name', { ascending: true });
+      .eq('user_id', teamId)
+      .eq('enginetype', 'FULFILLMENT')
+      .single();
 
     // Get complete onboarding data
     const { data: onboardingData } = await supabase
@@ -119,6 +120,16 @@ Operations:
 - KPI Metrics: ${data.kpi_scorecards_metrics_tracked_and_review_frequency || 'Not specified'}
 - Biggest Operational Headache: ${data.biggest_current_operational_headache || 'Not specified'}
       `.trim();
+    }
+
+    // If questions already exist in database, return them
+    if (fulfillmentMachine?.questions && fulfillmentMachine.questions.questions && Array.isArray(fulfillmentMachine.questions.questions) && fulfillmentMachine.questions.questions.length > 0) {
+      return NextResponse.json({
+        success: true,
+        message: `Retrieved ${fulfillmentMachine.questions.questions.length} existing questions for fulfillment machine planning`,
+        questions: fulfillmentMachine.questions.questions,
+        questionsData: fulfillmentMachine.questions
+      });
     }
 
     // Build existing machines context
@@ -202,6 +213,50 @@ Machine #${index + 1}:
         type: 'fulfillment_machine'
       }
     };
+
+    // Save questions to database
+    // First, ensure the FULFILLMENT machine exists
+    let machineId = fulfillmentMachine?.id;
+    if (!machineId) {
+      // Create a new FULFILLMENT machine if it doesn't exist
+      const { data: newMachine, error: createError } = await supabase
+        .from('machines')
+        .insert({
+          user_id: teamId,
+          enginename: 'Fulfillment Machine',
+          enginetype: 'FULFILLMENT',
+          description: '',
+          triggeringevents: [],
+          endingevent: [],
+          actionsactivities: [],
+          welcome_completed: true, // Set to true when questions are generated
+          questions: questionsDataToStore,
+          answers: null,
+          questions_completed: false,
+          ai_assisted: true
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        throw new Error(`Failed to create fulfillment machine: ${createError.message}`);
+      }
+      machineId = newMachine.id;
+    } else {
+      // Update existing machine with questions
+      const { error: updateError } = await supabase
+        .from('machines')
+        .update({
+          questions: questionsDataToStore,
+          welcome_completed: true, // Set to true when questions are generated
+          ai_assisted: true
+        })
+        .eq('id', machineId);
+
+      if (updateError) {
+        throw new Error(`Failed to save questions to database: ${updateError.message}`);
+      }
+    }
 
     return NextResponse.json({
       success: true,

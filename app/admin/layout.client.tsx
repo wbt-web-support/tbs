@@ -76,6 +76,11 @@ const navigationSections = [
         href: "/admin/users",
         icon: Users,
       },
+      {
+        name: "Page Permissions",
+        href: "/admin/page-permissions",
+        icon: Settings,
+      },
      
       {
         name: "AI Assistant Instructions",

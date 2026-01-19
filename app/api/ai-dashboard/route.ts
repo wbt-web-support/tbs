@@ -466,20 +466,27 @@ async function generateInsights(userId: string, language: string = 'en') {
 
   // Create insights prompt
   const insightsPrompt = `
-You are an AI business adviser analysing a company's current state and progress. Based on the following business context, provide exactly 3 concise, actionable insights with detailed implementation steps.
+You are an AI business adviser analysing a company's current state. Based ONLY on the available data provided below, provide exactly 3 concise insights that observe and highlight what IS present in the data.
 
 Business Context: ${context}
 
+CRITICAL INSTRUCTIONS:
+- ONLY analyse and comment on data that IS present in the business context
+- DO NOT mention what is missing or what needs to be done
+- DO NOT suggest actions or tasks that should be completed
+- Focus on observations and insights about the existing data only
+- Provide positive observations about current state, trends, or patterns in the available data
+
 For each insight, provide:
-1. A brief insight (1 sentence maximum)
-2. A short "how to" instruction (1 sentence maximum)
+1. A brief insight observation (1 sentence maximum) - focusing on what the data shows
+2. A short "how to" instruction (1 sentence maximum) - explaining where to view more details about this data
 
 Format as JSON:
 {
   "insights": [
     {
-      "insight": "Brief actionable insight here",
-      "howTo": "You can go to Business Battle Plan to update your strategy.",
+      "insight": "Brief observation about existing data here",
+      "howTo": "You can view more details about this in the Business Battle Plan page.",
       "relevantPages": ["/business-battle-plan"]
     }
   ]
@@ -500,11 +507,12 @@ Available app pages to reference:
 - /chat - AI assistant for guidance
 - /users - Team management
 
-Focus on business growth, team efficiency, and strategic planning. Keep insights actionable and specific.
+Focus on positive observations about existing data, patterns, and current state. Keep insights factual and based only on what is present in the data.
 
 IMPORTANT: 
-- Keep "howTo" instructions very short and simple - just mention which page to visit and what to do there in one sentence.
-- Include only ONE relevant page link per insight in the relevantPages array.${languageInstruction}
+- Keep "howTo" instructions very short and simple - just mention which page contains relevant information about this data point.
+- Include only ONE relevant page link per insight in the relevantPages array.
+- Remember: Only comment on data that EXISTS. Do not mention what is missing or what should be done.${languageInstruction}
 `;
 
   // Generate insights using Gemini

@@ -72,7 +72,7 @@ export default function DashboardActionSection({
   // Always render the section, but conditionally show AI onboarding option
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 hidden">
       <Card className="bg-white border border-slate-200">
         <CardContent className="p-6">
           <div className="text-left mb-4">

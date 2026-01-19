@@ -17,7 +17,6 @@ import { signOutAction } from "@/app/actions";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { User, LogOut, MessageSquare, Menu, FileText, CheckCircle2, X, Download, Settings, Sparkles, Loader2, Database, Brain } from "lucide-react";
-import QuickAccessDropdown from "./quick-access-dropdown";
 import { useEffect, useState, useRef } from "react";
 
 interface NavbarProps {
@@ -49,7 +48,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       if (effectiveUserId) {
         const { data: businessInfo } = await supabase
           .from('business_info')
-          .select('profile_picture_url, full_name, role, permissions')
+          .select('id, profile_picture_url, full_name, role, permissions')
           .eq('user_id', effectiveUserId)
           .single();
 
@@ -57,7 +56,39 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           setProfilePicture(businessInfo.profile_picture_url);
           setFullName(businessInfo.full_name);
           setUserRole(businessInfo.role);
-          if (businessInfo.role !== 'admin' && businessInfo.role !== 'super_admin') {
+          
+          if (businessInfo.role === 'super_admin') {
+            // Super admins have all permissions (empty array means all)
+            setUserPermissions([]);
+          } else if (businessInfo.role === 'admin') {
+            // Admin users: fetch permissions from admin_page_permissions table
+            // Handle both old structure (page_path) and new structure (page_paths)
+            const { data: newStructureData, error: newError } = await supabase
+              .from('admin_page_permissions')
+              .select('page_paths')
+              .eq('admin_user_id', businessInfo.id)
+              .maybeSingle();
+            
+            let pagePaths: string[] = [];
+            
+            if (newError && newError.code === '42703') {
+              // Column doesn't exist, use old structure
+              const { data: oldStructureData } = await supabase
+                .from('admin_page_permissions')
+                .select('page_path')
+                .eq('admin_user_id', businessInfo.id);
+              
+              pagePaths = oldStructureData?.map((p: any) => p.page_path) || [];
+            } else if (newStructureData) {
+              // New structure
+              pagePaths = Array.isArray(newStructureData.page_paths) 
+                ? newStructureData.page_paths 
+                : [];
+            }
+            
+            setUserPermissions(pagePaths);
+          } else {
+            // Regular users: use permissions from business_info.permissions
             setUserPermissions(businessInfo.permissions?.pages || []);
           }
         }
@@ -92,6 +123,16 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   }, [pathname]);
 
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin';
+  
+  // Check if AI Assistant (chat) should be visible
+  // Super admins always see it (empty permissions array), others check permissions
+  // Always include dashboard in effective permissions check
+  const effectivePermissions = isSuperAdmin ? [] : [...userPermissions];
+  if (!effectivePermissions.includes('dashboard')) {
+    effectivePermissions.push('dashboard');
+  }
+  const showAIAssistant = isSuperAdmin || effectivePermissions.includes('chat');
 
   return (
     <div className="border-b">
@@ -116,14 +157,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
         </div>
       
         <div className="flex items-center gap-2 sm:gap-3 md:gap-5 flex-shrink-0">
-          <div className="hidden md:block">
-            <QuickAccessDropdown 
-              userPermissions={userPermissions}
-              isAdmin={isAdmin}
-            />
-          </div>
-          
-          {(isAdmin || userPermissions.includes('chat')) && (
+          {showAIAssistant && (
             <Link href="/chat" className="header-ai-assistant">
               <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-blue-700 hover:to-blue-900 hover:text-white from-blue-600 to-blue-800 text-white">
                 <Sparkles className="h-4 w-4 flex-shrink-0" />
@@ -166,7 +200,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                       Export Data
                   </Link>
               </DropdownMenuItem> */}
-              <DropdownMenuItem>
+              {/* <DropdownMenuItem>
                   <Link href="/integrations" className="w-full text-left flex items-center gap-2">
                       <Database className="h-4 w-4" />
                       Integrations
@@ -177,7 +211,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                       <Settings className="h-4 w-4" />
                       Update Content
                   </Link>
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
               {/* <DropdownMenuItem>
                   <Link href="/zapier-mappings" className="w-full text-left flex items-center gap-2">
                       <Settings className="h-4 w-4" />
