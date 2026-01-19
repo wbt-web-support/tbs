@@ -290,6 +290,16 @@ export default function MemberTodosPage() {
     setIsSubmitting(true);
 
     try {
+      // Log for debugging
+      console.log("Updating todo:", {
+        id: editingTodo.id,
+        description,
+        due_date,
+        assigned_to: editingTodo.assigned_to,
+        created_by: editingTodo.created_by,
+        currentUserId
+      });
+
       const { data, error } = await supabase
         .from('tasks')
         .update({
@@ -300,12 +310,16 @@ export default function MemberTodosPage() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Database error updating todo:", error);
+        throw error;
+      }
 
       // Replace with real data
       if (data) {
         setMyTodos(prev => prev.map(t => t.id === editingTodo.id ? data as Todo : t));
         setAssignedTodos(prev => prev.map(t => t.id === editingTodo.id ? data as Todo : t));
+        console.log("Todo updated successfully:", data);
       }
 
       setEditingTodo(null);
@@ -316,7 +330,10 @@ export default function MemberTodosPage() {
       // Revert optimistic update on error
       setMyTodos(prev => prev.map(t => t.id === editingTodo.id ? editingTodo : t));
       setAssignedTodos(prev => prev.map(t => t.id === editingTodo.id ? editingTodo : t));
-      toast.error(error.message || "Failed to update todo");
+      
+      // Show more detailed error message
+      const errorMessage = error?.message || error?.code || "Failed to update todo";
+      toast.error(`Failed to update todo: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -626,7 +643,7 @@ export default function MemberTodosPage() {
                   <div 
                     key={todo.id} 
                     className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50/30 transition-colors cursor-pointer"
-                    onClick={() => handleEditTodo(todo)}
+                    
                   >
                     <div className="flex items-start gap-3">
                       <button
@@ -738,7 +755,7 @@ export default function MemberTodosPage() {
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                        <button
+                        {/* <button
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -748,7 +765,7 @@ export default function MemberTodosPage() {
                           title="Delete todo"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </button> */}
                       </div>
                     </div>
                   </div>
