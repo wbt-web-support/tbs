@@ -153,10 +153,10 @@ function SidebarContent({
             "flex items-center gap-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors",
             isCollapsed ? "justify-center px-2 w-10 h-10 mx-auto" : "px-3"
           )}
-          title={isCollapsed ? "Todos" : undefined}
+          title={isCollapsed ? "To do's" : undefined}
         >
           <CheckSquare className={isCollapsed ? "h-5 w-5 shrink-0" : "h-5 w-5 shrink-0"} />
-          {!isCollapsed && <span className="text-sm">Todos</span>}
+          {!isCollapsed && <span className="text-sm">To do's</span>}
         </Link>
       </div>
 

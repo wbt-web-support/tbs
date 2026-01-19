@@ -99,7 +99,7 @@ const navigationSections: NavigationSection[] = [
         icon: Package,
       },
       {
-        name: "Todos",
+        name: "To do's",
         href: "/todos",
         icon: CheckSquare,
       },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Trash2, CheckSquare, Circle, User } from "lucide-react";
+import { Loader2, Plus, Trash2, CheckSquare, Circle, User, Edit, Calendar } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import { toast } from "sonner";
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
@@ -47,6 +52,11 @@ export default function MemberTodosPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [editForm, setEditForm] = useState({
+    description: "",
+    due_date: "",
+  });
 
   // My Todos form state
   const [myTodoForm, setMyTodoForm] = useState({
@@ -246,6 +256,72 @@ export default function MemberTodosPage() {
     }
   };
 
+  const handleEditTodo = (todo: Todo) => {
+    setEditingTodo(todo);
+    setEditForm({
+      description: todo.description || "",
+      due_date: todo.due_date ? new Date(todo.due_date).toISOString().split('T')[0] : "",
+    });
+  };
+
+  const handleUpdateTodo = async () => {
+    if (!editingTodo) return;
+
+    if (!editForm.description.trim()) {
+      toast.error("Description is required");
+      return;
+    }
+
+    const description = editForm.description.trim();
+    const due_date = editForm.due_date || null;
+
+    // Optimistically update todo in UI
+    const updatedTodo: Todo = {
+      ...editingTodo,
+      description: description,
+      due_date: due_date,
+    };
+
+    const updateTodoInList = (list: Todo[]) => 
+      list.map(t => t.id === editingTodo.id ? updatedTodo : t);
+
+    setMyTodos(prev => updateTodoInList(prev));
+    setAssignedTodos(prev => updateTodoInList(prev));
+    setIsSubmitting(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({
+          description: description,
+          due_date: due_date,
+        })
+        .eq('id', editingTodo.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Replace with real data
+      if (data) {
+        setMyTodos(prev => prev.map(t => t.id === editingTodo.id ? data as Todo : t));
+        setAssignedTodos(prev => prev.map(t => t.id === editingTodo.id ? data as Todo : t));
+      }
+
+      setEditingTodo(null);
+      setEditForm({ description: "", due_date: "" });
+      toast.success("Todo updated successfully");
+    } catch (error: any) {
+      console.error("Error updating todo:", error);
+      // Revert optimistic update on error
+      setMyTodos(prev => prev.map(t => t.id === editingTodo.id ? editingTodo : t));
+      setAssignedTodos(prev => prev.map(t => t.id === editingTodo.id ? editingTodo : t));
+      toast.error(error.message || "Failed to update todo");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDeleteTodo = async (todo: Todo) => {
     if (!confirm("Are you sure you want to delete this todo?")) {
       return;
@@ -286,6 +362,16 @@ export default function MemberTodosPage() {
       }
       toast.error("Failed to delete todo");
     }
+  };
+
+  // Function to get initials from full name (first letter of first name + first letter of last name)
+  const getInitials = (fullName: string | null | undefined): string => {
+    if (!fullName) return "?";
+    const names = fullName.trim().split(/\s+/);
+    if (names.length === 0) return "?";
+    if (names.length === 1) return names[0].charAt(0).toUpperCase();
+    // First letter of first name + first letter of last name
+    return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
   };
 
   // Function to detect URLs and convert them to clickable links
@@ -334,19 +420,19 @@ export default function MemberTodosPage() {
     <div className="max-w-[1440px] mx-auto p-6">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Todos</h1>
+          <h1 className="md:text-3xl text-2xl font-medium text-gray-900">To do's</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage your todos and tasks assigned to you
+            Manage your to do's and tasks assigned to you
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* My Todos Section */}
+        {/* My To do's Section */}
         <Card className="border-gray-200">
           <div className="p-4 bg-white border-b border-gray-100">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">My Todos</h2>
+              <h2 className="text-xl font-semibold text-gray-900">My To Do List</h2>
               <Badge variant="secondary" className="bg-blue-100 text-blue-800">{myTodos.length}</Badge>
             </div>
           </div>
@@ -363,13 +449,34 @@ export default function MemberTodosPage() {
               <div className="flex gap-2 items-end">
                 <div className="flex flex-col">
                   <Label htmlFor="my-due-date" className="text-xs text-gray-600 mb-1">Due Date</Label>
-                  <Input
-                    id="my-due-date"
-                    type="date"
-                    value={myTodoForm.due_date}
-                    onChange={(e) => setMyTodoForm({ ...myTodoForm, due_date: e.target.value })}
-                    className="h-9 w-auto rounded-xl border-gray-200 focus:border-gray-500 focus:ring-gray-500"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="my-due-date"
+                        variant="outline"
+                        className={cn(
+                          "h-9 w-auto rounded-xl border-gray-200 justify-start text-left font-normal",
+                          !myTodoForm.due_date && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {myTodoForm.due_date ? format(new Date(myTodoForm.due_date), "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={myTodoForm.due_date ? new Date(myTodoForm.due_date) : undefined}
+                        onSelect={(date) => {
+                          setMyTodoForm({ 
+                            ...myTodoForm, 
+                            due_date: date ? format(date, 'yyyy-MM-dd') : "" 
+                          });
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <Button 
                   onClick={handleAddMyTodo} 
@@ -404,7 +511,11 @@ export default function MemberTodosPage() {
               </div>
             ) : (
               myTodos.map((todo) => (
-                <div key={todo.id} className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50/30 transition-colors">
+                <div 
+                  key={todo.id} 
+                  className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50/30 transition-colors cursor-pointer"
+                  onClick={() => handleEditTodo(todo)}
+                >
                   <div className="flex items-start gap-3">
                     <button
                       onClick={(e) => {
@@ -440,6 +551,7 @@ export default function MemberTodosPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {trimmedLink}
                               </a>
@@ -447,9 +559,36 @@ export default function MemberTodosPage() {
                           })}
                         </div>
                       )}
+                      {(() => {
+                        const dueDate = todo.due_date;
+                        if (!dueDate) return null;
+                        
+                        try {
+                          const dateObj = new Date(dueDate);
+                          if (isNaN(dateObj.getTime())) return null;
+                          
+                          return (
+                            <div className="mt-2 flex items-center gap-1.5 text-xs">
+                              <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                              <span className={cn(
+                                "text-gray-600",
+                                dateObj < new Date() && todo.status !== 'completed' && "text-red-600 font-medium"
+                              )}>
+                                Due: {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
+                          );
+                        } catch (e) {
+                          return null;
+                        }
+                      })()}
                     </div>
                     <button
-                      onClick={() => handleDeleteTodo(todo)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteTodo(todo);
+                      }}
                       className="p-1 hover:bg-red-50 rounded text-red-600 hover:text-red-700 flex-shrink-0 transition-colors"
                       title="Delete todo"
                     >
@@ -484,7 +623,11 @@ export default function MemberTodosPage() {
               assignedTodos.map((todo) => {
                 const assigner = assignerInfo[todo.created_by];
                 return (
-                  <div key={todo.id} className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50/30 transition-colors">
+                  <div 
+                    key={todo.id} 
+                    className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50/30 transition-colors cursor-pointer"
+                    onClick={() => handleEditTodo(todo)}
+                  >
                     <div className="flex items-start gap-3">
                       <button
                         onClick={(e) => {
@@ -520,6 +663,7 @@ export default function MemberTodosPage() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   {trimmedLink}
                                 </a>
@@ -527,6 +671,29 @@ export default function MemberTodosPage() {
                             })}
                           </div>
                         )}
+                        {(() => {
+                          const dueDate = todo.due_date;
+                          if (!dueDate) return null;
+                          
+                          try {
+                            const dateObj = new Date(dueDate);
+                            if (isNaN(dateObj.getTime())) return null;
+                            
+                            return (
+                              <div className="mt-2 flex items-center gap-1.5 text-xs">
+                                <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                                <span className={cn(
+                                  "text-gray-600",
+                                  dateObj < new Date() && todo.status !== 'completed' && "text-red-600 font-medium"
+                                )}>
+                                  Due: {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                              </div>
+                            );
+                          } catch (e) {
+                            return null;
+                          }
+                        })()}
                         {assigner && (
                           <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
                             <span>Assigned by:</span>
@@ -537,7 +704,7 @@ export default function MemberTodosPage() {
                                     <Avatar className="h-5 w-5 border border-gray-200">
                                       <AvatarImage src={assigner.profile_picture_url || undefined} alt={assigner.full_name} />
                                       <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
-                                        {assigner.full_name.charAt(0).toUpperCase()}
+                                        {getInitials(assigner.full_name)}
                                       </AvatarFallback>
                                     </Avatar>
                                     <span className="font-medium">{assigner.full_name}</span>
@@ -560,7 +727,7 @@ export default function MemberTodosPage() {
                                   <Avatar className="h-8 w-8 border border-gray-200">
                                     <AvatarImage src={assigner.profile_picture_url || undefined} alt={assigner.full_name} />
                                     <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
-                                      {assigner.full_name.charAt(0).toUpperCase()}
+                                      {getInitials(assigner.full_name)}
                                     </AvatarFallback>
                                   </Avatar>
                                 </div>
@@ -572,7 +739,11 @@ export default function MemberTodosPage() {
                           </TooltipProvider>
                         )}
                         <button
-                          onClick={() => handleDeleteTodo(todo)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteTodo(todo);
+                          }}
                           className="p-1 hover:bg-red-50 rounded text-red-600 hover:text-red-700 transition-colors"
                           title="Delete todo"
                         >
@@ -587,6 +758,86 @@ export default function MemberTodosPage() {
           </div>
         </Card>
       </div>
+
+      {/* Edit Todo Dialog */}
+      <Dialog open={editingTodo !== null} onOpenChange={(open) => !open && setEditingTodo(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Todo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                placeholder="Enter todo description"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                className="min-h-[80px] resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-due-date">Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="edit-due-date"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editForm.due_date && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {editForm.due_date ? format(new Date(editForm.due_date), "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={editForm.due_date ? new Date(editForm.due_date) : undefined}
+                    onSelect={(date) => {
+                      setEditForm({ 
+                        ...editForm, 
+                        due_date: date ? format(date, 'yyyy-MM-dd') : "" 
+                      });
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingTodo(null);
+                setEditForm({ description: "", due_date: "" });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateTodo}
+              disabled={isSubmitting}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Update
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
