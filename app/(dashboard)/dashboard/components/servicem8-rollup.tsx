@@ -20,8 +20,11 @@ import {
   Clock,
   AlertTriangle,
   TrendingUp,
-  Filter
+  Filter,
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -60,6 +63,10 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   // Use local state for 7weeks filter if onFilterChange is not provided (though it should be)
   const [localPeriodFilter, setLocalPeriodFilter] = useState('7weeks');
   
@@ -82,6 +89,16 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
       const company = job.company;
       const primaryContact = job.job_contacts?.[0] || {};
       
+      // Fallback to company contacts if no job contact
+      const companyContacts = company?.contacts || [];
+      // Find primary company contact (usually marked with is_primary_contact = '1' or 'Yes')
+      const primaryCompanyContact = companyContacts.find((c: any) => 
+        c.is_primary_contact === '1' || 
+        c.is_primary_contact === 'Yes' || 
+        c.is_primary_contact === true ||
+        c.is_primary_contact === 'true'
+      ) || companyContacts[0] || {};
+
       // 2. Staff info
       const staffMember = job.staff;
       const staffName = staffMember ? `${staffMember.first_name || ''} ${staffMember.last_name || ''}`.trim() : 'Unassigned';
@@ -116,9 +133,10 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
       return {
         ...job,
         clientName: company?.name || 'Unknown Client',
-        contactEmail: primaryContact.email || 'N/A',
-        contactPhone: primaryContact.phone || 'N/A',
-        contactMobile: primaryContact.mobile || 'N/A',
+        contactEmail: primaryContact.email || primaryCompanyContact.email || company?.email || 'N/A',
+        contactPhone: primaryContact.phone || primaryCompanyContact.phone || company?.phone || 'N/A',
+        contactMobile: primaryContact.mobile || primaryCompanyContact.mobile || company?.mobile || 'N/A',
+        jobAddress: job.job_address || company?.address || 'N/A',
         contactRole: primaryContact.role || 'N/A',
         staffName,
         categoryName,
@@ -143,11 +161,31 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
     return matchesSearch && matchesStatus;
   });
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, itemsPerPage]);
+
   const stats = useMemo(() => {
     const totalRevenue = enrichedJobs.reduce((sum, job) => sum + (parseFloat(job.total) || 0), 0);
     const totalPaid = enrichedJobs.reduce((sum, job) => sum + (parseFloat(job.totalPaid) || 0), 0);
     const outstanding = totalRevenue - totalPaid;
     const avgJobValue = enrichedJobs.length > 0 ? totalRevenue / enrichedJobs.length : 0;
+
+    // Calculate jobs from last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const newJobsThisWeek = enrichedJobs.filter(job => {
+      if (!job.date) return false;
+      const jobDate = new Date(job.date);
+      return jobDate >= sevenDaysAgo;
+    }).length;
 
     return {
       totalRevenue,
@@ -156,7 +194,8 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
       avgJobValue,
       totalJobs: enrichedJobs.length,
       activeJobs: enrichedJobs.filter(j => j.status !== 'Completed').length,
-      completed: enrichedJobs.filter(j => j.status === 'Completed').length
+      completed: enrichedJobs.filter(j => j.status === 'Completed').length,
+      newJobsThisWeek
     };
   }, [enrichedJobs]);
 
@@ -182,8 +221,8 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
 
   const exportToCSV = () => {
     const headers = [
-      'Job #', 'Client Name', 'Email', 'Phone', 'Mobile', 'Role', 
-      'Category', 'Status', 'Staff', 'Duration', 'Date/Time', 'Total', 'Paid', 'Payment Status'
+      'Job #', 'Client Name', 'Email', 'Phone', 'Mobile', 'Address', 
+      'Category', 'Status', 'Technician', 'Duration', 'Scheduled Date', 'Total', 'Paid', 'Payment Status'
     ];
     const rows = filteredJobs.map(job => [
       job.job_number,
@@ -191,7 +230,7 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
       job.contactEmail,
       job.contactPhone,
       job.contactMobile,
-      job.contactRole,
+      job.jobAddress,
       job.categoryName,
       job.status,
       job.staffName,
@@ -217,29 +256,39 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
 
   return (
     <div className="space-y-6">
-      {/* Connection Info Bar */}
-      {data.last_sync_at && (
-        <div className="flex items-center justify-between bg-blue-50/50 border border-blue-100 rounded-lg px-4 py-2 text-xs text-blue-700">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <RefreshCw className="h-3 w-3" />
-              <span>Status: <span className="font-semibold uppercase">{data.sync_status || 'Unknown'}</span></span>
-            </div>
-            <div className="flex items-center gap-1.5 border-l border-blue-200 pl-4">
-              <Clock className="h-3 w-3" />
-              <span>Last Synced: <span className="font-semibold">{new Date(data.last_sync_at).toLocaleString()}</span></span>
-            </div>
-          </div>
-          {data.error_message && (
-            <div className="flex items-center gap-1.5 text-red-600 font-medium">
-              <AlertTriangle className="h-3 w-3" />
-              <span>Error: {data.error_message}</span>
-            </div>
-          )}
+      {/* Error / Status Bar */}
+      {data.error_message && (
+        <Alert variant="destructive" className="bg-red-50 border-red-200">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Sync Issue Detected</AlertTitle>
+          <AlertDescription className="text-sm">
+            {data.error_message}
+            <p className="mt-1 text-xs opacity-80">Some data might be incomplete. Try refreshing or check your ServiceM8 connection.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {data.last_sync_at && !data.error_message && data.sync_status === 'completed' && (
+        <div className="flex items-center gap-2 text-xs text-gray-500 bg-blue-50/50 p-2 rounded-md w-fit">
+          <CheckCircle2 className="h-3 w-3 text-green-500" />
+          Last synced: {new Date(data.last_sync_at).toLocaleString()}
         </div>
       )}
+
+      {data.sync_status === 'partial' && (
+        <Alert className="bg-amber-50 border-amber-200 text-amber-800">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle>Partial Sync</AlertTitle>
+          <AlertDescription className="text-sm">
+            Most data was updated, but some records failed to sync. {data.error_message}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Stats Summary Boxes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Summary Boxes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Total Revenue */}
         <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -252,38 +301,54 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
           </div>
         </Card>
 
-        <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Avg Job Value</p>
-              <p className="text-2xl font-bold text-green-600">${Math.round(stats.avgJobValue).toLocaleString()}</p>
-            </div>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-green-100">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Outstanding</p>
-              <p className="text-2xl font-bold text-orange-600">${Math.round(stats.outstanding).toLocaleString()}</p>
-            </div>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-orange-100">
-              <CreditCard className="h-5 w-5 text-orange-600" />
-            </div>
-          </div>
-        </Card>
-
+        {/* Total Jobs */}
         <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Total Jobs</p>
-              <p className="text-2xl font-bold text-purple-600">{stats.totalJobs}</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.totalJobs}</p>
             </div>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-purple-100">
-              <Briefcase className="h-5 w-5 text-purple-600" />
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+              <Briefcase className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Completed Jobs */}
+        <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Completed Jobs</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.completed}</p>
+            </div>
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+              <CheckCircle2 className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Active Jobs (Pending) */}
+        <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Active Jobs</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.activeJobs}</p>
+            </div>
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+              <Clock className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* New Jobs This Week */}
+        <Card className="p-5 border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">New This Week</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.newJobsThisWeek}</p>
+            </div>
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100">
+              <Sparkles className="h-5 w-5 text-blue-600" />
             </div>
           </div>
         </Card>
@@ -291,8 +356,8 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
 
       {/* Jobs Table Card */}
       <Card className="border-gray-200">
-        <div className="p-4 bg-white border-b border-gray-100 flex flex-col sm:flex-row items-center gap-4">
-          <div className="relative flex-1 max-w-md w-full">
+        <div className="p-4 bg-white border-b border-gray-100 flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <ExpandableInput
               placeholder="Search clients, emails, or job numbers..."
@@ -303,7 +368,7 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
               lined={true}
             />
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-3">
             <Select value={currentPeriodFilter} onValueChange={handlePeriodChange}>
               <SelectTrigger className="w-[160px] bg-white border-gray-200">
                 <SelectValue placeholder="Time Period" />
@@ -332,16 +397,14 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
               {filteredJobs.length} of {data.jobs?.length || 0} jobs
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button onClick={onSync} disabled={syncing} variant="outline" size="sm" className="h-9">
-                <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Syncing...' : 'Refresh'}
-              </Button>
-              <Button onClick={exportToCSV} variant="outline" size="sm" className="h-9">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
+            <Button onClick={onSync} disabled={syncing} variant="outline" size="sm" className="h-9 gap-2">
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Refresh'}
+            </Button>
+            <Button onClick={exportToCSV} variant="outline" size="sm" className="h-9 gap-2">
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
           </div>
         </div>
 
@@ -350,49 +413,51 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow className="border-b border-gray-200 hover:bg-gray-50/50">
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4">Client Name</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Email / Phone</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Role</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Category</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Status</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Staff</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Duration</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Date/Time</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Amount</TableHead>
-                <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Payment</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4">Client Name</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Email</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Phone</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Address</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Category</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Status</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Technician</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Duration</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Scheduled Date</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Amount</TableHead>
+                <TableHead className="py-2.5 text-xs font-semibold text-gray-700 px-4 border-l">Payment</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredJobs.length === 0 ? (
+              {paginatedJobs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="h-32 text-center text-gray-500">
+                  <TableCell colSpan={11} className="h-32 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center space-y-2">
-                      <ClipboardList className="h-8 w-8 text-gray-300" />
+                       <ClipboardList className="h-8 w-8 text-gray-300" />
                       <p>No jobs found for the selected period</p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredJobs.map((job) => (
+                paginatedJobs.map((job) => (
                   <TableRow key={job.uuid} className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
-                    <TableCell className="py-3 px-4">
-                      <div className="font-semibold text-gray-900">{job.clientName}</div>
-                      <div className="text-[10px] text-gray-400">#{job.job_number || 'N/A'}</div>
+                    <TableCell className="py-2.5 px-4">
+                      <div className="font-semibold text-gray-900 text-sm">{job.clientName}</div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
+                    <TableCell className="py-2.5 px-4 border-l">
                       <div className="text-xs text-gray-600">{job.contactEmail}</div>
-                      <div className="text-[10px] text-gray-400">{job.contactMobile}</div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
-                      <Badge variant="outline" className="text-[10px] font-medium bg-gray-50">{job.contactRole}</Badge>
+                    <TableCell className="py-2.5 px-4 border-l">
+                      <div className="text-xs text-gray-600 whitespace-nowrap">{job.contactMobile}</div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
+                    <TableCell className="py-2.5 px-4 border-l">
+                      <div className="text-xs text-gray-600 truncate max-w-[200px]" title={job.jobAddress}>{job.jobAddress}</div>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-4 border-l">
                       <div className="text-xs font-medium text-gray-700">{job.categoryName}</div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
+                    <TableCell className="py-2.5 px-4 border-l">
                       {getStatusBadge(job.status)}
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
+                    <TableCell className="py-2.5 px-4 border-l">
                       <div className="flex items-center gap-2">
                         <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600">
                           {job.staffName.charAt(0)}
@@ -400,19 +465,19 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
                         <span className="text-xs">{job.staffName}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
+                    <TableCell className="py-2.5 px-4 border-l">
                       <div className="flex items-center text-xs text-gray-600">
                         <Clock className="h-3 w-3 mr-1 text-gray-400" />
                         {job.durationStr}
                       </div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
+                    <TableCell className="py-2.5 px-4 border-l">
                       <div className="text-xs text-gray-600">{job.displayDate}</div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l font-bold text-gray-900">
+                    <TableCell className="py-2.5 px-4 border-l font-bold text-gray-900 text-sm">
                       ${(parseFloat(job.total) || 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="py-3 px-4 border-l">
+                    <TableCell className="py-2.5 px-4 border-l">
                       {getPaymentBadge(job.paymentStatus)}
                     </TableCell>
                   </TableRow>
@@ -421,6 +486,69 @@ export function ServiceM8Rollup({ data, onSync, syncing, onFilterChange, activeF
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination Controls */}
+        {filteredJobs.length > 0 && (
+          <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredJobs.length)} of {filteredJobs.length} jobs
+              </div>
+              <Select value={itemsPerPage.toString()} onValueChange={(val) => setItemsPerPage(Number(val))}>
+                <SelectTrigger className="w-[100px] bg-white border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="35">35</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => {
+                    // Show first, last, current, and pages around current
+                    return page === 1 || 
+                           page === totalPages || 
+                           Math.abs(page - currentPage) <= 1;
+                  })
+                  .map((page, idx, arr) => (
+                    <div key={page} className="flex items-center">
+                      {idx > 0 && arr[idx - 1] !== page - 1 && (
+                        <span className="px-2 text-gray-400">...</span>
+                      )}
+                      <Button
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="min-w-[36px]"
+                      >
+                        {page}
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

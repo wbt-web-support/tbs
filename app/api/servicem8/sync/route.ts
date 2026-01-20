@@ -36,7 +36,10 @@ export async function GET(request: NextRequest) {
       .from('servicem8_jobs')
       .select(`
         *,
-        company:servicem8_companies(*),
+        company:servicem8_companies(
+          *,
+          contacts:servicem8_contacts(*)
+        ),
         category:servicem8_categories(*),
         staff:servicem8_staff(*),
         payments:servicem8_job_payments(*),
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     const { data: recentJobs } = await jobsQuery
       .order('date', { ascending: false })
-      .limit(100);
+      .limit(1000);
 
     return NextResponse.json({
       connected: !!data?.connected_at,

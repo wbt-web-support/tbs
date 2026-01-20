@@ -447,34 +447,54 @@ export class ServiceM8API {
     return data;
   }
 
-  // Make authenticated API request for a specific user
-  private async makeAuthenticatedRequest(userId: string, endpoint: string, manualAccessToken?: string): Promise<any> {
-    const accessToken = manualAccessToken || await this.getValidAccessToken(userId);
+  // Make authenticated API request for a specific user with basic retry logic
+  private async makeAuthenticatedRequest(userId: string, endpoint: string, manualAccessToken?: string, retries = 2): Promise<any> {
+    let accessToken = manualAccessToken || await this.getValidAccessToken(userId);
     
-    console.log(`Making ServiceM8 API request to: ${this.config.baseUrl}${endpoint}`);
-    
-    const response = await fetch(`${this.config.baseUrl}${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    for (let i = 0; i <= retries; i++) {
+      try {
+        console.log(`Making ServiceM8 API request to: ${this.config.baseUrl}${endpoint} (Attempt ${i + 1})`);
+        
+        const response = await fetch(`${this.config.baseUrl}${endpoint}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
-    if (response.status === 401) {
-      throw new Error('ServiceM8 authentication failed. Please reconnect your account.');
+        if (response.status === 401 && i < retries) {
+          console.warn('ServiceM8 status 401, attempting token refresh...');
+          // Force refresh by getting a fresh token if it wasn't manual
+          if (!manualAccessToken) {
+            accessToken = await this.getValidAccessToken(userId);
+            continue;
+          }
+        }
+
+        if (response.status === 429 || (response.status >= 500 && i < retries)) {
+          const waitTime = Math.pow(2, i) * 1000;
+          console.warn(`ServiceM8 error ${response.status}, retrying in ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`ServiceM8 API error for ${endpoint}:`, {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorText
+          });
+          throw new Error(`ServiceM8 API error: ${response.status} - ${response.statusText}`);
+        }
+
+        return response.json();
+      } catch (error) {
+        if (i === retries) throw error;
+        console.warn(`Request attempt ${i + 1} failed, retrying...`, error);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`ServiceM8 API error for ${endpoint}:`, {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      });
-      throw new Error(`ServiceM8 API error: ${response.status} - ${response.statusText}`);
-    }
-
-    return response.json();
   }
 
   // API methods for specific user
@@ -626,6 +646,7 @@ export class ServiceM8API {
     
     // 1. Fetch all data
     const data = await this.getAllData(userId, accessToken);
+    let syncErrors: string[] = [];
 
     // 2. Perform Batch Upserts
     
@@ -651,10 +672,15 @@ export class ServiceM8API {
         }));
         
         const { error } = await supabase.from('servicem8_companies').upsert(companiesToUpsert);
-        if (error) console.error('Error syncing companies:', error);
-        else console.log(`✓ Synced ${companiesToUpsert.length} companies`);
+        if (error) {
+          console.error('Error syncing companies:', error);
+          syncErrors.push(`Companies: ${error.message}`);
+        } else console.log(`✓ Synced ${companiesToUpsert.length} companies`);
       }
-    } catch (e) { console.error('Error syncing companies:', e); }
+    } catch (e) { 
+      console.error('Error syncing companies:', e);
+      syncErrors.push(`Companies sync exception: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     // 2.2 Sync Categories
     try {
@@ -669,10 +695,15 @@ export class ServiceM8API {
         }));
 
         const { error } = await supabase.from('servicem8_categories').upsert(categoriesToUpsert);
-        if (error) console.error('Error syncing categories:', error);
-        else console.log(`✓ Synced ${categoriesToUpsert.length} categories`);
+        if (error) {
+          console.error('Error syncing categories:', error);
+          syncErrors.push(`Categories: ${error.message}`);
+        } else console.log(`✓ Synced ${categoriesToUpsert.length} categories`);
       }
-    } catch (e) { console.error('Error syncing categories:', e); }
+    } catch (e) { 
+      console.error('Error syncing categories:', e);
+      syncErrors.push(`Categories sync exception: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     // 2.3 Sync Staff
     try {
@@ -693,10 +724,15 @@ export class ServiceM8API {
         }));
 
         const { error } = await supabase.from('servicem8_staff').upsert(staffToUpsert);
-        if (error) console.error('Error syncing staff:', error);
-        else console.log(`✓ Synced ${staffToUpsert.length} staff`);
+        if (error) {
+          console.error('Error syncing staff:', error);
+          syncErrors.push(`Staff: ${error.message}`);
+        } else console.log(`✓ Synced ${staffToUpsert.length} staff`);
       }
-    } catch (e) { console.error('Error syncing staff:', e); }
+    } catch (e) { 
+      console.error('Error syncing staff:', e);
+      syncErrors.push(`Staff sync exception: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     // 2.4 Sync Jobs
     try {
@@ -738,10 +774,15 @@ export class ServiceM8API {
         }));
 
         const { error } = await supabase.from('servicem8_jobs').upsert(jobsToUpsert);
-        if (error) console.error('Error syncing jobs:', error);
-        else console.log(`✓ Synced ${jobsToUpsert.length} jobs`);
+        if (error) {
+          console.error('Error syncing jobs:', error);
+          syncErrors.push(`Jobs: ${error.message}`);
+        } else console.log(`✓ Synced ${jobsToUpsert.length} jobs`);
       }
-    } catch (e) { console.error('Error syncing jobs:', e); }
+    } catch (e) { 
+      console.error('Error syncing jobs:', e);
+      syncErrors.push(`Jobs sync exception: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     // 2.5 Sync Company Contacts
     try {
@@ -770,23 +811,49 @@ export class ServiceM8API {
     // 2.6 Sync Job Contacts
     try {
       if (data.job_contacts.length > 0) {
-        const jobContactsToUpsert = data.job_contacts.map(c => ({
-          uuid: this.sanitizeUUID(c.uuid)!,
-          user_id: userId,
-          job_uuid: this.sanitizeUUID(c.job_uuid),
-          first_name: c.first,
-          last_name: c.last,
-          email: c.email,
-          phone: c.phone,
-          mobile: c.mobile,
-          type: c.type,
-          active: this.sanitizeBoolean(c.active),
-          updated_at: new Date().toISOString()
-        }));
+        // First, get all successfully synced job UUIDs from the database
+        const { data: existingJobs } = await supabase
+          .from('servicem8_jobs')
+          .select('uuid')
+          .eq('user_id', userId);
+        
+        const existingJobUUIDs = new Set(existingJobs?.map((j: any) => j.uuid) || []);
+        
+        // Only insert job contacts for jobs that exist
+        const jobContactsToUpsert = data.job_contacts
+          .filter(c => {
+            const jobUuid = this.sanitizeUUID(c.job_uuid);
+            if (!jobUuid || !existingJobUUIDs.has(jobUuid)) {
+              console.warn(`Skipping job contact ${c.uuid} - parent job ${c.job_uuid} not found`);
+              return false;
+            }
+            return true;
+          })
+          .map(c => ({
+            uuid: this.sanitizeUUID(c.uuid)!,
+            user_id: userId,
+            job_uuid: this.sanitizeUUID(c.job_uuid),
+            first_name: c.first,
+            last_name: c.last,
+            email: c.email,
+            phone: c.phone,
+            mobile: c.mobile,
+            type: c.type,
+            active: this.sanitizeBoolean(c.active),
+            updated_at: new Date().toISOString()
+          }));
 
-        const { error } = await supabase.from('servicem8_job_contacts').upsert(jobContactsToUpsert);
-        if (error) console.error('Error syncing job contacts:', error);
-        else console.log(`✓ Synced ${jobContactsToUpsert.length} job contacts`);
+        if (jobContactsToUpsert.length > 0) {
+          const { error } = await supabase.from('servicem8_job_contacts').upsert(jobContactsToUpsert);
+          if (error) {
+            console.error('Error syncing job contacts:', error);
+            syncErrors.push(`Job Contacts: ${error.message}`);
+          } else {
+            console.log(`✓ Synced ${jobContactsToUpsert.length} job contacts (${data.job_contacts.length - jobContactsToUpsert.length} skipped due to missing parent jobs)`);
+          }
+        } else {
+          console.warn('No valid job contacts to sync - all parent jobs missing');
+        }
       }
     } catch (e) { console.error('Error syncing job contacts:', e); }
 
@@ -812,8 +879,10 @@ export class ServiceM8API {
         }));
 
         const { error } = await supabase.from('servicem8_job_activities').upsert(activitiesToUpsert);
-        if (error) console.error('Supabase activities upsert error:', error);
-        else console.log('✓ Activities upserted successfully');
+        if (error) {
+          console.error('Supabase activities upsert error:', error);
+          syncErrors.push(`Activities: ${error.message}`);
+        } else console.log('✓ Activities upserted successfully');
       } else {
         console.log('No activities found to sync');
       }
@@ -837,19 +906,23 @@ export class ServiceM8API {
         }));
 
         const { error } = await supabase.from('servicem8_job_payments').upsert(paymentsToUpsert);
-        if (error) console.error('Supabase payments upsert error:', error);
-        else console.log('✓ Payments upserted successfully');
+        if (error) {
+          console.error('Supabase payments upsert error:', error);
+          syncErrors.push(`Payments: ${error.message}`);
+        } else console.log('✓ Payments upserted successfully');
       } else {
         console.log('No payments found to sync');
       }
     } catch (e) { console.error('Error syncing payments:', e); }
 
     // 3. Update Sync Metadata
+    const finalSyncStatus = syncErrors.length > 0 ? (syncErrors.length < 5 ? 'partial' : 'error') : 'completed';
+    const finalErrorMessage = syncErrors.length > 0 ? syncErrors.join('; ') : null;
+
     await supabase.from('servicem8_data').update({
-      sync_status: 'completed',
+      sync_status: finalSyncStatus,
       last_sync_at: new Date().toISOString(),
-      error_message: null,
-      jobs: data.jobs.slice(0, 10) 
+      error_message: finalErrorMessage
     }).eq('user_id', userId);
 
     return data;

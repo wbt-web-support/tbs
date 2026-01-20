@@ -104,7 +104,11 @@ export default function IntegrationsPage() {
   const [connectingGoogleAnalytics, setConnectingGoogleAnalytics] = useState(false);
   const [connectingXero, setConnectingXero] = useState(false);
   const [connectingGhl, setConnectingGhl] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [syncingQuickBooks, setSyncingQuickBooks] = useState(false);
+  const [syncingServiceM8, setSyncingServiceM8] = useState(false);
+  const [syncingGoogleAnalytics, setSyncingGoogleAnalytics] = useState(false);
+  const [syncingXero, setSyncingXero] = useState(false);
+  const [syncingGhl, setSyncingGhl] = useState(false);
   const [refreshingGoogleAnalytics, setRefreshingGoogleAnalytics] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -565,7 +569,7 @@ export default function IntegrationsPage() {
   };
   const handleSyncServiceM8 = async () => {
     try {
-      setSyncing(true);
+      setSyncingServiceM8(true);
       setError(null);
       const response = await fetch('/api/servicem8/sync', {
         method: 'POST',
@@ -583,12 +587,12 @@ export default function IntegrationsPage() {
       console.error('Error syncing ServiceM8:', error);
       setError('Failed to sync data');
     } finally {
-      setSyncing(false);
+      setSyncingServiceM8(false);
     }
   };
   const handleSyncXero = async () => {
     try {
-      setLoading(true);
+      setSyncingXero(true);
       setError(null);
       const response = await fetch('/api/xero/sync', {
         method: 'POST',
@@ -604,13 +608,13 @@ export default function IntegrationsPage() {
     } catch (error) {
       setError('Failed to sync data');
     } finally {
-      setLoading(false);
+      setSyncingXero(false);
     }
   };
 
   const handleSyncGhl = async () => {
     try {
-      setSyncing(true);
+      setSyncingGhl(true);
       setError(null);
       const response = await fetch('/api/ghls/contacts?sync=true');
       if (response.ok) {
@@ -624,7 +628,7 @@ export default function IntegrationsPage() {
     } catch (error) {
       setError('Failed to sync data');
     } finally {
-      setSyncing(false);
+      setSyncingGhl(false);
     }
   };
 
@@ -773,10 +777,10 @@ export default function IntegrationsPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
+                    disabled={syncingQuickBooks}
                   >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingQuickBooks ? 'animate-spin' : ''}`} />
+                    {syncingQuickBooks ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectQuickBooks}
@@ -869,10 +873,10 @@ export default function IntegrationsPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
+                    disabled={syncingServiceM8}
                   >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingServiceM8 ? 'animate-spin' : ''}`} />
+                    {syncingServiceM8 ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectServiceM8}
@@ -977,10 +981,10 @@ export default function IntegrationsPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
+                    disabled={syncingXero}
                   >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingXero ? 'animate-spin' : ''}`} />
+                    {syncingXero ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectXero}
@@ -1173,10 +1177,10 @@ export default function IntegrationsPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
+                    disabled={syncingGhl}
                   >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingGhl ? 'animate-spin' : ''}`} />
+                    {syncingGhl ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectGhl}
