@@ -30,10 +30,12 @@ export type AdminUserPermissions = {
  */
 export async function getAvailablePages(): Promise<PageInfo[]> {
   // These match the navigationSections in components/sidebar.tsx
+  // Note: Dashboard is always visible and not included here
   const pages: PageInfo[] = [
     { path: "calendar", name: "Calendar", section: "Overview" },
     { path: "team", name: "Team", section: "Overview" },
     { path: "software-tracker", name: "Software Tracker", section: "Overview" },
+    { path: "todos", name: "To do's", section: "Overview" },
     { path: "company-overview", name: "Company Overview", section: "Strategy" },
     { path: "business-plan", name: "Business Plan", section: "Strategy" },
     { path: "playbook-planner", name: "Playbooks", section: "Strategy" },
