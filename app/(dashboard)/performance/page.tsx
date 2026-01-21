@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Pencil, Calendar, Search, Filter } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Calendar, Search, Filter } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,6 +20,10 @@ type SessionSummary = {
   created_at: string;
   updated_at: string;
   revenue: number;
+  ad_spend: number;
+  leads: number;
+  surveys_booked: number;
+  jobs_completed: number;
   roas: number;
   roi_percent: number;
 };
@@ -47,6 +51,7 @@ export default function PerformanceSessionsListPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -100,6 +105,31 @@ export default function PerformanceSessionsListPage() {
     }
 
     setFilteredSessions(filtered);
+  };
+
+  const handleDelete = async (id: string, month: string, year: number) => {
+    if (!confirm(`Are you sure you want to delete the performance session for ${month} ${year}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeleteLoading(id);
+      const response = await fetch(`/api/performance-sessions?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete session');
+      }
+
+      toast.success('Session deleted successfully');
+      await fetchSessions();
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast.error('Failed to delete session');
+    } finally {
+      setDeleteLoading(null);
+    }
   };
 
   const formatDate = (dateString: string | null) => {
@@ -203,14 +233,18 @@ export default function PerformanceSessionsListPage() {
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow className="border-b border-gray-200 hover:bg-gray-50/50">
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4">Month</TableHead>
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Year</TableHead>
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Date of Call</TableHead>
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Revenue</TableHead>
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">ROAS</TableHead>
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">ROI %</TableHead>
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l">Status</TableHead>
-                      <TableHead className="py-3 text-xs font-semibold text-gray-700 px-4 border-l text-right">Actions</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3">Month</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l">Year</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l">Date of Call</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">Revenue</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">Ad Spend</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">Leads</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">Surveys</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">Jobs</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">ROAS</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">ROI %</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-center">Status</TableHead>
+                      <TableHead className="py-2 text-[10px] uppercase tracking-wider font-bold text-gray-500 px-3 border-l text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -222,43 +256,83 @@ export default function PerformanceSessionsListPage() {
                             key={session.id} 
                             className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors"
                           >
-                            <TableCell className="font-medium text-gray-900 py-3 px-4">
+                            <TableCell className="font-medium text-gray-900 py-2 px-3">
                               {session.month}
                             </TableCell>
-                            <TableCell className="py-3 px-4 border-l text-gray-600">
+                            <TableCell className="py-2 px-3 border-l text-gray-600">
                               {session.year}
                             </TableCell>
-                            <TableCell className="py-3 px-4 border-l text-gray-600">
+                            <TableCell className="py-2 px-3 border-l text-gray-600">
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                                <span className="text-sm">{formatDate(session.date_of_call)}</span>
+                                <span className="text-xs">{formatDate(session.date_of_call)}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="py-3 px-4 border-l">
-                              <span className="font-semibold text-gray-900 text-sm">
-                                {session.revenue != null && session.revenue > 0 ? `$${Number(session.revenue).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}
+                            <TableCell className="py-2 px-3 border-l text-center">
+                              <span className="font-semibold text-blue-600 text-xs">
+                                {session.revenue > 0 ? `£${Number(session.revenue).toLocaleString('en-GB')}` : '—'}
                               </span>
                             </TableCell>
-                            <TableCell className="py-3 px-4 border-l">
-                              <span className="font-semibold text-gray-900 text-sm">
-                                {session.roas != null && session.roas > 0 ? `${Number(session.roas).toFixed(2)}x` : '—'}
+                            <TableCell className="py-2 px-3 border-l text-center">
+                              <span className="text-gray-900 text-xs font-medium">
+                                {session.ad_spend > 0 ? `£${Number(session.ad_spend).toLocaleString('en-GB')}` : '—'}
                               </span>
                             </TableCell>
-                            <TableCell className="py-3 px-4 border-l">
-                              <span className="font-semibold text-gray-900 text-sm">
-                                {session.roi_percent != null && session.roi_percent > 0 ? `${Number(session.roi_percent).toFixed(1)}%` : '—'}
+                            <TableCell className="py-2 px-3 border-l text-center">
+                              <span className="text-gray-900 text-xs font-medium">
+                                {session.leads > 0 ? session.leads : '—'}
                               </span>
                             </TableCell>
-                            <TableCell className="py-3 px-4 border-l">
+                            <TableCell className="py-2 px-3 border-l text-center">
+                              <span className="text-gray-900 text-xs font-medium">
+                                {session.surveys_booked > 0 ? session.surveys_booked : '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2 px-3 border-l text-center">
+                              <span className="text-gray-900 text-xs font-medium">
+                                {session.jobs_completed > 0 ? session.jobs_completed : '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2 px-3 border-l text-center">
+                              <span className="font-semibold text-gray-900 text-xs">
+                                {session.roas > 0 ? `${Number(session.roas).toFixed(2)}x` : '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2 px-3 border-l text-center">
+                              <span className="font-semibold text-gray-900 text-xs">
+                                {session.roi_percent !== 0 ? `${Number(session.roi_percent).toFixed(1)}%` : '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2 px-3 border-l text-center">
                               {getStatusBadge(status)}
                             </TableCell>
-                            <TableCell className="py-3 px-4 border-l text-right">
-                              <Link href={`/performance/detail?month=${session.month}&year=${session.year}&edit=true`}>
-                                <Button variant="ghost" size="sm" className="h-8 text-blue-600 hover:bg-blue-50">
-                                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                                  Edit
+                            <TableCell className="py-2 px-3 border-l text-right">
+                              <div className="flex justify-end space-x-2">
+                                <Link href={`/performance/detail?month=${session.month}&year=${session.year}&edit=true`}>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 w-8 p-0 hover:bg-blue-50 rounded-full"
+                                    title="Edit session"
+                                  >
+                                    <Pencil className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                </Link>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(session.id, session.month, session.year)}
+                                  className="h-8 w-8 p-0 hover:bg-red-100 rounded-full text-red-500"
+                                  disabled={deleteLoading === session.id}
+                                  title="Delete session"
+                                >
+                                  {deleteLoading === session.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
                                 </Button>
-                              </Link>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );

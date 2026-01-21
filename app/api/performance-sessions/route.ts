@@ -187,3 +187,41 @@ export async function POST(req: Request) {
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("Auth error in performance-sessions DELETE:", authError);
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return new NextResponse("Missing session ID", { status: 400 });
+    }
+
+    // Delete session (cascade should handle KPIs and Tasks if set up, 
+    // but we'll manually delete to be safe if needed. 
+    // Assuming RLS and cascade is handled by Supabase schema)
+    const { error } = await supabase
+      .from("performance_sessions")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error deleting performance session:", error);
+      return new NextResponse("Internal Server Error", { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error in DELETE /api/performance-sessions:", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
+  }
+}

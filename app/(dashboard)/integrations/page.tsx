@@ -718,112 +718,99 @@ export default function IntegrationsPage() {
       )}
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* QuickBooks Integration Card */}
+        {/* Google Analytics Integration Card */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-white border">
-                  <img src="https://cdn.worldvectorlogo.com/logos/quickbooks-2.svg" alt="QuickBooks Logo" className="h-8 w-8 object-contain" />
+                  <img src="https://images.icon-icons.com/2699/PNG/512/google_analytics_logo_icon_171061.png" alt="Google Analytics Logo" className="h-8 w-8 object-contain" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl">QuickBooks</CardTitle>
-                  <CardDescription>Financial data & accounting</CardDescription>
+                  <CardTitle className="text-xl">Google Analytics</CardTitle>
+                  <CardDescription>Website & traffic analytics</CardDescription>
                 </div>
               </div>
-              {quickbooksConnection && getStatusBadge(quickbooksConnection.status, 'quickbooks')}
+              {googleAnalyticsConnection?.connected ? (
+                <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Not Connected</Badge>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {quickbooksConnection ? (
+            {googleAnalyticsConnection?.connected ? (
               <div className="space-y-3">
                 <div>
-                  <p className="font-medium">{quickbooksConnection.company_name}</p>
-                  <p className="text-sm text-muted-foreground">Connected since {new Date(quickbooksConnection.connected_at).toLocaleDateString()}</p>
+                  <p className="font-medium">
+                    {googleAnalyticsConnection.dataSource === 'user' && 'Your Account'}
+                    {googleAnalyticsConnection.dataSource === 'superadmin' && 'Assigned by Superadmin'}
+                    {googleAnalyticsConnection.dataSource === 'team_admin' && 'Team Admin Assignment'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {googleAnalyticsConnection.propertyName && (
+                      <>Property: <span className="font-semibold">{googleAnalyticsConnection.propertyName}</span></>
+                    )}
+                    {googleAnalyticsConnection.accountName && (
+                      <><br />Account: <span className="font-semibold">{googleAnalyticsConnection.accountName}</span></>
+                    )}
+                  </p>
                 </div>
-                
                 <Separator />
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Monthly Revenue</p>
-                    <p className="font-medium">
-                      {quickbooksConnection.revenue 
-                        ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(quickbooksConnection.revenue)
-                        : '£0.00'
-                      }
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Total Invoices</p>
-                    <p className="font-medium">{quickbooksConnection.invoicesCount || 0}</p>
-                  </div>
-                </div>
-
                 <div className="flex gap-2">
-                  <Button 
-                    asChild
+                  <Button
+                    onClick={handleRefreshGoogleAnalytics}
                     variant="outline"
                     size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
+                    disabled={refreshingGoogleAnalytics}
                   >
-                    <Link href="/integrations/quickbooks">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Manage
-                    </Link>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    {refreshingGoogleAnalytics ? 'Refreshing...' : 'Refresh'}
                   </Button>
-                  <Button 
-                    onClick={handleSyncQuickBooks}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncingQuickBooks}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingQuickBooks ? 'animate-spin' : ''}`} />
-                    {syncingQuickBooks ? 'Syncing...' : 'Sync'}
-                  </Button>
-                  <Button 
-                    onClick={handleDisconnectQuickBooks}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Disconnect
-                  </Button>
+                  {googleAnalyticsConnection.dataSource === 'user' && (
+                    <Button
+                      onClick={handleDisconnectGoogleAnalytics}
+                      variant="outline"
+                      size="sm"
+                      className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Disconnect
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h4 className="font-medium">Available KPIs:</h4>
+                  <h4 className="font-medium">Available Metrics:</h4>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary" className="text-xs">
-                      <PoundSterling className="h-3 w-3 mr-1" />
-                      Revenue
+                      <BarChart3 className="h-3 w-3 mr-1" />
+                      Users
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
                       <TrendingUp className="h-3 w-3 mr-1" />
-                      Gross Profit
+                      Sessions
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
                       <Database className="h-3 w-3 mr-1" />
-                      Avg Job Value
+                      Page Views
                     </Badge>
                   </div>
                 </div>
-                
                 <Button 
-                  onClick={handleConnectQuickBooks}
-                  disabled={connectingQuickBooks}
+                  onClick={handleConnectGoogleAnalytics}
+                  disabled={connectingGoogleAnalytics}
                   className="w-full"
                 >
-                  {connectingQuickBooks ? (
+                  {connectingGoogleAnalytics ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
                     <ExternalLink className="h-4 w-4 mr-2" />
                   )}
-                  {connectingQuickBooks ? 'Connecting...' : 'Connect QuickBooks'}
+                  {connectingGoogleAnalytics ? 'Connecting...' : 'Connect Google Analytics'}
                 </Button>
               </div>
             )}
@@ -930,206 +917,6 @@ export default function IntegrationsPage() {
           </CardContent>
         </Card>
 
-        {/* Xero Integration Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white border">
-                  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9f/Xero_software_logo.svg/1200px-Xero_software_logo.svg.png" alt="Xero Logo" className="h-8 w-8 object-contain" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl">Xero</CardTitle>
-                  <CardDescription>Accounting & financial management</CardDescription>
-                </div>
-              </div>
-              {xeroConnection && getStatusBadge(xeroConnection.sync_status, 'xero')}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {xeroConnection?.connected ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="font-medium">{xeroConnection.organization_name || 'Xero Account'}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Invoices</p>
-                    <p className="font-medium">{xeroConnection.invoicesCount || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Contacts</p>
-                    <p className="font-medium">{xeroConnection.contactsCount || 0}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                  >
-                    <Link href="/integrations/xero">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Manage
-                    </Link>
-                  </Button>
-                  <Button 
-                    onClick={handleSyncXero}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncingXero}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingXero ? 'animate-spin' : ''}`} />
-                    {syncingXero ? 'Syncing...' : 'Sync'}
-                  </Button>
-                  <Button 
-                    onClick={handleDisconnectXero}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Disconnect
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Available KPIs:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <PoundSterling className="h-3 w-3 mr-1" />
-                      Revenue
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <BarChart3 className="h-3 w-3 mr-1" />
-                      Cash Flow
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <FileText className="h-3 w-3 mr-1" />
-                      Accounts Receivable
-                    </Badge>
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={handleConnectXero}
-                  disabled={connectingXero}
-                  className="w-full"
-                >
-                  {connectingXero ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                  )}
-                  {connectingXero ? 'Connecting...' : 'Connect Xero'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Google Analytics Integration Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white border">
-                  <img src="https://images.icon-icons.com/2699/PNG/512/google_analytics_logo_icon_171061.png" alt="Google Analytics Logo" className="h-8 w-8 object-contain" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl">Google Analytics</CardTitle>
-                  <CardDescription>Website & traffic analytics</CardDescription>
-                </div>
-              </div>
-              {googleAnalyticsConnection?.connected ? (
-                <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>
-              ) : (
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Not Connected</Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {googleAnalyticsConnection?.connected ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="font-medium">
-                    {googleAnalyticsConnection.dataSource === 'user' && 'Your Account'}
-                    {googleAnalyticsConnection.dataSource === 'superadmin' && 'Assigned by Superadmin'}
-                    {googleAnalyticsConnection.dataSource === 'team_admin' && 'Team Admin Assignment'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {googleAnalyticsConnection.propertyName && (
-                      <>Property: <span className="font-semibold">{googleAnalyticsConnection.propertyName}</span></>
-                    )}
-                    {googleAnalyticsConnection.accountName && (
-                      <><br />Account: <span className="font-semibold">{googleAnalyticsConnection.accountName}</span></>
-                    )}
-                  </p>
-                </div>
-                <Separator />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleRefreshGoogleAnalytics}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-900 flex-grow"
-                    disabled={refreshingGoogleAnalytics}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {refreshingGoogleAnalytics ? 'Refreshing...' : 'Refresh'}
-                  </Button>
-                  {googleAnalyticsConnection.dataSource === 'user' && (
-                    <Button
-                      onClick={handleDisconnectGoogleAnalytics}
-                      variant="outline"
-                      size="sm"
-                      className="min-w-[90px] bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-900"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Disconnect
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Available Metrics:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <BarChart3 className="h-3 w-3 mr-1" />
-                      Users
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      Sessions
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <Database className="h-3 w-3 mr-1" />
-                      Page Views
-                    </Badge>
-                  </div>
-                </div>
-                <div
-                  className="w-full"
-                >
-                  {connectingGoogleAnalytics ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                  )}
-                  {connectingGoogleAnalytics ? 'Connecting...' : 'Connect Google Analytics'}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
         {/* GoHighLevel Integration Card */}
         <Card>
           <CardHeader>
@@ -1219,6 +1006,218 @@ export default function IntegrationsPage() {
                     <ExternalLink className="h-4 w-4 mr-2" />
                   )}
                   {connectingGhl ? 'Connecting...' : 'Connect GoHighLevel'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* QuickBooks Integration Card */}
+        <Card className="relative overflow-hidden">
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 z-10 backdrop-blur-[2px] bg-white/40 flex items-center justify-center p-4">
+            <Button className="bg-blue-600 hover:bg-blue-600 text-white font-bold rounded-full pointer-events-none shadow-lg">
+              Coming Soon
+            </Button>
+          </div>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://cdn.worldvectorlogo.com/logos/quickbooks-2.svg" alt="QuickBooks Logo" className="h-8 w-8 object-contain" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">QuickBooks</CardTitle>
+                  <CardDescription>Financial data & accounting</CardDescription>
+                </div>
+              </div>
+              {quickbooksConnection && getStatusBadge(quickbooksConnection.status, 'quickbooks')}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {quickbooksConnection ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">{quickbooksConnection.company_name}</p>
+                  <p className="text-sm text-muted-foreground">Connected since {new Date(quickbooksConnection.connected_at).toLocaleDateString()}</p>
+                </div>
+                
+                <Separator />
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Monthly Revenue</p>
+                    <p className="font-medium">
+                      {quickbooksConnection.revenue 
+                        ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(quickbooksConnection.revenue)
+                        : '£0.00'
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Invoices</p>
+                    <p className="font-medium">{quickbooksConnection.invoicesCount || 0}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Manage
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Sync
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Available KPIs:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <PoundSterling className="h-3 w-3 mr-1" />
+                      Revenue
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Gross Profit
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <Database className="h-3 w-3 mr-1" />
+                      Avg Job Value
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button 
+                  disabled
+                  className="w-full opacity-50 cursor-not-allowed"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Connect QuickBooks
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Xero Integration Card */}
+        <Card className="relative overflow-hidden">
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 z-10 backdrop-blur-[2px] bg-white/40 flex items-center justify-center p-4">
+            <Button className="bg-blue-600 hover:bg-blue-600 text-white font-bold rounded-full pointer-events-none shadow-lg">
+              Coming Soon
+            </Button>
+          </div>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9f/Xero_software_logo.svg/1200px-Xero_software_logo.svg.png" alt="Xero Logo" className="h-8 w-8 object-contain" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Xero</CardTitle>
+                  <CardDescription>Accounting & financial management</CardDescription>
+                </div>
+              </div>
+              {xeroConnection && getStatusBadge(xeroConnection.sync_status, 'xero')}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {xeroConnection?.connected ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">{xeroConnection.organization_name || 'Xero Account'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Invoices</p>
+                    <p className="font-medium">{xeroConnection.invoicesCount || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Contacts</p>
+                    <p className="font-medium">{xeroConnection.contactsCount || 0}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Manage
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Sync
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Available KPIs:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <PoundSterling className="h-3 w-3 mr-1" />
+                      Revenue
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <BarChart3 className="h-3 w-3 mr-1" />
+                      Cash Flow
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
+                      Accounts Receivable
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button 
+                  disabled
+                  className="w-full opacity-50 cursor-not-allowed"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Connect Xero
                 </Button>
               </div>
             )}

@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     const sessionIds = sessions.map(s => s.id);
     const { data: kpisData, error: kpisError } = await supabase
       .from("performance_kpis")
-      .select("session_id, revenue, roas, roi_percent")
+      .select("session_id, revenue, ad_spend, leads, surveys_booked, jobs_completed, roas, roi_percent")
       .in("session_id", sessionIds);
 
     if (kpisError) {
@@ -57,10 +57,12 @@ export async function GET(req: Request) {
     const sessionsWithKPIs = sessions.map(session => {
       const kpiData = kpisMap.get(session.id);
       const revenue = kpiData?.revenue != null ? Number(kpiData.revenue) : 0;
+      const adSpend = kpiData?.ad_spend != null ? Number(kpiData.ad_spend) : 0;
+      const leads = kpiData?.leads != null ? Number(kpiData.leads) : 0;
+      const surveysBooked = kpiData?.surveys_booked != null ? Number(kpiData.surveys_booked) : 0;
+      const jobsCompleted = kpiData?.jobs_completed != null ? Number(kpiData.jobs_completed) : 0;
       const roas = kpiData?.roas != null ? Number(kpiData.roas) : 0;
       const roiPercent = kpiData?.roi_percent != null ? Number(kpiData.roi_percent) : 0;
-      
-      console.log(`Session ${session.id} (${session.month} ${session.year}) - Revenue: ${revenue}, ROAS: ${roas}, ROI: ${roiPercent}`, kpiData);
       
       return {
         id: session.id,
@@ -71,6 +73,10 @@ export async function GET(req: Request) {
         created_at: session.created_at,
         updated_at: session.updated_at,
         revenue,
+        ad_spend: adSpend,
+        leads,
+        surveys_booked: surveysBooked,
+        jobs_completed: jobsCompleted,
         roas,
         roi_percent: roiPercent,
       };
