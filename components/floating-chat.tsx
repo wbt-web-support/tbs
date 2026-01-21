@@ -8,6 +8,7 @@ import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { createClient } from "@/utils/supabase/client";
 import { usePathname } from 'next/navigation';
+import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 
 const MIN_SIDEBAR_WIDTH = 450;
 const MAX_SIDEBAR_WIDTH = 700;
@@ -33,6 +34,8 @@ export function FloatingChat() {
   const [editingTitle, setEditingTitle] = useState("");
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [forceReloadKey, setForceReloadKey] = useState<number>(0); // Force reload key for new chats
+  const [hasChatPermission, setHasChatPermission] = useState<boolean | null>(null); // null = loading
+  const [isLoadingPermission, setIsLoadingPermission] = useState(true);
   
   console.log('🔄 [FloatingChat] Component mounted/remounted with forceReloadKey:', forceReloadKey);
   
@@ -47,6 +50,71 @@ export function FloatingChat() {
   const contentRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  // Check if user has chat permission
+  useEffect(() => {
+    const checkChatPermission = async () => {
+      try {
+        setIsLoadingPermission(true);
+        const effectiveUserId = await getEffectiveUserId();
+        if (effectiveUserId) {
+          const { data: businessInfo } = await supabase
+            .from('business_info')
+            .select('id, role, permissions')
+            .eq('user_id', effectiveUserId)
+            .single();
+
+          if (businessInfo) {
+            if (businessInfo.role === 'super_admin') {
+              // Super admins always have access
+              setHasChatPermission(true);
+            } else if (businessInfo.role === 'admin') {
+              // Admin users: check admin_page_permissions
+              const { data: newStructureData, error: newError } = await supabase
+                .from('admin_page_permissions')
+                .select('page_paths')
+                .eq('admin_user_id', businessInfo.id)
+                .maybeSingle();
+              
+              let pagePaths: string[] = [];
+              
+              if (newError && newError.code === '42703') {
+                // Old structure - check page_path column
+                const { data: oldStructureData } = await supabase
+                  .from('admin_page_permissions')
+                  .select('page_path')
+                  .eq('admin_user_id', businessInfo.id);
+                
+                pagePaths = oldStructureData?.map((p: any) => p.page_path) || [];
+              } else if (newStructureData) {
+                // New structure
+                pagePaths = Array.isArray(newStructureData.page_paths) 
+                  ? newStructureData.page_paths 
+                  : [];
+              }
+              
+              setHasChatPermission(pagePaths.includes('chat'));
+            } else {
+              // Regular users: check business_info.permissions
+              const pagePaths = businessInfo.permissions?.pages || [];
+              setHasChatPermission(pagePaths.includes('chat'));
+            }
+          } else {
+            setHasChatPermission(false);
+          }
+        } else {
+          setHasChatPermission(false);
+        }
+      } catch (error) {
+        console.error('Error checking chat permission:', error);
+        setHasChatPermission(false);
+      } finally {
+        setIsLoadingPermission(false);
+      }
+    };
+
+    checkChatPermission();
+  }, [supabase]);
   
   useEffect(() => {
     const checkScreenSize = () => {
@@ -399,6 +467,15 @@ export function FloatingChat() {
   }, [isResizing, resize, stopResizing]);
 
   const shouldShowChatUI = pathname !== '/chat' && pathname !== '/innovation-machine';
+
+  // Don't render if user doesn't have chat permission or still loading
+  if (isLoadingPermission) {
+    return null; // Wait for permission check
+  }
+
+  if (!hasChatPermission) {
+    return null; // User doesn't have chat permission
+  }
 
   return (
     <div ref={contentRef} className="relative">

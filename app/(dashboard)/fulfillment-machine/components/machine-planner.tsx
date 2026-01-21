@@ -73,11 +73,39 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
   // Question flow state
   const [questions, setQuestions] = useState<any[]>([]);
   const [answers, setAnswers] = useState<{[key: string]: string}>({});
+  const [customAnswers, setCustomAnswers] = useState<{[key: string]: string}>({});
+  const [showCustomInput, setShowCustomInput] = useState<{[key: string]: boolean}>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Predefined options for triggering and ending events
+  const triggeringEventOptions = [
+    "Order received",
+    "Project approved",
+    "Service request submitted",
+    "Contract signed",
+    "Job assigned",
+    "Customer makes payment/deposit",
+    "Work order created",
+    "Appointment scheduled",
+    "Quote accepted",
+    "Customer confirms service"
+  ];
+
+  const endingEventOptions = [
+    "Service delivered",
+    "Project completed",
+    "Customer satisfied and signs off",
+    "Final invoice paid",
+    "Quality check passed",
+    "Customer receives final deliverable",
+    "Warranty period started",
+    "Follow-up completed",
+    "Customer review submitted"
+  ];
 
   useEffect(() => {
     fetchMachineData();
@@ -101,6 +129,21 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
         // Load answers from database
         if (machineData.answers && typeof machineData.answers === 'object') {
           setAnswers(machineData.answers);
+          // Check for custom answers (answers not in predefined options)
+          const customAnswersMap: {[key: string]: string} = {};
+          const showCustomMap: {[key: string]: boolean} = {};
+          machineData.questions.questions.forEach((q: any) => {
+            const answer = machineData.answers[q.id];
+            if (answer && q.question_type === 'select' && q.options) {
+              // If answer is not in the predefined options, it's a custom answer
+              if (!q.options.includes(answer)) {
+                customAnswersMap[q.id] = answer;
+                showCustomMap[q.id] = true;
+              }
+            }
+          });
+          setCustomAnswers(customAnswersMap);
+          setShowCustomInput(showCustomMap);
           // Update question completion status based on answers
           setQuestions(machineData.questions.questions.map((q: any) => ({
             ...q,
@@ -640,23 +683,56 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
                             </div>
 
                             {/* Answer Input */}
-                            <div>
+                            <div className="space-y-3">
                               {currentQuestion.question_type === 'select' && currentQuestion.options ? (
-                                <Select
-                                  value={answers[currentQuestion.id] || ''}
-                                  onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
-                                >
-                                  <SelectTrigger className="h-12 text-base border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
-                                    <SelectValue placeholder="Select an option..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {currentQuestion.options.map((option: string, index: number) => (
-                                      <SelectItem key={index} value={option} className="text-base py-3">
-                                        {option}
+                                <>
+                                  <Select
+                                    value={showCustomInput[currentQuestion.id] ? '__custom__' : (answers[currentQuestion.id] || '')}
+                                    onValueChange={(value) => {
+                                      if (value === '__custom__') {
+                                        setShowCustomInput(prev => ({ ...prev, [currentQuestion.id]: true }));
+                                        // If there's already a custom answer, keep it; otherwise clear
+                                        const currentAnswer = answers[currentQuestion.id] || '';
+                                        if (currentAnswer && !currentQuestion.options.includes(currentAnswer)) {
+                                          // Already a custom answer, keep it
+                                          setCustomAnswers(prev => ({ ...prev, [currentQuestion.id]: currentAnswer }));
+                                        } else {
+                                          // Clear the answer when switching to custom
+                                          handleAnswerChange(currentQuestion.id, '');
+                                        }
+                                      } else {
+                                        setShowCustomInput(prev => ({ ...prev, [currentQuestion.id]: false }));
+                                        handleAnswerChange(currentQuestion.id, value);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-12 text-base border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
+                                      <SelectValue placeholder="Select an option..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {currentQuestion.options.map((option: string, index: number) => (
+                                        <SelectItem key={index} value={option} className="text-base py-3">
+                                          {option}
+                                        </SelectItem>
+                                      ))}
+                                      <SelectItem value="__custom__" className="text-base py-3 font-medium text-purple-600 border-t border-gray-200 mt-1">
+                                        + Other (Type your own answer)
                                       </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                    </SelectContent>
+                                  </Select>
+                                  {showCustomInput[currentQuestion.id] && (
+                                    <Textarea
+                                      value={customAnswers[currentQuestion.id] || answers[currentQuestion.id] || ''}
+                                      onChange={(e) => {
+                                        const customValue = e.target.value;
+                                        setCustomAnswers(prev => ({ ...prev, [currentQuestion.id]: customValue }));
+                                        handleAnswerChange(currentQuestion.id, customValue);
+                                      }}
+                                      placeholder="Type your custom answer here..."
+                                      className="min-h-[120px] text-base border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 resize-none placeholder:text-gray-400"
+                                    />
+                                  )}
+                                </>
                               ) : (
                                 <Textarea
                                   value={answers[currentQuestion.id] || ''}
@@ -862,7 +938,7 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
                 {engineType}
               </div>
             </CardHeader>
-            <div className="p-6 space-y-4 pt-0">
+            <div className="p-6 space-y-4">
               {/* Engine Name */}
               <div>
               {editMode ? (
@@ -908,6 +984,8 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
                       onChange={setTriggeringEvents}
                       placeholder="Add a triggering event"
                       editMode={editMode}
+                      predefinedOptions={triggeringEventOptions}
+                      showDropdown={true}
                     />
                   ) : (
                     <div className="max-h-[400px] overflow-y-auto">
@@ -947,6 +1025,8 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
                       onChange={setEndingEvent}
                       placeholder="Add an ending event"
                       editMode={editMode}
+                      predefinedOptions={endingEventOptions}
+                      showDropdown={true}
                     />
                   ) : (
                     <div className="max-h-[400px] overflow-y-auto">

@@ -198,6 +198,11 @@ Machine #${index + 1}:
       throw new Error('Invalid questions format from AI');
     }
 
+    // Enforce maximum 5 questions
+    if (questionsData.questions.length > 5) {
+      questionsData.questions = questionsData.questions.slice(0, 5);
+    }
+
     // Prepare questions data with JSON structure
     const questionsWithIds = questionsData.questions.map((q: any, index: number) => ({
       id: crypto.randomUUID(),

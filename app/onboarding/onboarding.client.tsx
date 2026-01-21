@@ -3092,44 +3092,123 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
           // Parse the old string format and convert to new array format
           const employeesString = onboardingData.current_employees_and_roles_responsibilities;
           if (employeesString.trim()) {
-            // Try to parse comma-separated format like "Neeraj (Devv) - Develop site"
-            const employees = employeesString.split(',').map((employee: string, index: number) => {
-              const trimmed = employee.trim();
-              // Try to match format: "Name (Role) - Responsibilities"
-              const fullMatch = trimmed.match(/^(.+?)\s*\((.+?)\)\s*-\s*(.+)$/);
-              if (fullMatch) {
-                return {
-                  id: `legacy-employee-${index}`,
-                  name: fullMatch[1].trim(),
-                  role: fullMatch[2].trim(),
-                  responsibilities: fullMatch[3].trim(),
-                  email: undefined,
-                  departmentId: null
-                };
+            // Parse employee entries in format: "Name (Role) - Responsibilities"
+            // This handles commas in responsibilities AND nested parentheses in roles
+            const employees: any[] = [];
+            let currentPos = 0;
+
+            while (currentPos < employeesString.length) {
+              // Find the next ") -" pattern (marks end of role section)
+              const roleEndPattern = /\)\s*-\s*/g;
+              roleEndPattern.lastIndex = currentPos;
+              const roleEndMatch = roleEndPattern.exec(employeesString);
+              
+              if (!roleEndMatch) break;
+              
+              // Work backwards from this position to find the opening parenthesis and name
+              const beforeRole = employeesString.substring(currentPos, roleEndMatch.index);
+              
+              // Find the last opening parenthesis (this handles nested parens like "Project Manager (Administrative)")
+              let parenDepth = 0;
+              let roleStartPos = -1;
+              for (let i = beforeRole.length - 1; i >= 0; i--) {
+                if (beforeRole[i] === ')') {
+                  parenDepth++;
+                } else if (beforeRole[i] === '(') {
+                  if (parenDepth === 0) {
+                    roleStartPos = i;
+                    break;
+                  }
+                  parenDepth--;
+                }
               }
-              // Fallback to old format: "Name (Role)"
-              const roleMatch = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
-              if (roleMatch) {
-                return {
-                  id: `legacy-employee-${index}`,
-                  name: roleMatch[1].trim(),
-                  role: roleMatch[2].trim(),
-                  responsibilities: '',
-                  email: undefined,
-                  departmentId: null
-                };
-              } else {
-                return {
-                  id: `legacy-employee-${index}`,
-                  name: trimmed,
-                  role: '',
-                  responsibilities: '',
-                  email: undefined,
-                  departmentId: null
-                };
+              
+              if (roleStartPos === -1) {
+                currentPos = roleEndMatch.index + 1;
+                continue;
               }
-            });
-            onboardingData.current_employees_and_roles_responsibilities = employees;
+              
+              let name = beforeRole.substring(0, roleStartPos).trim();
+              // Remove leading comma if present
+              name = name.replace(/^,\s*/, '').trim();
+              const role = beforeRole.substring(roleStartPos + 1).trim();
+              
+              // Skip if name is empty or too short
+              if (!name || name.length < 2) {
+                currentPos = roleEndMatch.index + 1;
+                continue;
+              }
+              
+              // Find the responsibilities (everything until the next employee or end)
+              const responsibilitiesStart = roleEndPattern.lastIndex;
+              let responsibilitiesEnd = employeesString.length;
+              
+              // Look for the next employee entry (pattern: ", Name (")
+              const nextEmployeePattern = /,\s+[^,]+?\s+\(/g;
+              nextEmployeePattern.lastIndex = responsibilitiesStart;
+              const nextEmployeeMatch = nextEmployeePattern.exec(employeesString);
+              
+              if (nextEmployeeMatch) {
+                responsibilitiesEnd = nextEmployeeMatch.index;
+              }
+              
+              let responsibilities = employeesString.substring(responsibilitiesStart, responsibilitiesEnd).trim();
+              responsibilities = responsibilities.replace(/\s*,\s*$/, '').trim();
+              
+              employees.push({
+                id: `legacy-employee-${employees.length}`,
+                name: name,
+                role: role,
+                responsibilities: responsibilities,
+                email: undefined,
+                departmentId: null
+              });
+              
+              currentPos = responsibilitiesEnd;
+            }
+            
+            // If no employees were parsed, try the old comma-split method as fallback
+            if (employees.length === 0) {
+              const fallbackEmployees = employeesString.split(',').map((employee: string, index: number) => {
+                const trimmed = employee.trim();
+                // Try to match format: "Name (Role) - Responsibilities"
+                const fullMatch = trimmed.match(/^(.+?)\s*\((.+?)\)\s*-\s*(.+)$/);
+                if (fullMatch) {
+                  return {
+                    id: `legacy-employee-${index}`,
+                    name: fullMatch[1].trim(),
+                    role: fullMatch[2].trim(),
+                    responsibilities: fullMatch[3].trim(),
+                    email: undefined,
+                    departmentId: null
+                  };
+                }
+                // Fallback to old format: "Name (Role)"
+                const roleMatch = trimmed.match(/^(.+?)\s*\((.+?)\)$/);
+                if (roleMatch) {
+                  return {
+                    id: `legacy-employee-${index}`,
+                    name: roleMatch[1].trim(),
+                    role: roleMatch[2].trim(),
+                    responsibilities: '',
+                    email: undefined,
+                    departmentId: null
+                  };
+                } else {
+                  return {
+                    id: `legacy-employee-${index}`,
+                    name: trimmed,
+                    role: '',
+                    responsibilities: '',
+                    email: undefined,
+                    departmentId: null
+                  };
+                }
+              });
+              onboardingData.current_employees_and_roles_responsibilities = fallbackEmployees;
+            } else {
+              onboardingData.current_employees_and_roles_responsibilities = employees;
+            }
           } else {
             onboardingData.current_employees_and_roles_responsibilities = [];
           }

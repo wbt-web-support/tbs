@@ -344,30 +344,36 @@ CRITICAL: You must respond with ONLY a valid JSON object. Do not include any exp
   "enginename": "Your Engine Name Here",
   "description": "Your detailed description here",
   "triggeringevents": [
-    {"value": "First triggering event"},
-    {"value": "Second triggering event"},
-    {"value": "Third triggering event"}
+    {"value": "The ONE triggering event"}
   ],
   "endingevent": [
-    {"value": "First ending event"},
-    {"value": "Second ending event"},
-    {"value": "Third ending event"}
+    {"value": "The ONE ending event"}
   ],
   "actionsactivities": [
-    {"value": "First action/activity"},
+    {"value": "The triggering event (must be first)"},
     {"value": "Second action/activity"},
-    {"value": "Third action/activity"}
+    {"value": "Third action/activity"},
+    {"value": "The ending event (must be last)"}
   ]
 }
 
 IMPORTANT RULES:
 - Do NOT include empty strings or null values
-- Each array must contain at least 3 items
-- All text must be specific and actionable
+- triggeringevents must contain exactly ONE item (not multiple)
+- endingevent must contain exactly ONE item (not multiple)
+- The first item in actionsactivities must match the triggering event exactly
+- The last item in actionsactivities must match the ending event exactly
+- actionsactivities must contain at least 3 items (triggering event, at least one middle step, and ending event)
+- All text must be DETAILED and DESCRIPTIVE - not short or concise
+- Description must be a comprehensive paragraph (3-5 sentences minimum), not a short phrase. Include what the service does, who it targets, what value it provides, and how it works
+- Actions/activities must be detailed sentences with context, timings, conditions, or specific details. Examples: "Contact is attempted within the first 10 minutes" (not "Call"), "Customer provides pictures (first commitment) or a site survey is booked if required" (not "Get pictures"), "Follow-up call 1 (within 24 hours)" (not "Follow up")
+- Triggering and ending events should be descriptive with context about how they happen. Examples: "A person becomes aware of our company through paid ads (Google & Social Media), word of mouth referrals, or organic SEO" (not just "Customer visits website")
 - No placeholder text like "string" or "description"
 - Base everything on the actual company data provided
 - Focus on their primary service and current business model
 - Make the process practical and implementable for their specific business
+- Use clear, natural language that is professional but straightforward - avoid slang, casual phrases, or overly friendly language
+- Provide full context and specific details in all fields - avoid generic or brief responses
 `;
 
 export async function POST(req: Request) {
@@ -472,17 +478,49 @@ export async function POST(req: Request) {
           .filter((item: any) => item && item.value && item.value.trim() !== '')
           .map((item: any) => ({ value: item.value.trim() }));
 
-        // Ensure we have minimum items
-        if (generatedData.triggeringevents.length < 3) {
-          throw new Error("Not enough triggering events generated");
+        // Enforce single triggering and ending events
+        if (generatedData.triggeringevents.length !== 1) {
+          // Take only the first one if multiple exist
+          generatedData.triggeringevents = [generatedData.triggeringevents[0]];
         }
 
-        if (generatedData.endingevent.length < 2) {
-          throw new Error("Not enough ending events generated");
+        if (generatedData.endingevent.length !== 1) {
+          // Take only the first one if multiple exist
+          generatedData.endingevent = [generatedData.endingevent[0]];
         }
 
-        if (generatedData.actionsactivities.length < 5) {
-          throw new Error("Not enough actions/activities generated");
+        // Get the triggering and ending event values
+        const triggeringEventValue = generatedData.triggeringevents[0].value;
+        const endingEventValue = generatedData.endingevent[0].value;
+
+        // Ensure actions/activities start with triggering event and end with ending event
+        const firstAction = generatedData.actionsactivities[0]?.value;
+        const lastAction = generatedData.actionsactivities[generatedData.actionsactivities.length - 1]?.value;
+
+        // Remove triggering/ending events from middle of actions list if they exist
+        generatedData.actionsactivities = generatedData.actionsactivities.filter((item: any, index: number) => {
+          // Keep first and last items
+          if (index === 0 || index === generatedData.actionsactivities.length - 1) {
+            return true;
+          }
+          // Remove if it matches triggering or ending event
+          return item.value !== triggeringEventValue && item.value !== endingEventValue;
+        });
+
+        // Ensure first action is the triggering event
+        if (firstAction !== triggeringEventValue) {
+          generatedData.actionsactivities.unshift({ value: triggeringEventValue });
+        }
+
+        // Ensure last action is the ending event
+        const newLastAction = generatedData.actionsactivities[generatedData.actionsactivities.length - 1]?.value;
+        if (newLastAction !== endingEventValue) {
+          generatedData.actionsactivities.push({ value: endingEventValue });
+        }
+
+        // Ensure we have minimum items (at least triggering event, one middle step, and ending event)
+        if (generatedData.actionsactivities.length < 3) {
+          throw new Error("Not enough actions/activities generated - need at least triggering event, one step, and ending event");
         }
 
       } catch (parseError) {

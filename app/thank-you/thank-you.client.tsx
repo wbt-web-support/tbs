@@ -220,20 +220,93 @@ function EmployeesDisplay({ employees, label }: { employees: any; label?: string
     employeesList = employees;
   } else if (typeof employees === 'string' && employees.trim()) {
     // Parse string format: "John Doe (Developer) - Writes code, Jane Smith (Designer) - Designs UI"
-    employeesList = employees.split(',').map((item: string) => {
-      const trimmed = item.trim();
-      // Try to parse format: "Name (Role) - Responsibilities"
-      const match = trimmed.match(/^(.+?)\s*\((.+?)\)\s*-\s*(.+)$/);
-      if (match) {
-        return {
-          name: match[1].trim(),
-          role: match[2].trim(),
-          responsibilities: match[3].trim()
-        };
+    // This handles commas in responsibilities AND nested parentheses in roles
+    let currentPos = 0;
+
+    while (currentPos < employees.length) {
+      // Find the next ") -" pattern (marks end of role section)
+      const roleEndPattern = /\)\s*-\s*/g;
+      roleEndPattern.lastIndex = currentPos;
+      const roleEndMatch = roleEndPattern.exec(employees);
+      
+      if (!roleEndMatch) break;
+      
+      // Work backwards from this position to find the opening parenthesis and name
+      const beforeRole = employees.substring(currentPos, roleEndMatch.index);
+      
+      // Find the last opening parenthesis (this handles nested parens like "Project Manager (Administrative)")
+      let parenDepth = 0;
+      let roleStartPos = -1;
+      for (let i = beforeRole.length - 1; i >= 0; i--) {
+        if (beforeRole[i] === ')') {
+          parenDepth++;
+        } else if (beforeRole[i] === '(') {
+          if (parenDepth === 0) {
+            roleStartPos = i;
+            break;
+          }
+          parenDepth--;
+        }
       }
-      // Fallback: just use the string as name
-      return { name: trimmed, role: '', responsibilities: '' };
-    });
+      
+      if (roleStartPos === -1) {
+        currentPos = roleEndMatch.index + 1;
+        continue;
+      }
+      
+      let name = beforeRole.substring(0, roleStartPos).trim();
+      // Remove leading comma if present
+      name = name.replace(/^,\s*/, '').trim();
+      const role = beforeRole.substring(roleStartPos + 1).trim();
+      
+      // Skip if name is empty or too short
+      if (!name || name.length < 2) {
+        currentPos = roleEndMatch.index + 1;
+        continue;
+      }
+      
+      // Find the responsibilities (everything until the next employee or end)
+      const responsibilitiesStart = roleEndPattern.lastIndex;
+      let responsibilitiesEnd = employees.length;
+      
+      // Look for the next employee entry (pattern: ", Name (")
+      const nextEmployeePattern = /,\s+[^,]+?\s+\(/g;
+      nextEmployeePattern.lastIndex = responsibilitiesStart;
+      const nextEmployeeMatch = nextEmployeePattern.exec(employees);
+      
+      if (nextEmployeeMatch) {
+        responsibilitiesEnd = nextEmployeeMatch.index;
+      }
+      
+      let responsibilities = employees.substring(responsibilitiesStart, responsibilitiesEnd).trim();
+      responsibilities = responsibilities.replace(/\s*,\s*$/, '').trim();
+      
+      employeesList.push({
+        name: name,
+        role: role,
+        responsibilities: responsibilities
+      });
+      
+      currentPos = responsibilitiesEnd;
+    }
+    
+    // If no employees were parsed, try the old comma-split method as fallback
+    if (employeesList.length === 0) {
+      employeesList = employees.split(',').map((item: string) => {
+        const trimmed = item.trim();
+        // Try to parse format: "Name (Role) - Responsibilities"
+        const match = trimmed.match(/^(.+?)\s*\((.+?)\)\s*-\s*(.+)$/);
+        if (match) {
+          return {
+            name: match[1].trim(),
+            role: match[2].trim(),
+            responsibilities: match[3].trim()
+          };
+        }
+        // Fallback: just use the string as name
+        return { name: trimmed, role: '', responsibilities: '' };
+      });
+    }
   }
 
   if (employeesList.length === 0) return null;

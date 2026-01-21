@@ -3,16 +3,21 @@
 import { useState, useRef, useEffect } from "react";
 import { Plus, X, Pencil, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface DynamicInputListProps {
   items: { value: string }[];
   onChange: (items: { value: string }[]) => void;
   placeholder?: string;
   editMode: boolean;
+  predefinedOptions?: string[];
+  showDropdown?: boolean;
 }
 
-export function DynamicInputList({ items, onChange, placeholder, editMode }: DynamicInputListProps) {
+export function DynamicInputList({ items, onChange, placeholder, editMode, predefinedOptions, showDropdown = false }: DynamicInputListProps) {
   const [newItem, setNewItem] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [selectedOption, setSelectedOption] = useState("");
   // Store refs for each textarea
   const itemRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
@@ -33,6 +38,17 @@ export function DynamicInputList({ items, onChange, placeholder, editMode }: Dyn
     if (newItem.trim()) {
       onChange([...items, { value: newItem.trim() }]);
       setNewItem("");
+      setShowCustomInput(false);
+    }
+  };
+
+  const handleSelectOption = (value: string) => {
+    if (value === "__custom__") {
+      setShowCustomInput(true);
+      setSelectedOption("");
+    } else if (value && !items.some(item => item.value === value)) {
+      onChange([...items, { value }]);
+      setSelectedOption("");
     }
   };
 
@@ -88,26 +104,59 @@ export function DynamicInputList({ items, onChange, placeholder, editMode }: Dyn
         </div>
       )}
       {editMode && (
-        <div className="flex space-x-2 items-start mt-2">
-          <textarea
-            value={newItem}
-            onChange={e => { setNewItem(e.target.value); autoExpand(e); }}
-            onInput={autoExpand}
-            placeholder={placeholder || "Add new item"}
-            className="flex-1 resize-none min-h-[32px] max-h-40 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
-            rows={1}
-            style={{ overflow: 'hidden' }}
-          />
-          <Button 
-            type="button" 
-            onClick={handleAddItem} 
-            variant="outline" 
-            className="whitespace-nowrap mt-1"
-            disabled={!newItem.trim()}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add
-          </Button>
+        <div className="space-y-2 mt-2">
+          {showDropdown && predefinedOptions && predefinedOptions.length > 0 && !showCustomInput && (
+            <div className="flex space-x-2 items-start">
+              <Select value={selectedOption} onValueChange={handleSelectOption}>
+                <SelectTrigger className="flex-1 h-10 text-sm border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                  <SelectValue placeholder="Select from options or add custom..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {predefinedOptions.map((option, index) => (
+                    <SelectItem key={index} value={option} className="text-sm py-2">
+                      {option}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__custom__" className="text-sm py-2 font-medium text-blue-600 border-t border-gray-200 mt-1">
+                    + Add Custom Text
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {(showCustomInput || !showDropdown || !predefinedOptions || predefinedOptions.length === 0) && (
+            <div className="flex space-x-2 items-start">
+              <textarea
+                value={newItem}
+                onChange={e => { setNewItem(e.target.value); autoExpand(e); }}
+                onInput={autoExpand}
+                placeholder={placeholder || "Add new item"}
+                className="flex-1 resize-none min-h-[32px] max-h-40 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
+                rows={1}
+                style={{ overflow: 'hidden' }}
+              />
+              <Button 
+                type="button" 
+                onClick={handleAddItem} 
+                variant="outline" 
+                className="whitespace-nowrap mt-1"
+                disabled={!newItem.trim()}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+              {showCustomInput && (
+                <Button 
+                  type="button" 
+                  onClick={() => { setShowCustomInput(false); setNewItem(""); }} 
+                  variant="ghost" 
+                  className="whitespace-nowrap mt-1"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
