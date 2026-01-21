@@ -134,7 +134,12 @@ export default function FulfillmentMachinePage() {
           description: "",
           triggeringevents: [],
           endingevent: [],
-          actionsactivities: []
+          actionsactivities: [],
+          welcome_completed: false,
+          questions: null,
+          answers: null,
+          questions_completed: false,
+          ai_assisted: false
         })
         .select()
         .single();
@@ -660,7 +665,7 @@ export default function FulfillmentMachinePage() {
             <div className={`absolute inset-0 ${mainActiveTab === "details" ? "block" : "hidden"}`}>
               <div className="flex-1">
                 <div className="mx-auto">
-                  <MachinePlanner onDataChange={fetchMachineData} />
+                  <MachinePlanner onDataChange={fetchMachineData} isPlannerTabActive={mainActiveTab === "details"} />
                 </div>
               </div>
             </div>

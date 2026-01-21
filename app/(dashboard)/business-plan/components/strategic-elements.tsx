@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { ExpandableInput } from "@/components/ui/input";
 import CustomCheckbox from "./custom-checkbox";
 import { 
-  Loader2, Save, X, Pencil, Plus, Trash2, 
+  Loader2, X, Plus, 
   Heart, Anchor, Target, CalendarClock, Calendar
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
@@ -21,7 +20,7 @@ type StrategicElementsProps = {
   coreValues: Item[];
   strategicAnchors: Item[];
   purposeWhy: Item[];
-  threeYearTarget: Item[];
+  fiveYearTarget: Item[];
   oneYearTarget: Item[];
   tenYearTarget: Item[];
   onUpdate: () => void;
@@ -35,7 +34,7 @@ export default function StrategicElements({
   coreValues, 
   strategicAnchors, 
   purposeWhy, 
-  threeYearTarget, 
+  fiveYearTarget, 
   oneYearTarget, 
   tenYearTarget, 
   onUpdate, 
@@ -47,7 +46,7 @@ export default function StrategicElements({
   const [values, setValues] = useState<Item[]>(coreValues);
   const [anchors, setAnchors] = useState<Item[]>(strategicAnchors);
   const [purposes, setPurposes] = useState<Item[]>(purposeWhy);
-  const [threeYearTargets, setThreeYearTargets] = useState<Item[]>(threeYearTarget);
+  const [fiveYearTargets, setFiveYearTargets] = useState<Item[]>(fiveYearTarget);
   const [oneYearTargets, setOneYearTargets] = useState<Item[]>(oneYearTarget);
   const [tenYearTargets, setTenYearTargets] = useState<Item[]>(tenYearTarget);
   
@@ -55,7 +54,7 @@ export default function StrategicElements({
     coreValues: "",
     strategicAnchors: "",
     purposeWhy: "",
-    threeYearTarget: "",
+    fiveYearTarget: "",
     oneYearTarget: "",
     tenYearTarget: ""
   });
@@ -86,8 +85,8 @@ export default function StrategicElements({
           deadline: item.deadline || ""
         })));
       }
-      if (generatedData.threeyeartarget) {
-        setThreeYearTargets(generatedData.threeyeartarget.map((item: any) => ({
+      if (generatedData.fiveyeartarget) {
+        setFiveYearTargets(generatedData.fiveyeartarget.map((item: any) => ({
           value: item.value || item,
           completed: item.completed || false,
           deadline: item.deadline || ""
@@ -123,7 +122,7 @@ export default function StrategicElements({
     let updatedValues = [...values];
     let updatedAnchors = [...anchors];
     let updatedPurposes = [...purposes];
-    let updatedThreeYearTargets = [...threeYearTargets];
+    let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
     let updatedTenYearTargets = [...tenYearTargets];
     
@@ -143,10 +142,10 @@ export default function StrategicElements({
         setPurposes(updatedPurposes);
         setNewItems({...newItems, purposeWhy: ""});
         break;
-      case "threeYearTarget":
-        updatedThreeYearTargets = [...threeYearTargets, newItem];
-        setThreeYearTargets(updatedThreeYearTargets);
-        setNewItems({...newItems, threeYearTarget: ""});
+      case "fiveYearTarget":
+        updatedFiveYearTargets = [...fiveYearTargets, newItem];
+        setFiveYearTargets(updatedFiveYearTargets);
+        setNewItems({...newItems, fiveYearTarget: ""});
         break;
       case "oneYearTarget":
         updatedOneYearTargets = [...oneYearTargets, newItem];
@@ -170,7 +169,7 @@ export default function StrategicElements({
             corevalues: updatedValues,
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
-            threeyeartarget: updatedThreeYearTargets,
+            fiveyeartarget: updatedFiveYearTargets,
             oneyeartarget: { targets: updatedOneYearTargets },
             tenyeartarget: { targets: updatedTenYearTargets }
           })
@@ -189,7 +188,7 @@ export default function StrategicElements({
     let updatedValues = [...values];
     let updatedAnchors = [...anchors];
     let updatedPurposes = [...purposes];
-    let updatedThreeYearTargets = [...threeYearTargets];
+    let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
     let updatedTenYearTargets = [...tenYearTargets];
 
@@ -206,9 +205,9 @@ export default function StrategicElements({
         updatedPurposes.splice(index, 1);
         setPurposes(updatedPurposes);
         break;
-      case "threeYearTarget":
-        updatedThreeYearTargets.splice(index, 1);
-        setThreeYearTargets(updatedThreeYearTargets);
+      case "fiveYearTarget":
+        updatedFiveYearTargets.splice(index, 1);
+        setFiveYearTargets(updatedFiveYearTargets);
         break;
       case "oneYearTarget":
         updatedOneYearTargets.splice(index, 1);
@@ -230,7 +229,7 @@ export default function StrategicElements({
             corevalues: updatedValues,
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
-            threeyeartarget: updatedThreeYearTargets,
+            fiveyeartarget: updatedFiveYearTargets,
             oneyeartarget: { targets: updatedOneYearTargets },
             tenyeartarget: { targets: updatedTenYearTargets }
           })
@@ -249,7 +248,7 @@ export default function StrategicElements({
     let updatedValues = [...values];
     let updatedAnchors = [...anchors];
     let updatedPurposes = [...purposes];
-    let updatedThreeYearTargets = [...threeYearTargets];
+    let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
     let updatedTenYearTargets = [...tenYearTargets];
 
@@ -266,9 +265,9 @@ export default function StrategicElements({
         updatedPurposes[index] = { ...updatedPurposes[index], value };
         setPurposes(updatedPurposes);
         break;
-      case "threeYearTarget":
-        updatedThreeYearTargets[index] = { ...updatedThreeYearTargets[index], value };
-        setThreeYearTargets(updatedThreeYearTargets);
+      case "fiveYearTarget":
+        updatedFiveYearTargets[index] = { ...updatedFiveYearTargets[index], value };
+        setFiveYearTargets(updatedFiveYearTargets);
         break;
       case "oneYearTarget":
         updatedOneYearTargets[index] = { ...updatedOneYearTargets[index], value };
@@ -290,7 +289,7 @@ export default function StrategicElements({
             corevalues: updatedValues,
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
-            threeyeartarget: updatedThreeYearTargets,
+            fiveyeartarget: updatedFiveYearTargets,
             oneyeartarget: { targets: updatedOneYearTargets },
             tenyeartarget: { targets: updatedTenYearTargets }
           })
@@ -309,7 +308,7 @@ export default function StrategicElements({
     let updatedValues = [...values];
     let updatedAnchors = [...anchors];
     let updatedPurposes = [...purposes];
-    let updatedThreeYearTargets = [...threeYearTargets];
+    let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
     let updatedTenYearTargets = [...tenYearTargets];
 
@@ -326,9 +325,9 @@ export default function StrategicElements({
         updatedPurposes[index] = { ...updatedPurposes[index], completed };
         setPurposes(updatedPurposes);
         break;
-      case "threeYearTarget":
-        updatedThreeYearTargets[index] = { ...updatedThreeYearTargets[index], completed };
-        setThreeYearTargets(updatedThreeYearTargets);
+      case "fiveYearTarget":
+        updatedFiveYearTargets[index] = { ...updatedFiveYearTargets[index], completed };
+        setFiveYearTargets(updatedFiveYearTargets);
         break;
       case "oneYearTarget":
         updatedOneYearTargets[index] = { ...updatedOneYearTargets[index], completed };
@@ -350,7 +349,7 @@ export default function StrategicElements({
             corevalues: updatedValues,
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
-            threeyeartarget: updatedThreeYearTargets,
+            fiveyeartarget: updatedFiveYearTargets,
             oneyeartarget: { targets: updatedOneYearTargets },
             tenyeartarget: { targets: updatedTenYearTargets }
           })
@@ -369,7 +368,7 @@ export default function StrategicElements({
     let updatedValues = [...values];
     let updatedAnchors = [...anchors];
     let updatedPurposes = [...purposes];
-    let updatedThreeYearTargets = [...threeYearTargets];
+    let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
     let updatedTenYearTargets = [...tenYearTargets];
 
@@ -386,9 +385,9 @@ export default function StrategicElements({
         updatedPurposes[index] = { ...updatedPurposes[index], deadline };
         setPurposes(updatedPurposes);
         break;
-      case "threeYearTarget":
-        updatedThreeYearTargets[index] = { ...updatedThreeYearTargets[index], deadline };
-        setThreeYearTargets(updatedThreeYearTargets);
+      case "fiveYearTarget":
+        updatedFiveYearTargets[index] = { ...updatedFiveYearTargets[index], deadline };
+        setFiveYearTargets(updatedFiveYearTargets);
         break;
       case "oneYearTarget":
         updatedOneYearTargets[index] = { ...updatedOneYearTargets[index], deadline };
@@ -410,7 +409,7 @@ export default function StrategicElements({
             corevalues: updatedValues,
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
-            threeyeartarget: updatedThreeYearTargets,
+            fiveyeartarget: updatedFiveYearTargets,
             oneyeartarget: { targets: updatedOneYearTargets },
             tenyeartarget: { targets: updatedTenYearTargets }
           })
@@ -437,7 +436,7 @@ export default function StrategicElements({
           corevalues: values,
           strategicanchors: anchors,
           purposewhy: purposes,
-          threeyeartarget: threeYearTargets,
+          fiveyeartarget: fiveYearTargets,
           oneyeartarget: { targets: oneYearTargets },
           tenyeartarget: { targets: tenYearTargets }
         })
@@ -461,7 +460,7 @@ export default function StrategicElements({
         return <Anchor className="h-5 w-5 text-blue-600" />;
       case "purposeWhy":
         return <Target className="h-5 w-5 text-amber-500" />;
-      case "threeYearTarget":
+      case "fiveYearTarget":
         return <CalendarClock className="h-5 w-5 text-emerald-600" />;
       default:
         return null;
@@ -473,44 +472,51 @@ export default function StrategicElements({
       case "coreValues":
         return {
           icon: <Heart className="h-4 w-4 text-red-600 mr-2 flex-shrink-0" />,
-          cardHeaderClass: "border-b border-red-100 bg-red-50",
-          titleClass: "text-red-800"
+          dotColor: "bg-red-600",
+          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
+          titleClass: "text-gray-800"
         };
       case "strategicAnchors":
         return {
           icon: <Anchor className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0" />,
-          cardHeaderClass: "border-b border-blue-100 bg-blue-50",
-          titleClass: "text-blue-800"
+          dotColor: "bg-blue-600",
+          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
+          titleClass: "text-gray-800"
         };
       case "purposeWhy":
         return {
           icon: <Target className="h-4 w-4 text-amber-600 mr-2 flex-shrink-0" />,
-          cardHeaderClass: "border-b border-amber-100 bg-amber-50",
-          titleClass: "text-amber-800"
+          dotColor: "bg-amber-600",
+          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
+          titleClass: "text-gray-800"
         };
-      case "threeYearTarget":
+      case "fiveYearTarget":
         return {
           icon: <CalendarClock className="h-4 w-4 text-emerald-600 mr-2 flex-shrink-0" />,
-          cardHeaderClass: "border-b border-emerald-100 bg-emerald-50",
-          titleClass: "text-emerald-800"
+          dotColor: "bg-emerald-600",
+          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
+          titleClass: "text-gray-800"
         };
       case "oneYearTarget":
         return {
           icon: <CalendarClock className="h-4 w-4 text-purple-600 mr-2 flex-shrink-0" />,
-          cardHeaderClass: "border-b border-purple-100 bg-purple-50",
-          titleClass: "text-purple-800"
+          dotColor: "bg-purple-600",
+          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
+          titleClass: "text-gray-800"
         };
       case "tenYearTarget":
         return {
           icon: <CalendarClock className="h-4 w-4 text-indigo-600 mr-2 flex-shrink-0" />,
-          cardHeaderClass: "border-b border-indigo-100 bg-indigo-50",
-          titleClass: "text-indigo-800"
+          dotColor: "bg-indigo-600",
+          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
+          titleClass: "text-gray-800"
         };
       default:
         return {
           icon: null,
-          cardHeaderClass: "",
-          titleClass: ""
+          dotColor: "bg-gray-600",
+          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
+          titleClass: "text-gray-800"
         };
     }
   };
@@ -523,8 +529,8 @@ export default function StrategicElements({
         return "Strategic Anchors";
       case "purposeWhy":
         return "Purpose & Why";
-      case "threeYearTarget":
-        return "3-Year Targets";
+      case "fiveYearTarget":
+        return "5-Year Targets";
       case "oneYearTarget":
         return "1-Year Targets";
       case "tenYearTarget":
@@ -542,8 +548,8 @@ export default function StrategicElements({
         return "Add a strategic anchor...";
       case "purposeWhy":
         return "Add a purpose statement...";
-      case "threeYearTarget":
-        return "Add a 3-year target...";
+      case "fiveYearTarget":
+        return "Add a 5-year target...";
       case "oneYearTarget":
         return "Add a 1-year target...";
       case "tenYearTarget":
@@ -561,8 +567,8 @@ export default function StrategicElements({
         return "No strategic anchors added yet";
       case "purposeWhy":
         return "No purpose statements added yet";
-      case "threeYearTarget":
-        return "No 3-year targets added yet";
+      case "fiveYearTarget":
+        return "No 5-year targets added yet";
       case "oneYearTarget":
         return "No 1-year targets added yet";
       case "tenYearTarget":
@@ -588,8 +594,8 @@ export default function StrategicElements({
         return anchors;
       case "purposeWhy":
         return purposes;
-      case "threeYearTarget":
-        return threeYearTargets;
+      case "fiveYearTarget":
+        return fiveYearTargets;
       case "oneYearTarget":
         return oneYearTargets;
       case "tenYearTarget":
@@ -600,7 +606,7 @@ export default function StrategicElements({
   };
 
   const isTargetSection = (section: string) => {
-    return section === "threeYearTarget" || section === "oneYearTarget" || section === "tenYearTarget";
+    return section === "fiveYearTarget" || section === "oneYearTarget" || section === "tenYearTarget";
   };
 
   const renderSection = (section: string) => {
@@ -612,16 +618,15 @@ export default function StrategicElements({
 
     return (
       <Card className="overflow-hidden border-gray-200 h-full">
-        <CardHeader className={`py-3 px-4 ${style.cardHeaderClass}`}>
-          <div className="flex items-center">
-            {style.icon}
-            <h3 className={`text-sm font-semibold ${style.titleClass}`}>{title}</h3>
-          </div>
+        <CardHeader className={`flex flex-row items-center justify-between !py-2 !px-4 !m-0 ${style.cardHeaderClass}`}>
+          <CardTitle className={`!text-xl font-medium text-gray-800 uppercase`}>
+            {title}
+          </CardTitle>
         </CardHeader>
-        <div className="px-4 py-3">
+        <div className="p-0">
           {editMode ? (
-            <div className="space-y-3">
-              <div className="space-y-3 pr-1">
+            <div className="space-y-3 p-4">
+              <div className="space-y-2">
                 {items.map((item, index) => {
                   const setTextareaRef = (el: HTMLTextAreaElement | null) => {
                     if (el) {
@@ -635,42 +640,28 @@ export default function StrategicElements({
                     target.style.height = `${target.scrollHeight}px`;
                   };
                   return (
-                    <div key={index} className={`space-y-2 p-3 border rounded-lg ${
-                      isTargetSection(section) && item.completed 
-                        ? 'bg-green-50 border-green-200' 
-                        : isTargetSection(section) && isDeadlineOverdue(item.deadline || '')
-                        ? 'bg-red-50 border-red-200'
-                        : 'bg-gray-50 border-gray-200'
-                    }`}>
-                      <div className="flex items-start space-x-2">
+                    <div key={index} className="flex items-start gap-2">
                         {isTargetSection(section) && (
                           <CustomCheckbox
                             checked={item.completed || false}
                             onCheckedChange={(checked: boolean) => handleToggleComplete(section, index, checked)}
-                            className="mt-1"
+                          className="mt-1 flex-shrink-0"
                           />
                         )}
+                      <div className="flex-1 space-y-2">
                         <textarea
                           ref={setTextareaRef}
-                          className={`flex-1 text-sm border rounded-md px-2 py-1 min-h-[32px] w-full resize-none overflow-hidden ${
+                          className={`flex-1 text-sm border rounded-md px-3 py-2 min-h-[32px] w-full resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white ${
                             isTargetSection(section) && item.completed ? 'line-through text-gray-500' : ''
                           }`}
                           value={item.value}
                           onChange={e => handleChangeItem(section, index, e.target.value)}
                           onInput={handleInput}
                           rows={1}
+                          style={{ overflow: 'hidden' }}
                         />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-gray-500 hover:text-red-600"
-                          onClick={() => handleRemoveItem(section, index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
                       {isTargetSection(section) && (
-                        <div className="flex items-center space-x-2 ml-6">
+                          <div className="flex items-center space-x-2">
                           <Calendar className={`h-4 w-4 ${
                             isDeadlineOverdue(item.deadline || '') && !item.completed 
                               ? 'text-red-500' 
@@ -692,67 +683,81 @@ export default function StrategicElements({
                           )}
                         </div>
                       )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="p-1 text-gray-500 hover:text-red-600 flex-shrink-0"
+                        onClick={() => handleRemoveItem(section, index)}
+                        title="Remove"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   );
                 })}
               </div>
-              <div className="flex items-center space-x-2 pt-2">
-                <ExpandableInput
+              <div className="flex space-x-2 items-start pt-2">
+                <textarea
                   value={newItems[section as keyof typeof newItems]}
-                  onChange={(e) => setNewItems({...newItems, [section]: e.target.value})}
+                  onChange={(e) => {
+                    setNewItems({...newItems, [section]: e.target.value});
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
                   placeholder={placeholder}
-                  className="flex-1 text-sm"
-                  expandAfter={40}
-                  lined={true}
+                  className="flex-1 resize-none min-h-[32px] max-h-40 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
+                  rows={1}
+                  style={{ overflow: 'hidden' }}
                 />
                 <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
+                  type="button"
                   onClick={() => handleAddItem(section)}
+                  variant="outline"
+                  className="whitespace-nowrap mt-1"
+                  disabled={!newItems[section as keyof typeof newItems].trim()}
                 >
-                  <Plus className="h-3 w-3 mr-1" />
+                  <Plus className="h-4 w-4 mr-1" />
                   Add
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-3 pr-1">
+            <div className="max-h-[400px] overflow-y-auto">
               {items.length === 0 ? (
-                <p className="text-sm text-gray-400 italic">{emptyMessage}</p>
+                <p className="text-center text-gray-400 italic py-4 text-xs">{emptyMessage}</p>
               ) : (
-                <div className="space-y-3">
-                  {items.map((item, index) => (
+                items.map((item, index) => (
                     <div 
                       key={index} 
-                      className={`space-y-2 p-3 rounded-lg border ${
-                        isTargetSection(section) && item.completed 
-                          ? 'bg-green-50 border-green-200' 
-                          : isTargetSection(section) && isDeadlineOverdue(item.deadline || '')
-                          ? 'bg-red-50 border-red-200'
-                          : 'bg-gray-50 border-gray-200'
+                    className={`px-3 py-2.5 flex items-start ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       }`}
                     >
-                      <div className="flex items-start space-x-2">
                         {isTargetSection(section) && (
                           <CustomCheckbox
                             checked={item.completed || false}
                             onCheckedChange={(checked: boolean) => handleToggleComplete(section, index, checked)}
-                            className="mt-1"
+                        className="mt-1 mr-2 flex-shrink-0"
                           />
                         )}
+                    {!isTargetSection(section) && (
+                      <div className={`h-3 w-3 ${style.dotColor} rounded-full mt-1 mr-2 flex-shrink-0`} />
+                    )}
                         <div className="flex-1">
-                          <span className={`text-sm ${
-                            isTargetSection(section) && item.completed 
-                              ? 'line-through text-gray-500' 
-                              : 'text-gray-700'
+                      <div className={`text-sm leading-relaxed text-gray-700 ${
+                        isTargetSection(section) && item.completed ? 'line-through text-gray-500' : ''
                           }`}>
                             {item.value}
-                          </span>
-                        </div>
                       </div>
                       {isTargetSection(section) && item.deadline && (
-                        <div className="flex items-center space-x-2 ml-6">
+                        <div className="flex items-center space-x-2 mt-1">
                           <Calendar className={`h-3 w-3 ${
                             isDeadlineOverdue(item.deadline) && !item.completed 
                               ? 'text-red-500' 
@@ -763,14 +768,14 @@ export default function StrategicElements({
                               ? 'text-red-600 font-medium' 
                               : 'text-gray-500'
                           }`}>
-                            Deadline: {new Date(item.deadline).toLocaleDateString()}
+                            {new Date(item.deadline).toLocaleDateString()}
                             {isDeadlineOverdue(item.deadline) && !item.completed && ' (Overdue)'}
                           </span>
                         </div>
                       )}
                     </div>
-                  ))}
                 </div>
+                ))
               )}
             </div>
           )}
@@ -781,7 +786,7 @@ export default function StrategicElements({
 
   const getCompletionStats = () => {
     // Only include target sections in stats
-    const targetItems = [...threeYearTargets, ...oneYearTargets, ...tenYearTargets];
+    const targetItems = [...fiveYearTargets, ...oneYearTargets, ...tenYearTargets];
     const total = targetItems.length;
     const completed = targetItems.filter(item => item.completed).length;
     const overdue = targetItems.filter(item => 
@@ -794,7 +799,7 @@ export default function StrategicElements({
   const stats = getCompletionStats();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Auto-save indicator */}
       {autoSaving && (
         <div className="flex items-center justify-center p-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -803,20 +808,15 @@ export default function StrategicElements({
         </div>
       )}
     
-      {/* Row 2: Strategic Foundation */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Strategic Foundation</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Strategic Foundation */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {renderSection("purposeWhy")}
           {renderSection("strategicAnchors")}
           {renderSection("coreValues")}
-        </div>
       </div>
 
-      {/* Row 3: Target Sections */}
+      {/* Strategic Targets */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Strategic Targets</h2>
-        
         {/* Target Completion Statistics */}
         {stats.total > 0 && (
           <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border mb-4">
@@ -835,9 +835,9 @@ export default function StrategicElements({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {renderSection("oneYearTarget")}
-          {renderSection("threeYearTarget")}
+          {renderSection("fiveYearTarget")}
           {renderSection("tenYearTarget")}
         </div>
       </div>

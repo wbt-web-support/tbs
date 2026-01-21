@@ -22,6 +22,8 @@ interface IntegrationsDashboardProps {
   customerReviewsLoading?: boolean;
   // Add a key prop to force re-render when connections change
   refreshKey?: number;
+  // If true, only show Google Analytics even if other integrations are connected
+  restrictToGoogleAnalytics?: boolean;
 }
 
 export default function IntegrationsDashboard(props: IntegrationsDashboardProps) {
@@ -87,7 +89,10 @@ export default function IntegrationsDashboard(props: IntegrationsDashboardProps)
   ];
 
   // Filter to only show connected integrations
-  const availableTabs = allTabs.filter(tab => tab.connected);
+  // If restrictToGoogleAnalytics is true, only show Google Analytics tab
+  const availableTabs = props.restrictToGoogleAnalytics
+    ? allTabs.filter(tab => tab.key === 'google' && tab.connected)
+    : allTabs.filter(tab => tab.connected);
 
   // Set default active tab to first available
   useEffect(() => {

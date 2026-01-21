@@ -11,6 +11,7 @@ import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card, CardContent } from '@/components/ui/card';
 import IntegrationsDashboard from '@/app/(dashboard)/dashboard/components/integrations-dashboard';
 import DashboardActionSection from '@/app/(dashboard)/dashboard/components/dashboard-action-section';
+import OnboardingEditSection from '@/app/(dashboard)/dashboard/components/onboarding-edit-section';
 import { trackActivity } from '@/utils/points';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -667,7 +668,7 @@ export default function NewDashboard() {
                         onClick={handleStartTour}
                         variant="outline"
                         size="sm"
-                        className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                        className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 hidden"
                       >
                         <MapPin className="h-4 w-4" />
                         Take Tour
@@ -705,6 +706,9 @@ export default function NewDashboard() {
                 />
               </div>
               
+              {/* Onboarding Edit Sections */}
+              <OnboardingEditSection />
+              
               <div>
                 <IntegrationsDashboard 
                 isConnected={isConnected}
@@ -718,6 +722,7 @@ export default function NewDashboard() {
                 adminProfile={adminProfile}
                 customerReviewsLoading={customerReviewsLoading}
                 refreshKey={refreshKey}
+                restrictToGoogleAnalytics={true}
                 />
               </div>
             </div>

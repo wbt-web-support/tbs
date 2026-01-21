@@ -110,7 +110,7 @@ interface BattlePlan {
   purposewhy: any[];
   strategicanchors: any[];
   corevalues: any[];
-  threeyeartarget: any[];
+  fiveyeartarget: any[];
   created_at: string;
   updated_at: string;
 }

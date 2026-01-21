@@ -7,7 +7,7 @@ create table public.battle_plan (
   purposewhy jsonb[] null default '{}'::jsonb[],
   strategicanchors jsonb[] null default '{}'::jsonb[],
   corevalues jsonb[] null default '{}'::jsonb[],
-  threeyeartarget jsonb[] null default '{}'::jsonb[],
+  fiveyeartarget jsonb[] null default '{}'::jsonb[],
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   constraint battle_plan_pkey primary key (id),

@@ -28,6 +28,7 @@ export default function QuickAccessDropdown({ userPermissions, isAdmin }: QuickA
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Define quick access items with their permissions
+  // Map href paths to permission keys (removing leading slash)
   const quickAccessItems = [
     {
       name: "AI Assistant",
@@ -49,7 +50,7 @@ export default function QuickAccessDropdown({ userPermissions, isAdmin }: QuickA
       name: "Playbook",
       href: "/playbook-planner",
       icon: BookOpen,
-      permission: "playbook",
+      permission: "playbook-planner",
       color: "text-red-600",
       bgColor: "bg-red-100"
     },
@@ -72,8 +73,18 @@ export default function QuickAccessDropdown({ userPermissions, isAdmin }: QuickA
   ];
 
   // Filter items based on permissions
+  // Super admins (empty permissions array) see all, others check permissions
+  // Note: isAdmin here is true for both admin and super_admin roles
+  // We detect super_admin by checking if permissions array is empty when isAdmin is true
+  const isSuperAdmin = isAdmin && userPermissions.length === 0;
+  const effectivePermissions = isSuperAdmin ? [] : [...userPermissions];
+  // Always include dashboard for everyone (except we don't need to add it for super_admin)
+  if (!isSuperAdmin && !effectivePermissions.includes('dashboard')) {
+    effectivePermissions.push('dashboard');
+  }
+  
   const accessibleItems = quickAccessItems.filter(item => 
-    isAdmin || userPermissions.includes(item.permission)
+    isSuperAdmin || effectivePermissions.includes(item.permission)
   );
 
   if (accessibleItems.length === 0) {

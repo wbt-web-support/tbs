@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Loader2, Calendar, BookOpen, Plus, ChevronUp, PanelLeftOpen, X } from "lucide-react";
+import { User, LogOut, Loader2, Calendar, BookOpen, Plus, ChevronUp, PanelLeftOpen, X, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
@@ -120,7 +120,7 @@ function SidebarContent({
         </Button>
       </div>
 
-      {/* Calendar and Playbook */}
+      {/* Calendar, Playbook, and Todos */}
       <div className={cn(
         "py-2 border-b border-gray-200 space-y-1 shrink-0",
         isCollapsed ? "px-2" : "px-4 pb-5 pt-0"
@@ -146,6 +146,17 @@ function SidebarContent({
         >
           <BookOpen className={isCollapsed ? "h-5 w-5 shrink-0" : "h-5 w-5 shrink-0"} />
           {!isCollapsed && <span className="text-sm">Playbook Planner</span>}
+        </Link>
+        <Link
+          href="/member/todos"
+          className={cn(
+            "flex items-center gap-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors",
+            isCollapsed ? "justify-center px-2 w-10 h-10 mx-auto" : "px-3"
+          )}
+          title={isCollapsed ? "To do's" : undefined}
+        >
+          <CheckSquare className={isCollapsed ? "h-5 w-5 shrink-0" : "h-5 w-5 shrink-0"} />
+          {!isCollapsed && <span className="text-sm">To do's</span>}
         </Link>
       </div>
 
