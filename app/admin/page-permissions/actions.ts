@@ -42,6 +42,7 @@ export async function getAvailablePages(): Promise<PageInfo[]> {
     { path: "growth-machine", name: "Growth Machine", section: "Value Machines" },
     { path: "fulfillment-machine", name: "Fulfilment Machine", section: "Value Machines" },
     { path: "chat", name: "AI Assistant", section: "AI" },
+    { path: "integrations", name: "Integrations", section: "Settings" },
   ];
   
   return pages;

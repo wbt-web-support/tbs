@@ -200,13 +200,15 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                       Export Data
                   </Link>
               </DropdownMenuItem> */}
-              {/* <DropdownMenuItem>
+              {(isSuperAdmin || effectivePermissions.includes('integrations')) && (
+                <DropdownMenuItem>
                   <Link href="/integrations" className="w-full text-left flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      Integrations
+                    <Database className="h-4 w-4" />
+                    Integrations
                   </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
+                </DropdownMenuItem>
+              )}
+              {/* <DropdownMenuItem>
                   <Link href="/update" className="w-full text-left flex items-center gap-2">
                       <Settings className="h-4 w-4" />
                       Update Content
