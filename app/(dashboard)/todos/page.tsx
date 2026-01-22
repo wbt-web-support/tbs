@@ -686,6 +686,11 @@ export default function TodosPage() {
                             due_date: date ? format(date, 'yyyy-MM-dd') : "" 
                           });
                         }}
+                        disabled={(date) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -875,6 +880,11 @@ export default function TodosPage() {
                             ...assignedForm, 
                             due_date: date ? format(date, 'yyyy-MM-dd') : "" 
                           });
+                        }}
+                        disabled={(date) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
                         }}
                         initialFocus
                       />
