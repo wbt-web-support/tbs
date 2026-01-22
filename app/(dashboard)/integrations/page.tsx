@@ -52,9 +52,14 @@ interface ServiceM8Connection {
   connected: boolean;
   sync_status: string;
   last_sync_at: string | null;
-  jobs: any[];
-  staff: any[];
-  companies: any[];
+  jobs?: any[];
+  staff?: any[];
+  companies?: any[];
+  counts?: {
+    jobs: number;
+    staff: number;
+    companies: number;
+  };
 }
 
 interface GoogleAnalyticsConnection {
@@ -99,7 +104,11 @@ export default function IntegrationsPage() {
   const [connectingGoogleAnalytics, setConnectingGoogleAnalytics] = useState(false);
   const [connectingXero, setConnectingXero] = useState(false);
   const [connectingGhl, setConnectingGhl] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [syncingQuickBooks, setSyncingQuickBooks] = useState(false);
+  const [syncingServiceM8, setSyncingServiceM8] = useState(false);
+  const [syncingGoogleAnalytics, setSyncingGoogleAnalytics] = useState(false);
+  const [syncingXero, setSyncingXero] = useState(false);
+  const [syncingGhl, setSyncingGhl] = useState(false);
   const [refreshingGoogleAnalytics, setRefreshingGoogleAnalytics] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -560,7 +569,7 @@ export default function IntegrationsPage() {
   };
   const handleSyncServiceM8 = async () => {
     try {
-      setSyncing(true);
+      setSyncingServiceM8(true);
       setError(null);
       const response = await fetch('/api/servicem8/sync', {
         method: 'POST',
@@ -578,12 +587,12 @@ export default function IntegrationsPage() {
       console.error('Error syncing ServiceM8:', error);
       setError('Failed to sync data');
     } finally {
-      setSyncing(false);
+      setSyncingServiceM8(false);
     }
   };
   const handleSyncXero = async () => {
     try {
-      setLoading(true);
+      setSyncingXero(true);
       setError(null);
       const response = await fetch('/api/xero/sync', {
         method: 'POST',
@@ -599,13 +608,13 @@ export default function IntegrationsPage() {
     } catch (error) {
       setError('Failed to sync data');
     } finally {
-      setLoading(false);
+      setSyncingXero(false);
     }
   };
 
   const handleSyncGhl = async () => {
     try {
-      setSyncing(true);
+      setSyncingGhl(true);
       setError(null);
       const response = await fetch('/api/ghls/contacts?sync=true');
       if (response.ok) {
@@ -619,7 +628,7 @@ export default function IntegrationsPage() {
     } catch (error) {
       setError('Failed to sync data');
     } finally {
-      setSyncing(false);
+      setSyncingGhl(false);
     }
   };
 
@@ -709,322 +718,6 @@ export default function IntegrationsPage() {
       )}
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* QuickBooks Integration Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white border">
-                  <img src="https://cdn.worldvectorlogo.com/logos/quickbooks-2.svg" alt="QuickBooks Logo" className="h-8 w-8 object-contain" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl">QuickBooks</CardTitle>
-                  <CardDescription>Financial data & accounting</CardDescription>
-                </div>
-              </div>
-              {quickbooksConnection && getStatusBadge(quickbooksConnection.status, 'quickbooks')}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {quickbooksConnection ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="font-medium">{quickbooksConnection.company_name}</p>
-                  <p className="text-sm text-muted-foreground">Connected since {new Date(quickbooksConnection.connected_at).toLocaleDateString()}</p>
-                </div>
-                
-                <Separator />
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Monthly Revenue</p>
-                    <p className="font-medium">
-                      {quickbooksConnection.revenue 
-                        ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(quickbooksConnection.revenue)
-                        : '£0.00'
-                      }
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Total Invoices</p>
-                    <p className="font-medium">{quickbooksConnection.invoicesCount || 0}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                  >
-                    <Link href="/integrations/quickbooks">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Manage
-                    </Link>
-                  </Button>
-                  <Button 
-                    onClick={handleSyncQuickBooks}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
-                  </Button>
-                  <Button 
-                    onClick={handleDisconnectQuickBooks}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Disconnect
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Available KPIs:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <PoundSterling className="h-3 w-3 mr-1" />
-                      Revenue
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      Gross Profit
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <Database className="h-3 w-3 mr-1" />
-                      Avg Job Value
-                    </Badge>
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={handleConnectQuickBooks}
-                  disabled={connectingQuickBooks}
-                  className="w-full"
-                >
-                  {connectingQuickBooks ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                  )}
-                  {connectingQuickBooks ? 'Connecting...' : 'Connect QuickBooks'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ServiceM8 Integration Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white border">
-                  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkHIyMlOrJ3yd1XNSsuO8K4eBPUSWxhhAobQ&s" alt="ServiceM8 Logo" className="h-8 w-8 object-contain" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl">ServiceM8</CardTitle>
-                  <CardDescription>Field service management</CardDescription>
-                </div>
-              </div>
-              {servicem8Connection && getStatusBadge(servicem8Connection.sync_status, 'servicem8')}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {servicem8Connection?.connected ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="font-medium">Field Service Data</p>
-                  <p className="text-sm text-muted-foreground">
-                    {servicem8Connection.jobs.length} jobs, {servicem8Connection.staff.length} staff
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                  >
-                    <Link href="/integrations/servicem8">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Manage
-                    </Link>
-                  </Button>
-                  <Button 
-                    onClick={handleSyncServiceM8}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
-                  </Button>
-                  <Button 
-                    onClick={handleDisconnectServiceM8}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Disconnect
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Available KPIs:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      Job Completion Rate
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Avg Job Duration
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <Users className="h-3 w-3 mr-1" />
-                      Technician Utilization
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <PoundSterling className="h-3 w-3 mr-1" />
-                      Avg Job Value
-                    </Badge>
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={handleConnectServiceM8}
-                  disabled={connectingServiceM8}
-                  className="w-full"
-                >
-                  {connectingServiceM8 ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                  )}
-                  {connectingServiceM8 ? 'Connecting...' : 'Connect ServiceM8'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Xero Integration Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white border">
-                  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9f/Xero_software_logo.svg/1200px-Xero_software_logo.svg.png" alt="Xero Logo" className="h-8 w-8 object-contain" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl">Xero</CardTitle>
-                  <CardDescription>Accounting & financial management</CardDescription>
-                </div>
-              </div>
-              {xeroConnection && getStatusBadge(xeroConnection.sync_status, 'xero')}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {xeroConnection?.connected ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="font-medium">{xeroConnection.organization_name || 'Xero Account'}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Invoices</p>
-                    <p className="font-medium">{xeroConnection.invoicesCount || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Contacts</p>
-                    <p className="font-medium">{xeroConnection.contactsCount || 0}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                  >
-                    <Link href="/integrations/xero">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Manage
-                    </Link>
-                  </Button>
-                  <Button 
-                    onClick={handleSyncXero}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
-                  </Button>
-                  <Button 
-                    onClick={handleDisconnectXero}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Disconnect
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Available KPIs:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <PoundSterling className="h-3 w-3 mr-1" />
-                      Revenue
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <BarChart3 className="h-3 w-3 mr-1" />
-                      Cash Flow
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <FileText className="h-3 w-3 mr-1" />
-                      Accounts Receivable
-                    </Badge>
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={handleConnectXero}
-                  disabled={connectingXero}
-                  className="w-full"
-                >
-                  {connectingXero ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                  )}
-                  {connectingXero ? 'Connecting...' : 'Connect Xero'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Google Analytics Integration Card */}
         <Card>
           <CardHeader>
@@ -1107,7 +800,9 @@ export default function IntegrationsPage() {
                     </Badge>
                   </div>
                 </div>
-                <div
+                <Button 
+                  onClick={handleConnectGoogleAnalytics}
+                  disabled={connectingGoogleAnalytics}
                   className="w-full"
                 >
                   {connectingGoogleAnalytics ? (
@@ -1116,11 +811,112 @@ export default function IntegrationsPage() {
                     <ExternalLink className="h-4 w-4 mr-2" />
                   )}
                   {connectingGoogleAnalytics ? 'Connecting...' : 'Connect Google Analytics'}
-                </div>
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* ServiceM8 Integration Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkHIyMlOrJ3yd1XNSsuO8K4eBPUSWxhhAobQ&s" alt="ServiceM8 Logo" className="h-8 w-8 object-contain" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">ServiceM8</CardTitle>
+                  <CardDescription>Field service management</CardDescription>
+                </div>
+              </div>
+              {servicem8Connection && getStatusBadge(servicem8Connection.sync_status, 'servicem8')}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {servicem8Connection?.connected ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">Field Service Data</p>
+                  <p className="text-sm text-muted-foreground">
+                    {servicem8Connection.counts?.jobs || servicem8Connection.jobs?.length || 0} jobs, {servicem8Connection.counts?.staff || servicem8Connection.staff?.length || 0} staff
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                  >
+                    <Link href="/integrations/servicem8">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Manage
+                    </Link>
+                  </Button>
+                  <Button 
+                    onClick={handleSyncServiceM8}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                    disabled={syncingServiceM8}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingServiceM8 ? 'animate-spin' : ''}`} />
+                    {syncingServiceM8 ? 'Syncing...' : 'Sync'}
+                  </Button>
+                  <Button 
+                    onClick={handleDisconnectServiceM8}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Available KPIs:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Job Completion Rate
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Avg Job Duration
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <Users className="h-3 w-3 mr-1" />
+                      Technician Utilization
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <PoundSterling className="h-3 w-3 mr-1" />
+                      Avg Job Value
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={handleConnectServiceM8}
+                  disabled={connectingServiceM8}
+                  className="w-full"
+                >
+                  {connectingServiceM8 ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                  )}
+                  {connectingServiceM8 ? 'Connecting...' : 'Connect ServiceM8'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* GoHighLevel Integration Card */}
         <Card>
           <CardHeader>
@@ -1168,10 +964,10 @@ export default function IntegrationsPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    disabled={syncing}
+                    disabled={syncingGhl}
                   >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync'}
+                    <RefreshCw className={`h-4 w-4 mr-1 ${syncingGhl ? 'animate-spin' : ''}`} />
+                    {syncingGhl ? 'Syncing...' : 'Sync'}
                   </Button>
                   <Button 
                     onClick={handleDisconnectGhl}
@@ -1210,6 +1006,218 @@ export default function IntegrationsPage() {
                     <ExternalLink className="h-4 w-4 mr-2" />
                   )}
                   {connectingGhl ? 'Connecting...' : 'Connect GoHighLevel'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* QuickBooks Integration Card */}
+        <Card className="relative overflow-hidden">
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 z-10 backdrop-blur-[2px] bg-white/40 flex items-center justify-center p-4">
+            <Button className="bg-blue-600 hover:bg-blue-600 text-white font-bold rounded-full pointer-events-none shadow-lg">
+              Coming Soon
+            </Button>
+          </div>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://cdn.worldvectorlogo.com/logos/quickbooks-2.svg" alt="QuickBooks Logo" className="h-8 w-8 object-contain" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">QuickBooks</CardTitle>
+                  <CardDescription>Financial data & accounting</CardDescription>
+                </div>
+              </div>
+              {quickbooksConnection && getStatusBadge(quickbooksConnection.status, 'quickbooks')}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {quickbooksConnection ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">{quickbooksConnection.company_name}</p>
+                  <p className="text-sm text-muted-foreground">Connected since {new Date(quickbooksConnection.connected_at).toLocaleDateString()}</p>
+                </div>
+                
+                <Separator />
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Monthly Revenue</p>
+                    <p className="font-medium">
+                      {quickbooksConnection.revenue 
+                        ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(quickbooksConnection.revenue)
+                        : '£0.00'
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Invoices</p>
+                    <p className="font-medium">{quickbooksConnection.invoicesCount || 0}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Manage
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Sync
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Available KPIs:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <PoundSterling className="h-3 w-3 mr-1" />
+                      Revenue
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Gross Profit
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <Database className="h-3 w-3 mr-1" />
+                      Avg Job Value
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button 
+                  disabled
+                  className="w-full opacity-50 cursor-not-allowed"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Connect QuickBooks
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Xero Integration Card */}
+        <Card className="relative overflow-hidden">
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 z-10 backdrop-blur-[2px] bg-white/40 flex items-center justify-center p-4">
+            <Button className="bg-blue-600 hover:bg-blue-600 text-white font-bold rounded-full pointer-events-none shadow-lg">
+              Coming Soon
+            </Button>
+          </div>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white border">
+                  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9f/Xero_software_logo.svg/1200px-Xero_software_logo.svg.png" alt="Xero Logo" className="h-8 w-8 object-contain" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Xero</CardTitle>
+                  <CardDescription>Accounting & financial management</CardDescription>
+                </div>
+              </div>
+              {xeroConnection && getStatusBadge(xeroConnection.sync_status, 'xero')}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {xeroConnection?.connected ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium">{xeroConnection.organization_name || 'Xero Account'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Invoices</p>
+                    <p className="font-medium">{xeroConnection.invoicesCount || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Contacts</p>
+                    <p className="font-medium">{xeroConnection.contactsCount || 0}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Manage
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Sync
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Available KPIs:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <PoundSterling className="h-3 w-3 mr-1" />
+                      Revenue
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <BarChart3 className="h-3 w-3 mr-1" />
+                      Cash Flow
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
+                      Accounts Receivable
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button 
+                  disabled
+                  className="w-full opacity-50 cursor-not-allowed"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Connect Xero
                 </Button>
               </div>
             )}

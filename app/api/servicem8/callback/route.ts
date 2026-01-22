@@ -91,23 +91,8 @@ export async function GET(request: NextRequest) {
           })
           .eq('user_id', userId);
 
-        // Get all data from ServiceM8
-        const data = await serviceM8API.getAllData(userId);
-
-        // Update database with synced data
-        await supabase
-          .from('servicem8_data')
-          .update({
-            jobs: data.jobs,
-            staff: data.staff,
-            companies: data.companies,
-            job_activities: data.job_activities,
-            job_materials: data.job_materials,
-            sync_status: 'completed',
-            last_sync_at: new Date().toISOString(),
-            error_message: null,
-          })
-          .eq('user_id', userId);
+        // Perform full relational sync using the fresh access token
+        await serviceM8API.performRelationalSync(userId, tokens.access_token);
 
         console.log('ServiceM8 auto-sync completed successfully');
       } catch (syncError) {

@@ -41,6 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, Label as RechartsLabel } from 'recharts';
+import { useDebounce } from "react-use";
 import {
   ChartContainer,
   ChartTooltip,
@@ -169,7 +170,7 @@ function PerformancePageContent() {
   const [activeYear, setActiveYear] = useState(
     paramYear || currentYear.toString()
   );
-  const [editMode, setEditMode] = useState(paramEdit || false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   
@@ -239,10 +240,6 @@ function PerformancePageContent() {
     return 'Not Started';
   };
 
-  // Auto-determine status based on actual value
-  const getAutoStatus = (actualValue: number) => {
-    return actualValue > 0 ? 'complete' : 'not_complete';
-  };
 
   const fetchSessionData = async () => {
     try {
@@ -251,7 +248,6 @@ function PerformancePageContent() {
       if (!response.ok) throw new Error('Failed to fetch session data');
       const data = await response.json();
       console.log('Fetched session data:', data);
-      console.log('Performance KPIs:', data.performance_kpis);
       
       if (data && data.id) {
         setSessionData(data);
@@ -261,7 +257,7 @@ function PerformancePageContent() {
         setChallenges(Array.isArray(data.challenges) ? data.challenges.join("\n") : "");
         setGeneralDiscussion(data.general_discussion || "");
         
-        // Check for KPI data (handle both array and single object formats)
+        // ... rest of the KPI processing remains same ...
         const loadedKpis = Array.isArray(data.performance_kpis) 
           ? (data.performance_kpis.length > 0 ? data.performance_kpis[0] : null)
           : data.performance_kpis;
@@ -349,7 +345,11 @@ function PerformancePageContent() {
         }
         if (data.performance_tasks) setTasks(data.performance_tasks);
       } else {
-        setSessionData(null);
+        // Prepare a placeholder for a new session
+        setSessionData({ 
+          month: activeMonth, 
+          year: parseInt(activeYear) 
+        } as SessionData);
         setDateOfCall(""); setAttendance(""); setAchievements(""); setChallenges(""); setGeneralDiscussion("");
         resetKPIs();
         setTasks([]);
@@ -381,22 +381,16 @@ function PerformancePageContent() {
     fetchSessionData(); 
   }, [activeMonth, activeYear]);
   
-  // Re-fetch data when edit mode changes to ensure we have latest data
-  useEffect(() => {
-    if (editMode) {
-      fetchSessionData();
-    }
-  }, [editMode]);
-  
-  // Debug: Log KPI state changes
-  useEffect(() => {
-    console.log('KPI State Updated:', {
-      revenue: kpis.revenue,
-      ad_spend: kpis.ad_spend,
-      leads: kpis.leads,
-      editMode
-    });
-  }, [kpis.revenue, kpis.ad_spend, kpis.leads, editMode]);
+  useDebounce(
+    () => {
+      // Trigger save if we have session metadata (id or month/year)
+      if (!loading && sessionData) {
+        handleSaveAll();
+      }
+    },
+    1500,
+    [kpis, tasks, dateOfCall, attendance, achievements, challenges, generalDiscussion]
+  );
 
   const getCalculatedMetrics = (currentKpis: KPIData) => {
     const n = { ...currentKpis };
@@ -442,7 +436,7 @@ function PerformancePageContent() {
 
   const handleSaveAll = async () => {
     try {
-      setSaving(true);
+      setSaveStatus('saving');
       
       // Calculate latest metrics synchronously for the save payload
       const latestKpis = getCalculatedMetrics(kpis);
@@ -457,32 +451,35 @@ function PerformancePageContent() {
       
       const payload = {
         id: sessionData?.id, month: activeMonth, year: parseInt(activeYear),
-        date_of_call: dateOfCall,
+        date_of_call: dateOfCall || null,
         attendance: attendance.split(",").map(n => n.trim()).filter(Boolean),
         achievements: achievements.split("\n").map(n => n.trim()).filter(Boolean),
         challenges: challenges.split("\n").map(n => n.trim()).filter(Boolean),
-        general_discussion: generalDiscussion,
+        general_discussion: generalDiscussion || null,
         efficiency_score: efficiencyScore,
         kpis: kpisToSave, tasks
       };
+      
       const response = await fetch('/api/performance-sessions', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Save failed:', errorText);
-        throw new Error(`Failed to save session: ${errorText}`);
+        throw new Error('Save failed');
       }
+      
       const result = await response.json();
-      setEditMode(false);
-      toast.success('Session saved successfully');
-      await fetchSessionData();
+      if (!sessionData?.id && result.sessionId) {
+        setSessionData(prev => prev ? { ...prev, id: result.sessionId } : { id: result.sessionId, month: activeMonth, year: parseInt(activeYear) } as SessionData);
+      }
+      
+      setSaveStatus('saved');
+      // Reset to idle after 3 seconds
+      setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error) {
       console.error('Error saving session:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save changes');
-    } finally {
-      setSaving(false);
+      setSaveStatus('error');
     }
   };
 
@@ -509,9 +506,12 @@ function PerformancePageContent() {
 
   const getTaskStats = (taskType: 'reoccurring' | 'client' | 'team') => {
     if (taskType === 'reoccurring') {
-      const kpiKeys = Object.keys(kpis).filter(k => k.endsWith('_status'));
-      const total = kpiKeys.length;
-      const completed = kpiKeys.filter(k => kpis[k as keyof KPIData] === 'completed').length;
+      const kpiFields = metrics.map(m => m.f);
+      const total = kpiFields.length;
+      const completed = kpiFields.filter(f => {
+        const val = kpis[f as keyof KPIData];
+        return typeof val === 'number' && val > 0;
+      }).length;
       const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
       return { total, completed, incomplete: total - completed, percentage };
     }
@@ -522,9 +522,8 @@ function PerformancePageContent() {
     return { total, completed, incomplete: total - completed, percentage };
   };
 
-  const TaskCardWithGraph = ({ type, title, color, icon }: { type: 'client' | 'team', title: string, color: string, icon: any }) => {
+  const OverviewCard = ({ type, title, color, icon }: { type: 'reoccurring' | 'client' | 'team', title: string, color: string, icon: any }) => {
     const stats = getTaskStats(type);
-    const typeTasks = tasks.filter(t => t.task_type === type);
     const data = [
       { name: 'Completed', value: stats.completed },
       { name: 'Todo', value: Math.max(0, stats.total - stats.completed) || (stats.total === 0 ? 1 : 0) }
@@ -533,169 +532,130 @@ function PerformancePageContent() {
     const IconComponent = icon;
     
     return (
-      <Card className="border-gray-100 shadow-sm rounded-xl overflow-hidden relative">
-        <div className={`absolute top-0 left-0 w-full h-1`} style={{ backgroundColor: color }} />
-        <CardHeader className="px-6 py-3 border-b border-gray-100 bg-gray-50/30">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <IconComponent className="w-3.5 h-3.5 text-blue-600" />
-              {title}
-            </CardTitle>
-            {editMode && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleAddTaskClick(type)}
-                className="h-8 w-8 p-0 hover:bg-blue-50"
-              >
-                <Plus className="w-4 h-4 text-blue-600" />
-              </Button>
-            )}
-          </div>
+      <Card className="border-gray-100 shadow-sm rounded-xl overflow-hidden">
+        <CardHeader className="px-5 py-2 border-b border-gray-100 bg-gray-50/10">
+          <CardTitle className="text-xs font-semibold text-gray-900 flex items-center gap-2">
+            <IconComponent className="w-4 h-4" style={{ color }} />
+            {title}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Side: Task List */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Tasks</h3>
-              <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                {typeTasks.length > 0 ? (
-                  typeTasks.map((t, idx) => (
-                    <div 
-                      key={idx} 
-                      className="flex items-center gap-2 py-1.5 px-3 rounded-lg hover:bg-gray-50 transition-all group border border-gray-100"
-                    >
-                      <Checkbox 
-                        checked={t.status === 'completed'} 
-                        disabled={!editMode}
-                        onCheckedChange={() => setTasks(p => p.map((ta) => ta === t ? { ...ta, status: ta.status === 'completed' ? 'todo' : 'completed' } : ta))} 
-                        className="w-4 h-4 flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${t.status === 'completed' ? 'text-gray-400' : 'text-gray-900'}`}>
-                          {t.description}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-[10px] uppercase tracking-wider font-bold h-5 px-1.5 ${
-                            t.status === 'completed' 
-                              ? 'bg-green-100 text-green-700 hover:bg-green-100' 
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-100'
-                          }`}
-                        >
-                          {t.status === 'completed' ? 'Complete' : 'Todo'}
-                        </Badge>
-                        {editMode && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setTasks(p => p.filter((ta) => ta !== t))}
-                            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition-opacity"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <p className="text-sm">No tasks added yet</p>
-                    {editMode && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAddTaskClick(type)}
-                        className="mt-3 border-gray-200"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Task
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
+        <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+                <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-gray-900">{stats.completed}</span>
+                    <span className="text-sm text-gray-500 font-medium">/ {stats.total}</span>
+                </div>
+                <p className="text-xs text-gray-500 font-medium">Tasks Completed</p>
+                <div className="mt-2">
+                  <Badge variant="secondary" className={`text-[10px] uppercase font-bold px-2 h-5 ${stats.percentage === 100 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {stats.percentage}%
+                  </Badge>
+                </div>
             </div>
-
-            {/* Right Side: Graph and Stats */}
-            <div className="flex flex-col items-center justify-center md:border-l md:border-gray-100 md:pl-6">
-              <div className="w-full mb-2">
+            
+            <div className="w-[80px] h-[80px]">
                 <ChartContainer
                   config={{
-                    completed: {
-                      label: "Completed",
-                      color: color,
-                    },
-                    todo: {
-                      label: "Todo",
-                      color: "#f1f5f9",
-                    },
-                  } satisfies ChartConfig}
-                  className="mx-auto aspect-square max-h-[240px]"
+                    completed: { label: "Completed", color: color },
+                    todo: { label: "Todo", color: "#f1f5f9" },
+                  }}
+                  className="mx-auto aspect-square h-full"
                 >
                   <PieChart>
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel />}
-                    />
                     <Pie
                       data={data}
                       dataKey="value"
-                      nameKey="name"
-                      innerRadius={60}
-                      strokeWidth={5}
+                      innerRadius={25}
+                      outerRadius={38}
+                      strokeWidth={3}
                     >
                       <Cell fill={color} />
                       <Cell fill="#f1f5f9" />
-                      <RechartsLabel
-                        content={({ viewBox }: any) => {
-                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                            const cx = viewBox.cx as number;
-                            const cy = viewBox.cy as number;
-                            return (
-                              <text
-                                x={cx}
-                                y={cy}
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                              >
-                                <tspan
-                                  x={cx}
-                                  y={cy}
-                                  className="fill-foreground text-3xl font-bold"
-                                >
-                                  {stats.percentage}%
-                                </tspan>
-                                <tspan
-                                  x={cx}
-                                  y={cy + 24}
-                                  className="fill-muted-foreground"
-                                >
-                                  Complete
-                                </tspan>
-                              </text>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
                     </Pie>
                   </PieChart>
                 </ChartContainer>
-              </div>
-              <div className="grid grid-cols-2 w-full gap-3 mt-1">
-                <div className="bg-gray-50 p-3 rounded-lg text-center border border-gray-100">
-                  <span className="block text-gray-500 mb-1 text-xs font-medium">Done</span>
-                  <span className="text-gray-900 font-bold text-lg">{stats.completed}</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg text-center border border-gray-100">
-                  <span className="block text-gray-500 mb-1 text-xs font-medium">Total</span>
-                  <span className="text-gray-900 font-bold text-lg">{stats.total}</span>
-                </div>
-              </div>
             </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const TaskManagementCard = ({ type, title, color, icon }: { type: 'client' | 'team', title: string, color: string, icon: any }) => {
+    const typeTasks = tasks.filter(t => t.task_type === type);
+    const IconComponent = icon;
+    
+    return (
+      <Card className="border-gray-100 shadow-sm rounded-xl overflow-hidden">
+        <CardHeader className="px-6 py-2 border-b border-gray-100 bg-gray-50/30">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-xs font-semibold text-gray-900 flex items-center gap-2">
+              <IconComponent className="w-3.5 h-3.5 text-blue-600" />
+              {title}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleAddTaskClick(type)}
+              className="h-8 w-8 p-0 hover:bg-blue-50"
+            >
+              <Plus className="w-4 h-4 text-blue-600" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="space-y-1">
+            {typeTasks.length > 0 ? (
+              typeTasks.map((t, idx) => (
+                <div 
+                  key={idx} 
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg hover:bg-gray-50 transition-all group border border-gray-100"
+                >
+                  <Checkbox 
+                    checked={t.status === 'completed'} 
+                    onCheckedChange={() => setTasks(p => p.map((ta) => ta === t ? { ...ta, status: ta.status === 'completed' ? 'todo' : 'completed' } : ta))} 
+                    className="w-4 h-4 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${t.status === 'completed' ? 'text-gray-400' : 'text-gray-900'}`}>
+                      {t.description}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-[10px] uppercase tracking-wider font-bold h-5 px-1.5 ${
+                        t.status === 'completed' 
+                          ? 'bg-green-100 text-green-700 hover:bg-green-100' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {t.status === 'completed' ? 'Complete' : 'Todo'}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setTasks(p => p.filter((ta) => ta !== t))}
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition-opacity"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 text-gray-400">
+                <p className="text-xs">No tasks added yet</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAddTaskClick(type)}
+                  className="mt-2 border-gray-200 h-8"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-2" />
+                  Add Task
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -727,6 +687,33 @@ function PerformancePageContent() {
         </div>
         
         <div className="flex items-center gap-3">
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm">
+            {saveStatus === 'saving' && (
+              <div className="flex items-center gap-2 text-xs text-blue-600">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Saving...</span>
+              </div>
+            )}
+            {saveStatus === 'saved' && (
+              <div className="flex items-center gap-2 text-xs text-green-600">
+                <Check className="w-3 h-3" />
+                <span>Saved</span>
+              </div>
+            )}
+            {saveStatus === 'error' && (
+              <div className="flex items-center gap-2 text-xs text-red-600">
+                <AlertCircle className="w-3 h-3" />
+                <span>Error saving</span>
+              </div>
+            )}
+            {saveStatus === 'idle' && (
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <Clock className="w-3 h-3" />
+                <span>Always live</span>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <Select value={activeYear} onValueChange={setActiveYear}>
               <SelectTrigger className="w-[100px] h-10 bg-white border-gray-200 rounded-xl shadow-none">
@@ -745,51 +732,34 @@ function PerformancePageContent() {
               </SelectContent>
             </Select>
           </div>
-
-          {!editMode ? (
-            <Button 
-              onClick={() => setEditMode(true)} 
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Edit3 className="w-4 h-4 mr-2" />
-              Edit Session
-            </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setEditMode(false)} 
-                disabled={saving} 
-                className="border-gray-200"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="button"
-                onClick={handleSaveAll} 
-                disabled={saving} 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Update
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
+      {/* Top Overview Row: Charts at the Top */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <OverviewCard 
+          type="reoccurring" 
+          title="Reoccurring Client Tasks" 
+          color="#10b981" 
+          icon={CheckCircle2}
+        />
+        <OverviewCard 
+          type="client" 
+          title="New Client Projects" 
+          color="#eb4891" 
+          icon={Users}
+        />
+        <OverviewCard 
+          type="team" 
+          title="New Team Projects" 
+          color="#f59e0b" 
+          icon={Target}
+        />
+      </div>
+
       {/* Main Content: Data Collection (Left) + Right Sidebar (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Data Collection Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Data Collection Table + Detailed Tasks */}
         <div className="lg:col-span-8 space-y-6">
           <Card className="border-gray-100 shadow-sm overflow-hidden rounded-xl">
             <TooltipProvider>
@@ -797,9 +767,9 @@ function PerformancePageContent() {
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow className="border-b border-gray-200 hover:bg-gray-50/50">
-                      <TableHead className="w-[250px] py-3.5 text-sm font-semibold text-gray-700 px-6">Metric Name</TableHead>
-                      <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Actual</TableHead>
-                      <TableHead className="w-[150px] py-3.5 text-sm font-semibold text-gray-700 px-6 border-l">Status</TableHead>
+                      <TableHead className="w-[250px] py-1.5 text-xs font-semibold text-gray-700 px-6">Metric Name</TableHead>
+                      <TableHead className="w-[150px] py-1.5 text-xs font-semibold text-gray-700 px-6 border-l">Actual</TableHead>
+                      <TableHead className="w-[150px] py-1.5 text-xs font-semibold text-gray-700 px-6 border-l">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -821,8 +791,7 @@ function PerformancePageContent() {
                         console.log('Rendering Revenue:', {
                           actualValue,
                           type: typeof actualValue,
-                          kpisState: kpis.revenue,
-                          editMode
+                          kpisState: kpis.revenue
                         });
                       }
                       
@@ -831,11 +800,11 @@ function PerformancePageContent() {
                           key={r.f as string} 
                           className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
                         >
-                          <TableCell className="px-6 py-4 text-sm font-medium text-gray-700 w-[250px]">
+                          <TableCell className="px-6 py-1.5 text-sm font-medium text-gray-700 w-[250px]">
                             {r.n}
                           </TableCell>
-                          <TableCell className="px-6 py-4 border-l w-[150px]">
-                            {editMode && !isCalculated ? (
+                          <TableCell className="px-6 py-1.5 border-l w-[150px]">
+                            {!isCalculated ? (
                               <Input 
                                 type="number" 
                                 step="0.01" 
@@ -845,22 +814,26 @@ function PerformancePageContent() {
                                   setKpis(p => ({ ...p, [r.f]: val === '' ? 0 : parseFloat(val) || 0 }));
                                 }}
                                 onBlur={calculateMetrics} 
-                                className="h-10 w-full text-sm bg-white border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500 font-medium" 
+                                className="h-8 w-full text-xs bg-white border-gray-200 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none font-medium transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                               />
                             ) : (
-                              <span className={`text-sm font-semibold ${isCalculated ? 'text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg inline-block' : 'text-gray-900'}`}>
+                              <span className={`text-xs font-semibold ${isCalculated ? 'text-blue-600 bg-blue-50 px-2 py-1 rounded-md inline-block' : 'text-gray-900'}`}>
                                 {formatMetric(actualValue || 0, formatType, r.p || '', r.s || '')}
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="px-6 py-4 border-l w-[150px] text-left">
-                            {getAutoStatus(actualValue) === 'complete' ? (
-                              <Badge className="bg-green-100 text-green-700 border-green-200">
-                                Complete
-                              </Badge>
-                            ) : (
-                              <span className="text-sm text-gray-500">Not Complete</span>
-                            )}
+                          <TableCell className="px-6 py-1.5 border-l w-[150px] text-left">
+                            {actualValue > 0 ? (
+                              isCalculated ? (
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200 h-6 px-2 text-[10px] hover:bg-blue-100">
+                                  Auto
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-green-100 text-green-700 border-green-200 h-6 px-2 text-[10px] hover:bg-green-100">
+                                  Complete
+                                </Badge>
+                              )
+                            ) : null}
                           </TableCell>
                         </TableRow>
                       );
@@ -871,17 +844,17 @@ function PerformancePageContent() {
             </TooltipProvider>
           </Card>
 
-          {/* Tasks with Graphs Section */}
-          <div className="space-y-6">
-            <TaskCardWithGraph 
+          {/* Task Management Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TaskManagementCard 
               type="client" 
-              title="New Client Projects" 
+              title="Client Project Tasks" 
               color="#eb4891" 
               icon={Users}
             />
-            <TaskCardWithGraph 
+            <TaskManagementCard 
               type="team" 
-              title="New Team Projects" 
+              title="Team Project Tasks" 
               color="#f59e0b" 
               icon={Target}
             />
@@ -892,161 +865,94 @@ function PerformancePageContent() {
         <div className="lg:col-span-4 space-y-4">
           {/* Session Information */}
           <Card className="border-gray-100 shadow-sm rounded-xl">
-            <CardHeader className="py-3 bg-gray-50/50 border-b border-gray-100">
-              <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <CardHeader className="py-2 bg-gray-50/50 border-b border-gray-100">
+              <CardTitle className="text-xs font-semibold text-gray-900 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-blue-600" />
                 Session Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5 space-y-4">
+            <CardContent className="p-4 space-y-3">
               <div className="space-y-2">
                 <Label className="text-gray-800 font-medium flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-500" />
                   Date of Call
                 </Label>
-                {editMode ? (
-                  <Input 
-                    type="date" 
-                    value={dateOfCall} 
-                    onChange={(e) => setDateOfCall(e.target.value)} 
-                    className="h-10 bg-white border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500" 
-                  />
-                ) : (
-                  <p className="text-sm font-semibold text-gray-900">
-                    {dateOfCall ? new Date(dateOfCall).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    }) : 'Not scheduled'}
-                  </p>
-                )}
+                <Input 
+                  type="date" 
+                  value={dateOfCall} 
+                  onChange={(e) => setDateOfCall(e.target.value)} 
+                  className="h-10 bg-white border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all" 
+                />
               </div>
               <div className="pt-3 border-t border-gray-100 space-y-2">
                 <Label className="text-gray-800 font-medium flex items-center gap-2">
                   <Users className="w-4 h-4 text-gray-500" />
                   Names of those on the call:
                 </Label>
-                {editMode ? (
-                  <Input 
-                    value={attendance} 
-                    onChange={(e) => setAttendance(e.target.value)} 
-                    placeholder="Enter names separated by commas..." 
-                    className="h-10 bg-white border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500" 
-                  />
-                ) : (
-                  <p className="text-sm font-medium text-gray-600">
-                    {attendance || "None listed"}
-                  </p>
-                )}
+                <Input 
+                  value={attendance} 
+                  onChange={(e) => setAttendance(e.target.value)} 
+                  placeholder="Enter names separated by commas..." 
+                  className="h-10 bg-white border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all" 
+                />
               </div>
             </CardContent>
           </Card>
 
           {/* General Discussion */}
           <Card className="border-gray-100 shadow-sm rounded-xl">
-            <CardHeader className="py-3 bg-gray-50/50 border-b border-gray-100">
-              <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <CardHeader className="py-2 bg-gray-50/50 border-b border-gray-100">
+              <CardTitle className="text-xs font-semibold text-gray-900 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-blue-600" />
                 General Discussion
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5">
-              {editMode ? (
-                <Textarea 
-                  value={generalDiscussion} 
-                  onChange={(e) => setGeneralDiscussion(e.target.value)} 
-                  placeholder="Enter each point on a new line. They will be displayed as bullet points..." 
-                  rows={4}
-                  className="text-sm resize-none border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500 min-h-[120px]" 
-                />
-              ) : (
-                <div>
-                  {generalDiscussion ? (
-                    <ul className="space-y-2.5 -mt-3">
-                      {generalDiscussion.split('\n').filter(line => line.trim()).map((point, index) => (
-                        <li key={index} className="flex items-start gap-3 text-sm text-gray-700 leading-relaxed">
-                          <span className="text-blue-600 mt-1.5 flex-shrink-0">•</span>
-                          <span className="flex-1">{point.trim()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Start a discussion about this month's performance session.</p>
-                  )}
-                </div>
-              )}
+            <CardContent className="p-4">
+              <Textarea 
+                value={generalDiscussion} 
+                onChange={(e) => setGeneralDiscussion(e.target.value)} 
+                placeholder="Enter each point on a new line. They will be displayed as bullet points..." 
+                rows={4}
+                className="text-sm resize-none border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none min-h-[120px] transition-all" 
+              />
             </CardContent>
           </Card>
 
           {/* Challenges */}
           <Card className="border-gray-100 shadow-sm rounded-xl">
-            <CardHeader className="py-3 bg-gray-50/50 border-b border-gray-100">
-              <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <CardHeader className="py-2 bg-gray-50/50 border-b border-gray-100">
+              <CardTitle className="text-xs font-semibold text-gray-900 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                 Challenges
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5">
-              {editMode ? (
-                <Textarea 
-                  value={challenges} 
-                  onChange={(e) => setChallenges(e.target.value)} 
-                  placeholder="Enter each challenge on a new line. They will be displayed as bullet points..."
-                  rows={4} 
-                  className="text-sm resize-none border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500 min-h-[120px]" 
-                />
-              ) : (
-                <div>
-                  {challenges ? (
-                    <ul className="space-y-2.5 -mt-3">
-                      {challenges.split('\n').filter(line => line.trim()).map((challenge, index) => (
-                        <li key={index} className="flex items-start gap-3 text-sm text-gray-700 leading-relaxed">
-                          <span className="text-amber-600 mt-1.5 flex-shrink-0">•</span>
-                          <span className="flex-1">{challenge.trim()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">No obstacles listed</p>
-                  )}
-                </div>
-              )}
+            <CardContent className="p-4">
+              <Textarea 
+                value={challenges} 
+                onChange={(e) => setChallenges(e.target.value)} 
+                placeholder="Enter each challenge on a new line. They will be displayed as bullet points..."
+                rows={4} 
+                className="text-sm resize-none border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none min-h-[120px] transition-all" 
+              />
             </CardContent>
           </Card>
 
           {/* Achievements */}
           <Card className="border-gray-100 shadow-sm rounded-xl">
-            <CardHeader className="py-3 bg-gray-50/50 border-b border-gray-100">
-              <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <CardHeader className="py-2 bg-gray-50/50 border-b border-gray-100">
+              <CardTitle className="text-xs font-semibold text-gray-900 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 Achievements
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5">
-              {editMode ? (
-                <Textarea 
-                  value={achievements} 
-                  onChange={(e) => setAchievements(e.target.value)} 
-                  placeholder="Enter each achievement on a new line. They will be displayed as bullet points..."
-                  rows={4} 
-                  className="text-sm resize-none border-gray-200 rounded-xl focus:border-gray-500 focus:ring-gray-500 min-h-[120px]" 
-                />
-              ) : (
-                <div>
-                  {achievements ? (
-                    <ul className="space-y-2.5 -mt-3">
-                      {achievements.split('\n').filter(line => line.trim()).map((achievement, index) => (
-                        <li key={index} className="flex items-start gap-3 text-sm text-gray-700 leading-relaxed">
-                          <span className="text-green-600 mt-1.5 flex-shrink-0">•</span>
-                          <span className="flex-1">{achievement.trim()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">No wins listed</p>
-                  )}
-                </div>
-              )}
+            <CardContent className="p-4">
+              <Textarea 
+                value={achievements} 
+                onChange={(e) => setAchievements(e.target.value)} 
+                placeholder="Enter each achievement on a new line. They will be displayed as bullet points..."
+                rows={4} 
+                className="text-sm resize-none border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none min-h-[120px] transition-all" 
+              />
             </CardContent>
           </Card>
         </div>
@@ -1073,7 +979,7 @@ function PerformancePageContent() {
                 value={newTaskDescription}
                 onChange={(e) => setNewTaskDescription(e.target.value)}
                 placeholder="Enter task description..."
-                className="rounded-xl border-gray-200 focus:border-gray-500 focus:ring-gray-500 min-h-[100px]"
+                className="rounded-xl border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all min-h-[100px]"
                 rows={4}
               />
             </div>
