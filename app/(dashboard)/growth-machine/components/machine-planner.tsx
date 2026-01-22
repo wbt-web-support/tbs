@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles, Target, Building, Users, TrendingUp, Zap, Brain, CheckCircle, Settings } from "lucide-react";
+import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles, Target, Building, Users, TrendingUp, Zap, Brain, CheckCircle, Settings, Trash2, AlertTriangle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DynamicInputList } from "./dynamic-input-list";
@@ -85,6 +86,8 @@ export default function MachinePlanner({
   const [showQuestions, setShowQuestions] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Predefined options for triggering and ending events
   const triggeringEventOptions = [
@@ -336,6 +339,52 @@ export default function MachinePlanner({
     setEndingEvent(originalData.endingEvent);
     setActionsActivities(originalData.actionsActivities);
     setEditMode(false);
+  };
+
+  const handleDeleteMachine = async () => {
+    if (!machineData?.id) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      const { error } = await supabase
+        .from("machines")
+        .delete()
+        .eq("id", machineData.id);
+      
+      if (error) throw error;
+      
+      // Reset all state to show AI help screen again
+      setMachineData(null);
+      setEngineName("");
+      setDescription("");
+      setTriggeringEvents([]);
+      setEndingEvent([]);
+      setActionsActivities([]);
+      setOriginalData(null);
+      setEditMode(false);
+      setQuestions([]);
+      setAnswers({});
+      setCustomAnswers({});
+      setShowCustomInput({});
+      setCurrentQuestionIndex(0);
+      setShowQuestions(false);
+      setProgress(0);
+      setGeneratedData(null);
+      
+      // Fetch will create a new machine with default values
+      await fetchMachineData();
+      
+      toast.success("Machine deleted successfully. Starting fresh...");
+      setShowDeleteDialog(false);
+      
+      if (onDataChange) onDataChange();
+    } catch (error: any) {
+      console.error("Error deleting machine:", error);
+      toast.error("Failed to delete machine");
+    } finally {
+      setIsDeleting(false);
+    }
   };
   
   
@@ -690,7 +739,7 @@ export default function MachinePlanner({
       {shouldShowQuestionsContent ? (
         // Question/Welcome Content - Replaces planner content - Centered
         <div className="flex items-center justify-center min-h-[calc(100vh-500px)] py-8">
-          <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
+          <Card className="border w-full mx-auto bg-gray-50">
             <CardContent className="p-0">
             {generating && !isLoadingQuestions && questions.length > 0 ? (
               // Show simple loading state during generation - hide header and other content
@@ -967,22 +1016,36 @@ export default function MachinePlanner({
               <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Growth Machine</h1>
               <p className="text-sm text-gray-500 mt-1">Define and manage your growth machine process</p>
             </div>
-            {!editMode ? (
-              <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
-                Edit All
-              </Button>
-            ) : (
-              <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save All'
-                )}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {editMode && (
+                <Button 
+                  size="sm" 
+                  variant="destructive"
+                  className="h-8 px-3 text-xs bg-red-600 hover:bg-red-700 text-white" 
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={saving || isDeleting}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete
+                </Button>
+              )}
+              {!editMode ? (
+                <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
+                  Edit All
+                </Button>
+              ) : (
+                <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save All'
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* AI Assistant Section - Hide if questions completed and ai_assisted */}
@@ -1084,8 +1147,6 @@ export default function MachinePlanner({
                       onChange={setTriggeringEvents}
                       placeholder="Add a triggering event"
                       editMode={editMode}
-                      predefinedOptions={triggeringEventOptions}
-                      showDropdown={true}
                     />
                   ) : (
                     <div className="max-h-[400px] overflow-y-auto">
@@ -1125,8 +1186,6 @@ export default function MachinePlanner({
                       onChange={setEndingEvent}
                       placeholder="Add an ending event"
                       editMode={editMode}
-                      predefinedOptions={endingEventOptions}
-                      showDropdown={true}
                     />
                   ) : (
                     <div className="max-h-[400px] overflow-y-auto">
@@ -1182,6 +1241,44 @@ export default function MachinePlanner({
       </div>
         </>
       )}
+
+      {/* Delete Machine Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Delete Growth Machine
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p className="font-medium text-red-600 pt-2">
+                Are you sure you want to delete this machine? This action cannot be undone.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                All machine data including events, actions, questions, and answers will be permanently deleted. 
+                You will need to start fresh with the AI assistant.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMachine}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Machine"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

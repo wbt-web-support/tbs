@@ -1039,15 +1039,23 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                       placeholder="https://g.page/r/..."
                     />
                   ) : (
-                    <p className="text-muted-foreground mt-1">
+                    <div className="mt-1">
                       {user.google_review_link ? (
-                        <a href={user.google_review_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          {user.google_review_link}
+                        <a 
+                          href={user.google_review_link} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-blue-600 hover:underline flex items-center gap-1.5 max-w-fit"
+                        >
+                          <LinkIcon className="w-3.5 h-3.5" />
+                          <span className="truncate max-w-[300px] md:max-w-[500px]">
+                            {user.google_review_link}
+                          </span>
                         </a>
                       ) : (
-                        'Not set'
+                        <p className="text-muted-foreground italic text-sm">Not set</p>
                       )}
-                    </p>
+                    </div>
                   )}
                 </div>
               </div>

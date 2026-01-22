@@ -49,16 +49,24 @@ export default function FulfillmentMachinePage() {
             .eq('user_id', teamId)
             .eq('enginetype', 'FULFILLMENT');
           
-          // If ANY machines exist, skip welcome screen
+          // If ANY machines exist, skip welcome screen and go to ServiceTabs
           if (allMachines && allMachines.length > 0) {
             setShowServiceSelection(false);
             setWelcomeCompleted(true);
           } else {
-            // No machines exist - keep showing welcome
-            setShowServiceSelection(false);
+            // No machines exist - show first welcome screen in ServiceSelector
+            setShowServiceSelection(true);
             setWelcomeCompleted(false);
           }
+        } else {
+          // No services exist - show first welcome screen in ServiceSelector
+          setShowServiceSelection(true);
+          setWelcomeCompleted(false);
         }
+      } else {
+        // Error fetching services - show first welcome screen in ServiceSelector
+        setShowServiceSelection(true);
+        setWelcomeCompleted(false);
       }
     } catch (error) {
       console.error("Error checking existing services:", error);
