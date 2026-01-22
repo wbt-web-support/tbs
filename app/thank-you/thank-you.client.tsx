@@ -455,11 +455,13 @@ export default function ThankYouClient({
   aiQuestions,
   userName,
   showWelcome,
+  hideHeader = false,
 }: {
   onboardingData: OnboardingData | null;
   aiQuestions: AIQuestion[];
   userName: string;
   showWelcome: boolean;
+  hideHeader?: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -671,8 +673,10 @@ export default function ThankYouClient({
 
   return (
     <div className="min-h-screen bg-white w-full">
-      <ThankYouHeader userName={userName} onFeedbackClick={() => setShowFeedbackDialog(true)} />
-      <main className="pt-16">
+      {!hideHeader && (
+        <ThankYouHeader userName={userName} onFeedbackClick={() => setShowFeedbackDialog(true)} />
+      )}
+      <main className={hideHeader ? "" : "pt-16"}>
         {/* Welcome Dialog */}
         <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
           <DialogContent className="sm:max-w-2xl max-h-[96vh] overflow-y-auto p-6">
@@ -960,8 +964,8 @@ export default function ThankYouClient({
     
 
         {/* Onboarding Information Section */}
-        <section className="bg-gray-50 py-16 md:py-24 border-t border-gray-200">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="bg-gray-50 md:py-12 py-10 border-t border-gray-200">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
 
             {/* Section Header */}
