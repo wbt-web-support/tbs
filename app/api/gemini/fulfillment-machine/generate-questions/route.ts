@@ -59,6 +59,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await request.json();
+    const { service_id } = body || {};
+
+    // Fetch service name if service_id is provided
+    let serviceName = null;
+    if (service_id) {
+      const { data: service } = await supabase
+        .from('global_services')
+        .select('service_name')
+        .eq('id', service_id)
+        .single();
+      serviceName = service?.service_name || null;
+    }
+
     // Get team ID and business info
     const { data: businessInfo } = await supabase
       .from('business_info')
@@ -68,13 +82,29 @@ export async function POST(request: NextRequest) {
 
     const teamId = businessInfo?.team_id || user.id;
 
-    // Find the FULFILLMENT machine for this team
-    const { data: fulfillmentMachine, error: machineError } = await supabase
+    // Find the FULFILLMENT machine for this team and service
+    let query = supabase
       .from('machines')
       .select('*')
       .eq('user_id', teamId)
-      .eq('enginetype', 'FULFILLMENT')
-      .single();
+      .eq('enginetype', 'FULFILLMENT');
+    
+    if (service_id) {
+      query = query.eq('service_id', service_id);
+    } else {
+      // If no service_id provided, only get machines without service_id
+      query = query.is('service_id', null);
+    }
+    
+    const { data: fulfillmentMachine, error: machineError } = await query.single();
+    
+    console.log('[Fulfillment Questions] Checking for machine:', {
+      service_id,
+      serviceName,
+      machineFound: !!fulfillmentMachine,
+      hasQuestions: !!fulfillmentMachine?.questions,
+      machineServiceId: fulfillmentMachine?.service_id
+    });
 
     // Get complete onboarding data
     const { data: onboardingData } = await supabase
@@ -94,7 +124,29 @@ export async function POST(request: NextRequest) {
     let businessContext = '';
     if (onboardingData?.onboarding_data) {
       const data = onboardingData.onboarding_data;
-      businessContext = `
+      
+      // Add prominent service section at the very top if service is provided
+      let serviceSection = '';
+      if (serviceName) {
+        serviceSection = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**CRITICAL CONTEXT:** You are generating questions SPECIFICALLY for the "${serviceName}" service.
+
+ALL questions MUST be:
+- Tailored specifically to the ${serviceName} service offering
+- Focused on fulfillment processes for ${serviceName}
+- Relevant to customer experience for ${serviceName}
+- Specific to operational workflows for ${serviceName}
+
+DO NOT generate generic business questions. Every question must directly relate to the ${serviceName} service.
+
+`;
+      }
+      
+      businessContext = serviceSection + `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 📊 COMPLETE BUSINESS INFORMATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -122,8 +174,17 @@ Operations:
       `.trim();
     }
 
-    // If questions already exist in database, return them
-    if (fulfillmentMachine?.questions && fulfillmentMachine.questions.questions && Array.isArray(fulfillmentMachine.questions.questions) && fulfillmentMachine.questions.questions.length > 0) {
+    // CRITICAL: Only return existing questions if they match the service_id
+    // This ensures each service gets its own questions
+    const hasValidQuestions = fulfillmentMachine?.questions && 
+                               fulfillmentMachine.questions.questions && 
+                               Array.isArray(fulfillmentMachine.questions.questions) && 
+                               fulfillmentMachine.questions.questions.length > 0;
+    
+    const serviceMatches = service_id ? (fulfillmentMachine?.service_id === service_id) : !fulfillmentMachine?.service_id;
+    
+    if (hasValidQuestions && serviceMatches) {
+      console.log(`[Fulfillment Questions] Returning ${fulfillmentMachine.questions.questions.length} existing questions for service:`, serviceName || 'default');
       return NextResponse.json({
         success: true,
         message: `Retrieved ${fulfillmentMachine.questions.questions.length} existing questions for fulfillment machine planning`,
@@ -131,6 +192,8 @@ Operations:
         questionsData: fulfillmentMachine.questions
       });
     }
+    
+    console.log('[Fulfillment Questions] Generating new questions for service:', serviceName || 'default');
 
     // Build existing machines context
     let machinesContext = '';
@@ -157,18 +220,49 @@ Machine #${index + 1}:
       throw new Error('Prompt body not found for fulfillment_machine_questions');
     }
     
+    // Prepend service-specific instruction if service is provided
+    let finalPrompt = promptBody;
+    if (serviceName) {
+      const servicePrefix = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRITICAL: You are generating questions for the "${serviceName}" service ONLY.
+
+REQUIREMENTS:
+1. ALL questions must be specific to ${serviceName}
+2. Focus on the ${serviceName} FULFILLMENT process
+3. Ask about ${serviceName} service delivery
+4. Ask about ${serviceName} customer experience
+5. Ask about ${serviceName} operational workflows
+
+DO NOT ask generic business questions. ONLY ask about ${serviceName}.
+
+EXAMPLE CONTEXT:
+- If service is "Plumbing", ask: "What happens after a plumbing job is confirmed?"
+- If service is "Electrical", ask: "How do you ensure electrical work meets quality standards?"
+- If service is "HVAC", ask: "What's the typical process from HVAC installation to completion?"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+      finalPrompt = servicePrefix + promptBody;
+    }
+    
     // Replace placeholders with actual data
-    promptBody = promptBody
+    finalPrompt = finalPrompt
       .replace(/{{businessContext}}/g, businessContext)
       .replace(/{{machinesContext}}/g, machinesContext)
-      .replace(/{{responseFormat}}/g, QUESTIONS_JSON_STRUCTURE);
+      .replace(/{{responseFormat}}/g, QUESTIONS_JSON_STRUCTURE)
+      .replace(/{{serviceName}}/g, serviceName || 'the service');
 
     // Initialize Gemini client
     const ai = new GoogleGenerativeAI(API_KEY);
     const model = ai.getGenerativeModel({ model: MODEL_NAME });
 
     // Use the prompt from database with replaced placeholders
-    const prompt = promptBody;
+    const prompt = finalPrompt;
 
     const result = await model.generateContent(prompt);
     const response = result.response;
@@ -223,10 +317,8 @@ Machine #${index + 1}:
     // First, ensure the FULFILLMENT machine exists
     let machineId = fulfillmentMachine?.id;
     if (!machineId) {
-      // Create a new FULFILLMENT machine if it doesn't exist
-      const { data: newMachine, error: createError } = await supabase
-        .from('machines')
-        .insert({
+      // Create a new FULFILLMENT machine if it doesn't exist - use upsert to prevent duplicates
+        const newMachineData: any = {
           user_id: teamId,
           enginename: 'Fulfillment Machine',
           enginetype: 'FULFILLMENT',
@@ -239,13 +331,28 @@ Machine #${index + 1}:
           answers: null,
           questions_completed: false,
           ai_assisted: true
-        })
-        .select()
-        .single();
+        };
+        
+        if (service_id) {
+          newMachineData.service_id = service_id;
+        }
+        
+        console.log('[Fulfillment Questions] Creating/upserting machine with service_id:', service_id);
+        
+        const { data: newMachine, error: createError } = await supabase
+          .from('machines')
+          .upsert(newMachineData, {
+            onConflict: 'user_id,service_id,enginetype',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
 
       if (createError) {
+        console.error('[Fulfillment Questions] Error creating machine:', createError);
         throw new Error(`Failed to create fulfillment machine: ${createError.message}`);
       }
+      console.log('[Fulfillment Questions] Machine created/fetched:', newMachine.id, 'service_id:', newMachine.service_id);
       machineId = newMachine.id;
     } else {
       // Update existing machine with questions

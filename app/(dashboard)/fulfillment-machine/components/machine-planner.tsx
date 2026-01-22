@@ -33,18 +33,24 @@ type MachineData = {
 };
 
 interface MachinePlannerProps {
+  serviceId?: string;
+  engineType?: "GROWTH" | "FULFILLMENT" | "INNOVATION";
   onDataChange?: () => void;
   isPlannerTabActive?: boolean;
 }
 
-export default function MachinePlanner({ onDataChange, isPlannerTabActive = true }: MachinePlannerProps) {
+export default function MachinePlanner({ 
+  serviceId, 
+  engineType = "FULFILLMENT",
+  onDataChange, 
+  isPlannerTabActive = true 
+}: MachinePlannerProps) {
   const [machineData, setMachineData] = useState<MachineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
   // Form state
   const [engineName, setEngineName] = useState("");
-  const [engineType, setEngineType] = useState<"GROWTH" | "FULFILLMENT" | "INNOVATION">("FULFILLMENT");
   const [description, setDescription] = useState("");
   const [triggeringEvents, setTriggeringEvents] = useState<{ value: string }[]>([]);
   const [endingEvent, setEndingEvent] = useState<{ value: string }[]>([]);
@@ -108,8 +114,20 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
   ];
 
   useEffect(() => {
+    // Reset all question-related state when serviceId changes
+    // This ensures we don't show stale questions from a different service
+    setQuestions([]);
+    setAnswers({});
+    setCustomAnswers({});
+    setShowCustomInput({});
+    setCurrentQuestionIndex(0);
+    setShowQuestions(false);
+    setProgress(0);
+    setGeneratedData(null);
+    setMachineData(null);
+    
     fetchMachineData();
-  }, []);
+  }, [serviceId]);
   
   // Update progress when questions or answers change
   useEffect(() => {
@@ -123,7 +141,7 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
   useEffect(() => {
     if (machineData) {
       // Load questions from database
-      if (machineData.questions?.questions && Array.isArray(machineData.questions.questions)) {
+      if (machineData.questions?.questions && Array.isArray(machineData.questions.questions) && machineData.questions.questions.length > 0) {
         setQuestions(machineData.questions.questions);
         
         // Load answers from database
@@ -150,16 +168,30 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
             is_completed: !!(machineData.answers[q.id] && machineData.answers[q.id].trim() !== ''),
             user_answer: machineData.answers[q.id] || null
           })));
+        } else {
+          // No answers yet - clear answer state
+          setAnswers({});
+          setCustomAnswers({});
+          setShowCustomInput({});
         }
         
         // Show questions dialog if questions exist and are not completed
         if (!machineData.questions_completed && machineData.questions.questions.length > 0) {
           setShowQuestions(true);
         }
-      } else if (!machineData.welcome_completed || !machineData.questions_completed) {
-        // If no questions yet but welcome not completed, show dialog
-        // User can click button to generate questions
-        setShowQuestions(true);
+      } else {
+        // No questions in this machine entry - clear questions state
+        setQuestions([]);
+        setAnswers({});
+        setCustomAnswers({});
+        setShowCustomInput({});
+        setCurrentQuestionIndex(0);
+        
+        if (!machineData.welcome_completed || !machineData.questions_completed) {
+          // If no questions yet but welcome not completed, show dialog
+          // User can click button to generate questions
+          setShowQuestions(true);
+        }
       }
     }
   }, [machineData]);
@@ -167,7 +199,6 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
   useEffect(() => {
     if (machineData) {
       setEngineName(machineData.enginename || "");
-      setEngineType(machineData.enginetype as "GROWTH" | "FULFILLMENT" | "INNOVATION" || "FULFILLMENT");
       setDescription(machineData.description || "");
       setTriggeringEvents(machineData.triggeringevents || []);
       setEndingEvent(machineData.endingevent || []);
@@ -192,12 +223,30 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
 
       const teamId = await getTeamId(supabase, user.id);
       
-      const { data, error } = await supabase
+      console.log(`[MachinePlanner] Fetching machine data for service:`, serviceId, 'engineType:', engineType);
+      
+      let query = supabase
         .from("machines")
         .select("*")
         .eq("user_id", teamId)
-        .eq("enginetype", "FULFILLMENT")
-        .single();
+        .eq("enginetype", engineType);
+      
+      if (serviceId) {
+        query = query.eq("service_id", serviceId);
+      } else {
+        // If no serviceId, only get machines without service_id
+        query = query.is("service_id", null);
+      }
+      
+      const { data, error } = await query.single();
+      
+      console.log(`[MachinePlanner] Machine data fetched:`, {
+        found: !!data,
+        hasQuestions: !!data?.questions,
+        questionsCount: data?.questions?.questions?.length || 0,
+        service_id: data?.service_id,
+        machineId: data?.id
+      });
 
       if (error && error.code !== 'PGRST116') {
         throw error;
@@ -206,11 +255,11 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
       if (data) {
         setMachineData(data);
       } else {
-        // Create a new entry if none exists
-        const newMachine = {
+        // Create a new entry if none exists - use upsert to prevent duplicates
+        const newMachine: any = {
           user_id: teamId,
-          enginename: "Fulfillment Machine",
-          enginetype: "FULFILLMENT",
+          enginename: engineType === "GROWTH" ? "Growth Machine" : "Fulfillment Machine",
+          enginetype: engineType,
           description: "",
           triggeringevents: [],
           endingevent: [],
@@ -223,13 +272,25 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
           ai_assisted: false
         };
         
+        if (serviceId) {
+          newMachine.service_id = serviceId;
+        }
+        
+        // Use upsert with onConflict to prevent duplicates
         const { data: newData, error: insertError } = await supabase
           .from("machines")
-          .insert(newMachine)
+          .upsert(newMachine, {
+            onConflict: 'user_id,service_id,enginetype',
+            ignoreDuplicates: false
+          })
           .select("*")
           .single();
           
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('[MachinePlanner-Fulfillment] Error creating machine:', insertError);
+          throw insertError;
+        }
+        console.log('[MachinePlanner-Fulfillment] Created/fetched machine:', newData?.id);
         setMachineData(newData);
       }
     } catch (error) {
@@ -293,7 +354,8 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
         },
         body: JSON.stringify({ 
           answers,
-          questions 
+          questions,
+          service_id: serviceId
         }),
       }).catch((error) => {
         console.error('Error saving answers:', error);
@@ -332,7 +394,8 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
         },
         body: JSON.stringify({ 
           answers,
-          questions 
+          questions,
+          service_id: serviceId
         }),
       });
 
@@ -348,7 +411,8 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
         body: JSON.stringify({ 
           action: 'generate',
           userAnswers: answers,
-          questions: questions
+          questions: questions,
+          service_id: serviceId
         }),
       });
       
@@ -387,6 +451,7 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
                 triggeringevents: triggeringEventsValue,
                 endingevent: endingEventValue,
                 actionsactivities: actionsActivitiesValue,
+                service_id: serviceId
               }
             }),
           });
@@ -449,6 +514,9 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          service_id: serviceId
+        }),
       });
 
       if (!response.ok) {
@@ -499,7 +567,10 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
         },
         body: JSON.stringify({ 
           action: 'save',
-          generatedData: generatedData 
+          generatedData: {
+            ...generatedData,
+            service_id: serviceId
+          }
         }),
       });
 
@@ -606,23 +677,7 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
             ) : (
               <>
                 {/* Header with Progress - Only show when not generating */}
-                <div className="px-8 pt-10 pb-7">
-                  {/* Welcome Message - Show when welcome_completed is false */}
-                  {!machineData?.welcome_completed && (
-                    <div className="pb-6 border-b border-gray-200">
-                      <div>
-                        <h3 className="text-2xl font-medium text-gray-900 mb-3">
-                          Welcome to Fulfillment Engine
-                        </h3>
-                        <p className="text-base text-gray-600 leading-relaxed">
-                          This is Fulfillment Engine - here you can define and manage your fulfillment machine process. 
-                          We've analysed your company data and our AI assistant can help map your fulfillment process. 
-                          Let's get started!
-                        </p>
-          </div>
-      </div>
-                  )}
-
+                <div className="px-8 pt-2 pb-7">
                   {questions.length > 0 && (
                     <div className="flex items-start justify-between mb-5 mt-6">
                       <div className="flex-1">
@@ -823,33 +878,50 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
                     </div>
                   </>
                 ) : (
-                  // No questions yet - Show button to start AI generation
-                  <div className="p-8 pt-0">
-                    <div className="mx-auto space-y-6 bg-white rounded-lg p-8 border border-gray-200">
-                      <div>
-                        <h3 className="text-xl font-medium text-gray-900 mb-3">
-                          AI Assistant Ready
-                        </h3>
-                        <p className="text-base text-gray-600 leading-relaxed mb-6">
-                          Our AI assistant can help map your fulfillment process. Click the button below to get started.
-                        </p>
-                        <div className="flex justify-start">
-                          <Button
-                            onClick={handleGenerateWithAI}
-                            disabled={isLoadingQuestions}
-                            className="bg-purple-600 hover:bg-purple-700 text-white shadow-md px-8 py-6 text-base"
-                            size="lg"
-                          >
-                            {isLoadingQuestions ? (
-                              <>
-                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                Creating questions...
-                              </>
-                            ) : (
-                              "Let AI Help Create Machine"
-                            )}
-                          </Button>
+                  // No questions yet - Show button to start AI generation with background image
+                  <div className="relative p-8 pt-0 overflow-hidden min-h-[500px] flex items-center justify-center">
+                    {/* Background Image with Blur */}
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                      style={{ 
+                        backgroundImage: 'url(/full.png)',
+                        filter: 'blur(4px)',
+                        transform: 'scale(1.05)'
+                      }}
+                    />
+                    {/* Overlay for better text readability */}
+                    <div className="absolute inset-0 bg-white/40" />
+                    
+                    {/* Content */}
+                    <div className="relative mx-auto space-y-6 bg-white/95 backdrop-blur-md rounded-xl p-10 border border-gray-300 shadow-2xl max-w-2xl">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
+                          <Sparkles className="h-8 w-8 text-white" />
                         </div>
+                        <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                          Welcome to Fulfillment Machine
+                        </h3>
+                        <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-md">
+                          This is Fulfillment Machine - here you can define and manage your fulfillment machine process. We've analysed your company data and our AI assistant can help map your fulfillment process. Let's get started!
+                        </p>
+                        <Button
+                          onClick={handleGenerateWithAI}
+                          disabled={isLoadingQuestions}
+                          className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg px-8 py-6 text-base"
+                          size="lg"
+                        >
+                          {isLoadingQuestions ? (
+                            <>
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                              Creating questions...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-5 w-5 mr-2" />
+                              Let AI Help You Create This
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -862,7 +934,7 @@ export default function MachinePlanner({ onDataChange, isPlannerTabActive = true
       ) : (
         // Normal Planner Content
         <>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-8 mt-3 flex items-center justify-between">
         <div>
           <h1 className="md:text-3xl text-2xl font-medium text-gray-900">Fulfillment Machine</h1>
           <p className="text-sm text-gray-500 mt-1">Define and manage your fulfillment machine process</p>

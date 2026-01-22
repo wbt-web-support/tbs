@@ -269,20 +269,26 @@ function formatCompanyContext(companyData: any) {
 async function saveGeneratedContent(userId: string, teamId: string, generatedData: any) {
   try {
     const supabase = await createClient();
+    const serviceId = generatedData.service_id;
     
-    // Check if fulfillment machine already exists
-    const { data: existingMachine, error: fetchError } = await supabase
+    // Build query to check if fulfillment machine already exists
+    let query = supabase
       .from("machines")
       .select("*")
       .eq("user_id", teamId)
-      .eq("enginetype", "FULFILLMENT")
-      .single();
+      .eq("enginetype", "FULFILLMENT");
+    
+    if (serviceId) {
+      query = query.eq("service_id", serviceId);
+    }
+    
+    const { data: existingMachine, error: fetchError } = await query.single();
 
     if (fetchError && fetchError.code !== 'PGRST116') {
       throw fetchError;
     }
 
-    const machineData = {
+    const machineData: any = {
       user_id: teamId,
       enginename: generatedData.enginename,
       enginetype: "FULFILLMENT",
@@ -291,6 +297,10 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       endingevent: generatedData.endingevent,
       actionsactivities: generatedData.actionsactivities,
     };
+    
+    if (serviceId) {
+      machineData.service_id = serviceId;
+    }
 
     let result;
     if (existingMachine) {
@@ -391,12 +401,32 @@ export async function POST(req: Request) {
 
     // Read the request body once
     const body = await req.json();
-    const { action, generatedData, userAnswers, questions } = body;
+    const { action, generatedData, userAnswers, questions, service_id } = body;
 
     if (action === "generate") {
+      // Extract service_id from request body
+      const serviceId = service_id;
+      
+      // Fetch service name if service_id is provided
+      let serviceName = null;
+      if (serviceId) {
+        const supabase = await createClient();
+        const { data: service } = await supabase
+          .from('global_services')
+          .select('service_name')
+          .eq('id', serviceId)
+          .single();
+        serviceName = service?.service_name || null;
+      }
+
       // Generate content using Gemini
       const companyData = await getCompanyData(userId, teamId);
-      const companyContext = formatCompanyContext(companyData);
+      let companyContext = formatCompanyContext(companyData);
+      
+      // Add service name to context if available
+      if (serviceName) {
+        companyContext = `**Target Service:** ${serviceName}\n\n${companyContext}`;
+      }
 
       // Format user answers if provided
       let userAnswersContext = '';
@@ -410,20 +440,72 @@ export async function POST(req: Request) {
         });
       }
 
+      // Add service-specific instruction at the very beginning if service is provided
+      let serviceInstruction = '';
+      if (serviceName) {
+        serviceInstruction = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**CRITICAL INSTRUCTION:** You MUST generate a Fulfillment Machine specifically for the "${serviceName}" service.
+
+REQUIREMENTS:
+- Engine name must reference "${serviceName}" (e.g., "${serviceName} Fulfillment Machine")
+- Description must explain how to fulfill ${serviceName} service orders specifically
+- Triggering events must be about when a ${serviceName} order/job starts
+- Actions/activities must detail the ${serviceName} fulfillment process step by step
+- Ending event must be about completing a ${serviceName} job/order
+
+DO NOT generate a generic fulfillment machine. Every aspect must be tailored to ${serviceName}.
+
+`;
+      }
+
       // Load prompt body (instructions) from DB using the old key
       let promptBody = await getPromptBody('fulfillment_machine');
       if (!promptBody) {
         throw new Error('Prompt body not found for fulfillment_machine');
       }
-      // Replace placeholders
-      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext + userAnswersContext)
-        .replace(/{{responseFormat}}/g, FULFILLMENT_MACHINE_JSON_STRUCTURE);
+      
+      // Prepend service-specific instruction if service is provided
+      let finalPrompt = promptBody;
+      if (serviceName) {
+        const servicePrefix = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      // The final prompt is the body + the fixed structure
-      const prompt = promptBody;
+CRITICAL: Generate a Fulfillment Machine for "${serviceName}" service ONLY.
+
+REQUIREMENTS:
+1. Engine name MUST mention ${serviceName} (e.g., "${serviceName} Fulfillment Machine")
+2. Description MUST explain how to deliver ${serviceName} service
+3. Triggering event MUST be about when a ${serviceName} job/order starts
+4. Actions MUST detail the ${serviceName} fulfillment process
+5. Ending event MUST be about completing a ${serviceName} job/order
+
+EXAMPLES:
+- Engine name: "Plumbing Fulfillment Machine" (NOT "Fulfillment Machine")
+- Description: "This process maps how we deliver plumbing services..." (NOT generic)
+- Triggering: "Plumbing job order is confirmed by customer" (NOT "Order received")
+
+DO NOT generate generic content. Make it 100% specific to ${serviceName}.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+        finalPrompt = servicePrefix + promptBody;
+      }
+      
+      // Replace placeholders
+      finalPrompt = finalPrompt
+        .replace(/{{companyContext}}/g, companyContext + userAnswersContext)
+        .replace(/{{responseFormat}}/g, FULFILLMENT_MACHINE_JSON_STRUCTURE)
+        .replace(/{{serviceName}}/g, serviceName || 'the service');
 
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-      const result = await model.generateContent(prompt);
+      const result = await model.generateContent(finalPrompt);
       const response = await result.response;
       const text = response.text();
 

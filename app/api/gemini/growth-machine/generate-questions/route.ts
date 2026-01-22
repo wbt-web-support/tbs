@@ -59,6 +59,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await request.json();
+    const { service_id } = body || {};
+
+    // Fetch service name if service_id is provided
+    let serviceName = null;
+    if (service_id) {
+      const { data: service } = await supabase
+        .from('global_services')
+        .select('service_name')
+        .eq('id', service_id)
+        .single();
+      serviceName = service?.service_name || null;
+    }
+
     // Get team ID and business info
     const { data: businessInfo } = await supabase
       .from('business_info')
@@ -66,7 +80,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .single();
 
-    const teamId = businessInfo?.team_id;
+    const teamId = businessInfo?.team_id || user.id;
 
     // Fetch all team members
     const { data: teamMembers } = await supabase
@@ -89,16 +103,46 @@ export async function POST(request: NextRequest) {
       .eq('user_id', teamId)
       .order('created_at', { ascending: false });
 
-    // Check if GROWTH machine exists and has questions
-    const { data: growthMachine } = await supabase
+    // Check if GROWTH machine exists and has questions for this specific service
+    let machineQuery = supabase
       .from('machines')
       .select('*')
       .eq('user_id', teamId)
-      .eq('enginetype', 'GROWTH')
-      .single();
+      .eq('enginetype', 'GROWTH');
+    
+    if (service_id) {
+      machineQuery = machineQuery.eq('service_id', service_id);
+    } else {
+      // If no service_id provided, only get machines without service_id
+      machineQuery = machineQuery.is('service_id', null);
+    }
+    
+    const { data: growthMachine, error: machineError } = await machineQuery.single();
+    
+    console.log('[Growth Questions] Checking for machine:', {
+      service_id,
+      serviceName,
+      machineFound: !!growthMachine,
+      hasQuestions: !!growthMachine?.questions,
+      machineServiceId: growthMachine?.service_id
+    });
+    
+    // If machine doesn't exist, that's okay - we'll create it later
+    if (machineError && machineError.code !== 'PGRST116') {
+      console.error('Error fetching growth machine:', machineError);
+    }
 
-    // If questions already exist in database, return them
-    if (growthMachine?.questions && growthMachine.questions.questions && Array.isArray(growthMachine.questions.questions) && growthMachine.questions.questions.length > 0) {
+    // CRITICAL: Only return existing questions if they match the service_id
+    // This ensures each service gets its own questions
+    const hasValidQuestions = growthMachine?.questions && 
+                               growthMachine.questions.questions && 
+                               Array.isArray(growthMachine.questions.questions) && 
+                               growthMachine.questions.questions.length > 0;
+    
+    const serviceMatches = service_id ? (growthMachine?.service_id === service_id) : !growthMachine?.service_id;
+    
+    if (hasValidQuestions && serviceMatches) {
+      console.log(`[Growth Questions] Returning ${growthMachine.questions.questions.length} existing questions for service:`, serviceName || 'default');
       return NextResponse.json({
         success: true,
         message: `Retrieved ${growthMachine.questions.questions.length} existing questions for growth machine planning`,
@@ -106,12 +150,36 @@ export async function POST(request: NextRequest) {
         questionsData: growthMachine.questions
       });
     }
+    
+    console.log('[Growth Questions] Generating new questions for service:', serviceName || 'default');
 
     // Build comprehensive business context from complete onboarding data
     let businessContext = '';
     if (onboardingData?.onboarding_data) {
       const data = onboardingData.onboarding_data;
-      businessContext = `
+      
+      // Add prominent service section at the very top if service is provided
+      let serviceSection = '';
+      if (serviceName) {
+        serviceSection = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**CRITICAL CONTEXT:** You are generating questions SPECIFICALLY for the "${serviceName}" service.
+
+ALL questions MUST be:
+- Tailored specifically to the ${serviceName} service offering
+- Focused on growth strategies for ${serviceName}
+- Relevant to customer acquisition for ${serviceName}
+- Specific to business development for ${serviceName}
+
+DO NOT generate generic business questions. Every question must directly relate to the ${serviceName} service.
+
+`;
+      }
+      
+      businessContext = serviceSection + `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 📊 COMPLETE BUSINESS INFORMATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -164,18 +232,49 @@ Machine #${index + 1}:
       throw new Error('Prompt body not found for growth_machine_questions');
     }
     
+    // Prepend service-specific instruction if service is provided
+    let finalPrompt = promptBody;
+    if (serviceName) {
+      const servicePrefix = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRITICAL: You are generating questions for the "${serviceName}" service ONLY.
+
+REQUIREMENTS:
+1. ALL questions must be specific to ${serviceName}
+2. Focus on how to GROW the ${serviceName} business
+3. Ask about ${serviceName} customer acquisition
+4. Ask about ${serviceName} marketing strategies
+5. Ask about ${serviceName} sales processes
+
+DO NOT ask generic business questions. ONLY ask about ${serviceName}.
+
+EXAMPLE CONTEXT:
+- If service is "Plumbing", ask: "How do plumbing customers typically find you?"
+- If service is "Electrical", ask: "What marketing channels work best for electrical services?"
+- If service is "HVAC", ask: "How do you convert HVAC leads into customers?"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+      finalPrompt = servicePrefix + promptBody;
+    }
+    
     // Replace placeholders with actual data
-    promptBody = promptBody
+    finalPrompt = finalPrompt
       .replace(/{{businessContext}}/g, businessContext)
       .replace(/{{machinesContext}}/g, machinesContext)
-      .replace(/{{responseFormat}}/g, QUESTIONS_JSON_STRUCTURE);
+      .replace(/{{responseFormat}}/g, QUESTIONS_JSON_STRUCTURE)
+      .replace(/{{serviceName}}/g, serviceName || 'the service');
 
     // Initialize Gemini client
     const ai = new GoogleGenerativeAI(API_KEY);
     const model = ai.getGenerativeModel({ model: MODEL_NAME });
 
     // Use the prompt from database with replaced placeholders
-    const prompt = promptBody;
+    const prompt = finalPrompt;
 
     const result = await model.generateContent(prompt);
     const response = result.response;
@@ -230,10 +329,8 @@ Machine #${index + 1}:
     // First, ensure the GROWTH machine exists
     let machineId = growthMachine?.id;
     if (!machineId) {
-      // Create a new GROWTH machine if it doesn't exist
-      const { data: newMachine, error: createError } = await supabase
-        .from('machines')
-        .insert({
+      // Create a new GROWTH machine if it doesn't exist - use upsert to prevent duplicates
+        const newMachineData: any = {
           user_id: teamId,
           enginename: 'Growth Machine',
           enginetype: 'GROWTH',
@@ -246,13 +343,28 @@ Machine #${index + 1}:
           answers: null,
           questions_completed: false,
           ai_assisted: true
-        })
-        .select()
-        .single();
+        };
+        
+        if (service_id) {
+          newMachineData.service_id = service_id;
+        }
+        
+        console.log('[Growth Questions] Creating/upserting machine with service_id:', service_id);
+        
+        const { data: newMachine, error: createError } = await supabase
+          .from('machines')
+          .upsert(newMachineData, {
+            onConflict: 'user_id,service_id,enginetype',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
 
       if (createError) {
+        console.error('[Growth Questions] Error creating machine:', createError);
         throw new Error(`Failed to create growth machine: ${createError.message}`);
       }
+      console.log('[Growth Questions] Machine created/fetched:', newMachine.id, 'service_id:', newMachine.service_id);
       machineId = newMachine.id;
     } else {
       // Update existing machine with questions

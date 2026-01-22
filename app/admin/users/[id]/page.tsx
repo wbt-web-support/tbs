@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dialog";
 import OnboardingDataModal from "@/components/admin/OnboardingDataModal"; // Added import
 import AiOnboardingQuestionsModal from "@/components/admin/AiOnboardingQuestionsModal"; // Added import
+import { GlobalServiceAssignment } from "../components/global-service-assignment";
 
 // Types
 interface UserProfile {
@@ -1078,6 +1079,9 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
           </Card>
+
+          {/* Global Services Assignment */}
+          <GlobalServiceAssignment userId={user.user_id} />
         </div>
       </div>
 

@@ -1,309 +1,107 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
-import { Loader2, ExternalLink, Edit, Save, X, Code, Hand, ZoomIn, Camera, Upload, Image, FileCode2, Check, SwitchCamera, Settings } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
-import { getEffectiveUserId } from '@/lib/get-effective-user-id';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import MachinePlanner from "./components/machine-planner";
-
-type MachineData = {
-  id: string;
-  user_id: string;
-  enginename: string;
-  enginetype: string;
-  description: string;
-  figma_link: string | null;
-  figma_embed: string | null;
-  image_url: string | null;
-  created_at: string;
-  updated_at: string;
-  triggeringevents: { value: string }[];
-  endingevent: { value: string }[];
-  actionsactivities: { value: string }[];
-};
+import ServiceSelector from "./components/service-selector";
+import ServiceTabs from "./components/service-tabs";
 
 export default function FulfillmentMachinePage() {
-  const [machineData, setMachineData] = useState<MachineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [figmaLink, setFigmaLink] = useState("");
-  const [figmaEmbed, setFigmaEmbed] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [activeDesignTab, setActiveDesignTab] = useState<"image" | "figma">("image");
-  const [figmaMode, setFigmaMode] = useState<"link" | "embed">("link");
-  const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [showImageWhenFigmaExists, setShowImageWhenFigmaExists] = useState(false);
-  const [mainActiveTab, setMainActiveTab] = useState("details");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [showServiceSelection, setShowServiceSelection] = useState(true);
+  const [welcomeCompleted, setWelcomeCompleted] = useState(false);
   const supabase = createClient();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    fetchMachineData();
+    checkExistingServices();
   }, []);
 
-  // Handle URL parameter for initial tab
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab === 'design') {
-      setMainActiveTab('design');
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (machineData) {
-      setFigmaLink(machineData.figma_link || "");
-      setFigmaEmbed(machineData.figma_embed || "");
-      setImagePreview(machineData.image_url || null);
-      
-      // Set the active tab based on what data is available
-      if (machineData.figma_link || machineData.figma_embed) {
-        setActiveDesignTab("figma");
-        setFigmaMode(machineData.figma_embed ? "embed" : "link");
-      } else {
-        setActiveDesignTab("image");
-      }
-    }
-  }, [machineData]);
-
-  const fetchMachineData = async () => {
+  const checkExistingServices = async () => {
     try {
       setLoading(true);
-      
-      const effectiveUserId = await getEffectiveUserId();
-      if (!effectiveUserId) {
-        throw new Error("No effective user ID");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
       }
 
-      const teamId = await getTeamId(supabase, effectiveUserId);
-      
+      const teamId = await getTeamId(supabase, user.id);
       if (!teamId) {
-        throw new Error("Unable to determine team ID");
+        setLoading(false);
+        return;
       }
-      
-      const { data, error } = await supabase
-        .from("machines")
-        .select("*")
-        .eq("user_id", teamId)
-        .eq("enginetype", "FULFILLMENT")
-        .single();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      // Check if team already has services selected
+      const response = await fetch("/api/services?type=team");
+      if (response.ok) {
+        const { services } = await response.json();
+        if (services && services.length > 0) {
+          const serviceIds = services.map((s: any) => s.id);
+          setSelectedServiceIds(serviceIds);
+          
+          // Check if ANY machines exist for this user (not just for these services)
+          const { data: allMachines, error: machinesError } = await supabase
+            .from('machines')
+            .select('id')
+            .eq('user_id', teamId)
+            .eq('enginetype', 'FULFILLMENT');
+          
+          // If ANY machines exist, skip welcome screen
+          if (allMachines && allMachines.length > 0) {
+            setShowServiceSelection(false);
+            setWelcomeCompleted(true);
+          } else {
+            // No machines exist - keep showing welcome
+            setShowServiceSelection(false);
+            setWelcomeCompleted(false);
+          }
+        }
       }
-      
-      if (data) {
-        setMachineData(data);
-        setError("");
-      } else {
-        // Automatically create a new fulfillment machine if none exists
-        await createDefaultFulfillmentMachine(teamId);
-      }
-    } catch (error: any) {
-      console.error("Error fetching fulfillment machine data:", error);
-      const errorMessage = error?.message || "Failed to load fulfillment machine data";
-      setError(errorMessage);
-      toast.error(errorMessage);
+    } catch (error) {
+      console.error("Error checking existing services:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const createDefaultFulfillmentMachine = async (teamId: string) => {
-    try {
-      if (!teamId) {
-        throw new Error("Team ID is required to create a fulfillment machine");
-      }
-
-      const { data, error } = await supabase
-        .from("machines")
-        .insert({
-          user_id: teamId,
-          enginename: "Fulfillment Machine",
-          enginetype: "FULFILLMENT",
-          description: "",
-          triggeringevents: [],
-          endingevent: [],
-          actionsactivities: [],
-          welcome_completed: false,
-          questions: null,
-          answers: null,
-          questions_completed: false,
-          ai_assisted: false
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Database error creating fulfillment machine:", error);
-        throw error;
-      }
-      
-      if (!data) {
-        throw new Error("No data returned after creating fulfillment machine");
-      }
-      
-      setMachineData(data);
-      setError("");
-      toast.success("Fulfillment machine created successfully!");
-    } catch (error: any) {
-      console.error("Error creating default fulfillment machine:", error);
-      const errorMessage = error?.message || error?.details || "Failed to create fulfillment machine";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    }
+  const handleServicesSelected = (serviceIds: string[]) => {
+    setSelectedServiceIds(serviceIds);
+    setShowServiceSelection(false);
+    setWelcomeCompleted(true);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !machineData?.id) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please upload an image file");
-      return;
-    }
-
-    setUploading(true);
-    setUploadSuccess(false);
-    
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${machineData.id}_${Date.now()}.${fileExt}`;
-      const filePath = `fulfillment_machines/${fileName}`;
-
-      // Create a temporary preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      // Upload the file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('machines')
-        .upload(filePath, file, { 
-          upsert: true,
-          cacheControl: '3600'
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message || 'Failed to upload image');
-      }
-
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('machines')
-        .getPublicUrl(filePath);
-
-      if (!publicUrl) {
-        throw new Error('Could not get public URL for the uploaded image.');
-      }
-
-      // Update the machine record
-      const { error: updateError } = await supabase
-        .from('machines')
-        .update({ image_url: publicUrl })
-        .eq('id', machineData.id);
-
-      if (updateError) {
-        // Try to clean up the orphaned file
-        await supabase.storage.from('machines').remove([filePath]);
-        throw new Error(updateError.message || 'Failed to update machine with image URL');
-      }
-
-      // Update local state
-      setMachineData(prev => prev ? { ...prev, image_url: publicUrl } : null);
-      setUploadSuccess(true);
-      toast.success('Image uploaded successfully');
-    } catch (error: any) {
-      console.error('Error uploading image:', error);
-      toast.error(error.message || 'Failed to upload image');
-      setImagePreview(machineData.image_url || null);
-    } finally {
-      setUploading(false);
-    }
+  const handleWelcomeComplete = async () => {
+    setWelcomeCompleted(true);
   };
 
-  const getFigmaEmbedUrl = (figmaLink: string) => {
-    // Convert normal Figma link to embed URL
-    if (figmaLink.includes("figma.com/file/")) {
-      // Extract the file ID and other parts from the URL
-      const fileIdMatch = figmaLink.match(/figma\.com\/file\/([^\/]+)(\/.*)?/);
-      if (fileIdMatch && fileIdMatch[1]) {
-        return `https://www.figma.com/embed?embed_host=share&url=https://www.figma.com/file/${fileIdMatch[1]}`;
-      }
-    }
-    
-    // If it's already an embed URL or we can't parse it, return as is
-    return figmaLink;
+  const fetchMachineData = async () => {
+    // This is now handled by MachinePlanner and MachineDesign components per service
+    setLoading(false);
   };
 
-  const extractSrcFromEmbed = (embedCode: string): string | null => {
-    // Extract the src attribute from an iframe embed code
-    const srcMatch = embedCode.match(/src=["']([^"']+)["']/);
-    return srcMatch ? srcMatch[1] : null;
-  };
+  // Show loading while checking for existing services
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-70px)]">
+        <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+      </div>
+    );
+  }
 
-  const getFigmaEmbedSrc = (embedCode: string): string | null => {
-    // Extract the src from embed code for iframe usage
-    const srcMatch = embedCode.match(/src=["']([^"']+)["']/);
-    return srcMatch ? srcMatch[1] : null;
-  };
-
-  const handleSaveFigma = async () => {
-    if (!machineData?.id) return;
-
-    try {
-      setIsSaving(true);
-      
-      const updateData: {
-        figma_link?: string | null;
-        figma_embed?: string | null;
-      } = {};
-      
-      // Update based on the active tab and figma mode
-      if (activeDesignTab === "figma") {
-        if (figmaMode === "link") {
-          updateData.figma_link = figmaLink.trim() || null;
-        } else {
-          updateData.figma_embed = figmaEmbed.trim() || null;
-        }
-      }
-      
-      const { error } = await supabase
-        .from("machines")
-        .update(updateData)
-        .eq("id", machineData.id);
-        
-      if (error) throw error;
-      
-      // Refresh data and exit edit mode
-      await fetchMachineData();
-      setIsEditing(false);
-      toast.success('Figma design saved successfully');
-    } catch (error) {
-      console.error("Error saving Figma data:", error);
-      toast.error('Failed to save Figma design');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // For the UI display, check if we have any content
-  const hasFigmaContent = !!machineData?.figma_link || !!machineData?.figma_embed;
-  const hasImageContent = !!machineData?.image_url;
-  const hasDesignContent = hasFigmaContent || hasImageContent;
+  // Show service selection if not yet selected
+  if (showServiceSelection) {
+    return (
+      <ServiceSelector
+        engineType="FULFILLMENT"
+        onServicesSelected={handleServicesSelected}
+        welcomeCompleted={welcomeCompleted}
+        onWelcomeComplete={handleWelcomeComplete}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-70px)]">
@@ -318,360 +116,17 @@ export default function FulfillmentMachinePage() {
               Setting up your Fulfillment Machine
             </h2>
             <p className="text-gray-600 mb-6">{error}</p>
-            <div className="flex items-center justify-center">
-              <Loader2 className="w-6 h-6 text-purple-600 animate-spin mr-2" />
-              <span className="text-sm text-gray-500">Creating your fulfillment machine...</span>
-            </div>
           </div>
         </div>
       ) : (
-        <>
-          {/* Header with machine name and main tab navigation */}
-          <div className="">
-           
-            {/* Main Tab Navigation */}
-            <Tabs value={mainActiveTab} onValueChange={setMainActiveTab} className="w-full border-b border-gray-200 rounded-none pb-4 mb-4">
-              <TabsList className="grid grid-cols-2 w-full sm:w-auto max-w-[400px] bg-white  p-0 w-full h-full mb-2 gap-2">
-                <TabsTrigger value="details" className="bg-gray-50 hover:bg-gray-100 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Planner
-                </TabsTrigger>
-                <TabsTrigger value="design" className="bg-gray-50 hover:bg-gray-100 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
-                  <Image className="h-4 w-4 mr-2" />
-                  Design
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          
-          {/* Tab Content */}
-          <div className="flex-1 relative">
-            {/* Design Tab Content */}
-            <div className={`absolute inset-0 ${mainActiveTab === "design" ? "block" : "hidden"}`}>
-              {!hasDesignContent && !isEditing ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center h-full">
-                  <div className="max-w-md">
-                    <h2 className="text-2xl font-semibold text-gray-800 mb-3">
-                      No design or image added yet
-                    </h2>
-                    <p className="text-gray-600 mb-6">
-                      Upload an image of your fulfillment machine design to get started.
-                    </p>
-                    
-                    <div className="flex flex-col items-center space-y-4">
-                      <Button 
-                        onClick={() => {
-                          setIsEditing(true);
-                          setActiveDesignTab("image");
-                        }}
-                        className="bg-purple-600 hover:bg-purple-700 mb-2"
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload Image
-                      </Button>
-                      <div className="flex items-center">
-                        <div className="border-t border-gray-200 w-16"></div>
-                        <span className="px-3 text-sm text-gray-500">or</span>
-                        <div className="border-t border-gray-200 w-16"></div>
-                      </div>
-                      <Button 
-                        onClick={() => {
-                          setIsEditing(true);
-                          setActiveDesignTab("figma");
-                          setFigmaMode("embed");
-                        }}
-                        variant="outline"
-                        className="border-purple-200 text-purple-700"
-                      >
-                        <FileCode2 className="w-4 h-4 mr-2" />
-                        Add Figma Design
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : isEditing ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 h-full">
-                  <div className="w-full max-w-lg bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">
-                      {hasDesignContent ? "Edit Design" : "Upload Your Design"}
-                    </h2>
-                    
-                    <Tabs 
-                      value={activeDesignTab} 
-                      onValueChange={(value) => setActiveDesignTab(value as "image" | "figma")}
-                      className="w-full"
-                    >
-                      <TabsList className="grid grid-cols-2 mb-4">
-                        <TabsTrigger value="image" className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
-                          <Image className="h-4 w-4 mr-2" />
-                          Image
-                        </TabsTrigger>
-                        <TabsTrigger value="figma" className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
-                          <FileCode2 className="h-4 w-4 mr-2" />
-                          Figma Design
-                        </TabsTrigger>
-                      </TabsList>
-                      
-                      <TabsContent value="image" className="space-y-4">
-                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50 cursor-pointer hover:bg-gray-100 transition"
-                             onClick={() => fileInputRef.current?.click()}>
-                          {imagePreview ? (
-                            <div className="relative w-full">
-                              <img 
-                                src={imagePreview} 
-                                alt="Fulfillment machine preview" 
-                                className="mx-auto max-h-[200px] object-contain rounded-md"
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 transition rounded-md">
-                                <div className="bg-white rounded-full p-2">
-                                  <Camera className="h-5 w-5 text-purple-600" />
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <Upload className="h-10 w-10 text-purple-500 mb-3" />
-                              <p className="text-sm text-gray-700 font-medium">Click to upload an image</p>
-                              <p className="text-xs text-gray-500 mt-1">PNG, JPG or SVG (max. 10MB)</p>
-                            </>
-                          )}
-                          
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            id="machine-image"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleFileUpload}
-                            disabled={uploading}
-                          />
-                        </div>
-                        
-                        {uploading && (
-                          <div className="flex items-center justify-center space-x-2 mt-2">
-                            <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
-                            <span className="text-sm text-gray-600">Uploading...</span>
-                          </div>
-                        )}
-
-                        {uploadSuccess && (
-                          <div className="flex items-center p-3 rounded-md bg-green-50 border border-green-100 text-green-800 text-sm">
-                            <Check className="h-4 w-4 mr-2 text-green-600" />
-                            <span>Image uploaded successfully!</span>
-                          </div>
-                        )}
-                      </TabsContent>
-                      
-                      <TabsContent value="figma">
-                        <div className="mb-4">
-                          <div className="flex justify-between items-center mb-2">
-                            <h3 className="font-medium text-sm">Figma Design</h3>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className={figmaMode === "link" ? "bg-purple-50 border-purple-200 text-purple-700" : ""}
-                                onClick={() => setFigmaMode("link")}
-                              >
-                                <ExternalLink className="h-3 w-3 mr-1" />
-                                Link
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className={figmaMode === "embed" ? "bg-purple-50 border-purple-200 text-purple-700" : ""}
-                                onClick={() => setFigmaMode("embed")}
-                              >
-                                <Code className="h-3 w-3 mr-1" />
-                                Embed
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          {figmaMode === "link" ? (
-                            <div className="space-y-3">
-                              <Input
-                                id="figma-link"
-                                value={figmaLink}
-                                onChange={(e) => setFigmaLink(e.target.value)}
-                                placeholder="https://www.figma.com/file/..."
-                                className="w-full text-xs sm:text-sm"
-                              />
-                              <p className="text-xs text-gray-500">
-                                Paste a link to your Figma file (e.g., https://www.figma.com/file/...)
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <Textarea
-                                id="figma-embed"
-                                value={figmaEmbed}
-                                onChange={(e) => setFigmaEmbed(e.target.value)}
-                                placeholder="<iframe src='https://embed.figma.com/...' />"
-                                className="w-full min-h-[100px] sm:min-h-[120px] font-mono text-xs sm:text-sm"
-                              />
-                              <p className="text-xs text-gray-500">
-                                Paste the iframe embed code from Figma's share modal (Share &gt; Embed &gt; Copy code)
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                    
-                    <div className="flex space-x-3 mt-6">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setIsEditing(false);
-                          if (machineData?.figma_link) {
-                            setFigmaLink(machineData.figma_link);
-                          }
-                          if (machineData?.figma_embed) {
-                            setFigmaEmbed(machineData.figma_embed);
-                          }
-                          setImagePreview(machineData?.image_url || null);
-                          setUploadSuccess(false);
-                          setShowImageWhenFigmaExists(false);
-                        }}
-                        className="flex-1 text-xs sm:text-sm h-8 sm:h-9"
-                        size="sm"
-                      >
-                        <X className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        <span>Cancel</span>
-                      </Button>
-                      {activeDesignTab === "figma" && (
-                        <Button
-                          onClick={handleSaveFigma}
-                          className="flex-1 bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm h-8 sm:h-9"
-                          disabled={isSaving || (figmaMode === "link" ? !figmaLink.trim() : !figmaEmbed.trim())}
-                          size="sm"
-                        >
-                          {isSaving ? (
-                            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
-                          ) : (
-                            <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                          )}
-                          <span>Save</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col h-full">
-                  {/* Design View Header */}
-                  <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between flex-shrink-0">
-                    <div className="mb-2 sm:mb-0">
-                      <p className="text-xs sm:text-sm text-gray-500">
-                        {showImageWhenFigmaExists ? "Custom Image" : hasFigmaContent ? "Figma Design" : "Custom Image"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      {hasFigmaContent && hasImageContent && (
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowImageWhenFigmaExists(!showImageWhenFigmaExists)}
-                          className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-purple-200 text-purple-700 hover:bg-purple-50"
-                          size="sm"
-                        >
-                          <SwitchCamera className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                          <span>Switch to {showImageWhenFigmaExists ? "Figma Design" : "Image View"}</span>
-                        </Button>
-                      )}
-                      
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsEditing(true)}
-                        className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-purple-200 text-purple-700 hover:bg-purple-50"
-                        size="sm"
-                      >
-                        <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        <span>Edit {showImageWhenFigmaExists || !hasFigmaContent ? "Image" : "Design"}</span>
-                      </Button>
-                      
-                      {hasFigmaContent && !showImageWhenFigmaExists && (
-                        <Button
-                          asChild
-                          className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 bg-purple-600 hover:bg-purple-700"
-                          size="sm"
-                        >
-                          <a 
-                            href={
-                              machineData?.figma_link || 
-                              extractSrcFromEmbed(machineData?.figma_embed || "") || 
-                              "#"
-                            } 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            <span>Open in Figma</span>
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Design Content */}
-                  <div className="flex-1 bg-gray-100 relative">
-                    {hasFigmaContent && !showImageWhenFigmaExists && (
-                      <div className="absolute top-3 left-3 bg-white/90 rounded-lg p-2 z-10 text-xs border border-gray-200 max-w-[180px] sm:max-w-[220px]">
-                        <h4 className="font-medium text-gray-900 text-xs mb-1.5 px-1">Figma Navigation</h4>
-                        <ul className="space-y-1.5">
-                          <li className="flex items-center text-xs">
-                            <Hand className="h-3 w-3 mr-1.5 text-purple-600 flex-shrink-0" />
-                            <span><kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Click</kbd> + drag to pan</span>
-                          </li>
-                          <li className="flex items-center text-xs">
-                            <ZoomIn className="h-3 w-3 mr-1.5 text-purple-600 flex-shrink-0" />
-                            <span><kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl</kbd> + scroll to zoom</span>
-                          </li>
-                        </ul>
-                      </div>
-                    )}
-
-                    {(hasImageContent && (!hasFigmaContent || showImageWhenFigmaExists)) ? (
-                      <div className="w-full h-full flex items-center justify-center p-4 sm:p-8">
-                        <img 
-                          src={machineData?.image_url!} 
-                          alt={machineData?.enginename || "Fulfillment Machine"} 
-                          className="max-w-full max-h-full object-contain rounded-lg shadow-md"
-                        />
-                      </div>
-                    ) : machineData?.figma_embed ? (
-                      <iframe
-                        className="w-full h-2 min-h-[calc(100vh-300px)]"
-                        style={{ border: "1px solid rgba(0,0,0,0.1)" }}
-                        src={getFigmaEmbedSrc(machineData.figma_embed) || ""}
-                        allowFullScreen
-                        title="Fulfillment Machine Figma Design"
-                      />
-                    ) : machineData?.figma_link ? (
-                      <iframe
-                        className="w-full h-full"
-                        style={{ border: "1px solid rgba(0,0,0,0.1)" }}
-                        src={getFigmaEmbedUrl(machineData.figma_link)}
-                        allowFullScreen
-                        title="Fulfillment Machine Figma Design"
-                      />
-                    ) : null}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Details Tab Content */}
-            <div className={`absolute inset-0 ${mainActiveTab === "details" ? "block" : "hidden"}`}>
-              <div className="flex-1">
-                <div className="mx-auto">
-                  <MachinePlanner onDataChange={fetchMachineData} isPlannerTabActive={mainActiveTab === "details"} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
+        <div className="flex-1 flex flex-col min-h-0">
+          <ServiceTabs
+            serviceIds={selectedServiceIds}
+            engineType="FULFILLMENT"
+            onDataChange={fetchMachineData}
+          />
+        </div>
       )}
     </div>
   );
-} 
+}

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { answers, questions } = body;
+    const { answers, questions, service_id } = body;
 
     if (!answers || typeof answers !== 'object') {
       return NextResponse.json({ error: 'Answers are required' }, { status: 400 });
@@ -27,13 +27,18 @@ export async function POST(request: NextRequest) {
 
     const teamId = businessInfo?.team_id || user.id;
 
-    // Find the FULFILLMENT machine for this team
-    const { data: fulfillmentMachine, error: machineError } = await supabase
+    // Find the FULFILLMENT machine for this team and service
+    let query = supabase
       .from('machines')
       .select('*')
       .eq('user_id', teamId)
-      .eq('enginetype', 'FULFILLMENT')
-      .single();
+      .eq('enginetype', 'FULFILLMENT');
+    
+    if (service_id) {
+      query = query.eq('service_id', service_id);
+    }
+    
+    const { data: fulfillmentMachine, error: machineError } = await query.single();
 
     if (machineError || !fulfillmentMachine) {
       return NextResponse.json({ error: 'Fulfillment machine not found' }, { status: 404 });
