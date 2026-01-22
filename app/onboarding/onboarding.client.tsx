@@ -2854,6 +2854,15 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
+  // State to track data loading
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [dataLoadStatus, setDataLoadStatus] = useState({
+    onboardingData: false,
+    userName: false,
+    wbtOnboardingData: false,
+    departments: false,
+  });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     mode: "onChange", // Enable real-time validation
@@ -2991,17 +3000,34 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
     return () => subscription.unsubscribe();
   }, [form]);
 
+  // Check if all data has been loaded
+  useEffect(() => {
+    const allLoaded = 
+      dataLoadStatus.onboardingData &&
+      dataLoadStatus.userName &&
+      dataLoadStatus.wbtOnboardingData &&
+      dataLoadStatus.departments;
+    
+    if (allLoaded) {
+      setIsDataLoading(false);
+    }
+  }, [dataLoadStatus]);
+
   // Load onboarding data on mount
   useEffect(() => {
     const fetchOnboardingData = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-          const { data } = await supabase
-      .from('company_onboarding')
-      .select('onboarding_data, competitor_data')
-      .eq('user_id', user.id)
-      .single();
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setDataLoadStatus(prev => ({ ...prev, onboardingData: true }));
+          return;
+        }
+        const { data } = await supabase
+          .from('company_onboarding')
+          .select('onboarding_data, competitor_data')
+          .eq('user_id', user.id)
+          .single();
       if (data && data.onboarding_data) {
         // Convert legacy string format to new array format for business owners
         const onboardingData = { ...data.onboarding_data } as any;
@@ -3316,33 +3342,45 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
           form.setValue('current_employees_and_roles_responsibilities', onboardingData.current_employees_and_roles_responsibilities, { shouldValidate: false });
         }
       }
+      } catch (error) {
+        console.error('Error fetching onboarding data:', error);
+      } finally {
+        setDataLoadStatus(prev => ({ ...prev, onboardingData: true }));
+      }
     };
     fetchOnboardingData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch user name on mount
   useEffect(() => {
     const fetchUserName = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data, error } = await supabase
-          .from('business_info')
-          .select('full_name')
-          .eq('user_id', user.id)
-          .single();
-        if (data) {
-          setUserName(data.full_name);
-        } else if (error) {
-          console.error("Error fetching business info:", error);
-          // Fallback to email if name not found or error
-          setUserName(user.email || "");
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from('business_info')
+            .select('full_name')
+            .eq('user_id', user.id)
+            .single();
+          if (data) {
+            setUserName(data.full_name);
+          } else if (error) {
+            console.error("Error fetching business info:", error);
+            // Fallback to email if name not found or error
+            setUserName(user.email || "");
+          } else {
+             // Fallback to email if name data is null
+             setUserName(user.email || "");
+          }
         } else {
-           // Fallback to email if name data is null
-           setUserName(user.email || "");
+          setUserName(""); // Clear name if no user
         }
-      } else {
-        setUserName(""); // Clear name if no user
+      } catch (error) {
+        console.error("Error fetching user name:", error);
+      } finally {
+        setDataLoadStatus(prev => ({ ...prev, userName: true }));
       }
     };
     fetchUserName();
@@ -3351,19 +3389,25 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
   // Fetch WBT onboarding data on mount
   useEffect(() => {
     const fetchWbtOnboardingData = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data, error } = await supabase
-          .from('business_info')
-          .select('wbt_onboarding')
-          .eq('user_id', user.id)
-          .single();
-        if (data && data.wbt_onboarding) {
-          setWbtOnboardingData(data.wbt_onboarding);
-        } else if (error) {
-          console.error("Error fetching WBT onboarding data:", error);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from('business_info')
+            .select('wbt_onboarding')
+            .eq('user_id', user.id)
+            .single();
+          if (data && data.wbt_onboarding) {
+            setWbtOnboardingData(data.wbt_onboarding);
+          } else if (error) {
+            console.error("Error fetching WBT onboarding data:", error);
+          }
         }
+      } catch (error) {
+        console.error("Error fetching WBT onboarding data:", error);
+      } finally {
+        setDataLoadStatus(prev => ({ ...prev, wbtOnboardingData: true }));
       }
     };
     fetchWbtOnboardingData();
@@ -3375,7 +3419,10 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
       try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setDataLoadStatus(prev => ({ ...prev, departments: true }));
+          return;
+        }
 
         const { data: adminBusinessInfo } = await supabase
           .from('business_info')
@@ -3398,6 +3445,8 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
         }
       } catch (error) {
         console.error('Error fetching departments:', error);
+      } finally {
+        setDataLoadStatus(prev => ({ ...prev, departments: true }));
       }
     };
     fetchDepartments();
@@ -4261,6 +4310,18 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
       formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [currentCategory]);
+
+  // Show loading screen while data is being fetched
+  if (isDataLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 text-lg">Loading your onboarding data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 w-full">
