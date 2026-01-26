@@ -28,7 +28,8 @@ import {
     Database,
     Info,
     ChevronRight,
-    RefreshCw
+    RefreshCw,
+    MessageSquare
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import React from "react";
 import ErrorCodeSelector from "@/components/admin/error-code-selector";
+import ProductChatTest from "@/components/admin/product-chat-test";
 
 type Category = 'boiler' | 'ac' | 'ashp' | 'battery_storage' | 'solar';
 
@@ -291,6 +293,7 @@ export default function ProductsPage() {
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+    const [isChatDialogOpen, setIsChatDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
@@ -874,6 +877,10 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="flex gap-3">
+                    <Button variant="outline" className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 transition-all font-semibold" onClick={() => setIsChatDialogOpen(true)}>
+                        <MessageSquare className="w-4 h-4" />
+                        Test Chatbot
+                    </Button>
                     <Button variant="outline" className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 transition-all font-semibold" onClick={() => {
                         setDetectedCategory(null);
                         setImportResults(null);
@@ -1558,6 +1565,12 @@ export default function ProductsPage() {
                             Process
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isChatDialogOpen} onOpenChange={setIsChatDialogOpen}>
+                <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none">
+                    <ProductChatTest />
                 </DialogContent>
             </Dialog>
         </div >
