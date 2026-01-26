@@ -103,12 +103,17 @@ const navigationSections: NavigationSection[] = [
         href: "/todos",
         icon: CheckSquare,
       },
- 
       {
-        name: "Performance",
-        href: "/performance",
-        icon: Wallet,
+        name: "Instructions",
+        href: "/instructions",
+        icon: FileText,
       },
+ 
+      // {
+      //   name: "Performance",
+      //   href: "/performance",
+      //   icon: Wallet,
+      // },
       // {
       //   name: "Key Initiatives",
       //   href: "/key-Initiatives",
@@ -284,10 +289,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (isSuperAdmin) return navigationSections;
     
     // Admin and regular users: filter based on permissions
-    // Always show dashboard, even if permissions array is empty
+    // Always show dashboard and instructions, even if permissions array is empty
     const effectivePermissions = [...userPermissions];
     if (!effectivePermissions.includes('dashboard')) {
       effectivePermissions.push('dashboard');
+    }
+    if (!effectivePermissions.includes('instructions')) {
+      effectivePermissions.push('instructions');
     }
 
     return navigationSections
