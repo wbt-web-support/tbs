@@ -28,6 +28,8 @@ interface Instruction {
     file_name?: string;
     file_size?: number;
     extraction_date?: string;
+    file_url?: string;
+    storage_path?: string;
   } | null;
 }
 
@@ -46,6 +48,8 @@ export default function InstructionsClientContent({
     file_name: string;
     file_size?: number;
     extraction_date: string;
+    file_url?: string;
+    storage_path?: string;
   }>>({});
   
   // Form states
@@ -55,6 +59,8 @@ export default function InstructionsClientContent({
   const [url, setUrl] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   
   const supabase = createClient();
   
@@ -64,8 +70,15 @@ export default function InstructionsClientContent({
     setContentType("text");
     setUrl("");
     setSelectedFile(null);
+    setUploadedFileUrl(null);
+    setUploadedFilePath(null);
     setEditingId(null);
     setIsAdding(false);
+    setExtractedContents(prev => {
+      const newContents = { ...prev };
+      delete newContents['new'];
+      return newContents;
+    });
   };
   
   const handleStartEdit = (instruction: Instruction) => {
@@ -83,6 +96,23 @@ export default function InstructionsClientContent({
     
     try {
       setIsSubmitting(true);
+      
+      // Find the instruction to get file path
+      const instruction = instructions.find(i => i.id === id);
+      
+      // Delete file from storage if it exists
+      if (instruction?.extraction_metadata?.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('business_owner_instructions_files')
+          .remove([instruction.extraction_metadata.storage_path]);
+        
+        if (storageError) {
+          console.warn('Error deleting file from storage:', storageError);
+          // Continue with instruction deletion even if file deletion fails
+        }
+      }
+      
+      // Delete instruction from database
       const { error } = await supabase
         .from("chatbot_instructions")
         .delete()
@@ -114,6 +144,41 @@ export default function InstructionsClientContent({
     
     try {
       setIsProcessing(prev => ({ ...prev, 'new': true }));
+      
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 8);
+      const fileName = `${timestamp}_${randomId}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+      
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('business_owner_instructions_files')
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: false
+        });
+      
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('business_owner_instructions_files')
+        .getPublicUrl(filePath);
+      
+      setUploadedFileUrl(urlData.publicUrl);
+      setUploadedFilePath(filePath);
+      
+      // Extract content from the uploaded file
       const formData = new FormData();
       formData.append('file', file);
       
@@ -128,21 +193,30 @@ export default function InstructionsClientContent({
       
       const data = await response.json();
       
-      // Store extraction metadata
+      // Store extraction metadata with file storage info
       setExtractedContents(prev => ({
         ...prev,
         'new': {
           extracted_text: data.content,
           file_name: file.name,
           file_size: file.size,
-          extraction_date: new Date().toISOString()
+          extraction_date: new Date().toISOString(),
+          file_url: urlData.publicUrl,
+          storage_path: filePath
         }
       }));
       
-      toast.success('Content extracted successfully');
+      toast.success('File uploaded and content extracted successfully');
     } catch (error) {
-      console.error('Error extracting content:', error);
-      toast.error('Failed to extract content from file');
+      console.error('Error uploading/extracting file:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload or extract content from file');
+      
+      // Clean up uploaded file if extraction failed
+      if (uploadedFilePath) {
+        await supabase.storage
+          .from('business_owner_instructions_files')
+          .remove([uploadedFilePath]);
+      }
     } finally {
       setIsProcessing(prev => ({ ...prev, 'new': false }));
     }
@@ -430,9 +504,22 @@ export default function InstructionsClientContent({
                     </DialogContent>
                   </Dialog>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Content extracted from {selectedFile ? 'local file: ' : 'URL: '}{extractedContents['new'].file_name}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    Content extracted from {selectedFile ? 'local file: ' : 'URL: '}{extractedContents['new'].file_name}
+                  </p>
+                  {extractedContents['new'].file_url && (
+                    <a
+                      href={extractedContents['new'].file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View uploaded file
+                    </a>
+                  )}
+                </div>
               </div>
             )}
             
@@ -594,7 +681,20 @@ export default function InstructionsClientContent({
                         </DialogContent>
                       </Dialog>
                     </div>
-                    <p>Extraction date: {instruction.extraction_metadata.extraction_date ? new Date(instruction.extraction_metadata.extraction_date).toLocaleString() : 'Unknown'}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p>Extraction date: {instruction.extraction_metadata.extraction_date ? new Date(instruction.extraction_metadata.extraction_date).toLocaleString() : 'Unknown'}</p>
+                      {instruction.extraction_metadata.file_url && (
+                        <a
+                          href={instruction.extraction_metadata.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View file
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

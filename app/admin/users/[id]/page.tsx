@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -33,6 +34,8 @@ import {
   UserCircle,
   AlertCircle,
   Edit,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -200,6 +203,30 @@ interface TriagePlanner {
   updated_at: string;
 }
 
+interface Instruction {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  content_type: string;
+  url?: string | null;
+  extraction_metadata?: {
+    extracted_text?: string;
+    file_name?: string;
+    file_size?: number;
+    extraction_date?: string;
+    loom_metadata?: {
+      thumbnailUrl?: string;
+      views?: number;
+      createdAt?: string;
+      owner?: string;
+      duration_formatted?: string;
+    };
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const supabase = createClient();
@@ -234,11 +261,21 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [aiOnboardingData, setAiOnboardingData] = useState<any>(null);
   const [isAiOnboardingModalOpen, setIsAiOnboardingModalOpen] = useState(false);
   const [loadingAiOnboardingData, setLoadingAiOnboardingData] = useState(true);
+  const [instructions, setInstructions] = useState<Instruction[]>([]);
+  const [loadingInstructions, setLoadingInstructions] = useState(false);
+  const [selectedInstruction, setSelectedInstruction] = useState<Instruction | null>(null);
+  const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
 
   // Load user data
   useEffect(() => {
     fetchUser();
   }, [id]);
+
+  useEffect(() => {
+    if (user?.user_id) {
+      fetchInstructions();
+    }
+  }, [user?.user_id]);
 
   useEffect(() => {
     const fetchOnboardingData = async () => {
@@ -336,6 +373,28 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       toast.error("Failed to load user data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInstructions = async () => {
+    if (!user?.user_id) return;
+    
+    try {
+      setLoadingInstructions(true);
+      const { data, error } = await supabase
+        .from('business_owner_instructions')
+        .select('*')
+        .eq('user_id', user.user_id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setInstructions(data || []);
+    } catch (error) {
+      console.error("Error fetching instructions:", error);
+      toast.error("Failed to load instructions");
+    } finally {
+      setLoadingInstructions(false);
     }
   };
 
@@ -1090,6 +1149,54 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
           {/* Global Services Assignment */}
           <GlobalServiceAssignment userId={user.user_id} />
+
+          {/* Instructions Section */}
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Instructions
+              </h3>
+              {loadingInstructions ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                </div>
+              ) : instructions.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No instructions found for this user.</p>
+              ) : (
+                <div className="space-y-2">
+                  {instructions.map((instruction) => (
+                    <div
+                      key={instruction.id}
+                      onClick={() => {
+                        setSelectedInstruction(instruction);
+                        setIsInstructionModalOpen(true);
+                      }}
+                      className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm">{instruction.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {instruction.content}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="text-xs">
+                              {instruction.content_type}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(instruction.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 ml-2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
 
@@ -1107,6 +1214,109 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         data={aiOnboardingData?.questions_data} // Pass the actual JSONB data
         companyName={user?.business_name || "Company"} // Using business_name
       />
+
+      {/* Instruction Detail Modal */}
+      <Dialog open={isInstructionModalOpen} onOpenChange={setIsInstructionModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold">
+              {selectedInstruction?.title}
+            </DialogTitle>
+            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+              <Badge variant="outline">{selectedInstruction?.content_type}</Badge>
+              <span>
+                Created: {selectedInstruction ? new Date(selectedInstruction.created_at).toLocaleDateString() : ''}
+              </span>
+              {selectedInstruction?.url && (
+                <a
+                  href={selectedInstruction.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  View Source
+                </a>
+              )}
+            </div>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4 py-4">
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Content</Label>
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <p className="text-sm whitespace-pre-wrap">{selectedInstruction?.content}</p>
+                </div>
+              </div>
+              
+              {selectedInstruction?.extraction_metadata && (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Extracted Content</Label>
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">
+                        Extracted on: {selectedInstruction.extraction_metadata.extraction_date 
+                          ? new Date(selectedInstruction.extraction_metadata.extraction_date).toLocaleDateString()
+                          : 'N/A'}
+                      </span>
+                      {selectedInstruction.extraction_metadata.file_name && (
+                        <span className="text-xs text-muted-foreground">
+                          File: {selectedInstruction.extraction_metadata.file_name}
+                        </span>
+                      )}
+                    </div>
+                    {selectedInstruction.extraction_metadata.extracted_text && (
+                      <div className="mt-2">
+                        <p className="text-sm whitespace-pre-wrap line-clamp-10">
+                          {selectedInstruction.extraction_metadata.extracted_text}
+                        </p>
+                      </div>
+                    )}
+                    {selectedInstruction.extraction_metadata.loom_metadata && (
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {selectedInstruction.extraction_metadata.loom_metadata.views && (
+                            <div>
+                              <span className="font-medium">Views: </span>
+                              <span>{selectedInstruction.extraction_metadata.loom_metadata.views}</span>
+                            </div>
+                          )}
+                          {selectedInstruction.extraction_metadata.loom_metadata.duration_formatted && (
+                            <div>
+                              <span className="font-medium">Duration: </span>
+                              <span>{selectedInstruction.extraction_metadata.loom_metadata.duration_formatted}</span>
+                            </div>
+                          )}
+                          {selectedInstruction.extraction_metadata.loom_metadata.owner && (
+                            <div>
+                              <span className="font-medium">Owner: </span>
+                              <span>{selectedInstruction.extraction_metadata.loom_metadata.owner}</span>
+                            </div>
+                          )}
+                          {selectedInstruction.extraction_metadata.loom_metadata.createdAt && (
+                            <div>
+                              <span className="font-medium">Created: </span>
+                              <span>{new Date(selectedInstruction.extraction_metadata.loom_metadata.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsInstructionModalOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
