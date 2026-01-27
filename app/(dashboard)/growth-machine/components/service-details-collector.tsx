@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,7 @@ export default function ServiceDetailsCollector({
   const [serviceDetails, setServiceDetails] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   const currentService = services[currentIndex];
   const currentDetails = serviceDetails[currentService?.id] || "";
@@ -61,6 +62,40 @@ export default function ServiceDetailsCollector({
   const handlePrevious = () => {
     if (!isFirstService) {
       setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
+  const handleEnhanceWithAI = async () => {
+    if (!currentDetails.trim()) {
+      toast.error("Please write some details first before enhancing");
+      return;
+    }
+
+    setIsEnhancing(true);
+
+    try {
+      const response = await fetch("/api/gemini/enhance-service-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_name: currentService.service_name,
+          business_details: currentDetails,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to enhance content");
+      }
+
+      const { enhancedContent } = await response.json();
+      handleDetailsChange(enhancedContent);
+      toast.success("Content enhanced successfully!");
+    } catch (error: any) {
+      console.error("Error enhancing content:", error);
+      toast.error(error.message || "Failed to enhance content");
+    } finally {
+      setIsEnhancing(false);
     }
   };
 
@@ -147,12 +182,36 @@ export default function ServiceDetailsCollector({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">
+                Service Details
+              </label>
+              <Button
+                onClick={handleEnhanceWithAI}
+                disabled={!currentDetails.trim() || isEnhancing || isGenerating}
+                variant="outline"
+                size="sm"
+                className="border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                {isEnhancing ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                    Enhancing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 mr-2" />
+                    AI Enhance
+                  </>
+                )}
+              </Button>
+            </div>
             <Textarea
               value={currentDetails}
               onChange={(e) => handleDetailsChange(e.target.value)}
               placeholder="For example: We specialise in residential work, particularly safety inspections and rewiring for older homes. We also handle commercial installations for small businesses. Our main customers are homeowners and property managers."
               className="min-h-[180px] resize-y border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"
-              disabled={isGenerating}
+              disabled={isGenerating || isEnhancing}
             />
           </div>
 
@@ -170,7 +229,7 @@ export default function ServiceDetailsCollector({
 
             <Button
               onClick={handleNext}
-              disabled={!currentDetails.trim() || isGenerating}
+              disabled={!currentDetails.trim() || isGenerating || isEnhancing}
               className="bg-blue-600 hover:bg-blue-700 text-white px-8"
             >
               {isGenerating ? (
