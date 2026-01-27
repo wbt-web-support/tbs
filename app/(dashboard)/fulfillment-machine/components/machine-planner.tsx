@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles, Target, Building, Users, TrendingUp, Zap, Brain, CheckCircle, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Save, ArrowRight, Pencil, X, CircleDot, Sparkles, Target, Building, Users, TrendingUp, Zap, Brain, CheckCircle, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -545,8 +545,15 @@ export default function MachinePlanner({
       
       toast.success("AI assistant has mapped out your fulfillment process and saved it automatically!");
     } catch (err: any) {
-      setError(err.message || 'Failed to map your Fulfillment Machine process');
-      toast.error(err.message || 'Failed to map your Fulfillment Machine process');
+      const errorMessage = err.message || 'Failed to map your Fulfillment Machine process';
+      setError(errorMessage);
+      
+      // Check if it's a parsing error - show more helpful message
+      if (errorMessage.includes('parse') || errorMessage.includes('JSON')) {
+        toast.error('Failed to parse AI response. Please try again.');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setGenerating(false);
     }
@@ -720,8 +727,31 @@ export default function MachinePlanner({
   return (
     <div className="space-y-5">
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm">
-          {error}
+        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-red-800 text-sm font-medium mb-1">Error generating content</p>
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+            <Button
+              onClick={handleGenerateWithAI}
+              disabled={generating}
+              size="sm"
+              className="ml-4 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Retrying...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Retry
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       )}
 

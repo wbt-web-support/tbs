@@ -589,22 +589,64 @@ DO NOT generate generic content. Make it 100% specific to ${serviceName}.
       const response = await result.response;
       const text = response.text();
 
-      // Parse the JSON response
+      // Parse the JSON response with improved error handling
       let generatedData;
       try {
         // Clean the response text
         let cleanedText = text.trim();
         
         // Remove any markdown code blocks
-        cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+        cleanedText = cleanedText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
         
-        // Extract JSON from the response (in case there's extra text)
-        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          generatedData = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("No JSON found in response");
+        // Try multiple parsing strategies
+        let parsed = null;
+        
+        // Strategy 1: Try direct JSON parse
+        try {
+          parsed = JSON.parse(cleanedText);
+        } catch (e) {
+          // Strategy 2: Extract JSON object from text
+          const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              parsed = JSON.parse(jsonMatch[0]);
+            } catch (e2) {
+              // Strategy 3: Try to fix common JSON issues
+              let fixedJson = jsonMatch[0]
+                // Fix trailing commas
+                .replace(/,(\s*[}\]])/g, '$1')
+                // Fix single quotes to double quotes (basic)
+                .replace(/'/g, '"')
+                // Remove comments
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .replace(/\/\/.*/g, '');
+              
+              try {
+                parsed = JSON.parse(fixedJson);
+              } catch (e3) {
+                // Strategy 4: Try to extract just the JSON structure
+                const structureMatch = cleanedText.match(/\{[\s\S]{10,}\}/);
+                if (structureMatch) {
+                  try {
+                    parsed = JSON.parse(structureMatch[0]);
+                  } catch (e4) {
+                    throw new Error("All JSON parsing strategies failed");
+                  }
+                } else {
+                  throw new Error("No JSON structure found in response");
+                }
+              }
+            }
+          } else {
+            throw new Error("No JSON object found in response");
+          }
         }
+        
+        if (!parsed) {
+          throw new Error("Failed to parse JSON response");
+        }
+        
+        generatedData = parsed;
 
         // Validate and clean the generated data
         if (!generatedData.enginename || generatedData.enginename.trim() === '') {
