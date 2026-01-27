@@ -22,12 +22,14 @@ interface ServiceTabsProps {
   serviceIds: string[];
   engineType: "GROWTH" | "FULFILLMENT";
   onDataChange?: () => void;
+  selectedMachineIds?: string[];
 }
 
 export default function ServiceTabs({
   serviceIds,
   engineType,
   onDataChange,
+  selectedMachineIds,
 }: ServiceTabsProps) {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
@@ -80,9 +82,17 @@ export default function ServiceTabs({
 
       const { subcategories: fetchedSubcategories } = await response.json();
       // Filter to only show subcategories for selected services
-      const filteredSubcategories = (fetchedSubcategories || []).filter(
+      let filteredSubcategories = (fetchedSubcategories || []).filter(
         (subcat: Subcategory) => serviceIds.includes(subcat.service_id)
       );
+      
+      // If selectedMachineIds is provided, only show those machines
+      if (selectedMachineIds && selectedMachineIds.length > 0) {
+        filteredSubcategories = filteredSubcategories.filter(
+          (subcat: Subcategory) => selectedMachineIds.includes(subcat.id)
+        );
+      }
+      
       setSubcategories(filteredSubcategories);
       
       if (filteredSubcategories.length > 0 && !activeSubcategoryId) {

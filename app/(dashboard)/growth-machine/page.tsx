@@ -25,6 +25,7 @@ export default function GrowthMachinePage() {
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [serviceDetails, setServiceDetails] = useState<Record<string, string>>({});
   const [welcomeCompleted, setWelcomeCompleted] = useState(false);
+  const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -46,26 +47,32 @@ export default function GrowthMachinePage() {
         return;
       }
 
-      // Check if GROWTH machines already exist (not just subcategories)
-      const { data: existingMachines } = await supabase
-        .from("machines")
-        .select("id, subcategory_id")
-        .eq("user_id", teamId)
-        .eq("enginetype", "GROWTH")
-        .not("subcategory_id", "is", null)
-        .limit(1);
+      // Check if subcategories exist (shared between Growth and Fulfillment)
+      const subcategoriesResponse = await fetch("/api/subcategories");
+      if (subcategoriesResponse.ok) {
+        const { subcategories } = await subcategoriesResponse.json();
+        if (subcategories && subcategories.length > 0) {
+          // Subcategories exist - check if GROWTH machines exist
+          const { data: existingMachines } = await supabase
+            .from("machines")
+            .select("id, subcategory_id")
+            .eq("user_id", teamId)
+            .eq("enginetype", "GROWTH")
+            .not("subcategory_id", "is", null)
+            .limit(1);
 
-      if (existingMachines && existingMachines.length > 0) {
-        // GROWTH machines exist - load services and go directly to machines view
-        const servicesResponse = await fetch("/api/services?type=team");
-        if (servicesResponse.ok) {
-          const { services } = await servicesResponse.json();
-          if (services && services.length > 0) {
-            setSelectedServices(services);
-            setWelcomeCompleted(true);
-            setCurrentStep("machines");
-            setLoading(false);
-            return;
+          // If subcategories exist, go directly to machines view (even if no GROWTH machines yet)
+          // This allows users to use subcategories created in Fulfillment
+          const servicesResponse = await fetch("/api/services?type=team");
+          if (servicesResponse.ok) {
+            const { services } = await servicesResponse.json();
+            if (services && services.length > 0) {
+              setSelectedServices(services);
+              setWelcomeCompleted(true);
+              setCurrentStep("machines");
+              setLoading(false);
+              return;
+            }
           }
         }
       }
@@ -110,7 +117,10 @@ export default function GrowthMachinePage() {
     setCurrentStep("subcategory-management");
   };
 
-  const handleSubcategoryManagementComplete = () => {
+  const handleSubcategoryManagementComplete = (selectedIds?: string[]) => {
+    if (selectedIds && selectedIds.length > 0) {
+      setSelectedMachineIds(selectedIds);
+    }
     setCurrentStep("machines");
   };
 
@@ -176,6 +186,7 @@ export default function GrowthMachinePage() {
                 serviceIds={selectedServices.map((s) => s.id)}
                 engineType="GROWTH"
                 onDataChange={fetchMachineData}
+                selectedMachineIds={selectedMachineIds.length > 0 ? selectedMachineIds : undefined}
               />
             </div>
           )}

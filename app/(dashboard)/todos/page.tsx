@@ -820,7 +820,7 @@ export default function TodosPage() {
         </Card>
 
         {/* Assigned To Do Section */}
-        <Card className="border-gray-200">
+        <Card className="border-gray-200 hidden">
           <div className="p-4 bg-white border-b border-gray-100">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">Assigned To Do List</h2>

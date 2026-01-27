@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, X, Pencil, Check, ArrowRight } from "lucide-react";
+import { Loader2, Plus, X, Pencil, Check, ArrowRight, CheckSquare } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 type Subcategory = {
@@ -26,7 +27,7 @@ type GroupedSubcategories = {
 };
 
 interface SubcategoryManagerProps {
-  onComplete: () => void;
+  onComplete: (selectedMachineIds?: string[]) => void;
   engineType: "GROWTH" | "FULFILLMENT";
 }
 
@@ -43,11 +44,22 @@ export default function SubcategoryManager({
   const [newSubcategory, setNewSubcategory] = useState({ service_id: "", name: "", description: "" });
   const [isSaving, setIsSaving] = useState(false);
   const [services, setServices] = useState<Array<{ id: string; service_name: string }>>([]);
+  const [selectedMachineIds, setSelectedMachineIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchSubcategories();
     fetchServices();
   }, []);
+
+  // Initialize selected machines with all subcategories when they're loaded
+  useEffect(() => {
+    if (groupedSubcategories.length > 0) {
+      const allIds = groupedSubcategories
+        .flatMap((group) => group.subcategories)
+        .map((subcat) => subcat.id);
+      setSelectedMachineIds(new Set(allIds));
+    }
+  }, [groupedSubcategories]);
 
   const fetchServices = async () => {
     try {
@@ -206,6 +218,7 @@ export default function SubcategoryManager({
 
   const allSubcategories = groupedSubcategories.flatMap((group) => group.subcategories);
   const hasSubcategories = allSubcategories.length > 0;
+  const hasSelectedMachines = selectedMachineIds.size > 0;
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-500px)] py-8">
@@ -215,8 +228,8 @@ export default function SubcategoryManager({
             Review Your Service Machines
           </CardTitle>
           <CardDescription className="text-gray-600 mt-2">
-            Review the AI-created machines for your services. You can edit, add, or remove machines as needed.
-            Each machine will have its own growth and fulfilment engines.
+            Select which machines you want to create for {engineType === "GROWTH" ? "growth" : "fulfilment"}. 
+            You can edit machine names or add new ones as needed.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -277,27 +290,42 @@ export default function SubcategoryManager({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start justify-between">
-                        <h4 className="font-medium text-gray-900 flex-1 pr-2">
-                          {subcategory.subcategory_name}
-                        </h4>
-                        <div className="flex space-x-1">
-                          <Button
-                            onClick={() => handleEdit(subcategory)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-gray-600 hover:text-blue-600 h-8 w-8 p-0"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            onClick={() => handleDelete(subcategory.id, subcategory.subcategory_name)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-gray-600 hover:text-red-600 h-8 w-8 p-0"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={selectedMachineIds.has(subcategory.id)}
+                          onCheckedChange={(checked) => {
+                            const newSelected = new Set(selectedMachineIds);
+                            if (checked) {
+                              newSelected.add(subcategory.id);
+                            } else {
+                              newSelected.delete(subcategory.id);
+                            }
+                            setSelectedMachineIds(newSelected);
+                          }}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 flex items-start justify-between">
+                          <h4 className="font-medium text-gray-900 flex-1 pr-2">
+                            {subcategory.subcategory_name}
+                          </h4>
+                          <div className="flex space-x-1">
+                            <Button
+                              onClick={() => handleEdit(subcategory)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-gray-600 hover:text-blue-600 h-8 w-8 p-0"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(subcategory.id, subcategory.subcategory_name)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-gray-600 hover:text-red-600 h-8 w-8 p-0"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -385,11 +413,11 @@ export default function SubcategoryManager({
             )}
             <div className="ml-auto">
               <Button
-                onClick={onComplete}
-                disabled={!hasSubcategories}
+                onClick={() => onComplete(Array.from(selectedMachineIds))}
+                disabled={!hasSelectedMachines}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8"
               >
-                Continue to Machines
+                Continue to Machines ({selectedMachineIds.size})
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
