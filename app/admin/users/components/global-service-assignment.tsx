@@ -58,7 +58,8 @@ export function GlobalServiceAssignment({ userId }: GlobalServiceAssignmentProps
         .from("global_services")
         .select("id, service_name, category, description")
         .eq("is_active", true)
-        .order("service_name");
+        .order("display_order", { ascending: true })
+        .order("service_name", { ascending: true });
 
       if (servicesError) throw servicesError;
 

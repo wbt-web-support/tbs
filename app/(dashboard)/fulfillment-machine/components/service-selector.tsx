@@ -130,20 +130,27 @@ export default function ServiceSelector({
 
     try {
       setIsContinuing(true);
-      // Add selected services to team
-      const promises = selectedServices.map((serviceId) =>
-        fetch("/api/services", {
+      // Add selected services to team (or get existing ones if already added)
+      const promises = selectedServices.map(async (serviceId) => {
+        const response = await fetch("/api/services", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ service_id: serviceId }),
-        })
-      );
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to add service");
+        }
+        
+        return response.json();
+      });
 
       await Promise.all(promises);
       onServicesSelected(selectedServices);
     } catch (error: any) {
       console.error("Error saving services:", error);
-      toast.error("Failed to save service selections");
+      toast.error(error.message || "Failed to save service selections");
     } finally {
       setIsContinuing(false);
     }

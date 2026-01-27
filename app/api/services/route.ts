@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         .from("global_services")
         .select("*")
         .eq("is_active", true)
+        .order("display_order", { ascending: true })
         .order("service_name", { ascending: true });
 
       if (error) {
@@ -59,11 +60,21 @@ export async function GET(request: NextRequest) {
             service_name,
             description,
             category,
-            is_active
+            is_active,
+            display_order
           )
         `)
         .eq("team_id", teamId)
         .order("created_at", { ascending: true });
+      
+      // Sort by display_order after fetching
+      if (teamServices) {
+        teamServices.sort((a: any, b: any) => {
+          const orderA = a.global_services?.display_order ?? 999999;
+          const orderB = b.global_services?.display_order ?? 999999;
+          return orderA - orderB;
+        });
+      }
 
       if (error) {
         console.error("Error fetching team services:", error);
@@ -154,16 +165,37 @@ export async function POST(request: NextRequest) {
     // Check if team already has this service
     const { data: existingTeamService } = await supabase
       .from("team_services")
-      .select("id")
+      .select(`
+        id,
+        service_id,
+        created_at,
+        updated_at,
+        global_services:service_id (
+          id,
+          service_name,
+          description,
+          category,
+          is_active
+        )
+      `)
       .eq("team_id", teamId)
       .eq("service_id", globalServiceId)
       .single();
 
     if (existingTeamService) {
-      return NextResponse.json(
-        { error: "Service already added to team" },
-        { status: 409 }
-      );
+      // Service already exists - return it gracefully instead of error
+      // This allows Growth and Fulfillment to share the same services
+      const service = {
+        id: existingTeamService.service_id,
+        team_id: teamId,
+        service_name: existingTeamService.global_services?.service_name,
+        description: existingTeamService.global_services?.description,
+        category: existingTeamService.global_services?.category,
+        created_at: existingTeamService.created_at,
+        updated_at: existingTeamService.updated_at
+      };
+
+      return NextResponse.json({ service }, { status: 200 });
     }
 
     // Add service to team

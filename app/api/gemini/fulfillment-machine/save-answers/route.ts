@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { answers, questions, service_id } = body;
+    const { answers, questions, subcategory_id, service_id } = body;
 
     if (!answers || typeof answers !== 'object') {
       return NextResponse.json({ error: 'Answers are required' }, { status: 400 });
@@ -27,14 +27,17 @@ export async function POST(request: NextRequest) {
 
     const teamId = businessInfo?.team_id || user.id;
 
-    // Find the FULFILLMENT machine for this team and service
+    // Find the FULFILLMENT machine for this team and subcategory/service
     let query = supabase
       .from('machines')
       .select('*')
       .eq('user_id', teamId)
       .eq('enginetype', 'FULFILLMENT');
     
-    if (service_id) {
+    if (subcategory_id) {
+      query = query.eq('subcategory_id', subcategory_id);
+    } else if (service_id) {
+      // Backward compatibility
       query = query.eq('service_id', service_id);
     }
     

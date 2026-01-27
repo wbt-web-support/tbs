@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   UserIcon,
   ChevronDown,
+  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -75,6 +76,11 @@ const navigationSections = [
         name: "User Management",
         href: "/admin/users",
         icon: Users,
+      },
+      {
+        name: "Services",
+        href: "/admin/services",
+        icon: Settings2,
       },
       {
         name: "Page Permissions",

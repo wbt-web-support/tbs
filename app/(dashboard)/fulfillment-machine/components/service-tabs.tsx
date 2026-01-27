@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/utils/supabase/client";
 import MachinePlanner from "./machine-planner";
 import MachineDesign from "./machine-design";
-import { Settings, Image as ImageIcon } from "lucide-react";
+import { Settings, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-type Service = {
+type Subcategory = {
   id: string;
-  service_name: string;
+  subcategory_name: string;
   description?: string;
-  category?: string;
-  created_at?: string;
-  updated_at?: string;
+  service_id: string;
+  global_services?: {
+    service_name: string;
+  };
 };
 
 interface ServiceTabsProps {
@@ -27,85 +29,151 @@ export default function ServiceTabs({
   engineType,
   onDataChange,
 }: ServiceTabsProps) {
-  const [services, setServices] = useState<Service[]>([]);
-  const [activeServiceId, setActiveServiceId] = useState<string | null>(null);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"planner" | "design">("planner");
   const [loading, setLoading] = useState(true);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    fetchServices();
+    fetchSubcategories();
   }, [serviceIds]);
 
   useEffect(() => {
-    if (services.length > 0 && !activeServiceId) {
-      setActiveServiceId(services[0].id);
+    if (subcategories.length > 0 && !activeSubcategoryId) {
+      setActiveSubcategoryId(subcategories[0].id);
     }
-  }, [services, activeServiceId]);
+    checkScrollability();
+  }, [subcategories, activeSubcategoryId]);
 
-  const fetchServices = async () => {
+  const checkScrollability = () => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      setCanScrollLeft(container.scrollLeft > 0);
+      setCanScrollRight(
+        container.scrollLeft < container.scrollWidth - container.clientWidth - 10
+      );
+    }
+  };
+
+  const scroll = (direction: "left" | "right") => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const scrollAmount = 300;
+      container.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+      setTimeout(checkScrollability, 300);
+    }
+  };
+
+  const fetchSubcategories = async () => {
     try {
       setLoading(true);
-      // Fetch team's selected services
-      const response = await fetch("/api/services?type=team");
-      if (!response.ok) throw new Error("Failed to fetch services");
+      // Fetch all subcategories for the team
+      const response = await fetch("/api/subcategories");
+      if (!response.ok) throw new Error("Failed to fetch subcategories");
 
-      const { services: fetchedServices } = await response.json();
-      // Filter to only show selected services
-      const filteredServices = (fetchedServices || []).filter((s: Service) =>
-        serviceIds.includes(s.id)
+      const { subcategories: fetchedSubcategories } = await response.json();
+      // Filter to only show subcategories for selected services
+      const filteredSubcategories = (fetchedSubcategories || []).filter(
+        (subcat: Subcategory) => serviceIds.includes(subcat.service_id)
       );
-      setServices(filteredServices);
+      setSubcategories(filteredSubcategories);
       
-      if (filteredServices.length > 0 && !activeServiceId) {
-        setActiveServiceId(filteredServices[0].id);
+      if (filteredSubcategories.length > 0 && !activeSubcategoryId) {
+        setActiveSubcategoryId(filteredSubcategories[0].id);
       }
     } catch (error) {
-      console.error("Error fetching services:", error);
+      console.error("Error fetching subcategories:", error);
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <div>Loading services...</div>;
+    return <div className="flex items-center justify-center h-full">Loading machines...</div>;
   }
 
-  if (services.length === 0) {
-    return <div>No services selected</div>;
+  if (subcategories.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-gray-600 mb-2">No machines found</p>
+          <p className="text-sm text-gray-500">
+            Please complete the service details collection and machine creation steps.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="w-full flex flex-col h-full">
-      {/* Service Tabs - Top Level with Improved Design */}
+      {/* Machine Tabs - Top Level */}
       <div className="mb-6 px-6 pt-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2">
+        <div className="relative bg-white rounded-lg border border-gray-200">
+          {/* Left Scroll Arrow */}
+          {canScrollLeft && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => scroll("left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 p-0 bg-white/90 hover:bg-white shadow-md border border-gray-200"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-700" />
+            </Button>
+          )}
+
+          {/* Right Scroll Arrow */}
+          {canScrollRight && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => scroll("right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 p-0 bg-white/90 hover:bg-white shadow-md border border-gray-200"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-700" />
+            </Button>
+          )}
+
           <Tabs
-            value={activeServiceId || undefined}
-            onValueChange={(value) => setActiveServiceId(value)}
+            value={activeSubcategoryId || undefined}
+            onValueChange={(value) => setActiveSubcategoryId(value)}
             className="w-full"
           >
-            <TabsList className="inline-flex h-auto w-full bg-transparent p-0 gap-2 overflow-x-auto">
-              {services.map((service) => (
-                <TabsTrigger
-                  key={service.id}
-                  value={service.id}
-                  className="relative px-6 py-3 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap
-                    text-gray-600 hover:text-gray-900 hover:bg-gray-50
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 
-                    data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-200
-                    data-[state=active]:hover:from-purple-600 data-[state=active]:hover:to-purple-700"
-                >
-                  {service.service_name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            <div
+              ref={scrollContainerRef}
+              onScroll={checkScrollability}
+              className="overflow-x-auto scrollbar-hide"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <TabsList className="inline-flex h-auto w-max bg-transparent p-2 gap-2">
+                {subcategories.map((subcategory) => (
+                  <TabsTrigger
+                    key={subcategory.id}
+                    value={subcategory.id}
+                    className="relative px-6 py-3 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap
+                      text-gray-600 hover:text-gray-900 hover:bg-gray-50
+                      data-[state=active]:bg-purple-600 
+                      data-[state=active]:text-white
+                      data-[state=active]:hover:bg-purple-700"
+                  >
+                    {subcategory.subcategory_name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           </Tabs>
         </div>
       </div>
 
-      {/* Planner/Design Tabs - Per Service with Improved Design */}
-      {activeServiceId && (
+      {/* Planner/Design Tabs - Per Subcategory */}
+      {activeSubcategoryId && (
         <div className="flex-1 flex flex-col min-h-0 px-6">
           <Tabs
             value={activeTab}
@@ -137,16 +205,16 @@ export default function ServiceTabs({
 
             <TabsContent value="planner" className="flex-1 mt-0 min-h-0">
               <MachinePlanner
-                serviceId={activeServiceId}
+                subcategoryId={activeSubcategoryId}
                 engineType={engineType}
                 onDataChange={onDataChange}
-                isPlannerTabActive={activeTab === "planner" && activeServiceId !== null}
+                isPlannerTabActive={activeTab === "planner" && activeSubcategoryId !== null}
               />
             </TabsContent>
 
             <TabsContent value="design" className="flex-1 mt-0 min-h-0">
               <MachineDesign
-                serviceId={activeServiceId}
+                subcategoryId={activeSubcategoryId}
                 engineType={engineType}
                 onDataChange={onDataChange}
               />

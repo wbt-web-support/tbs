@@ -60,11 +60,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { service_id } = body || {};
+    const { subcategory_id, service_id } = body || {};
 
-    // Fetch service name if service_id is provided
+    // Fetch subcategory details if subcategory_id is provided
+    let subcategoryName = null;
+    let subcategoryDescription = null;
     let serviceName = null;
-    if (service_id) {
+    
+    if (subcategory_id) {
+      const { data: subcategory } = await supabase
+        .from('service_subcategories')
+        .select(`
+          subcategory_name,
+          description,
+          global_services:service_id (
+            service_name
+          )
+        `)
+        .eq('id', subcategory_id)
+        .single();
+      
+      if (subcategory) {
+        subcategoryName = subcategory.subcategory_name;
+        subcategoryDescription = subcategory.description;
+        serviceName = subcategory.global_services?.service_name || null;
+      }
+    } else if (service_id) {
+      // Fallback to service if no subcategory
       const { data: service } = await supabase
         .from('global_services')
         .select('service_name')
@@ -82,27 +104,33 @@ export async function POST(request: NextRequest) {
 
     const teamId = businessInfo?.team_id || user.id;
 
-    // Find the FULFILLMENT machine for this team and service
+    // Find the FULFILLMENT machine for this team and subcategory/service
     let query = supabase
       .from('machines')
       .select('*')
       .eq('user_id', teamId)
       .eq('enginetype', 'FULFILLMENT');
     
-    if (service_id) {
+    if (subcategory_id) {
+      query = query.eq('subcategory_id', subcategory_id);
+    } else if (service_id) {
+      // Backward compatibility
       query = query.eq('service_id', service_id);
     } else {
-      // If no service_id provided, only get machines without service_id
-      query = query.is('service_id', null);
+      // If no id provided, only get machines without subcategory_id or service_id
+      query = query.is('subcategory_id', null).is('service_id', null);
     }
     
     const { data: fulfillmentMachine, error: machineError } = await query.single();
     
     console.log('[Fulfillment Questions] Checking for machine:', {
+      subcategory_id,
       service_id,
+      subcategoryName,
       serviceName,
       machineFound: !!fulfillmentMachine,
       hasQuestions: !!fulfillmentMachine?.questions,
+      machineSubcategoryId: fulfillmentMachine?.subcategory_id,
       machineServiceId: fulfillmentMachine?.service_id
     });
 
@@ -125,9 +153,31 @@ export async function POST(request: NextRequest) {
     if (onboardingData?.onboarding_data) {
       const data = onboardingData.onboarding_data;
       
-      // Add prominent service section at the very top if service is provided
+      // Add prominent subcategory/service section at the very top
       let serviceSection = '';
-      if (serviceName) {
+      if (subcategoryName) {
+        serviceSection = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🎯 TARGET SUBCATEGORY: ${subcategoryName.toUpperCase()}
+${serviceName ? `## 📋 PARENT SERVICE: ${serviceName.toUpperCase()}` : ''}
+${subcategoryDescription ? `## 📝 SUBCATEGORY DESCRIPTION: ${subcategoryDescription}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**CRITICAL CONTEXT:** You are generating questions SPECIFICALLY for the "${subcategoryName}" subcategory.
+
+This is a SPECIFIC subcategory${serviceName ? ` within the "${serviceName}" service` : ''}, not generic.
+${subcategoryDescription ? `\nThe subcategory focuses on: ${subcategoryDescription}\n` : ''}
+
+ALL questions MUST be:
+- Tailored specifically to the ${subcategoryName} subcategory offering
+- Focused on fulfillment processes for ${subcategoryName}
+- Relevant to customer experience for ${subcategoryName}
+- Specific to operational workflows for ${subcategoryName}
+
+DO NOT generate generic business questions. Every question must directly relate to the ${subcategoryName} subcategory.
+
+`;
+      } else if (serviceName) {
         serviceSection = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
@@ -183,8 +233,8 @@ Operations:
     
     const serviceMatches = service_id ? (fulfillmentMachine?.service_id === service_id) : !fulfillmentMachine?.service_id;
     
-    if (hasValidQuestions && serviceMatches) {
-      console.log(`[Fulfillment Questions] Returning ${fulfillmentMachine.questions.questions.length} existing questions for service:`, serviceName || 'default');
+    if (hasValidQuestions && idMatches) {
+      console.log(`[Fulfillment Questions] Returning ${fulfillmentMachine.questions.questions.length} existing questions for:`, subcategoryName || serviceName || 'default');
       return NextResponse.json({
         success: true,
         message: `Retrieved ${fulfillmentMachine.questions.questions.length} existing questions for fulfillment machine planning`,
@@ -193,7 +243,7 @@ Operations:
       });
     }
     
-    console.log('[Fulfillment Questions] Generating new questions for service:', serviceName || 'default');
+    console.log('[Fulfillment Questions] Generating new questions for:', subcategoryName || serviceName || 'default');
 
     // Build existing machines context
     let machinesContext = '';
@@ -220,9 +270,40 @@ Machine #${index + 1}:
       throw new Error('Prompt body not found for fulfillment_machine_questions');
     }
     
-    // Prepend service-specific instruction if service is provided
+    // Prepend subcategory/service-specific instruction
     let finalPrompt = promptBody;
-    if (serviceName) {
+    if (subcategoryName) {
+      const subcategoryPrefix = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 TARGET SUBCATEGORY: ${subcategoryName.toUpperCase()}
+${serviceName ? `📋 PARENT SERVICE: ${serviceName.toUpperCase()}` : ''}
+${subcategoryDescription ? `📝 DESCRIPTION: ${subcategoryDescription}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRITICAL: You are generating questions for the "${subcategoryName}" subcategory ONLY.
+
+This is a SPECIFIC subcategory${serviceName ? ` within "${serviceName}" service` : ''}, not generic.
+${subcategoryDescription ? `\nFocus: ${subcategoryDescription}\n` : ''}
+
+REQUIREMENTS:
+1. ALL questions must be specific to ${subcategoryName}
+2. Focus on the ${subcategoryName} FULFILLMENT process
+3. Ask about ${subcategoryName} service delivery
+4. Ask about ${subcategoryName} customer experience
+5. Ask about ${subcategoryName} operational workflows
+
+DO NOT ask generic business questions. ONLY ask about ${subcategoryName}.
+
+EXAMPLE CONTEXT:
+- If subcategory is "Safety Certificate Inspections", ask: "What happens after a safety certificate inspection is booked?"
+- If subcategory is "Residential Rewiring", ask: "How do you ensure residential rewiring meets quality standards?"
+- If subcategory is "Commercial New Installations", ask: "What's the typical process from commercial installation quote to completion?"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+      finalPrompt = subcategoryPrefix + promptBody;
+    } else if (serviceName) {
       const servicePrefix = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
@@ -255,7 +336,7 @@ EXAMPLE CONTEXT:
       .replace(/{{businessContext}}/g, businessContext)
       .replace(/{{machinesContext}}/g, machinesContext)
       .replace(/{{responseFormat}}/g, QUESTIONS_JSON_STRUCTURE)
-      .replace(/{{serviceName}}/g, serviceName || 'the service');
+      .replace(/{{serviceName}}/g, subcategoryName || serviceName || 'the service');
 
     // Initialize Gemini client
     const ai = new GoogleGenerativeAI(API_KEY);
@@ -333,16 +414,23 @@ EXAMPLE CONTEXT:
           ai_assisted: true
         };
         
-        if (service_id) {
+        if (subcategory_id) {
+          newMachineData.subcategory_id = subcategory_id;
+        } else if (service_id) {
+          // Backward compatibility
           newMachineData.service_id = service_id;
         }
         
-        console.log('[Fulfillment Questions] Creating/upserting machine with service_id:', service_id);
+        const conflictColumns = subcategory_id 
+          ? 'user_id,subcategory_id,enginetype'
+          : 'user_id,service_id,enginetype';
+        
+        console.log('[Fulfillment Questions] Creating/upserting machine with:', { subcategory_id, service_id });
         
         const { data: newMachine, error: createError } = await supabase
           .from('machines')
           .upsert(newMachineData, {
-            onConflict: 'user_id,service_id,enginetype',
+            onConflict: conflictColumns,
             ignoreDuplicates: false
           })
           .select()
@@ -352,7 +440,7 @@ EXAMPLE CONTEXT:
         console.error('[Fulfillment Questions] Error creating machine:', createError);
         throw new Error(`Failed to create fulfillment machine: ${createError.message}`);
       }
-      console.log('[Fulfillment Questions] Machine created/fetched:', newMachine.id, 'service_id:', newMachine.service_id);
+      console.log('[Fulfillment Questions] Machine created/fetched:', newMachine.id, 'subcategory_id:', newMachine.subcategory_id, 'service_id:', newMachine.service_id);
       machineId = newMachine.id;
     } else {
       // Update existing machine with questions

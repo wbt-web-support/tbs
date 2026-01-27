@@ -269,6 +269,7 @@ function formatCompanyContext(companyData: any) {
 async function saveGeneratedContent(userId: string, teamId: string, generatedData: any) {
   try {
     const supabase = await createClient();
+    const subcategoryId = generatedData.subcategory_id;
     const serviceId = generatedData.service_id;
     
     // Build query to check if fulfillment machine already exists
@@ -278,7 +279,10 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       .eq("user_id", teamId)
       .eq("enginetype", "FULFILLMENT");
     
-    if (serviceId) {
+    if (subcategoryId) {
+      query = query.eq("subcategory_id", subcategoryId);
+    } else if (serviceId) {
+      // Backward compatibility
       query = query.eq("service_id", serviceId);
     }
     
@@ -298,7 +302,10 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       actionsactivities: generatedData.actionsactivities,
     };
     
-    if (serviceId) {
+    if (subcategoryId) {
+      machineData.subcategory_id = subcategoryId;
+    } else if (serviceId) {
+      // Backward compatibility
       machineData.service_id = serviceId;
     }
 
@@ -401,16 +408,39 @@ export async function POST(req: Request) {
 
     // Read the request body once
     const body = await req.json();
-    const { action, generatedData, userAnswers, questions, service_id } = body;
+    const { action, generatedData, userAnswers, questions, subcategory_id, service_id } = body;
 
     if (action === "generate") {
-      // Extract service_id from request body
+      // Extract subcategory_id or service_id from request body (prefer subcategory_id)
+      const subcategoryId = subcategory_id;
       const serviceId = service_id;
       
-      // Fetch service name if service_id is provided
+      // Fetch subcategory details if subcategory_id is provided
+      let subcategoryName = null;
+      let subcategoryDescription = null;
       let serviceName = null;
-      if (serviceId) {
-        const supabase = await createClient();
+      
+      const supabase = await createClient();
+      if (subcategoryId) {
+        const { data: subcategory } = await supabase
+          .from('service_subcategories')
+          .select(`
+            subcategory_name,
+            description,
+            global_services:service_id (
+              service_name
+            )
+          `)
+          .eq('id', subcategoryId)
+          .single();
+        
+        if (subcategory) {
+          subcategoryName = subcategory.subcategory_name;
+          subcategoryDescription = subcategory.description;
+          serviceName = subcategory.global_services?.service_name || null;
+        }
+      } else if (serviceId) {
+        // Fallback to service if no subcategory
         const { data: service } = await supabase
           .from('global_services')
           .select('service_name')
@@ -440,9 +470,34 @@ export async function POST(req: Request) {
         });
       }
 
-      // Add service-specific instruction at the very beginning if service is provided
+      // Add subcategory/service-specific instruction at the very beginning
       let serviceInstruction = '';
-      if (serviceName) {
+      if (subcategoryName) {
+        // Use subcategory if available (more specific)
+        serviceInstruction = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🎯 TARGET SUBCATEGORY: ${subcategoryName.toUpperCase()}
+${serviceName ? `## 📋 PARENT SERVICE: ${serviceName.toUpperCase()}` : ''}
+${subcategoryDescription ? `## 📝 SUBCATEGORY DESCRIPTION: ${subcategoryDescription}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**CRITICAL INSTRUCTION:** You MUST generate a Fulfillment Machine specifically for the "${subcategoryName}" subcategory.
+
+This is a SPECIFIC subcategory${serviceName ? ` within the "${serviceName}" service` : ''}, not a generic service.
+${subcategoryDescription ? `\nThe subcategory focuses on: ${subcategoryDescription}\n` : ''}
+
+REQUIREMENTS:
+- Engine name must reference "${subcategoryName}" (e.g., "${subcategoryName} Fulfillment Machine")
+- Description must explain how to fulfill ${subcategoryName} orders specifically
+- Triggering events must be about when a ${subcategoryName} order/job starts
+- Actions/activities must detail the ${subcategoryName} fulfillment process step by step
+- Ending event must be about completing a ${subcategoryName} job/order
+
+DO NOT generate a generic fulfillment machine. Every aspect must be tailored to the specific "${subcategoryName}" subcategory.
+
+`;
+      } else if (serviceName) {
+        // Fallback to service if no subcategory
         serviceInstruction = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
@@ -468,9 +523,40 @@ DO NOT generate a generic fulfillment machine. Every aspect must be tailored to 
         throw new Error('Prompt body not found for fulfillment_machine');
       }
       
-      // Prepend service-specific instruction if service is provided
+      // Prepend subcategory/service-specific instruction
       let finalPrompt = promptBody;
-      if (serviceName) {
+      if (subcategoryName) {
+        const subcategoryPrefix = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 TARGET SUBCATEGORY: ${subcategoryName.toUpperCase()}
+${serviceName ? `📋 PARENT SERVICE: ${serviceName.toUpperCase()}` : ''}
+${subcategoryDescription ? `📝 DESCRIPTION: ${subcategoryDescription}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRITICAL: Generate a Fulfillment Machine for "${subcategoryName}" subcategory ONLY.
+
+This is a SPECIFIC subcategory${serviceName ? ` within "${serviceName}" service` : ''}, not generic.
+${subcategoryDescription ? `\nFocus: ${subcategoryDescription}\n` : ''}
+
+REQUIREMENTS:
+1. Engine name MUST mention ${subcategoryName} (e.g., "${subcategoryName} Fulfillment Machine")
+2. Description MUST explain how to deliver ${subcategoryName} service specifically
+3. Triggering event MUST be about when a ${subcategoryName} job/order starts
+4. Actions MUST detail the ${subcategoryName} fulfillment process
+5. Ending event MUST be about completing a ${subcategoryName} job/order
+
+EXAMPLES:
+- Engine name: "Safety Certificate Inspections Fulfillment Machine" (NOT "Fulfillment Machine")
+- Description: "This process maps how we deliver safety certificate inspections..." (NOT generic)
+- Triggering: "Safety certificate inspection request is confirmed" (NOT "Order received")
+
+DO NOT generate generic content. Make it 100% specific to ${subcategoryName}.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+        finalPrompt = subcategoryPrefix + promptBody;
+      } else if (serviceName) {
         const servicePrefix = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 TARGET SERVICE: ${serviceName.toUpperCase()}
@@ -502,7 +588,7 @@ DO NOT generate generic content. Make it 100% specific to ${serviceName}.
       finalPrompt = finalPrompt
         .replace(/{{companyContext}}/g, companyContext + userAnswersContext)
         .replace(/{{responseFormat}}/g, FULFILLMENT_MACHINE_JSON_STRUCTURE)
-        .replace(/{{serviceName}}/g, serviceName || 'the service');
+        .replace(/{{serviceName}}/g, subcategoryName || serviceName || 'the service');
 
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
       const result = await model.generateContent(finalPrompt);

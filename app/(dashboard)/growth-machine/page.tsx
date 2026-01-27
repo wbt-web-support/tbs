@@ -5,21 +5,33 @@ import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import ServiceSelector from "./components/service-selector";
+import ServiceDetailsCollector from "./components/service-details-collector";
+import SubcategoryManager from "./components/subcategory-manager";
 import ServiceTabs from "./components/service-tabs";
+
+type Service = {
+  id: string;
+  service_name: string;
+  description?: string;
+  category?: string;
+};
+
+type FlowStep = "welcome" | "service-selection" | "service-details" | "subcategory-management" | "machines";
 
 export default function GrowthMachinePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  const [showServiceSelection, setShowServiceSelection] = useState(true);
+  const [currentStep, setCurrentStep] = useState<FlowStep>("welcome");
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [serviceDetails, setServiceDetails] = useState<Record<string, string>>({});
   const [welcomeCompleted, setWelcomeCompleted] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
-    checkExistingServices();
+    checkExistingSetup();
   }, []);
 
-  const checkExistingServices = async () => {
+  const checkExistingSetup = async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -34,63 +46,80 @@ export default function GrowthMachinePage() {
         return;
       }
 
-      // Check if team already has services selected
-      const response = await fetch("/api/services?type=team");
-      if (response.ok) {
-        const { services } = await response.json();
-        if (services && services.length > 0) {
-          const serviceIds = services.map((s: any) => s.id);
-          setSelectedServiceIds(serviceIds);
-          
-          // Check if ANY machines exist for this user (not just for these services)
-          const { data: allMachines, error: machinesError } = await supabase
-            .from('machines')
-            .select('id')
-            .eq('user_id', teamId)
-            .eq('enginetype', 'GROWTH');
-          
-          // If ANY machines exist, skip welcome screen and go to ServiceTabs
-          if (allMachines && allMachines.length > 0) {
-            setShowServiceSelection(false);
+      // Check if GROWTH machines already exist (not just subcategories)
+      const { data: existingMachines } = await supabase
+        .from("machines")
+        .select("id, subcategory_id")
+        .eq("user_id", teamId)
+        .eq("enginetype", "GROWTH")
+        .not("subcategory_id", "is", null)
+        .limit(1);
+
+      if (existingMachines && existingMachines.length > 0) {
+        // GROWTH machines exist - load services and go directly to machines view
+        const servicesResponse = await fetch("/api/services?type=team");
+        if (servicesResponse.ok) {
+          const { services } = await servicesResponse.json();
+          if (services && services.length > 0) {
+            setSelectedServices(services);
             setWelcomeCompleted(true);
-          } else {
-            // No machines exist - show first welcome screen in ServiceSelector
-            setShowServiceSelection(true);
-            setWelcomeCompleted(false);
+            setCurrentStep("machines");
+            setLoading(false);
+            return;
           }
-        } else {
-          // No services exist - show first welcome screen in ServiceSelector
-          setShowServiceSelection(true);
-          setWelcomeCompleted(false);
         }
-      } else {
-        // Error fetching services - show first welcome screen in ServiceSelector
-        setShowServiceSelection(true);
-        setWelcomeCompleted(false);
       }
+
+      // No GROWTH machines found - load existing services for pre-population
+      const servicesResponse = await fetch("/api/services?type=team");
+      if (servicesResponse.ok) {
+        const { services } = await servicesResponse.json();
+        if (services && services.length > 0) {
+          setSelectedServices(services);
+        }
+      }
+
+      // Start from welcome screen
+      setCurrentStep("welcome");
     } catch (error) {
-      console.error("Error checking existing services:", error);
+      console.error("Error checking existing setup:", error);
+      setCurrentStep("welcome");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleServicesSelected = (serviceIds: string[]) => {
-    setSelectedServiceIds(serviceIds);
-    setShowServiceSelection(false);
+  const handleWelcomeComplete = () => {
     setWelcomeCompleted(true);
+    setCurrentStep("service-selection");
   };
 
-  const handleWelcomeComplete = async () => {
-    setWelcomeCompleted(true);
+  const handleServicesSelected = async (serviceIds: string[]) => {
+    // Fetch full service details
+    const response = await fetch("/api/services?type=team");
+    if (response.ok) {
+      const { services: allServices } = await response.json();
+      const selected = (allServices || []).filter((s: Service) => serviceIds.includes(s.id));
+      setSelectedServices(selected);
+      setCurrentStep("service-details");
+    }
+  };
+
+  const handleServiceDetailsComplete = (details: Record<string, string>) => {
+    setServiceDetails(details);
+    setCurrentStep("subcategory-management");
+  };
+
+  const handleSubcategoryManagementComplete = () => {
+    setCurrentStep("machines");
   };
 
   const fetchMachineData = async () => {
-    // This is now handled by MachinePlanner and MachineDesign components per service
+    // This is now handled by MachinePlanner and MachineDesign components per subcategory
     setLoading(false);
   };
 
-  // Show loading while checking for existing services
+  // Show loading while checking for existing setup
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-70px)]">
@@ -99,42 +128,65 @@ export default function GrowthMachinePage() {
     );
   }
 
-  // Show service selection if not yet selected
-  if (showServiceSelection) {
-    return (
-      <ServiceSelector
-        engineType="GROWTH"
-        onServicesSelected={handleServicesSelected}
-        welcomeCompleted={welcomeCompleted}
-        onWelcomeComplete={handleWelcomeComplete}
-      />
-    );
-  }
+  // Render appropriate step
+  switch (currentStep) {
+    case "welcome":
+    case "service-selection":
+      return (
+        <ServiceSelector
+          engineType="GROWTH"
+          onServicesSelected={handleServicesSelected}
+          welcomeCompleted={welcomeCompleted}
+          onWelcomeComplete={handleWelcomeComplete}
+        />
+      );
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-70px)]">
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center">
+    case "service-details":
+      return (
+        <ServiceDetailsCollector
+          services={selectedServices}
+          onComplete={handleServiceDetailsComplete}
+          engineType="GROWTH"
+        />
+      );
+
+    case "subcategory-management":
+      return (
+        <SubcategoryManager
+          onComplete={handleSubcategoryManagementComplete}
+          engineType="GROWTH"
+        />
+      );
+
+    case "machines":
+      return (
+        <div className="flex flex-col h-[calc(100vh-70px)]">
+          {error ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <div className="max-w-md">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-3">
+                  Setting up your Growth Machine
+                </h2>
+                <p className="text-gray-600 mb-6">{error}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col min-h-0">
+              <ServiceTabs
+                serviceIds={selectedServices.map((s) => s.id)}
+                engineType="GROWTH"
+                onDataChange={fetchMachineData}
+              />
+            </div>
+          )}
+        </div>
+      );
+
+    default:
+      return (
+        <div className="flex items-center justify-center h-[calc(100vh-70px)]">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         </div>
-      ) : error ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <div className="max-w-md">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-3">
-              Setting up your Growth Machine
-            </h2>
-            <p className="text-gray-600 mb-6">{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col min-h-0">
-          <ServiceTabs
-            serviceIds={selectedServiceIds}
-            engineType="GROWTH"
-            onDataChange={fetchMachineData}
-          />
-        </div>
-      )}
-    </div>
-  );
+      );
+  }
 }

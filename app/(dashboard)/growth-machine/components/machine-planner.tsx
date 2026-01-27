@@ -35,18 +35,22 @@ type MachineData = {
 };
 
 interface MachinePlannerProps {
-  serviceId?: string;
+  subcategoryId?: string;
+  serviceId?: string; // Keep for backward compatibility
   engineType?: "GROWTH" | "FULFILLMENT" | "INNOVATION";
   onDataChange?: () => void;
   isPlannerTabActive?: boolean;
 }
 
 export default function MachinePlanner({ 
-  serviceId, 
+  subcategoryId,
+  serviceId, // For backward compatibility
   engineType = "GROWTH",
   onDataChange, 
   isPlannerTabActive = true 
 }: MachinePlannerProps) {
+  // Use subcategoryId if provided, otherwise fall back to serviceId for backward compatibility
+  const activeId = subcategoryId || serviceId;
   const [machineData, setMachineData] = useState<MachineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -115,8 +119,8 @@ export default function MachinePlanner({
   ];
 
   useEffect(() => {
-    // Reset all question-related state when serviceId changes
-    // This ensures we don't show stale questions from a different service
+    // Reset all question-related state when subcategoryId/serviceId changes
+    // This ensures we don't show stale questions from a different subcategory/service
     setQuestions([]);
     setAnswers({});
     setCustomAnswers({});
@@ -128,7 +132,7 @@ export default function MachinePlanner({
     setMachineData(null);
     
     fetchMachineData();
-  }, [serviceId]);
+  }, [activeId]);
   
   // Update progress when questions or answers change
   useEffect(() => {
@@ -224,7 +228,7 @@ export default function MachinePlanner({
 
       const teamId = await getTeamId(supabase, user.id);
       
-      console.log(`[MachinePlanner-Growth] Fetching machine data for service:`, serviceId, 'engineType:', engineType);
+      console.log(`[MachinePlanner-Growth] Fetching machine data for subcategory:`, activeId, 'engineType:', engineType);
       
       let query = supabase
         .from("machines")
@@ -232,11 +236,14 @@ export default function MachinePlanner({
         .eq("user_id", teamId)
         .eq("enginetype", engineType);
       
-      if (serviceId) {
+      if (subcategoryId) {
+        query = query.eq("subcategory_id", subcategoryId);
+      } else if (serviceId) {
+        // Backward compatibility: use service_id if subcategory_id not provided
         query = query.eq("service_id", serviceId);
       } else {
-        // If no serviceId, only get machines without service_id
-        query = query.is("service_id", null);
+        // If no id, only get machines without subcategory_id or service_id
+        query = query.is("subcategory_id", null).is("service_id", null);
       }
       
       const { data, error } = await query.single();
@@ -245,6 +252,7 @@ export default function MachinePlanner({
         found: !!data,
         hasQuestions: !!data?.questions,
         questionsCount: data?.questions?.questions?.length || 0,
+        subcategory_id: data?.subcategory_id,
         service_id: data?.service_id,
         machineId: data?.id
       });
@@ -273,15 +281,22 @@ export default function MachinePlanner({
           ai_assisted: false
         };
         
-        if (serviceId) {
+        if (subcategoryId) {
+          newMachine.subcategory_id = subcategoryId;
+        } else if (serviceId) {
+          // Backward compatibility
           newMachine.service_id = serviceId;
         }
         
         // Use upsert with onConflict to prevent duplicates
+        const conflictColumns = subcategoryId 
+          ? 'user_id,subcategory_id,enginetype'
+          : 'user_id,service_id,enginetype';
+        
         const { data: newData, error: insertError } = await supabase
           .from("machines")
           .upsert(newMachine, {
-            onConflict: 'user_id,service_id,enginetype',
+            onConflict: conflictColumns,
             ignoreDuplicates: false
           })
           .select("*")
@@ -401,7 +416,7 @@ export default function MachinePlanner({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          service_id: serviceId
+          subcategory_id: subcategoryId || serviceId
         }),
       });
 
@@ -465,7 +480,7 @@ export default function MachinePlanner({
         body: JSON.stringify({ 
           answers,
           questions,
-          service_id: serviceId
+          subcategory_id: subcategoryId || serviceId
         }),
       }).catch((error) => {
         console.error('Error saving answers:', error);
@@ -505,7 +520,7 @@ export default function MachinePlanner({
         body: JSON.stringify({ 
           answers,
           questions,
-          service_id: serviceId
+          subcategory_id: subcategoryId || serviceId
         }),
       });
 
@@ -523,7 +538,7 @@ export default function MachinePlanner({
           action: 'generate',
           userAnswers: answers,
           questions: questions,
-          service_id: serviceId
+          subcategory_id: subcategoryId || serviceId
         }),
       });
       
@@ -562,7 +577,7 @@ export default function MachinePlanner({
                 triggeringevents: triggeringEventsValue,
                 endingevent: endingEventValue,
                 actionsactivities: actionsActivitiesValue,
-                service_id: serviceId
+                subcategory_id: subcategoryId || serviceId
               }
             }),
           });

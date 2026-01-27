@@ -21,12 +21,15 @@ type MachineData = {
 };
 
 interface MachineDesignProps {
-  serviceId: string;
+  subcategoryId?: string;
+  serviceId?: string; // Keep for backward compatibility
   engineType: "GROWTH" | "FULFILLMENT";
   onDataChange?: () => void;
 }
 
-export default function MachineDesign({ serviceId, engineType, onDataChange }: MachineDesignProps) {
+export default function MachineDesign({ subcategoryId, serviceId, engineType, onDataChange }: MachineDesignProps) {
+  // Use subcategoryId if provided, otherwise fall back to serviceId for backward compatibility
+  const activeId = subcategoryId || serviceId;
   const [machineData, setMachineData] = useState<MachineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [figmaLink, setFigmaLink] = useState("");
@@ -44,7 +47,7 @@ export default function MachineDesign({ serviceId, engineType, onDataChange }: M
 
   useEffect(() => {
     fetchMachineData();
-  }, [serviceId]);
+  }, [activeId]);
 
   useEffect(() => {
     if (machineData) {
@@ -77,7 +80,10 @@ export default function MachineDesign({ serviceId, engineType, onDataChange }: M
         .eq("user_id", teamId)
         .eq("enginetype", engineType);
       
-      if (serviceId) {
+      if (subcategoryId) {
+        query = query.eq("subcategory_id", subcategoryId);
+      } else if (serviceId) {
+        // Backward compatibility: use service_id if subcategory_id not provided
         query = query.eq("service_id", serviceId);
       }
       
@@ -109,7 +115,10 @@ export default function MachineDesign({ serviceId, engineType, onDataChange }: M
           ai_assisted: false
         };
         
-        if (serviceId) {
+        if (subcategoryId) {
+          newMachine.subcategory_id = subcategoryId;
+        } else if (serviceId) {
+          // Backward compatibility
           newMachine.service_id = serviceId;
         }
         
