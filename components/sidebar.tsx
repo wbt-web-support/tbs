@@ -98,16 +98,18 @@ const navigationSections: NavigationSection[] = [
         href: "/software-tracker",
         icon: Package,
       },
+      
       {
         name: "To do's",
         href: "/todos",
         icon: CheckSquare,
       },
-      {
-        name: "Instructions",
-        href: "/instructions",
-        icon: FileText,
-      },
+
+      // {
+      //   name: "Instructions",
+      //   href: "/instructions",
+      //   icon: FileText,
+      // },
  
       // {
       //   name: "Performance",
