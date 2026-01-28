@@ -23,6 +23,10 @@ import {
 
 interface PredefinedQuestionsProps {
   machineId?: string;
+  /** When set, skip the first question (Primary Service) and use this service name */
+  preselectedServiceName?: string;
+  /** When set, use this team_service id instead of creating/upserting team_services */
+  teamServiceId?: string;
   onComplete: () => void;
 }
 
@@ -47,8 +51,10 @@ const TRAFFIC_SOURCE_OPTIONS = [
   "Bing / Microsoft Ads",
 ];
 
-export default function PredefinedQuestions({ machineId, onComplete }: PredefinedQuestionsProps) {
-  const [currentStep, setCurrentStep] = useState(0);
+export default function PredefinedQuestions({ machineId, preselectedServiceName, teamServiceId, onComplete }: PredefinedQuestionsProps) {
+  const skipFirstQuestion = Boolean(preselectedServiceName);
+  const firstStepIndex = skipFirstQuestion ? 1 : 0;
+  const [currentStep, setCurrentStep] = useState(firstStepIndex);
   const [answers, setAnswers] = useState<Answers>({
     primary_service: "",
     service_description: "",
@@ -74,9 +80,15 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
   }, [machineId]);
 
   useEffect(() => {
-    if (machineId || globalServices.length === 0) return;
+    if (machineId || preselectedServiceName || globalServices.length === 0) return;
     loadTeamAssignedService();
-  }, [machineId, globalServices]);
+  }, [machineId, preselectedServiceName, globalServices]);
+
+  useEffect(() => {
+    if (preselectedServiceName) {
+      setAnswers((prev) => ({ ...prev, primary_service: preselectedServiceName }));
+    }
+  }, [preselectedServiceName]);
 
   const loadGlobalServices = async () => {
     try {
@@ -339,8 +351,11 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
     setAnswers({ ...answers, primary_service: value });
   };
 
+  const totalSteps = skipFirstQuestion ? 4 : 5;
+  const questionIndex = skipFirstQuestion ? currentStep + 1 : currentStep;
+
   const validateCurrentStep = (): boolean => {
-    switch (currentStep) {
+    switch (questionIndex) {
       case 0:
         if (!answers.primary_service.trim()) {
           toast.error("Please select or enter a primary service");
@@ -381,10 +396,8 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
   };
 
   const handleNext = () => {
-    if (validateCurrentStep()) {
-      if (currentStep < 4) {
-        setCurrentStep(currentStep + 1);
-      }
+    if (validateCurrentStep() && currentStep < totalSteps - 1) {
+      setCurrentStep(currentStep + 1);
     }
   };
 
@@ -444,48 +457,42 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
         }
       ];
 
-      // Handle service assignment to team
-      let serviceId = null;
       const serviceName = cleanedAnswers.primary_service;
+      let teamServiceRowId: string;
 
-      // Check if service exists in global_services
-      const { data: existingService } = await supabase
-        .from("global_services")
-        .select("id")
-        .eq("service_name", serviceName)
-        .single();
-
-      if (existingService) {
-        serviceId = existingService.id;
+      if (teamServiceId) {
+        // Use existing team_service (new assigned service tab)
+        teamServiceRowId = teamServiceId;
       } else {
-        // Create new service in global_services if custom
-        const { data: newService, error: serviceError } = await supabase
+        // First-time or no preselection: resolve/create service and assign to team
+        let serviceId: string | null = null;
+        const { data: existingService } = await supabase
           .from("global_services")
-          .insert({
-            service_name: serviceName,
-            is_active: true
-          })
+          .select("id")
+          .eq("service_name", serviceName)
+          .single();
+
+        if (existingService) {
+          serviceId = existingService.id;
+        } else {
+          const { data: newService, error: serviceError } = await supabase
+            .from("global_services")
+            .insert({ service_name: serviceName, is_active: true })
+            .select("id")
+            .single();
+          if (serviceError) throw serviceError;
+          serviceId = newService!.id;
+        }
+
+        const { data: teamService, error: teamServiceError } = await supabase
+          .from("team_services")
+          .upsert({ team_id: teamId, service_id: serviceId }, { onConflict: "team_id,service_id", ignoreDuplicates: false })
           .select("id")
           .single();
 
-        if (serviceError) throw serviceError;
-        serviceId = newService.id;
+        if (teamServiceError) throw teamServiceError;
+        teamServiceRowId = teamService!.id;
       }
-
-      // Assign service to team in team_services
-      const { data: teamService, error: teamServiceError } = await supabase
-        .from("team_services")
-        .upsert({
-          team_id: teamId,
-          service_id: serviceId
-        }, {
-          onConflict: "team_id,service_id",
-          ignoreDuplicates: false
-        })
-        .select("id")
-        .single();
-
-      if (teamServiceError) throw teamServiceError;
 
       let savedMachineId = machineId;
 
@@ -496,7 +503,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
             questions: questions,
             answers: cleanedAnswers,
             questions_completed: true,
-            team_service_id: teamService.id,
+            team_service_id: teamServiceRowId,
           })
           .eq("id", machineId);
 
@@ -508,7 +515,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           .select("id")
           .eq("user_id", teamId)
           .eq("enginetype", "GROWTH")
-          .eq("team_service_id", teamService.id)
+          .eq("team_service_id", teamServiceRowId)
           .single();
 
         if (existingMachine) {
@@ -538,7 +545,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
               questions: questions,
               answers: cleanedAnswers,
               questions_completed: true,
-              team_service_id: teamService.id,
+              team_service_id: teamServiceRowId,
               triggeringevents: [],
               endingevent: [],
               actionsactivities: [],
@@ -614,7 +621,6 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
     );
   }
 
-  const totalSteps = 5;
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
   return (
@@ -640,8 +646,8 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Question 1: Primary Service */}
-          {currentStep === 0 && (
+          {/* Question 1: Primary Service (skipped when preselected) */}
+          {questionIndex === 0 && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -689,7 +695,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           )}
 
           {/* Question 2: Service Description */}
-          {currentStep === 1 && (
+          {questionIndex === 1 && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -732,7 +738,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           )}
 
           {/* Question 3: Traffic Sources */}
-          {currentStep === 2 && (
+          {questionIndex === 2 && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -767,7 +773,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           )}
 
           {/* Question 4: Ending Event */}
-          {currentStep === 3 && (
+          {questionIndex === 3 && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -789,7 +795,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           )}
 
           {/* Question 5: Actions & Activities */}
-          {currentStep === 4 && (
+          {questionIndex === 4 && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">

@@ -11,6 +11,10 @@ import { toast } from "sonner";
 
 interface PredefinedQuestionsProps {
   machineId?: string;
+  /** When opening from a service tab (new assigned service), link machine to this team_service */
+  teamServiceId?: string;
+  /** Service name for this tab (for display and machine name) */
+  serviceName?: string;
   onComplete: () => void;
 }
 
@@ -19,7 +23,7 @@ type Answers = {
   completion_event: string;
 };
 
-export default function PredefinedQuestions({ machineId, onComplete }: PredefinedQuestionsProps) {
+export default function PredefinedQuestions({ machineId, teamServiceId, serviceName: serviceNameProp, onComplete }: PredefinedQuestionsProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({
     fulfillment_activities: [""],
@@ -35,6 +39,18 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
       loadExistingAnswers();
     }
   }, [machineId]);
+
+  const getGrowthContext = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const teamId = await getTeamId(supabase, user.id);
+    if (!teamId) return null;
+    let q = supabase.from("machines").select("answers").eq("user_id", teamId).eq("enginetype", "GROWTH");
+    if (teamServiceId) q = q.eq("team_service_id", teamServiceId);
+    else q = q.limit(1);
+    const { data } = await q.maybeSingle();
+    return data?.answers ?? null;
+  };
 
   const loadExistingAnswers = async () => {
     try {
@@ -71,13 +87,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      const teamId = await getTeamId(supabase, user.id);
-      const { data: growthMachine } = await supabase
-        .from("machines")
-        .select("answers")
-        .eq("user_id", teamId)
-        .eq("enginetype", "GROWTH")
-        .single();
+      const growthContext = await getGrowthContext();
 
       const response = await fetch("/api/machines/improve-field", {
         method: "POST",
@@ -87,7 +97,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           current_value: currentValue,
           machine_type: "fulfillment",
           context: answers,
-          growth_context: growthMachine?.answers || null,
+          growth_context: growthContext,
         }),
       });
 
@@ -116,13 +126,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      const teamId = await getTeamId(supabase, user.id);
-      const { data: growthMachine } = await supabase
-        .from("machines")
-        .select("answers")
-        .eq("user_id", teamId)
-        .eq("enginetype", "GROWTH")
-        .single();
+      const growthContext = await getGrowthContext();
 
       const response = await fetch("/api/machines/improve-field", {
         method: "POST",
@@ -132,7 +136,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           current_value: currentValue,
           machine_type: "fulfillment",
           context: { ...answers, activity_index: index },
-          growth_context: growthMachine?.answers || null,
+          growth_context: growthContext,
         }),
       });
 
@@ -162,13 +166,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      const teamId = await getTeamId(supabase, user.id);
-      const { data: growthMachine } = await supabase
-        .from("machines")
-        .select("answers")
-        .eq("user_id", teamId)
-        .eq("enginetype", "GROWTH")
-        .single();
+      const growthContext = await getGrowthContext();
 
       const currentActivities = answers.fulfillment_activities
         .filter((a) => a.trim() !== "")
@@ -182,7 +180,7 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
           current_value: currentActivities,
           machine_type: "fulfillment",
           context: answers,
-          growth_context: growthMachine?.answers || null,
+          growth_context: growthContext,
         }),
       });
 
@@ -284,14 +282,20 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
       const teamId = await getTeamId(supabase, user.id);
       if (!teamId) throw new Error("Team ID not found");
 
-      const { data: growthMachine } = await supabase
+      // Growth context: same team_service when opening from tab, else first GROWTH machine
+      let growthQuery = supabase
         .from("machines")
         .select("answers")
         .eq("user_id", teamId)
-        .eq("enginetype", "GROWTH")
-        .single();
+        .eq("enginetype", "GROWTH");
+      if (teamServiceId) {
+        growthQuery = growthQuery.eq("team_service_id", teamServiceId);
+      } else {
+        growthQuery = growthQuery.limit(1);
+      }
+      const { data: growthMachine } = await growthQuery.maybeSingle();
 
-      const serviceName = growthMachine?.answers?.primary_service || "Service";
+      const serviceName = serviceNameProp || growthMachine?.answers?.primary_service || "Service";
 
       const cleanedAnswers = {
         ...answers,
@@ -329,20 +333,25 @@ export default function PredefinedQuestions({ machineId, onComplete }: Predefine
 
         if (error) throw error;
       } else {
+        const insertPayload: Record<string, unknown> = {
+          user_id: teamId,
+          enginename: `${serviceName} Fulfillment Machine`,
+          enginetype: "FULFILLMENT",
+          description: `Fulfillment process for ${serviceName}`,
+          questions: questions,
+          answers: cleanedAnswers,
+          questions_completed: true,
+          triggeringevents: [],
+          endingevent: [],
+          actionsactivities: [],
+        };
+        if (teamServiceId) {
+          insertPayload.team_service_id = teamServiceId;
+        }
+
         const { data: newMachine, error } = await supabase
           .from("machines")
-          .insert({
-            user_id: teamId,
-            enginename: `${serviceName} Fulfillment Machine`,
-            enginetype: "FULFILLMENT",
-            description: `Fulfillment process for ${serviceName}`,
-            questions: questions,
-            answers: cleanedAnswers,
-            questions_completed: true,
-            triggeringevents: [],
-            endingevent: [],
-            actionsactivities: [],
-          })
+          .insert(insertPayload)
           .select()
           .single();
 

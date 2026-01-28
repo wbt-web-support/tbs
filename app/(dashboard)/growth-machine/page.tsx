@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Sparkles, Plus, Settings, Image as ImageIcon, ArrowRight } from "lucide-react";
+import { Loader2, Sparkles, Settings, Image as ImageIcon, ArrowRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,13 +17,19 @@ type Machine = {
   id: string;
   answers: any;
   questions_completed: boolean;
+  team_service_id?: string | null;
+};
+
+type ServiceTab = {
+  team_service_id: string;
+  service_name: string;
+  machine: Machine | null;
 };
 
 export default function GrowthMachinePage() {
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<FlowStep>("welcome");
-  const [machines, setMachines] = useState<Machine[]>([]);
-  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+  const [serviceTabs, setServiceTabs] = useState<ServiceTab[]>([]);
   const [activeTab, setActiveTab] = useState(0);
   const [hasFulfillmentMachine, setHasFulfillmentMachine] = useState(false);
   const supabase = createClient();
@@ -47,13 +53,19 @@ export default function GrowthMachinePage() {
         return;
       }
 
-      // Check for existing GROWTH machines
-      const { data: existingMachines } = await supabase
-        .from("machines")
-        .select("*")
-        .eq("user_id", teamId)
-        .eq("enginetype", "GROWTH")
-        .order("created_at", { ascending: true });
+      // Fetch team_services (services assigned to this team)
+      const { data: teamServicesRows, error: tsError } = await supabase
+        .from("team_services")
+        .select("id, service_id(service_name)")
+        .eq("team_id", teamId);
+
+      if (tsError || !teamServicesRows?.length) {
+        setServiceTabs([]);
+        setCurrentStep("welcome");
+        setHasFulfillmentMachine(false);
+        setLoading(false);
+        return;
+      }
 
       // Check for existing FULFILLMENT machine
       const { data: fulfillmentMachine } = await supabase
@@ -65,28 +77,36 @@ export default function GrowthMachinePage() {
 
       setHasFulfillmentMachine(!!fulfillmentMachine);
 
-      if (existingMachines && existingMachines.length > 0) {
-        setMachines(existingMachines);
-        setSelectedMachineId(existingMachines[0].id);
-        
-        // If machine has questions completed and has generated content, go to machine view
-        const firstMachine = existingMachines[0];
-        if (
-          firstMachine.questions_completed &&
-          firstMachine.actionsactivities &&
-          firstMachine.actionsactivities.length > 0
-        ) {
-          setCurrentStep("machine");
-        } else if (firstMachine.questions_completed) {
-          // Has answered questions but not generated yet
-          setCurrentStep("machine");
-        } else {
-          // Start questions
-          setCurrentStep("questions");
-        }
-      } else {
-        // No machines, start from welcome
+      const tabs: ServiceTab[] = [];
+      for (const row of teamServicesRows) {
+        const rowAny = row as { id: string; service_id: { service_name: string } | null };
+        const serviceName = rowAny?.service_id?.service_name;
+        if (!serviceName) continue;
+
+        const { data: growthMachine } = await supabase
+          .from("machines")
+          .select("*")
+          .eq("user_id", teamId)
+          .eq("enginetype", "GROWTH")
+          .eq("team_service_id", rowAny.id)
+          .maybeSingle();
+
+        tabs.push({
+          team_service_id: rowAny.id,
+          service_name: serviceName,
+          machine: growthMachine as Machine | null,
+        });
+      }
+
+      // New service tabs (no machine yet) at the end of the line, not first
+      tabs.sort((a, b) => (a.machine ? 0 : 1) - (b.machine ? 0 : 1));
+      setServiceTabs(tabs);
+
+      if (tabs.length === 0) {
         setCurrentStep("welcome");
+      } else {
+        setCurrentStep("machine");
+        if (activeTab >= tabs.length) setActiveTab(0);
       }
     } catch (error) {
       console.error("Error checking existing setup:", error);
@@ -101,19 +121,14 @@ export default function GrowthMachinePage() {
   };
 
   const handleQuestionsComplete = async () => {
-    // Reload machines after questions are saved
     await checkExistingSetup();
     setCurrentStep("machine");
   };
 
-  const handleAddNewService = () => {
-    setSelectedMachineId(null);
-    setCurrentStep("questions");
-  };
-
-  const getServiceName = (machine: Machine): string => {
-    return machine.answers?.primary_service || "Service";
-  };
+  const currentTab = serviceTabs[activeTab];
+  const currentTabHasMachine = currentTab?.machine != null;
+  const getServiceName = (tab: ServiceTab) => tab.service_name;
+  const getMachineServiceName = (m: Machine) => m.answers?.primary_service || "Service";
 
   // Show loading while checking for existing setup
   if (loading) {
@@ -172,18 +187,20 @@ export default function GrowthMachinePage() {
     );
   }
 
+  // Full-page questions: only when 0 team_services and user clicked welcome
   if (currentStep === "questions") {
     return (
       <PredefinedQuestions
-        machineId={selectedMachineId || undefined}
         onComplete={handleQuestionsComplete}
       />
     );
   }
 
-  // Machine view - show tabs if multiple services exist
-  if (currentStep === "machine") {
-    const showTabs = machines.length > 1;
+  // Machine view: tabs from team_services (1+ services assigned)
+  if (currentStep === "machine" && serviceTabs.length > 0) {
+    const showTabs = serviceTabs.length > 1;
+    const selectedTab = serviceTabs[activeTab];
+    const tabHasMachine = selectedTab?.machine != null;
 
     return (
       <div className="flex flex-col h-[calc(100vh-70px)]">
@@ -205,94 +222,68 @@ export default function GrowthMachinePage() {
             </div>
           </div>
         )}
-        
+
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Tab navigation for multiple services */}
+          {/* Tab navigation: one tab per assigned service */}
           {showTabs && (
             <div className="bg-white border-b border-gray-200 px-6">
-              <div className="flex items-center justify-between">
-                <div className="flex space-x-1 overflow-x-auto">
-                  {machines.map((machine, index) => (
-                    <button
-                      key={machine.id}
-                      onClick={() => {
-                        setActiveTab(index);
-                        setSelectedMachineId(machine.id);
-                      }}
-                      className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        activeTab === index
-                          ? "border-blue-600 text-blue-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      {getServiceName(machine)}
-                    </button>
-                  ))}
-                </div>
-                {/* Hidden for now */}
-                {false && (
-                  <Button
-                    onClick={handleAddNewService}
-                    variant="outline"
-                    size="sm"
-                    className="ml-4 text-blue-600 hover:text-blue-700"
+              <div className="flex space-x-1 overflow-x-auto">
+                {serviceTabs.map((tab, index) => (
+                  <button
+                    key={tab.team_service_id}
+                    onClick={() => setActiveTab(index)}
+                    className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      activeTab === index
+                        ? "border-blue-600 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Service
-                  </Button>
-                )}
+                    {getServiceName(tab)}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Add service button - Hidden for now */}
-          {false && !showTabs && (
-            <div className="bg-white border-b border-gray-200 px-6 py-3">
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleAddNewService}
-                  variant="outline"
-                  size="sm"
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Another Service
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Machine content with Planner/Design tabs */}
-          <div className="flex-1">
-            {selectedMachineId && (
-              <Tabs defaultValue="planner" className="w-full h-full">
-                <div className="px-6 pt-6">
-                  <TabsList className="grid w-full max-w-md grid-cols-2">
-                    <TabsTrigger value="planner" className="flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      Planner
-                    </TabsTrigger>
-                    <TabsTrigger value="design" className="flex items-center gap-2">
-                      <ImageIcon className="h-4 w-4" />
-                      Design
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-                <TabsContent value="planner" className="px-6 pb-6 mt-6">
-                  <MachinePlanner
-                    machineId={selectedMachineId}
-                    engineType="GROWTH"
-                    onDataChange={checkExistingSetup}
-                    isPlannerTabActive={true}
-                  />
-                </TabsContent>
-                <TabsContent value="design" className="px-6 pb-6 mt-6">
-                  <MachineDesign
-                    machineId={selectedMachineId}
-                    engineType="GROWTH"
-                  />
-                </TabsContent>
-              </Tabs>
+          {/* Content: either machine planner/design or questions for new service */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            {!selectedTab ? null : tabHasMachine ? (
+              selectedTab.machine && (
+                <Tabs defaultValue="planner" className="w-full h-full">
+                  <div className="px-6 pt-6">
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                      <TabsTrigger value="planner" className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Planner
+                      </TabsTrigger>
+                      <TabsTrigger value="design" className="flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4" />
+                        Design
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <TabsContent value="planner" className="px-6 pb-6 mt-6">
+                    <MachinePlanner
+                      machineId={selectedTab.machine.id}
+                      engineType="GROWTH"
+                      onDataChange={checkExistingSetup}
+                      isPlannerTabActive={true}
+                    />
+                  </TabsContent>
+                  <TabsContent value="design" className="px-6 pb-6 mt-6">
+                    <MachineDesign
+                      machineId={selectedTab.machine.id}
+                      engineType="GROWTH"
+                    />
+                  </TabsContent>
+                </Tabs>
+              )
+            ) : (
+              <PredefinedQuestions
+                preselectedServiceName={selectedTab.service_name}
+                teamServiceId={selectedTab.team_service_id}
+                onComplete={handleQuestionsComplete}
+              />
             )}
           </div>
         </div>

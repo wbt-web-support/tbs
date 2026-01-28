@@ -73,7 +73,9 @@ export async function POST(request: NextRequest) {
     const companyContext = formatCompanyContext(onboardingData);
 
     // Build the AI prompt
-    const prompt = `You are an AI assistant helping a business owner improve their service description.
+    const prompt = `You are an AI assistant helping a business owner improve their service description for internal use only.
+
+IMPORTANT CONTEXT: This description is for the business owner's own process mapping (Growth/Fulfilment Machine). It is NOT visible to their customers or end users. It is only used by the business owner to map how they sell and deliver this service. Do NOT write to impress customers or to "look professional" to the public. Write for clarity and usefulness to the business owner.
 
 ${companyContext ? `${companyContext}\n\n` : ''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SERVICE: ${service_name || 'Business Service'}
@@ -83,21 +85,19 @@ ${companyContext ? `${companyContext}\n\n` : ''}━━━━━━━━━━�
 ${business_details}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## TASK: Enhance and Rewrite
+## TASK: Enhance for internal clarity
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 CRITICAL INSTRUCTIONS:
-- You MUST rewrite and improve the user's existing service description
+- Rewrite and improve the description for the business owner's internal use only (not for their customers)
 - Do NOT provide feedback, commentary, or analysis about the content
-- Do NOT say things like "Your description is clear" or "The content is well-written"
-- Do NOT provide suggestions - just return the improved version
+- Do NOT say things like "Your description is clear" or "This will make you look professional"
+- Do NOT write to impress or sell to end users - this is for the owner's process map only
 - ONLY return the actual improved content, nothing else
-- Improve clarity, structure, and flow of the existing content
+- Improve clarity, structure, and flow so the owner can understand and use it in their machine
 - Fix any grammatical or spelling errors (use UK English)
-- Make the language more professional and compelling
 - Keep the same core meaning and information
-- Focus on enhancing what's already there without adding made-up information
-- Make it more detailed about specialities, types of work, and target customers
+- Focus on what's already there; add detail only about specialities, types of work, and who the service is for (for the owner's reference)
 - If you cannot improve the content meaningfully, return the original content exactly as provided
 - Return ONLY plain text without ANY markdown formatting, asterisks, or special characters
 
@@ -142,7 +142,7 @@ Return ONLY the enhanced service description text.`;
     
     if (containsMetaFeedback) {
       // If meta-feedback detected, try again with stronger instructions
-      const cleanupPrompt = `${prompt}\n\nSTRICT REQUIREMENT: You must rewrite the content, not comment on it. Do not say "your description is..." or "the content is...". Just rewrite and improve the actual service description.`;
+      const cleanupPrompt = `${prompt}\n\nSTRICT REQUIREMENT: You must rewrite the content, not comment on it. Do not say "your description is..." or "the content is..." or "look professional". Just rewrite and improve the actual service description for the owner's internal process map.`;
       try {
         const cleanupResult = await model.generateContent(cleanupPrompt);
         enhancedContent = cleanupResult.response.text();
