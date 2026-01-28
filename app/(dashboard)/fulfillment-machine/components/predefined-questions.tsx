@@ -458,10 +458,15 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                   List the key stages from job confirmation to completion. Keep this high level.
                 </p>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-medium text-purple-900 mb-1">Examples:</p>
-                  <p className="text-sm text-purple-800">
-                    Job booked into diary, Pre-install checks or survey, Materials ordered, Engineer attends site, Work completed, Customer sign-off
-                  </p>
+                  <p className="text-sm font-medium text-purple-900 mb-2">Examples:</p>
+                  <ul className="text-sm text-purple-800 list-disc list-inside space-y-1">
+                    <li>Job booked into diary</li>
+                    <li>Pre-install checks or survey</li>
+                    <li>Materials ordered</li>
+                    <li>Engineer attends site</li>
+                    <li>Work completed</li>
+                    <li>Customer sign-off</li>
+                  </ul>
                 </div>
                 <div className="space-y-3">
                   {answers.fulfillment_activities.map((activity, index) => (
@@ -470,7 +475,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                         value={activity}
                         onChange={(e) => handleActivityChange(index, e.target.value)}
                         placeholder={`Step ${index + 1}`}
-                        className="flex-1"
+                        className="flex-1 min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                       />
                       {answers.fulfillment_activities.length > 1 && (
                         <Button
@@ -491,7 +496,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                       variant="outline"
                       className="flex-1"
                     >
-                      Add Step
+                      Add another step
                     </Button>
                     <Button
                       onClick={handleImproveAllActivities}
@@ -539,6 +544,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                     value={answers.completion_event}
                     onChange={(e) => setAnswers({ ...answers, completion_event: e.target.value })}
                     placeholder="Enter your completion event"
+                    className="w-full min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                   />
                   <Button
                     onClick={() => handleImproveField("completion_event", answers.completion_event)}

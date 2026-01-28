@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Sparkles, Settings, Image as ImageIcon } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
@@ -27,6 +28,7 @@ type ServiceTab = {
 };
 
 export default function FulfillmentMachinePage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<FlowStep>("welcome");
   const [serviceTabs, setServiceTabs] = useState<ServiceTab[]>([]);
@@ -108,7 +110,9 @@ export default function FulfillmentMachinePage() {
       // New service tabs (no machine yet) at the end of the line, not first
       tabs.sort((a, b) => (a.machine ? 0 : 1) - (b.machine ? 0 : 1));
       setServiceTabs(tabs);
-      setCurrentStep("machine");
+      // When coming from Growth Machine popup, show welcome screen first
+      const showWelcomeFromGrowth = searchParams.get("showWelcome") === "1";
+      setCurrentStep(showWelcomeFromGrowth ? "welcome" : "machine");
       if (activeTab >= tabs.length) setActiveTab(0);
     } catch (error) {
       console.error("Error checking existing setup:", error);
@@ -266,10 +270,11 @@ export default function FulfillmentMachinePage() {
             </div>
           )}
 
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div className="flex-1 min-h-0">
             {!selectedTab ? null : tabHasMachine && selectedTab.machine ? (
               <Tabs defaultValue="planner" className="w-full h-full">
                 <div className="px-6 pt-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">{selectedTab.service_name}</h2>
                   <TabsList className="grid w-full max-w-md grid-cols-2">
                     <TabsTrigger value="planner" className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />

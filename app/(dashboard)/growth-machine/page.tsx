@@ -212,7 +212,7 @@ export default function GrowthMachinePage() {
                 Complete your Fulfillment Machine to map how you deliver this service.
               </p>
               <Button
-                onClick={() => window.location.href = "/fulfillment-machine"}
+                onClick={() => window.location.href = "/fulfillment-machine?showWelcome=1"}
                 size="sm"
                 className="bg-purple-600 hover:bg-purple-700 text-white shrink-0"
               >
@@ -246,11 +246,12 @@ export default function GrowthMachinePage() {
           )}
 
           {/* Content: either machine planner/design or questions for new service */}
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div className="flex-1 min-h-0">
             {!selectedTab ? null : tabHasMachine ? (
               selectedTab.machine && (
                 <Tabs defaultValue="planner" className="w-full h-full">
                   <div className="px-6 pt-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">{selectedTab.service_name}</h2>
                     <TabsList className="grid w-full max-w-md grid-cols-2">
                       <TabsTrigger value="planner" className="flex items-center gap-2">
                         <Settings className="h-4 w-4" />

@@ -190,8 +190,13 @@ export default function ServiceTabs({
             onValueChange={(value) => setActiveTab(value as "planner" | "design")}
             className="w-full flex-1 flex flex-col"
           >
-            <div className="flex items-center justify-between mb-5">
-              <TabsList className="inline-flex h-11 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-500">
+            <div className="flex flex-col gap-4 mb-5">
+              {(() => {
+                const activeSub = subcategories.find((s) => s.id === activeSubcategoryId);
+                const displayName = activeSub?.global_services?.service_name ?? activeSub?.subcategory_name ?? "";
+                return displayName ? <h2 className="text-lg font-semibold text-gray-900">{displayName}</h2> : null;
+              })()}
+              <TabsList className="inline-flex h-11 w-fit items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-500">
                 <TabsTrigger 
                   value="planner" 
                   className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all

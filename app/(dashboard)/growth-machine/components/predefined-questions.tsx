@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Sparkles, ArrowRight, ArrowLeft, Check, Rocket } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight, ArrowLeft, Check, Rocket, ImageIcon } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -35,7 +35,8 @@ type Answers = {
   service_description: string;
   traffic_sources: string[];
   traffic_sources_other: string;
-  ending_event: string;
+  ending_event: string[];
+  ending_event_other: string;
   actions_activities: string[];
 };
 
@@ -51,6 +52,14 @@ const TRAFFIC_SOURCE_OPTIONS = [
   "Bing / Microsoft Ads",
 ];
 
+const ENDING_EVENT_OPTIONS = [
+  "Job sold",
+  "Deposit paid",
+  "Job booked into the system",
+  "Contract signed",
+  "Quote accepted",
+];
+
 export default function PredefinedQuestions({ machineId, preselectedServiceName, teamServiceId, onComplete }: PredefinedQuestionsProps) {
   const skipFirstQuestion = Boolean(preselectedServiceName);
   const firstStepIndex = skipFirstQuestion ? 1 : 0;
@@ -60,7 +69,8 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
     service_description: "",
     traffic_sources: [],
     traffic_sources_other: "",
-    ending_event: "",
+    ending_event: [],
+    ending_event_other: "",
     actions_activities: [""],
   });
   const [loading, setLoading] = useState(false);
@@ -70,6 +80,8 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
   const [customService, setCustomService] = useState("");
   const [showCustomServiceInput, setShowCustomServiceInput] = useState(false);
   const [showFulfillmentPrompt, setShowFulfillmentPrompt] = useState(false);
+  const [fulfillmentRedirecting, setFulfillmentRedirecting] = useState(false);
+  const [showStepsExampleDialog, setShowStepsExampleDialog] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -159,12 +171,19 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
         const primaryService = machine.answers.primary_service || "";
         const isCustom = !globalServices.find(s => s.service_name === primaryService);
         
+        const savedEnding = machine.answers.ending_event;
+        const endingStr = typeof savedEnding === "string" ? savedEnding : Array.isArray(savedEnding) ? savedEnding.join(", ") : "";
+        const endingParts = endingStr ? endingStr.split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+        const endingSelected = endingParts.filter((p: string) => ENDING_EVENT_OPTIONS.includes(p));
+        const endingOther = endingParts.filter((p: string) => !ENDING_EVENT_OPTIONS.includes(p)).join(", ");
+
         setAnswers({
           primary_service: primaryService,
           service_description: machine.answers.service_description || "",
           traffic_sources: machine.answers.traffic_sources || [],
           traffic_sources_other: machine.answers.traffic_sources_other || "",
-          ending_event: machine.answers.ending_event || "",
+          ending_event: endingSelected.length ? endingSelected : (endingStr ? [endingStr] : []),
+          ending_event_other: endingOther,
           actions_activities: machine.answers.actions_activities || [""],
         });
         
@@ -326,6 +345,16 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
     });
   };
 
+  const handleEndingEventToggle = (option: string) => {
+    setAnswers((prev) => {
+      const has = prev.ending_event.includes(option);
+      const next = has
+        ? prev.ending_event.filter((e) => e !== option)
+        : [...prev.ending_event, option];
+      return { ...prev, ending_event: next };
+    });
+  };
+
   const handleTrafficSourceToggle = (source: string) => {
     setAnswers((prev) => ({
       ...prev,
@@ -379,8 +408,8 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
         }
         break;
       case 3:
-        if (!answers.ending_event.trim()) {
-          toast.error("Please enter an ending event");
+        if (answers.ending_event.length === 0 && !answers.ending_event_other.trim()) {
+          toast.error("Please select or enter at least one success event");
           return false;
         }
         break;
@@ -420,6 +449,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
 
       const cleanedAnswers = {
         ...answers,
+        ending_event: [...answers.ending_event, answers.ending_event_other].filter(Boolean).join(", ") || (answers.ending_event[0] ?? ""),
         actions_activities: answers.actions_activities.filter((a) => a.trim() !== ""),
       };
 
@@ -446,7 +476,8 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
         {
           id: "ending_event",
           question: "What marks success for this growth machine?",
-          type: "text",
+          type: "multi-select",
+          options: ENDING_EVENT_OPTIONS,
           example: "Job sold, Deposit paid, Job booked into the system"
         },
         {
@@ -686,7 +717,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                       value={customService}
                       onChange={(e) => handleCustomServiceChange(e.target.value)}
                       placeholder="Enter your service name"
-                      className="w-full"
+                      className="w-full min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                     />
                   </div>
                 )}
@@ -712,7 +743,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                   onChange={(e) => setAnswers({ ...answers, service_description: e.target.value })}
                   placeholder="Describe your service"
                   rows={4}
-                  className="w-full"
+                  className="w-full min-h-[120px] border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                 />
                 <Button
                   onClick={() => handleImproveField("service_description", answers.service_description)}
@@ -766,6 +797,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                     value={answers.traffic_sources_other}
                     onChange={(e) => setAnswers({ ...answers, traffic_sources_other: e.target.value })}
                     placeholder="Other (please specify)"
+                    className="w-full min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                   />
                 </div>
               </div>
@@ -780,16 +812,35 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                   What marks success for this growth machine?
                 </h3>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-medium text-blue-900 mb-1">Examples:</p>
-                  <p className="text-sm text-blue-800">
-                    Job sold, Deposit paid, Job booked into the system
-                  </p>
+                  <p className="text-sm font-medium text-blue-900 mb-2">Examples:</p>
+                  <ul className="text-sm text-blue-800 list-disc list-inside space-y-1">
+                    <li>Job sold</li>
+                    <li>Deposit paid</li>
+                    <li>Job booked into the system</li>
+                  </ul>
                 </div>
-                <Input
-                  value={answers.ending_event}
-                  onChange={(e) => setAnswers({ ...answers, ending_event: e.target.value })}
-                  placeholder="Enter your success event"
-                />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {ENDING_EVENT_OPTIONS.map((option) => (
+                    <div key={option} className="flex items-center space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                      <Checkbox
+                        id={`ending-${option}`}
+                        checked={answers.ending_event.includes(option)}
+                        onCheckedChange={() => handleEndingEventToggle(option)}
+                      />
+                      <label htmlFor={`ending-${option}`} className="text-sm text-gray-700 cursor-pointer flex-1">
+                        {option}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <Input
+                    value={answers.ending_event_other}
+                    onChange={(e) => setAnswers({ ...answers, ending_event_other: e.target.value })}
+                    placeholder="Other (add your own)"
+                    className="w-full min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -805,10 +856,27 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                   Keep this high level.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-medium text-blue-900 mb-1">Examples:</p>
-                  <p className="text-sm text-blue-800">
-                    Ads or marketing activity, Website or landing page, Enquiry or call, Follow-up, Quote or survey, Sale or booking
-                  </p>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-blue-900 mb-2">Examples:</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowStepsExampleDialog(true)}
+                      className="text-blue-600 hover:text-blue-700 border-blue-300"
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      See example growth machine
+                    </Button>
+                  </div>
+                  <ul className="text-sm text-blue-800 list-disc list-inside space-y-1">
+                    <li>Ads or marketing activity</li>
+                    <li>Website or landing page</li>
+                    <li>Enquiry or call</li>
+                    <li>Follow-up</li>
+                    <li>Quote or survey</li>
+                    <li>Sale or booking</li>
+                  </ul>
                 </div>
                 <div className="space-y-3">
                   {answers.actions_activities.map((activity, index) => (
@@ -817,7 +885,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                         value={activity}
                         onChange={(e) => handleActivityChange(index, e.target.value)}
                         placeholder={`Step ${index + 1}`}
-                        className="flex-1"
+                        className="flex-1 min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                       />
                       {answers.actions_activities.length > 1 && (
                         <Button
@@ -838,7 +906,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                       variant="outline"
                       className="flex-1"
                     >
-                      Add Step
+                      Add another step
                     </Button>
                     <Button
                       onClick={handleImproveAllActivities}
@@ -903,9 +971,33 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
         </CardContent>
       </Card>
 
+      {/* Example Growth Machine image popup */}
+      <Dialog open={showStepsExampleDialog} onOpenChange={setShowStepsExampleDialog}>
+        <DialogContent className="sm:max-w-7xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Example of a Growth Machine</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <img
+              src="/growth-fimga.png"
+              alt="Example of a Growth Machine"
+              className="w-full h-auto rounded-lg border border-gray-200"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Fulfillment Machine Prompt Dialog */}
-      <Dialog open={showFulfillmentPrompt} onOpenChange={setShowFulfillmentPrompt}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog
+        open={showFulfillmentPrompt}
+        onOpenChange={(open) => {
+          if (!fulfillmentRedirecting) setShowFulfillmentPrompt(open);
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-md"
+          overlayClassName="backdrop-blur-[48px] bg-black/10"
+        >
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
              
@@ -928,19 +1020,25 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                 setShowFulfillmentPrompt(false);
                 onComplete();
               }}
+              disabled={fulfillmentRedirecting}
               className="flex-1"
             >
               Maybe Later
             </Button>
             <Button
               onClick={() => {
-                setShowFulfillmentPrompt(false);
-                window.location.href = "/fulfillment-machine";
+                setFulfillmentRedirecting(true);
+                window.location.href = "/fulfillment-machine?showWelcome=1";
               }}
+              disabled={fulfillmentRedirecting}
               className="flex-1 bg-purple-600 hover:bg-purple-700"
             >
-              <Rocket className="h-4 w-4 mr-2" />
-              Create Fulfillment Machine
+              {fulfillmentRedirecting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Rocket className="h-4 w-4 mr-2" />
+              )}
+              {fulfillmentRedirecting ? "Redirecting…" : "Create Fulfillment Machine"}
             </Button>
           </DialogFooter>
         </DialogContent>
