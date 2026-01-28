@@ -21,15 +21,16 @@ type MachineData = {
 };
 
 interface MachineDesignProps {
+  machineId?: string; // New: direct machine ID
   subcategoryId?: string;
   serviceId?: string; // Keep for backward compatibility
   engineType: "GROWTH" | "FULFILLMENT";
   onDataChange?: () => void;
 }
 
-export default function MachineDesign({ subcategoryId, serviceId, engineType, onDataChange }: MachineDesignProps) {
-  // Use subcategoryId if provided, otherwise fall back to serviceId for backward compatibility
-  const activeId = subcategoryId || serviceId;
+export default function MachineDesign({ machineId, subcategoryId, serviceId, engineType, onDataChange }: MachineDesignProps) {
+  // Use machineId if provided, otherwise use subcategoryId or serviceId for backward compatibility
+  const activeId = machineId || subcategoryId || serviceId;
   const [machineData, setMachineData] = useState<MachineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [figmaLink, setFigmaLink] = useState("");
@@ -80,7 +81,10 @@ export default function MachineDesign({ subcategoryId, serviceId, engineType, on
         .eq("user_id", teamId)
         .eq("enginetype", engineType);
       
-      if (subcategoryId) {
+      // New: If machineId is provided, use it directly (simplest approach)
+      if (machineId) {
+        query = query.eq("id", machineId);
+      } else if (subcategoryId) {
         query = query.eq("subcategory_id", subcategoryId);
       } else if (serviceId) {
         // Backward compatibility: use service_id if subcategory_id not provided
