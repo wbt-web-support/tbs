@@ -1,19 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/send-email';
-import { getWelcomeEmailHtml } from '@/lib/email-templates/welcome-admin-created';
 
-// Create admin client with service role key
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+function getSupabaseAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase env vars');
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 interface CreateUserRequest {
   email: string;
@@ -42,14 +37,14 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     // Check if the user is a super admin
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const { data: userProfile, error: profileError } = await getSupabaseAdmin()
       .from('business_info')
       .select('role')
       .eq('user_id', user.id)
@@ -67,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists by looking in business_info table
-    const { data: existingUser, error: checkError } = await supabaseAdmin
+    const { data: existingUser, error: checkError } = await getSupabaseAdmin()
       .from('business_info')
       .select('id')
       .eq('email', userData.email)
@@ -84,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the user using admin privileges (this doesn't log in as the new user)
-    const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: createError } = await getSupabaseAdmin().auth.admin.createUser({
       email: userData.email,
       password: userData.password,
       email_confirm: true, // Auto-confirm the email
@@ -116,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create business_info record
-    const { error: businessError } = await supabaseAdmin
+    const { error: businessError } = await getSupabaseAdmin()
       .from('business_info')
       .insert({
         user_id: authData.user.id,
@@ -139,7 +134,7 @@ export async function POST(request: NextRequest) {
     if (businessError) {
       console.error('Error creating business_info:', businessError);
       // If business_info creation fails, we should clean up the auth user
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      await getSupabaseAdmin().auth.admin.deleteUser(authData.user.id);
       return NextResponse.json({ 
         error: 'Failed to create business profile',
         details: businessError.message 
@@ -151,7 +146,7 @@ export async function POST(request: NextRequest) {
     /*
     try {
       // Get admin user details for email
-      const { data: adminProfile } = await supabaseAdmin
+      const { data: adminProfile } = await getSupabaseAdmin()
         .from('business_info')
         .select('full_name, business_name')
         .eq('user_id', user.id)
