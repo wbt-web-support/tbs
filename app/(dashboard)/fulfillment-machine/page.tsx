@@ -34,6 +34,7 @@ export default function FulfillmentMachinePage() {
   const [serviceTabs, setServiceTabs] = useState<ServiceTab[]>([]);
   const [activeTab, setActiveTab] = useState(0);
   const [hasGrowthMachine, setHasGrowthMachine] = useState(false);
+  const [hasCompletedQuestions, setHasCompletedQuestions] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -111,12 +112,23 @@ export default function FulfillmentMachinePage() {
       tabs.sort((a, b) => (a.machine ? 0 : 1) - (b.machine ? 0 : 1));
       setServiceTabs(tabs);
       
-      // Only show welcome if explicitly requested AND not already in machine flow
-      const showWelcomeFromGrowth = searchParams.get("showWelcome") === "1";
-      // Don't override currentStep if we're already showing machine
-      if (currentStep !== "machine") {
-        setCurrentStep(showWelcomeFromGrowth && tabs.length > 0 ? "welcome" : tabs.length > 0 ? "machine" : "welcome");
+      // Determine next step - but don't override if user has already completed questions
+      // or if we're already in machine view
+      if (!hasCompletedQuestions) {
+        // Check URL for showWelcome - but only on initial load, not after questions complete
+        const showWelcomeFromGrowth = searchParams.get("showWelcome") === "1";
+        if (showWelcomeFromGrowth && tabs.length > 0) {
+          setCurrentStep("welcome");
+        } else if (tabs.length > 0) {
+          setCurrentStep("machine");
+        } else {
+          setCurrentStep("welcome");
+        }
+      } else {
+        // After questions complete, always go to machine view
+        setCurrentStep("machine");
       }
+      
       if (activeTab >= tabs.length) setActiveTab(0);
     } catch (error) {
       console.error("Error checking existing setup:", error);
@@ -127,10 +139,31 @@ export default function FulfillmentMachinePage() {
   };
 
   const handleWelcomeComplete = () => {
-    setCurrentStep("questions");
+    // Clear showWelcome parameter from URL
+    if (searchParams.get("showWelcome")) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("showWelcome");
+      window.history.replaceState({}, '', url);
+    }
+    
+    // If we have service tabs, go to machine view (which will show questions for tabs without machines)
+    // Otherwise use legacy questions flow
+    if (serviceTabs.length > 0) {
+      // Find first tab without a machine and select it
+      const firstNoMachineIndex = serviceTabs.findIndex(t => !t.machine);
+      if (firstNoMachineIndex !== -1) {
+        setActiveTab(firstNoMachineIndex);
+      }
+      setCurrentStep("machine");
+    } else {
+      setCurrentStep("questions");
+    }
   };
 
   const handleQuestionsComplete = async () => {
+    // Mark that we've completed questions - prevents welcome loop
+    setHasCompletedQuestions(true);
+    
     // Clear showWelcome parameter from URL to prevent loop
     if (searchParams.get("showWelcome")) {
       const url = new URL(window.location.href);
@@ -138,7 +171,12 @@ export default function FulfillmentMachinePage() {
       window.history.replaceState({}, '', url);
     }
     
+    // Small delay to ensure DB commit
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Re-fetch setup - this will find the newly created machine
     await checkExistingSetup();
+    
     // Force machine view after questions complete
     setCurrentStep("machine");
   };

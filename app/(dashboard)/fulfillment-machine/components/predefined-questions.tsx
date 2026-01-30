@@ -285,7 +285,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
         throw new Error("Team ID not found");
       }
       
-      console.log("Creating fulfillment machine with teamId:", teamId, "teamServiceId:", teamServiceId);
+      console.log("[Fulfillment] Creating machine - teamId:", teamId, "teamServiceId:", teamServiceId, "machineId:", machineId);
 
       // Growth context: same team_service when opening from tab, else first GROWTH machine
       let growthQuery = supabase
@@ -350,9 +350,16 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
           endingevent: [],
           actionsactivities: [],
         };
+        
+        // IMPORTANT: Always set team_service_id if available - this links the machine to the correct service tab
         if (teamServiceId) {
           insertPayload.team_service_id = teamServiceId;
+          console.log("[Fulfillment] Setting team_service_id:", teamServiceId);
+        } else {
+          console.warn("[Fulfillment] No teamServiceId provided - machine will not be linked to a service tab");
         }
+
+        console.log("[Fulfillment] Insert payload:", JSON.stringify(insertPayload, null, 2));
 
         const { data: newMachine, error } = await supabase
           .from("machines")
@@ -361,17 +368,17 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
           .single();
 
         if (error) {
-          console.error("Error inserting machine:", error);
+          console.error("[Fulfillment] Error inserting machine:", error);
           throw error;
         }
         
         if (!newMachine?.id) {
-          console.error("Machine created but no ID returned:", newMachine);
+          console.error("[Fulfillment] Machine created but no ID returned:", newMachine);
           throw new Error("Machine created but no ID returned");
         }
         
         savedMachineId = newMachine.id;
-        console.log("Fulfillment machine created successfully with ID:", savedMachineId);
+        console.log("[Fulfillment] Machine created successfully - ID:", savedMachineId, "team_service_id:", newMachine.team_service_id);
       }
 
       toast.success("Answers saved! Generating your Fulfillment Machine...");
