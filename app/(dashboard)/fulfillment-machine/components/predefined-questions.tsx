@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Sparkles, ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -425,18 +425,14 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-200px)] py-8 px-4">
+    <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4 overflow-x-hidden">
       <Card className="border border-gray-200 max-w-3xl w-full mx-auto">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between mb-4">
-            <CardTitle className="text-2xl font-semibold text-gray-900">
-              Fulfilment Machine Questions
-            </CardTitle>
+        <CardHeader className="pb-4 px-4 sm:px-6">
+          <div className="flex items-center justify-end gap-4 mb-4">
             <span className="text-sm font-medium text-gray-600">
               {currentStep + 1} of {totalSteps}
             </span>
           </div>
-          
           {/* Progress Bar */}
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
@@ -446,12 +442,12 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 px-4 sm:px-6">
           {/* Question 1: Fulfilment Activities */}
           {currentStep === 0 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg sm:text-2xl font-medium text-gray-900 mb-3">
                   Now that the job has been sold, what are the main steps involved in delivering this service?
                 </h3>
                 <p className="text-sm text-gray-600 mb-3">
@@ -470,7 +466,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                 </div>
                 <div className="space-y-3">
                   {answers.fulfillment_activities.map((activity, index) => (
-                    <div key={index} className="flex gap-2">
+                    <div key={index} className="flex flex-col sm:flex-row gap-2">
                       <Input
                         value={activity}
                         onChange={(e) => handleActivityChange(index, e.target.value)}
@@ -489,12 +485,12 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                       )}
                     </div>
                   ))}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={handleAddActivity}
                       size="sm"
                       variant="outline"
-                      className="flex-1"
+                      className="flex-1 w-full sm:w-auto"
                     >
                       Add another step
                     </Button>
@@ -503,7 +499,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                       disabled={improvingField === "all_activities" || answers.fulfillment_activities.filter(a => a.trim()).length === 0}
                       size="sm"
                       variant="outline"
-                      className="flex-1 text-purple-600 hover:text-purple-700 border-purple-300 hover:bg-purple-50"
+                      className="flex-1 w-full sm:w-auto text-purple-600 hover:text-purple-700 border-purple-300 hover:bg-purple-50"
                     >
                       {improvingField === "all_activities" ? (
                         <>
@@ -527,7 +523,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
           {currentStep === 1 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg sm:text-2xl font-medium text-gray-900 mb-3">
                   What marks the job as fully complete?
                 </h3>
                 <p className="text-sm text-gray-600 mb-3">
@@ -571,17 +567,18 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between pt-6 border-t">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between pt-6 border-t">
             <Button
               onClick={handleBack}
               disabled={currentStep === 0}
               variant="outline"
+              className="w-full sm:w-auto"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
             {currentStep < totalSteps - 1 ? (
-              <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={handleNext} className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700">
                 Next
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
@@ -589,7 +586,7 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
               <Button
                 onClick={handleComplete}
                 disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
               >
                 {saving ? (
                   <>

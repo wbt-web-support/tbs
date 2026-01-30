@@ -146,9 +146,9 @@ export default function FulfillmentMachinePage() {
   // If no growth machine, show a message
   if (!hasGrowthMachine && currentStep === "welcome") {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-500px)] py-8">
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4">
         <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
-          <CardContent className="p-8">
+          <CardContent className="p-4 sm:p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
                 <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
@@ -187,9 +187,9 @@ export default function FulfillmentMachinePage() {
   // Render appropriate step
   if (currentStep === "welcome") {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-500px)] py-8">
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4">
         <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
-          <CardContent className="p-8">
+          <CardContent className="p-4 sm:p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
                 <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
@@ -248,11 +248,11 @@ export default function FulfillmentMachinePage() {
     const tabHasMachine = selectedTab?.machine != null;
 
     return (
-      <div className="flex flex-col h-[calc(100vh-70px)]">
-        <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex flex-col min-h-[calc(100vh-70px)] sm:h-[calc(100vh-70px)] overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {showTabs && (
-            <div className="bg-white border-b border-gray-200 px-6">
-              <div className="flex space-x-1 overflow-x-auto">
+            <div className="bg-white border-b border-gray-200 px-3 sm:px-6 shrink-0">
+              <div className="flex space-x-1 overflow-x-auto -mb-px">
                 {serviceTabs.map((tab, index) => (
                   <button
                     key={tab.team_service_id}
@@ -270,11 +270,11 @@ export default function FulfillmentMachinePage() {
             </div>
           )}
 
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-auto">
             {!selectedTab ? null : tabHasMachine && selectedTab.machine ? (
-              <Tabs defaultValue="planner" className="w-full h-full">
-                <div className="px-6 pt-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">{selectedTab.service_name}</h2>
+              <Tabs defaultValue="planner" className="w-full h-full flex flex-col">
+                <div className="px-3 sm:px-6 pt-4 sm:pt-6 shrink-0">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 break-words">{selectedTab.service_name}</h2>
                   <TabsList className="grid w-full max-w-md grid-cols-2">
                     <TabsTrigger value="planner" className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />
@@ -286,7 +286,7 @@ export default function FulfillmentMachinePage() {
                     </TabsTrigger>
                   </TabsList>
                 </div>
-                <TabsContent value="planner" className="px-6 pb-6 mt-6">
+                <TabsContent value="planner" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6 flex-1 min-h-0 overflow-auto">
                   <MachinePlanner
                     machineId={selectedTab.machine.id}
                     engineType="FULFILLMENT"
@@ -294,7 +294,7 @@ export default function FulfillmentMachinePage() {
                     isPlannerTabActive={true}
                   />
                 </TabsContent>
-                <TabsContent value="design" className="px-6 pb-6 mt-6">
+                <TabsContent value="design" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6 flex-1 min-h-0 overflow-auto">
                   <MachineDesign
                     machineId={selectedTab.machine.id}
                     engineType="FULFILLMENT"
