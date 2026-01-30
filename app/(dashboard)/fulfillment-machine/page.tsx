@@ -110,9 +110,13 @@ export default function FulfillmentMachinePage() {
       // New service tabs (no machine yet) at the end of the line, not first
       tabs.sort((a, b) => (a.machine ? 0 : 1) - (b.machine ? 0 : 1));
       setServiceTabs(tabs);
-      // When coming from Growth Machine popup, show welcome screen first
+      
+      // Only show welcome if explicitly requested AND not already in machine flow
       const showWelcomeFromGrowth = searchParams.get("showWelcome") === "1";
-      setCurrentStep(showWelcomeFromGrowth ? "welcome" : "machine");
+      // Don't override currentStep if we're already showing machine
+      if (currentStep !== "machine") {
+        setCurrentStep(showWelcomeFromGrowth && tabs.length > 0 ? "welcome" : tabs.length > 0 ? "machine" : "welcome");
+      }
       if (activeTab >= tabs.length) setActiveTab(0);
     } catch (error) {
       console.error("Error checking existing setup:", error);
@@ -127,7 +131,15 @@ export default function FulfillmentMachinePage() {
   };
 
   const handleQuestionsComplete = async () => {
+    // Clear showWelcome parameter from URL to prevent loop
+    if (searchParams.get("showWelcome")) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("showWelcome");
+      window.history.replaceState({}, '', url);
+    }
+    
     await checkExistingSetup();
+    // Force machine view after questions complete
     setCurrentStep("machine");
   };
 

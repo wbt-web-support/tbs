@@ -121,7 +121,10 @@ export default function GrowthMachinePage() {
   };
 
   const handleQuestionsComplete = async () => {
+    // Small delay to ensure DB commit
+    await new Promise(resolve => setTimeout(resolve, 500));
     await checkExistingSetup();
+    // Force machine view after questions complete
     setCurrentStep("machine");
   };
 

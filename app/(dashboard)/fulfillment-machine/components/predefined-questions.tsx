@@ -280,7 +280,12 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
       if (!user) throw new Error("No authenticated user");
 
       const teamId = await getTeamId(supabase, user.id);
-      if (!teamId) throw new Error("Team ID not found");
+      if (!teamId) {
+        console.error("Team ID not found for user:", user.id);
+        throw new Error("Team ID not found");
+      }
+      
+      console.log("Creating fulfillment machine with teamId:", teamId, "teamServiceId:", teamServiceId);
 
       // Growth context: same team_service when opening from tab, else first GROWTH machine
       let growthQuery = supabase
@@ -355,8 +360,18 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
           .select()
           .single();
 
-        if (error) throw error;
-        savedMachineId = newMachine?.id;
+        if (error) {
+          console.error("Error inserting machine:", error);
+          throw error;
+        }
+        
+        if (!newMachine?.id) {
+          console.error("Machine created but no ID returned:", newMachine);
+          throw new Error("Machine created but no ID returned");
+        }
+        
+        savedMachineId = newMachine.id;
+        console.log("Fulfillment machine created successfully with ID:", savedMachineId);
       }
 
       toast.success("Answers saved! Generating your Fulfillment Machine...");
@@ -404,10 +419,14 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
         toast.error('Machine saved but generation failed. You can generate it manually.');
       }
       
+      // Small delay to ensure DB commit before refreshing
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       onComplete();
     } catch (error) {
       console.error("Error saving answers:", error);
-      toast.error("Failed to save answers");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to save answers: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
