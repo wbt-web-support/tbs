@@ -996,18 +996,23 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
           overlayClassName="backdrop-blur-[48px] bg-black/10"
         >
           <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-             
-              <DialogTitle className="text-xl">Growth Machine Complete!</DialogTitle>
-            </div>
-            <DialogDescription className="text-base pt-2">
-              Great job! Your Growth Machine is ready. Now complete your business process by creating your Fulfillment Machine.
+            <DialogTitle className="text-xl">Growth Machine Complete ✅</DialogTitle>
+            <DialogDescription className="text-base pt-2 space-y-4">
+              <p>
+                Great work, your Growth Machine for this service is now defined.
+              </p>
+              <p>
+                You've mapped how someone goes from discovering your business to becoming a paying customer.
+              </p>
             </DialogDescription>
           </DialogHeader>
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 my-4">
-            <p className="text-sm font-medium text-purple-900 mb-1">What's a Fulfillment Machine?</p>
+            <p className="text-sm font-medium text-purple-900 mb-2">Next: Fulfilment Machine ⏳</p>
+            <p className="text-sm text-purple-800 mb-1">
+              Now you'll map what happens after the sale, from job confirmation to completion.
+            </p>
             <p className="text-sm text-purple-800">
-              It maps how you deliver the service once it's been sold - from job start to completion.
+              There are just 2 short steps to finish this service's full value machine.
             </p>
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
@@ -1035,7 +1040,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
               ) : (
                 <Rocket className="h-4 w-4 mr-2" />
               )}
-              {fulfillmentRedirecting ? "Redirecting…" : "Create Fulfillment Machine"}
+              {fulfillmentRedirecting ? "Redirecting…" : "Create Fulfilment Machine"}
             </Button>
           </DialogFooter>
         </DialogContent>
