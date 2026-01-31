@@ -874,7 +874,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                   List the main steps that happen between someone discovering you and the job being sold.
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Keep this high level.
+                  Keep this high level. <br />First step = where people find you (triggering event). <br />Last step = what marks success (ending event).
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                   <p className="text-sm font-medium text-blue-900 mb-2">Examples:</p>
@@ -886,6 +886,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                     <li>Quote or survey</li>
                     <li>Sale or booking</li>
                   </ul>
+                  
                 </div>
                 <div className="space-y-3">
                   {answers.actions_activities.map((activity, index) => (
