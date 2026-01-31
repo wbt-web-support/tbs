@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Sparkles, Save, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain } from "lucide-react";
+import { Loader2, Sparkles, Save, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { getEffectiveUserId } from '@/lib/get-effective-user-id';
@@ -63,6 +63,7 @@ export default function BattlePlanPage() {
   const [answers, setAnswers] = useState<{[key: string]: string}>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [improvingField, setImprovingField] = useState<string | null>(null);
   
   const STORAGE_KEY_GENERATED = 'business-plan-generated-data';
   const STORAGE_KEY_TIMESTAMP = 'business-plan-timestamp';
@@ -90,17 +91,6 @@ export default function BattlePlanPage() {
     }
   }, [battlePlanData]);
 
-  // After load: if user has already completed questions, go to plan view
-  useEffect(() => {
-    if (loading || !battlePlanData) return;
-    const qa = battlePlanData.static_questions_answers;
-    const hasAnswers = qa?.answers && typeof qa.answers === "object" && Object.values(qa.answers).some((v: unknown) => typeof v === "string" && v.trim() !== "");
-    if (hasAnswers) {
-      setCurrentStep("plan");
-    } else {
-      setCurrentStep("welcome");
-    }
-  }, [loading, battlePlanData]);
   
   // Save to local storage whenever generatedData changes
   useEffect(() => {
@@ -130,6 +120,15 @@ export default function BattlePlanPage() {
       
       if (data) {
         setBattlePlanData(data);
+        // If plan already generated or questions completed, go straight to plan (no welcome/questions)
+        const qa = data.static_questions_answers;
+        const hasAnswers = qa?.answers && typeof qa.answers === "object" && Object.values(qa.answers).some((v: unknown) => typeof v === "string" && String(v).trim() !== "");
+        const hasPlanGenerated = !!(data.missionstatement?.trim() || data.business_plan_content?.trim());
+        if (hasAnswers || hasPlanGenerated) {
+          setCurrentStep("plan");
+        } else {
+          setCurrentStep("welcome");
+        }
       } else {
         // Create a new entry if none exists for the admin
         const newBattlePlan = {
@@ -155,9 +154,11 @@ export default function BattlePlanPage() {
           
         if (insertError) throw insertError;
         setBattlePlanData(newData);
+        setCurrentStep("welcome");
       }
     } catch (error) {
       console.error("Error fetching battle plan data:", error);
+      setCurrentStep("welcome");
     } finally {
       setLoading(false);
     }
@@ -328,6 +329,39 @@ export default function BattlePlanPage() {
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
+
+  // Improve current question answer with AI
+  const handleImproveAnswer = async () => {
+    const currentQuestion = questions[currentQuestionIndex];
+    if (!currentQuestion) return;
+    const questionId = currentQuestion.id;
+    const currentValue = (answers[questionId] || "").trim();
+    if (!currentValue) {
+      toast.error("Add some text first, then improve.");
+      return;
+    }
+    try {
+      setImprovingField(questionId);
+      const response = await fetch("/api/machines/improve-field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          field_name: questionId,
+          current_value: currentValue,
+          machine_type: "business_plan",
+          question_text: currentQuestion.question_text,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to improve");
+      setAnswers((prev) => ({ ...prev, [questionId]: data.improved_value }));
+      toast.success("Answer improved with AI");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to improve answer");
+    } finally {
+      setImprovingField(null);
+    }
+  };
   
   // Navigate to next question
   const nextQuestion = () => {
@@ -351,10 +385,18 @@ export default function BattlePlanPage() {
     }
   };
   
+  // Check if all required questions have answers
+  const allQuestionsAnswered = questions.every((q) => (answers[q.id] || "").trim() !== "");
+  const currentQuestionAnswered = currentQuestionIndex < questions.length && (answers[questions[currentQuestionIndex]?.id] || "").trim() !== "";
+
   // Save answers to battle_plan and proceed to generation
   const handleCompleteQuestions = async () => {
     if (!battlePlanData?.id) {
       toast.error("Business plan not loaded. Please try again.");
+      return;
+    }
+    if (!allQuestionsAnswered) {
+      toast.error("Please answer all questions before completing.");
       return;
     }
     try {
@@ -499,7 +541,7 @@ export default function BattlePlanPage() {
                     This is where you define your strategic direction and how you'll get there.
                   </p>
                   <p>
-                    We'll ask you a few short questions, then generate a tailored business plan using your answers and your Growth & Fulfillment Machine data.
+                    We'll ask you a few short questions, then generate a tailored business plan using your answers.
                   </p>
                 </div>
               </div>
@@ -544,6 +586,7 @@ export default function BattlePlanPage() {
               <div className="space-y-4">
                 <h3 className="text-lg sm:text-2xl font-medium text-gray-900 mb-3">
                   {currentQuestion.question_text}
+                  <span className="text-red-600 ml-0.5" aria-hidden="true">*</span>
                 </h3>
                 <Textarea
                   value={answers[currentQuestion.id] || ""}
@@ -551,6 +594,26 @@ export default function BattlePlanPage() {
                   placeholder="Type your answer here..."
                   className="min-h-[160px] w-full border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 resize-none"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleImproveAnswer}
+                  disabled={improvingField !== null || !(answers[currentQuestion.id] || "").trim()}
+                  className="w-full sm:w-auto text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
+                >
+                  {improvingField === currentQuestion.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Improving...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Improve with AI
+                    </>
+                  )}
+                </Button>
               </div>
             )}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between pt-6 border-t">
@@ -575,7 +638,7 @@ export default function BattlePlanPage() {
                     setIsTransitioning(true);
                     setTimeout(() => { setCurrentQuestionIndex((i) => i + 1); setIsTransitioning(false); }, 300);
                   }}
-                  disabled={isTransitioning}
+                  disabled={isTransitioning || !currentQuestionAnswered}
                 >
                   Next
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -584,10 +647,19 @@ export default function BattlePlanPage() {
                 <Button
                   className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
                   onClick={handleCompleteQuestions}
-                  disabled={generating}
+                  disabled={generating || !allQuestionsAnswered}
                 >
-                  {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                  {generating ? "Generating…" : "Complete & Generate Plan"}
+                  {generating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Complete & Create
+                    </>
+                  )}
                 </Button>
               )}
             </div>

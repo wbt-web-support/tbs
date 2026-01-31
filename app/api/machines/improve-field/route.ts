@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { field_name, current_value, machine_type, context, growth_context } = body;
+    const { field_name, current_value, machine_type, context, growth_context, question_text } = body;
 
     if (!field_name || !current_value || !machine_type) {
       return NextResponse.json(
@@ -167,6 +167,21 @@ IMPORTANT:
 - Just write simple, plain descriptions
 
 Return ONLY the improved steps, one per line, numbered. Keep them short and simple.`;
+    } else if (machine_type === "business_plan" && question_text) {
+      // Business plan question answer improvement
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve a business owner's answer to a strategic planning question.
+
+Question: "${question_text}"
+
+Current answer: "${current_value}"
+
+Please improve this answer to be:
+1. Clear and specific
+2. Written in first person (we/our) or as internal notes - this is for the business owner's own plan
+3. Professional but practical
+4. A bit more detailed and actionable if the current answer is brief, without inventing new content
+
+Return ONLY the improved answer, nothing else. No quotes, no explanations.`;
     } else {
       // Generic improvement
       prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve a field for a ${machine_type} machine.
