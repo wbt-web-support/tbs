@@ -244,48 +244,54 @@ export default function FulfillmentMachinePage() {
   // Render appropriate step
   if (currentStep === "welcome") {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4">
-        <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
-          <CardContent className="p-4 sm:p-8">
-            <div className="text-center space-y-6">
-              <div className="flex justify-center">
-                <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-white" />
+      <>
+        <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4">
+          <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
+            <CardContent className="p-4 sm:p-8">
+              <div className="text-center space-y-6">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
+                    <Sparkles className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                    Welcome to Your Fulfilment Machines
+                  </h3>
+                  <div className="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto space-y-3">
+                    <p>
+                      This is where you design and visualise the delivery side of your business.
+                    </p>
+                    <p>
+                      Each Fulfilment Machine represents how one specific service is delivered once it has been sold. For example: boiler installations, underfloor heating, commercial projects.
+                    </p>
+                    <p>
+                      A Fulfilment Machine is a simple business process map that shows how a sold job moves from handover to full completion.
+                    </p>
+                    <p>
+                      It captures how work is scheduled, delivered, checked, completed, and closed out, all in one clear, repeatable system your team and AI can follow.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-center pt-4">
+                  <Button
+                    onClick={handleWelcomeComplete}
+                    className="bg-purple-600 hover:bg-purple-700 text-white shadow-md px-8 py-6 text-base"
+                    size="lg"
+                  >
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Start building your fulfilment machine
+                  </Button>
                 </div>
               </div>
-              <div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                  Welcome to Your Fulfilment Machines
-                </h3>
-                <div className="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto space-y-3">
-                  <p>
-                    This is where you design and visualise the delivery side of your business.
-                  </p>
-                  <p>
-                    Each Fulfilment Machine represents how one specific service is delivered once it has been sold. For example: boiler installations, underfloor heating, commercial projects.
-                  </p>
-                  <p>
-                    A Fulfilment Machine is a simple business process map that shows how a sold job moves from handover to full completion.
-                  </p>
-                  <p>
-                    It captures how work is scheduled, delivered, checked, completed, and closed out, all in one clear, repeatable system your team and AI can follow.
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-center pt-4">
-                <Button
-                  onClick={handleWelcomeComplete}
-                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-md px-8 py-6 text-base"
-                  size="lg"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Start building your fulfilment machine
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+        <MachineExampleFloater
+          title="See fulfilment machine examples"
+          images={FULFILLMENT_EXAMPLE_IMAGES}
+        />
+      </>
     );
   }
 
@@ -297,7 +303,7 @@ export default function FulfillmentMachinePage() {
           onComplete={handleQuestionsComplete}
         />
         <MachineExampleFloater
-          title="See fulfilment machine example"
+          title="See fulfilment machine examples"
           images={FULFILLMENT_EXAMPLE_IMAGES}
         />
       </>
@@ -374,7 +380,7 @@ export default function FulfillmentMachinePage() {
           </div>
         </div>
         <MachineExampleFloater
-          title="See fulfilment machine example"
+          title="See fulfilment machine examples"
           images={FULFILLMENT_EXAMPLE_IMAGES}
         />
       </div>

@@ -152,48 +152,54 @@ export default function GrowthMachinePage() {
   // Render appropriate step
   if (currentStep === "welcome") {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4">
-        <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
-          <CardContent className="p-4 sm:p-8">
-            <div className="text-center space-y-6">
-              <div className="flex justify-center">
-                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-white" />
+      <>
+        <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4">
+          <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
+            <CardContent className="p-4 sm:p-8">
+              <div className="text-center space-y-6">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                    <Sparkles className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                    Welcome to Your Growth Machines
+                  </h3>
+                  <div className="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto space-y-3">
+                    <p>
+                      This is where you design and visualise the front end of your business.
+                    </p>
+                    <p>
+                      Each Growth Machine represents one specific service you sell. For example: boiler installations, underfloor heating, commercial work.
+                    </p>
+                    <p>
+                      A Growth Machine is a simple business process map that shows how someone goes from never hearing about you to becoming a paying customer for that service.
+                    </p>
+                    <p>
+                      It captures how people find you, where they go, how leads are handled, and how sales are made, all in one clear, repeatable system your team and AI can follow.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-center pt-4">
+                  <Button
+                    onClick={handleWelcomeComplete}
+                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-md px-8 py-6 text-base"
+                    size="lg"
+                  >
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Start building your growth machine
+                  </Button>
                 </div>
               </div>
-              <div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                  Welcome to Your Growth Machines
-                </h3>
-                <div className="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto space-y-3">
-                  <p>
-                    This is where you design and visualise the front end of your business.
-                  </p>
-                  <p>
-                    Each Growth Machine represents one specific service you sell. For example: boiler installations, underfloor heating, commercial work.
-                  </p>
-                  <p>
-                    A Growth Machine is a simple business process map that shows how someone goes from never hearing about you to becoming a paying customer for that service.
-                  </p>
-                  <p>
-                    It captures how people find you, where they go, how leads are handled, and how sales are made, all in one clear, repeatable system your team and AI can follow.
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-center pt-4">
-                <Button
-                  onClick={handleWelcomeComplete}
-                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-md px-8 py-6 text-base"
-                  size="lg"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Start building your growth machine
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+        <MachineExampleFloater
+          title="See growth machine examples"
+          images={GROWTH_EXAMPLE_IMAGES}
+        />
+      </>
     );
   }
 
@@ -205,7 +211,7 @@ export default function GrowthMachinePage() {
           onComplete={handleQuestionsComplete}
         />
         <MachineExampleFloater
-          title="See growth machine example"
+          title="See growth machine examples"
           images={GROWTH_EXAMPLE_IMAGES}
         />
       </>
@@ -305,7 +311,7 @@ export default function GrowthMachinePage() {
           </div>
         </div>
         <MachineExampleFloater
-          title="See growth machine example"
+          title="See growth machine examples"
           images={GROWTH_EXAMPLE_IMAGES}
         />
       </div>

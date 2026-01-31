@@ -22,7 +22,7 @@ type MachineExampleFloaterProps = {
 };
 
 const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 3;
+const MAX_ZOOM = 10;
 const ZOOM_STEP = 0.25;
 const BLINK_SHADOW_DURATION_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -143,7 +143,7 @@ export default function MachineExampleFloater({ title, images }: MachineExampleF
         className={`fixed left-1/2 lg:left-[calc(8rem+50vw)] bottom-6 -translate-x-1/2 z-40 flex items-center gap-3 pr-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors border border-blue-700 ${showBlinkShadow ? "machine-example-blink-shadow" : ""}`}
         aria-label={title}
       >
-        <span className="relative w-12 h-12 rounded-full overflow-hidden border border-white/40 shrink-0 bg-white/10">
+        <span className="relative w-12 h-12 rounded-full overflow-hidden border border-white/40 shrink-0 bg-white">
           <Image
             src={firstImage.src}
             alt={firstImage.alt ?? title}
@@ -157,7 +157,7 @@ export default function MachineExampleFloater({ title, images }: MachineExampleF
 
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && closeModal()}>
         <DialogContent
-          className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-gray-200"
+          className="sm:max-w-[1500px] max-h-[90vh] overflow-hidden flex flex-col p-0 border-gray-200"
           onPointerDownOutside={closeModal}
           onEscapeKeyDown={closeModal}
         >
@@ -219,14 +219,14 @@ export default function MachineExampleFloater({ title, images }: MachineExampleF
                         alt={currentImage.alt ?? currentImage.label ?? `Example ${selectedIndex + 1}`}
                         fill
                         className="object-contain pointer-events-none"
-                        sizes="(max-width: 896px) 100vw, 896px"
+                        unoptimized
                         draggable={false}
                       />
                     </div>
                   </div>
                   {/* Example badge - right bottom, fixed in viewport */}
                   <span className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 text-white text-xs font-medium rounded pointer-events-none z-10">
-                    Example
+                    Examples
                   </span>
                   {/* Zoom controls - top right, fixed in viewport (no scroll) */}
                   <div className="absolute top-2 right-2 flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 z-20 pointer-events-auto">
@@ -255,6 +255,9 @@ export default function MachineExampleFloater({ title, images }: MachineExampleF
                     </Button>
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 text-center">
+                  Scroll to zoom • Drag to pan
+                </p>
                 <div className="flex items-center justify-between gap-4">
                   <Button
                     variant="outline"

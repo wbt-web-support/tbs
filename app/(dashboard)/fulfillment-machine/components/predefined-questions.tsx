@@ -160,61 +160,6 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
     }
   };
 
-  const handleImproveAllActivities = async () => {
-    try {
-      setImprovingField("all_activities");
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
-
-      const growthContext = await getGrowthContext();
-
-      const currentActivities = answers.fulfillment_activities
-        .filter((a) => a.trim() !== "")
-        .join("\n");
-
-      const response = await fetch("/api/machines/improve-field", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          field_name: "all_activities",
-          current_value: currentActivities,
-          machine_type: "fulfillment",
-          context: answers,
-          growth_context: growthContext,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to improve activities");
-
-      const { improved_value } = await response.json();
-
-      // Parse the improved activities and clean up any markdown formatting
-      const improvedActivities = improved_value
-        .split("\n")
-        .map((a: string) => {
-          let cleaned = a.replace(/^\d+\.\s*/, "").trim();
-          cleaned = cleaned.replace(/\*\*/g, ""); // Remove markdown bold
-          cleaned = cleaned.replace(/\*/g, "");   // Remove markdown italic
-          cleaned = cleaned.replace(/\s+/g, " ").trim();
-          return cleaned;
-        })
-        .filter((a: string) => a !== "");
-
-      setAnswers((prev) => ({
-        ...prev,
-        fulfillment_activities: improvedActivities.length > 0 ? improvedActivities : [""],
-      }));
-
-      toast.success("All steps improved successfully!");
-    } catch (error) {
-      console.error("Error improving activities:", error);
-      toast.error("Failed to improve activities");
-    } finally {
-      setImprovingField(null);
-    }
-  };
-
   const handleAddActivity = () => {
     setAnswers((prev) => ({
       ...prev,
@@ -500,6 +445,26 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                         placeholder={`Step ${index + 1}`}
                         className="flex-1 min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                       />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleImproveActivity(index, activity)}
+                        disabled={improvingField === `activity_${index}` || !activity.trim()}
+                        className="shrink-0 text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50"
+                      >
+                        {improvingField === `activity_${index}` ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Improving...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Improve with AI
+                          </>
+                        )}
+                      </Button>
                       {answers.fulfillment_activities.length > 1 && (
                         <Button
                           onClick={() => handleRemoveActivity(index)}
@@ -520,25 +485,6 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                       className="flex-1 w-full sm:w-auto"
                     >
                       Add another step
-                    </Button>
-                    <Button
-                      onClick={handleImproveAllActivities}
-                      disabled={improvingField === "all_activities" || answers.fulfillment_activities.filter(a => a.trim()).length === 0}
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 w-full sm:w-auto text-purple-600 hover:text-purple-700 border-purple-300 hover:bg-purple-50"
-                    >
-                      {improvingField === "all_activities" ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Improving...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Improve All Steps with AI
-                        </>
-                      )}
                     </Button>
                   </div>
                 </div>

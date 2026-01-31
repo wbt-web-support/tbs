@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Sparkles, ArrowRight, ArrowLeft, Check, Rocket } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight, ArrowLeft, Check, Rocket, Plus, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardContent, CardDescription } from "@/components/ui/card";
@@ -34,7 +34,7 @@ type Answers = {
   primary_service: string;
   service_description: string;
   traffic_sources: string[];
-  traffic_sources_other: string;
+  traffic_sources_other: string[];
   ending_event: string[];
   ending_event_other: string;
   actions_activities: string[];
@@ -68,7 +68,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
     primary_service: "",
     service_description: "",
     traffic_sources: [],
-    traffic_sources_other: "",
+    traffic_sources_other: [""],
     ending_event: [],
     ending_event_other: "",
     actions_activities: [""],
@@ -176,11 +176,17 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
         const endingSelected = endingParts.filter((p: string) => ENDING_EVENT_OPTIONS.includes(p));
         const endingOther = endingParts.filter((p: string) => !ENDING_EVENT_OPTIONS.includes(p)).join(", ");
 
+        const rawOther = machine.answers.traffic_sources_other;
+        const trafficOtherArr = Array.isArray(rawOther)
+          ? (rawOther.length ? rawOther.filter((s: string) => s != null) : [""])
+          : typeof rawOther === "string" && rawOther.trim()
+            ? rawOther.split(",").map((s: string) => s.trim()).filter(Boolean)
+            : [""];
         setAnswers({
           primary_service: primaryService,
           service_description: machine.answers.service_description || "",
           traffic_sources: machine.answers.traffic_sources || [],
-          traffic_sources_other: machine.answers.traffic_sources_other || "",
+          traffic_sources_other: trafficOtherArr.length ? trafficOtherArr : [""],
           ending_event: endingSelected.length ? endingSelected : (endingStr ? [endingStr] : []),
           ending_event_other: endingOther,
           actions_activities: machine.answers.actions_activities || [""],
@@ -265,61 +271,6 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
     }
   };
 
-  const handleImproveAllActivities = async () => {
-    const validActivities = answers.actions_activities.filter((a) => a.trim() !== "");
-    if (validActivities.length === 0) {
-      toast.error("Please add at least one step before improving");
-      return;
-    }
-
-    try {
-      setImprovingField("all_activities");
-
-      const response = await fetch("/api/machines/improve-field", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          field_name: "all_activities",
-          current_value: validActivities.join("\n"),
-          machine_type: "growth",
-          context: answers,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to improve activities");
-
-      const { improved_value } = await response.json();
-
-      // Split the improved activities back into an array and clean markdown
-      const improvedActivities = improved_value
-        .split("\n")
-        .map((a: string) => {
-          // Remove numbering (1. 2. etc)
-          let cleaned = a.replace(/^\d+\.\s*/, "").trim();
-          // Remove markdown bold (**text**)
-          cleaned = cleaned.replace(/\*\*/g, "");
-          // Remove markdown italic (*text*)
-          cleaned = cleaned.replace(/\*/g, "");
-          // Clean up extra spaces
-          cleaned = cleaned.replace(/\s+/g, " ").trim();
-          return cleaned;
-        })
-        .filter((a: string) => a !== "");
-
-      setAnswers((prev) => ({
-        ...prev,
-        actions_activities: improvedActivities,
-      }));
-
-      toast.success("All steps improved and structured with AI!");
-    } catch (error) {
-      console.error("Error improving activities:", error);
-      toast.error("Failed to improve activities");
-    } finally {
-      setImprovingField(null);
-    }
-  };
-
   const handleAddActivity = () => {
     setAnswers((prev) => ({
       ...prev,
@@ -371,6 +322,28 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
     setAnswers((prev) => ({ ...prev, traffic_sources: [] }));
   };
 
+  const handleAddTrafficSourceOther = () => {
+    setAnswers((prev) => ({
+      ...prev,
+      traffic_sources_other: [...prev.traffic_sources_other, ""],
+    }));
+  };
+
+  const handleRemoveTrafficSourceOther = (index: number) => {
+    setAnswers((prev) => ({
+      ...prev,
+      traffic_sources_other: prev.traffic_sources_other.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleTrafficSourceOtherChange = (index: number, value: string) => {
+    setAnswers((prev) => {
+      const next = [...prev.traffic_sources_other];
+      next[index] = value;
+      return { ...prev, traffic_sources_other: next };
+    });
+  };
+
   const handleServiceChange = (value: string) => {
     if (value === "other") {
       setShowCustomServiceInput(true);
@@ -408,12 +381,14 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
           return false;
         }
         break;
-      case 2:
-        if (answers.traffic_sources.length === 0 && !answers.traffic_sources_other.trim()) {
-          toast.error("Please select at least one traffic source");
+      case 2: {
+        const hasOther = answers.traffic_sources_other.some((s) => s.trim() !== "");
+        if (answers.traffic_sources.length === 0 && !hasOther) {
+          toast.error("Please select at least one traffic source or add an other option");
           return false;
         }
         break;
+      }
       case 3:
         if (answers.ending_event.length === 0 && !answers.ending_event_other.trim()) {
           toast.error("Please select or enter at least one success event");
@@ -456,6 +431,7 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
 
       const cleanedAnswers = {
         ...answers,
+        traffic_sources_other: answers.traffic_sources_other.filter((s) => s.trim() !== ""),
         ending_event: [...answers.ending_event, answers.ending_event_other].filter(Boolean).join(", ") || (answers.ending_event[0] ?? ""),
         actions_activities: answers.actions_activities.filter((a) => a.trim() !== ""),
       };
@@ -811,13 +787,39 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                     </div>
                   ))}
                 </div>
-                <div className="mt-4">
-                  <Input
-                    value={answers.traffic_sources_other}
-                    onChange={(e) => setAnswers({ ...answers, traffic_sources_other: e.target.value })}
-                    placeholder="Other (please specify)"
-                    className="w-full min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
-                  />
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Other (please specify)</p>
+                  {answers.traffic_sources_other.map((value, index) => (
+                    <div key={index} className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        value={value}
+                        onChange={(e) => handleTrafficSourceOtherChange(index, e.target.value)}
+                        placeholder="e.g. Trade show, Partner referral"
+                        className="flex-1 min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleRemoveTrafficSourceOther(index)}
+                        disabled={answers.traffic_sources_other.length <= 1}
+                        className="shrink-0 h-12 w-12 border-gray-300 text-gray-600 hover:bg-gray-100"
+                        aria-label="Remove other option"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddTrafficSourceOther}
+                    className="mt-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add another
+                  </Button>
                 </div>
               </div>
             </div>
@@ -894,6 +896,26 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                         placeholder={`Step ${index + 1}`}
                         className="flex-1 min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
                       />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleImproveActivity(index, activity)}
+                        disabled={improvingField === `activity_${index}` || !activity.trim()}
+                        className="shrink-0 text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
+                      >
+                        {improvingField === `activity_${index}` ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Improving...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Improve with AI
+                          </>
+                        )}
+                      </Button>
                       {answers.actions_activities.length > 1 && (
                         <Button
                           onClick={() => handleRemoveActivity(index)}
@@ -914,25 +936,6 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                       className="flex-1 w-full sm:w-auto"
                     >
                       Add another step
-                    </Button>
-                    <Button
-                      onClick={handleImproveAllActivities}
-                      disabled={improvingField === "all_activities" || answers.actions_activities.filter(a => a.trim()).length === 0}
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 w-full sm:w-auto"
-                    >
-                      {improvingField === "all_activities" ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Improving...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Improve All Steps with AI
-                        </>
-                      )}
                     </Button>
                   </div>
                 </div>
