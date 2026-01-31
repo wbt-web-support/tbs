@@ -93,6 +93,10 @@ const config = {
         shimmer: {
           '0%': { backgroundPosition: '200% 0' },
           '100%': { backgroundPosition: '-200% 0' }
+        },
+        "blink-shadow": {
+          "0%, 100%": { boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)" },
+          "50%": { boxShadow: "0 4px 20px rgba(0, 0, 0, 0.12)" }
         }
       },
       animation: {
@@ -100,7 +104,8 @@ const config = {
         "accordion-up": "accordion-up 0.2s ease-out",
         "orbit": "orbit 1s linear infinite",
         "fadeOut": "fadeOut 2s forwards ease-out",
-        "shimmer": "shimmer 2s infinite linear"
+        "shimmer": "shimmer 2s infinite linear",
+        "blink-shadow": "blink-shadow 2.5s ease-in-out infinite"
       },
       transitionDuration: {
         '0': '0ms',

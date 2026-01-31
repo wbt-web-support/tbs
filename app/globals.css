@@ -73,6 +73,20 @@
   border: 1px solid #cbd5e1;
 }
 
+/* Blinking shadow for machine example button (first 2 min) */
+@keyframes machine-example-blink-shadow {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  50% {
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  }
+}
+
+.machine-example-blink-shadow {
+  animation: machine-example-blink-shadow 2.5s ease-in-out infinite;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

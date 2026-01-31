@@ -520,6 +520,15 @@ export default function BattlePlanPage() {
     }
   };
   
+  // Show loading until we've fetched and determined step (avoids flash of welcome when plan exists)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
   // Welcome screen (like growth-machine)
   if (currentStep === "welcome") {
     return (

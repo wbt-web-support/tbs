@@ -24,6 +24,7 @@ type MachineExampleFloaterProps = {
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.25;
+const BLINK_SHADOW_DURATION_MS = 2 * 60 * 1000; // 2 minutes
 
 export default function MachineExampleFloater({ title, images }: MachineExampleFloaterProps) {
   const [open, setOpen] = useState(false);
@@ -32,8 +33,15 @@ export default function MachineExampleFloater({ title, images }: MachineExampleF
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [showBlinkShadow, setShowBlinkShadow] = useState(true);
   const dragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Blinking shadow only for the first 2 minutes
+  useEffect(() => {
+    const t = setTimeout(() => setShowBlinkShadow(false), BLINK_SHADOW_DURATION_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   const zoomIn = useCallback(() => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP)), []);
   const zoomOut = useCallback(() => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP)), []);
@@ -128,11 +136,11 @@ export default function MachineExampleFloater({ title, images }: MachineExampleF
 
   return (
     <>
-      {/* Floating bar at bottom */}
+      {/* Bottom-center of page viewport (main content area, excluding sidebar) */}
       <button
         type="button"
         onClick={openModal}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-3 pr-3  bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-sm border border-blue-700"
+        className={`fixed left-1/2 lg:left-[calc(8rem+50vw)] bottom-6 -translate-x-1/2 z-40 flex items-center gap-3 pr-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors border border-blue-700 ${showBlinkShadow ? "machine-example-blink-shadow" : ""}`}
         aria-label={title}
       >
         <span className="relative w-12 h-12 rounded-full overflow-hidden border border-white/40 shrink-0 bg-white/10">
@@ -144,7 +152,7 @@ export default function MachineExampleFloater({ title, images }: MachineExampleF
             sizes="70px"
           />
         </span>
-        <span className="text-sm font-medium pr-1">{title}</span>
+        <span className="text-base font-medium pr-1">{title}</span>
       </button>
 
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && closeModal()}>
