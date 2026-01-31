@@ -11,6 +11,10 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 const UK_ENGLISH_INSTRUCTION =
   "Use British English spelling and conventions throughout (e.g. fulfilment, colour, organise, centre, favour, behaviour). ";
 
+/** Tone: internal documentation for business owners, not customer-facing */
+const INTERNAL_TOOL_TONE =
+  "This is an internal tool for business owners documenting their own processes. Write in first person (we/our) or as internal process notes. Do NOT write as if talking to customers or in marketing/sales tone. ";
+
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -72,7 +76,7 @@ export async function POST(req: Request) {
     let prompt = "";
     
     if (field_name === "primary_service") {
-      prompt = `${UK_ENGLISH_INSTRUCTION}You are helping to improve a service name for a ${machine_type} machine.
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve a service name for a ${machine_type} machine.
 
 Current value: "${current_value}"
 ${contextInfo}
@@ -85,7 +89,7 @@ Please improve this service name to be:
 
 Return ONLY the improved service name, nothing else. No quotes, no explanations.`;
     } else if (field_name === "service_description") {
-      prompt = `${UK_ENGLISH_INSTRUCTION}You are helping to improve a service description for a ${machine_type} machine.
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve a service description for a ${machine_type} machine.
 
 Current value: "${current_value}"
 ${contextInfo}
@@ -98,7 +102,7 @@ Please improve this description to be:
 
 Return ONLY the improved description, nothing else. No quotes, no explanations.`;
     } else if (field_name === "ending_event") {
-      prompt = `${UK_ENGLISH_INSTRUCTION}You are helping to improve an ending event/success point for a ${machine_type} machine.
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve an ending event/success point for a ${machine_type} machine.
 
 Current value: "${current_value}"
 ${contextInfo}
@@ -111,7 +115,7 @@ Please improve this ending event to be:
 
 Return ONLY the improved ending event, nothing else. No quotes, no explanations.`;
     } else if (field_name === "completion_event") {
-      prompt = `${UK_ENGLISH_INSTRUCTION}You are helping to improve a completion event for a fulfilment machine.
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve a completion event for a fulfilment machine.
 
 Current value: "${current_value}"
 ${contextInfo}
@@ -125,7 +129,7 @@ Please improve this completion event to be:
 Return ONLY the improved completion event, nothing else. No quotes, no explanations.`;
     } else if (field_name === "activity_item") {
       const activityType = machine_type === "growth" ? "growth process step" : "fulfilment step";
-      prompt = `${UK_ENGLISH_INSTRUCTION}You are helping to improve a ${activityType} description.
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve a ${activityType} description.
 
 Current value: "${current_value}"
 ${contextInfo}
@@ -141,7 +145,7 @@ Return ONLY the improved step description, nothing else. No quotes, no explanati
       const activityType = machine_type === "growth"
         ? "growth process (from discovery to sale)"
         : "fulfilment process (from sale to completion)";
-      prompt = `${UK_ENGLISH_INSTRUCTION}You are helping to improve and structure a list of steps in a ${activityType}.
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve and structure a list of steps in a ${activityType}.
 
 Current steps (one per line):
 ${current_value}
@@ -165,7 +169,7 @@ IMPORTANT:
 Return ONLY the improved steps, one per line, numbered. Keep them short and simple.`;
     } else {
       // Generic improvement
-      prompt = `${UK_ENGLISH_INSTRUCTION}You are helping to improve a field for a ${machine_type} machine.
+      prompt = `${UK_ENGLISH_INSTRUCTION}${INTERNAL_TOOL_TONE}You are helping to improve a field for a ${machine_type} machine.
 
 Field: ${field_name}
 Current value: "${current_value}"

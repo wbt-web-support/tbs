@@ -392,6 +392,7 @@ IMPORTANT RULES:
 - Ensure the fulfillment process aligns with their growth machine (if they have one)
 - Use clear, natural language that is professional but straightforward - avoid slang, casual phrases, or overly friendly language
 - Provide full context and specific details in all fields - avoid generic or brief responses
+- This is internal documentation for the business owner. Write in first person (we/our) or as internal process notes. Do NOT write as if talking to customers or in marketing tone.
 `;
 
 export async function POST(req: Request) {

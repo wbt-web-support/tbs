@@ -11,6 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PredefinedQuestions from "./components/predefined-questions";
 import MachinePlanner from "./components/machine-planner";
 import MachineDesign from "./components/machine-design";
+import MachineExampleFloater, { type ExampleImage } from "@/components/machine-example-floater";
+
+const FULFILLMENT_EXAMPLE_IMAGES: ExampleImage[] = [
+  { src: "/flows/fulfillment/image.png", alt: "Fulfilment machine example 1" },
+  { src: "/flows/fulfillment/image-2.png", alt: "Fulfilment machine example 2" },
+  { src: "/flows/fulfillment/image-3.png", alt: "Fulfilment machine example 3" },
+];
 
 type FlowStep = "welcome" | "questions" | "machine";
 
@@ -285,9 +292,15 @@ export default function FulfillmentMachinePage() {
   // Full-page questions: when 0 service tabs and user clicked welcome (legacy path)
   if (currentStep === "questions") {
     return (
-      <PredefinedQuestions
-        onComplete={handleQuestionsComplete}
-      />
+      <>
+        <PredefinedQuestions
+          onComplete={handleQuestionsComplete}
+        />
+        <MachineExampleFloater
+          title="See fulfilment machine example"
+          images={FULFILLMENT_EXAMPLE_IMAGES}
+        />
+      </>
     );
   }
 
@@ -322,7 +335,7 @@ export default function FulfillmentMachinePage() {
 
           <div className="flex-1 min-h-0 overflow-auto">
             {!selectedTab ? null : tabHasMachine && selectedTab.machine ? (
-              <Tabs defaultValue="planner" className="w-full h-full flex flex-col">
+              <Tabs defaultValue="planner" className="w-full flex flex-col">
                 <div className="px-3 sm:px-6 pt-4 sm:pt-6 shrink-0">
                   <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 break-words">{selectedTab.service_name}</h2>
                   <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -336,7 +349,7 @@ export default function FulfillmentMachinePage() {
                     </TabsTrigger>
                   </TabsList>
                 </div>
-                <TabsContent value="planner" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6 flex-1 min-h-0 overflow-auto">
+                <TabsContent value="planner" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6">
                   <MachinePlanner
                     machineId={selectedTab.machine.id}
                     engineType="FULFILLMENT"
@@ -344,7 +357,7 @@ export default function FulfillmentMachinePage() {
                     isPlannerTabActive={true}
                   />
                 </TabsContent>
-                <TabsContent value="design" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6 flex-1 min-h-0 overflow-auto">
+                <TabsContent value="design" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6">
                   <MachineDesign
                     machineId={selectedTab.machine.id}
                     engineType="FULFILLMENT"
@@ -360,6 +373,10 @@ export default function FulfillmentMachinePage() {
             )}
           </div>
         </div>
+        <MachineExampleFloater
+          title="See fulfilment machine example"
+          images={FULFILLMENT_EXAMPLE_IMAGES}
+        />
       </div>
     );
   }

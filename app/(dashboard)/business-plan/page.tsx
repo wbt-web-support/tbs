@@ -1,19 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Sparkles, Save, ArrowRight, CheckCircle, Target, Building, Users, TrendingUp, Zap, Brain } from "lucide-react";
+import { Loader2, Sparkles, Save, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { getEffectiveUserId } from '@/lib/get-effective-user-id';
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import BattlePlanDetails from "./components/battle-plan-details";
 import StrategicElements from "./components/strategic-elements";
 import ReusableTiptapEditor from "@/components/reusable-tiptap-editor";
 import { toast } from "sonner";
+
+type StaticQuestionsAnswers = {
+  questions: { id: string; question_text: string; question_type: string }[];
+  answers: Record<string, string>;
+};
 
 type BattlePlanData = {
   id: string;
@@ -30,7 +33,19 @@ type BattlePlanData = {
   tenyeartarget: { targets: any[] } | null;
   created_at: string;
   updated_at: string;
+  static_questions_answers?: StaticQuestionsAnswers | null;
 };
+
+const STATIC_QUESTIONS = [
+  { id: "direction_focus", question_text: "Over the next 12 months, what is the main thing this business must get right for you to consider the year a success?", question_type: "textarea" as const },
+  { id: "owner_role_shift", question_text: "Which parts of the business do you want to be less involved in over the next 12–24 months?", question_type: "textarea" as const },
+  { id: "strategic_constraint", question_text: "What is the biggest thing currently holding the business back from growing faster or running smoother?", question_type: "textarea" as const },
+  { id: "service_focus", question_text: "Which service or area of the business do you want this plan to prioritise and why?", question_type: "textarea" as const },
+  { id: "non_negotiables", question_text: "Are there any rules, standards, or boundaries you are not willing to compromise on as the business grows?", question_type: "textarea" as const },
+  { id: "personal_outcome", question_text: "If this business was running exactly how you want it to in three years, what would your day-to-day life look like?", question_type: "textarea" as const },
+];
+
+type FlowStep = "welcome" | "questions" | "plan";
 
 export default function BattlePlanPage() {
   const [battlePlanData, setBattlePlanData] = useState<BattlePlanData | null>(null);
@@ -38,22 +53,17 @@ export default function BattlePlanPage() {
   const [savingContent, setSavingContent] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<any>(null);
-  const [editMode, setEditMode] = useState(false); // Unified edit mode
+  const [editMode, setEditMode] = useState(false);
   const [detailsData, setDetailsData] = useState<{ mission: string; vision: string } | null>(null);
   const [businessPlanContent, setBusinessPlanContent] = useState<string>("");
   
-  // Question flow state
-  const [questions, setQuestions] = useState<any[]>([]);
+  // Flow: welcome → questions (full page) → plan (main content)
+  const [currentStep, setCurrentStep] = useState<FlowStep>("welcome");
+  const [questions, setQuestions] = useState<{ id: string; question_text: string; question_type: string }[]>(STATIC_QUESTIONS);
   const [answers, setAnswers] = useState<{[key: string]: string}>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
-  const [showQuestions, setShowQuestions] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [progress, setProgress] = useState(0);
   
-  // Local storage keys
-  const STORAGE_KEY_QUESTIONS = 'business-plan-questions';
-  const STORAGE_KEY_ANSWERS = 'business-plan-answers';
   const STORAGE_KEY_GENERATED = 'business-plan-generated-data';
   const STORAGE_KEY_TIMESTAMP = 'business-plan-timestamp';
   
@@ -64,13 +74,33 @@ export default function BattlePlanPage() {
     loadFromLocalStorage();
   }, []);
   
-  // Update progress when questions or answers change
+  // Sync questions and answers from battle_plan when data loads
   useEffect(() => {
-    if (questions.length > 0) {
-      const completedCount = questions.filter(q => q.is_completed).length;
-      setProgress((completedCount / questions.length) * 100);
+    if (battlePlanData?.static_questions_answers) {
+      const qa = battlePlanData.static_questions_answers;
+      if (qa.questions?.length) setQuestions(qa.questions);
+      if (qa.answers && typeof qa.answers === "object") {
+        setAnswers({ ...qa.answers });
+      } else {
+        setAnswers({ direction_focus: "", owner_role_shift: "", strategic_constraint: "", service_focus: "", non_negotiables: "", personal_outcome: "" });
+      }
+    } else if (battlePlanData) {
+      setQuestions(STATIC_QUESTIONS);
+      setAnswers({ direction_focus: "", owner_role_shift: "", strategic_constraint: "", service_focus: "", non_negotiables: "", personal_outcome: "" });
     }
-  }, [questions, answers]);
+  }, [battlePlanData]);
+
+  // After load: if user has already completed questions, go to plan view
+  useEffect(() => {
+    if (loading || !battlePlanData) return;
+    const qa = battlePlanData.static_questions_answers;
+    const hasAnswers = qa?.answers && typeof qa.answers === "object" && Object.values(qa.answers).some((v: unknown) => typeof v === "string" && v.trim() !== "");
+    if (hasAnswers) {
+      setCurrentStep("plan");
+    } else {
+      setCurrentStep("welcome");
+    }
+  }, [loading, battlePlanData]);
   
   // Save to local storage whenever generatedData changes
   useEffect(() => {
@@ -113,7 +143,8 @@ export default function BattlePlanPage() {
           corevalues: [],
           fiveyeartarget: [],
           oneyeartarget: { targets: [] },
-          tenyeartarget: { targets: [] }
+          tenyeartarget: { targets: [] },
+          static_questions_answers: { questions: STATIC_QUESTIONS, answers: {} },
         };
         
         const { data: newData, error: insertError } = await supabase
@@ -221,8 +252,8 @@ export default function BattlePlanPage() {
     setBusinessPlanContent(content);
   }, []);
 
-  // Unified save handler
-  const handleSaveAll = async () => {
+  // Save edits (mission, vision, document) to DB — used when in edit mode
+  const handleSaveEdits = async () => {
     if (!battlePlanData?.id) return;
     try {
       setLoading(true);
@@ -251,31 +282,20 @@ export default function BattlePlanPage() {
     }
   };
 
-  // LocalStorage functions
+  // Single save action: persist AI content if present, otherwise save current edits
+  const handleSave = async () => {
+    if (generatedData) {
+      await handleSaveGeneratedContent();
+      return;
+    }
+    if (editMode) {
+      await handleSaveEdits();
+    }
+  };
+
+  // LocalStorage functions (generated data only)
   const loadFromLocalStorage = () => {
     try {
-      // Load questions
-      const storedQuestions = localStorage.getItem(STORAGE_KEY_QUESTIONS);
-      if (storedQuestions) {
-        const data = JSON.parse(storedQuestions);
-        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-          setQuestions(data.questions);
-          // Load answers if they exist
-          const storedAnswers = localStorage.getItem(STORAGE_KEY_ANSWERS);
-          if (storedAnswers) {
-            const answersData = JSON.parse(storedAnswers);
-            setAnswers(answersData);
-            // Update question completion status
-            setQuestions(data.questions.map((q: any) => ({
-              ...q,
-              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
-              user_answer: answersData[q.id] || null
-            })));
-          }
-        }
-      }
-      
-      // Load generated data if exists
       const storedGenerated = localStorage.getItem(STORAGE_KEY_GENERATED);
       if (storedGenerated) {
         const generated = JSON.parse(storedGenerated);
@@ -283,25 +303,6 @@ export default function BattlePlanPage() {
       }
     } catch (error) {
       console.error('Error loading from local storage:', error);
-    }
-  };
-  
-  const saveQuestionsToStorage = (questionsData: any[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_QUESTIONS, JSON.stringify({
-        questions: questionsData,
-        timestamp: new Date().toISOString()
-      }));
-    } catch (error) {
-      console.error('Error saving questions to storage:', error);
-    }
-  };
-  
-  const saveAnswersToStorage = (answersData: {[key: string]: string}) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(answersData));
-    } catch (error) {
-      console.error('Error saving answers to storage:', error);
     }
   };
   
@@ -316,8 +317,6 @@ export default function BattlePlanPage() {
   
   const clearLocalStorage = () => {
     try {
-      localStorage.removeItem(STORAGE_KEY_QUESTIONS);
-      localStorage.removeItem(STORAGE_KEY_ANSWERS);
       localStorage.removeItem(STORAGE_KEY_GENERATED);
       localStorage.removeItem(STORAGE_KEY_TIMESTAMP);
     } catch (error) {
@@ -325,83 +324,9 @@ export default function BattlePlanPage() {
     }
   };
   
-  // Question generation
-  const generateQuestions = async () => {
-    try {
-      setIsLoadingQuestions(true);
-      
-      // Check if we have cached questions
-      const stored = localStorage.getItem(STORAGE_KEY_QUESTIONS);
-      if (stored) {
-        const data = JSON.parse(stored);
-        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
-        const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0 && cacheAge < cacheMaxAge) {
-          setQuestions(data.questions);
-          setCurrentQuestionIndex(0);
-          const storedAnswers = localStorage.getItem(STORAGE_KEY_ANSWERS);
-          if (storedAnswers) {
-            const answersData = JSON.parse(storedAnswers);
-            setAnswers(answersData);
-            setQuestions(data.questions.map((q: any) => ({
-              ...q,
-              is_completed: answersData[q.id] && answersData[q.id].trim() !== '',
-              user_answer: answersData[q.id] || null
-            })));
-          } else {
-            setAnswers({});
-          }
-          setShowQuestions(true);
-          setProgress(0);
-          setIsLoadingQuestions(false);
-          return;
-        }
-      }
-      
-      const response = await fetch('/api/gemini/business-plan/generate-questions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create questions');
-      }
-
-      const result = await response.json();
-      
-      if (result.success && result.questions) {
-        setQuestions(result.questions);
-        saveQuestionsToStorage(result.questions);
-        setCurrentQuestionIndex(0);
-        setAnswers({});
-        setShowQuestions(true);
-        setProgress(0);
-      } else {
-        throw new Error('No questions data received');
-      }
-    } catch (error) {
-      console.error('Error creating questions:', error);
-      toast.error('Failed to create questions. Please try again.');
-    } finally {
-      setIsLoadingQuestions(false);
-    }
-  };
-  
   // Handle answer change
   const handleAnswerChange = (questionId: string, value: string) => {
-    const newAnswers = { ...answers, [questionId]: value };
-    setAnswers(newAnswers);
-    saveAnswersToStorage(newAnswers);
-    
-    // Update the question's completion status
-    setQuestions(prev => prev.map(q => 
-      q.id === questionId 
-        ? { ...q, is_completed: value.trim() !== '', user_answer: value }
-        : q
-    ));
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
   
   // Navigate to next question
@@ -426,23 +351,35 @@ export default function BattlePlanPage() {
     }
   };
   
-  // Save answers and proceed to generation
+  // Save answers to battle_plan and proceed to generation
   const handleCompleteQuestions = async () => {
+    if (!battlePlanData?.id) {
+      toast.error("Business plan not loaded. Please try again.");
+      return;
+    }
     try {
       setGenerating(true);
       
-      // Save answers
-      await fetch('/api/gemini/business-plan/save-answers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ answers }),
-      });
+      // Save questions and answers to battle_plan (single JSON column, same structure as growth-machine)
+      const { error: updateError } = await supabase
+        .from("battle_plan")
+        .update({
+          static_questions_answers: {
+            questions: questions,
+            answers: {
+              direction_focus: answers.direction_focus ?? "",
+              owner_role_shift: answers.owner_role_shift ?? "",
+              strategic_constraint: answers.strategic_constraint ?? "",
+              service_focus: answers.service_focus ?? "",
+              non_negotiables: answers.non_negotiables ?? "",
+              personal_outcome: answers.personal_outcome ?? "",
+            },
+          },
+        })
+        .eq("id", battlePlanData.id);
 
-      // Close question flow
-      setShowQuestions(false);
-      
+      if (updateError) throw updateError;
+
       // Generate business plan with answers
       const response = await fetch('/api/gemini/business-plan', {
         method: 'POST',
@@ -460,8 +397,10 @@ export default function BattlePlanPage() {
       }
       
       setGeneratedData(result.data);
-      setEditMode(true); // Enter edit mode after AI generates content
-      toast.success("AI assistant has created your business plan! Review and save when ready.");
+      await fetchBattlePlanData();
+      setCurrentStep("plan");
+      setEditMode(true);
+      toast.success("Your business plan has been generated. Review and save when ready.");
     } catch (err: any) {
       console.error('Error generating content:', err);
       const errorMessage = err.message || 'Failed to generate business plan content';
@@ -471,35 +410,9 @@ export default function BattlePlanPage() {
     }
   };
   
-  // Get category icon
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'Strategic Planning': return <Target className="w-4 h-4" />;
-      case 'Mission & Vision': return <Target className="w-4 h-4" />;
-      case 'Core Values': return <Zap className="w-4 h-4" />;
-      case 'Strategic Anchors': return <Building className="w-4 h-4" />;
-      case 'Purpose/Why': return <Brain className="w-4 h-4" />;
-      case 'Targets & Goals': return <Target className="w-4 h-4" />;
-      case 'Business Planning': return <TrendingUp className="w-4 h-4" />;
-      case 'Operations': return <Building className="w-4 h-4" />;
-      default: return <Brain className="w-4 h-4" />;
-    }
-  };
-  
-  // When AI generates content, start question flow
-  const handleGenerateWithAI = async () => {
-    // First create questions
-    await generateQuestions();
-  };
-  
-  // Regenerate - clear cache and start over
-  const handleRegenerate = () => {
-    clearLocalStorage();
-    setGeneratedData(null);
-    setQuestions([]);
-    setAnswers({});
+  const handleWelcomeComplete = () => {
     setCurrentQuestionIndex(0);
-    handleGenerateWithAI();
+    setCurrentStep("questions");
   };
 
   // Add useEffect to sync businessPlanContent with generatedData.business_plan_document_html
@@ -565,50 +478,126 @@ export default function BattlePlanPage() {
     }
   };
   
-  // Show loading state while creating questions
-  if (isLoadingQuestions) {
+  // Welcome screen (like growth-machine)
+  if (currentStep === "welcome") {
     return (
-      <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
-        <div className="max-w-md w-full mx-4">
-          <Card className="bg-transparent shadow-none border-none p-0">
-            <CardHeader className="text-left pb-6">
-              <CardTitle className="text-2xl text-slate-900 mb-2">
-                AI Analysis in Progress
-              </CardTitle>
-              <p className="text-slate-600 text-sm">
-                Our AI is analysing your business data to create personalised questions
-              </p>
-            </CardHeader>
-            
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <span className="text-sm text-slate-700">Analysing your business profile</span>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 text-white animate-spin" />
-                  </div>
-                  <span className="text-sm text-slate-700 font-medium">Creating personalised questions</span>
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4">
+        <Card className="border border-gray-200 max-w-3xl w-full mx-auto bg-gray-50">
+          <CardContent className="p-4 sm:p-8">
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-white" />
                 </div>
               </div>
-              
-              <div className="text-left">
-                <p className="text-xs text-slate-400 mt-1">
-                  This process is powered by advanced AI technology
-                </p>
+              <div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                  Welcome to Your Business Plan
+                </h3>
+                <div className="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto space-y-3">
+                  <p>
+                    This is where you define your strategic direction and how you'll get there.
+                  </p>
+                  <p>
+                    We'll ask you a few short questions, then generate a tailored business plan using your answers and your Growth & Fulfillment Machine data.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-center pt-4">
+                <Button
+                  onClick={handleWelcomeComplete}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base"
+                  size="lg"
+                >
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Start
+                </Button>
               </div>
             </div>
-          </Card>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
+  // Full-page questions (like growth-machine predefined questions, not modal)
+  if (currentStep === "questions") {
+    const currentQuestion = questions[currentQuestionIndex];
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)] py-4 sm:py-8 px-3 sm:px-4 overflow-x-hidden">
+        <Card className="border border-gray-200 max-w-3xl w-full mx-auto">
+          <CardHeader className="pb-4 px-4 sm:px-6">
+            <div className="flex items-center justify-end gap-4 mb-4">
+              <span className="text-sm font-medium text-gray-600">
+                {currentQuestionIndex + 1} of {questions.length}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+              />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6 px-4 sm:px-6">
+            {currentQuestion && (
+              <div className="space-y-4">
+                <h3 className="text-lg sm:text-2xl font-medium text-gray-900 mb-3">
+                  {currentQuestion.question_text}
+                </h3>
+                <Textarea
+                  value={answers[currentQuestion.id] || ""}
+                  onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                  placeholder="Type your answer here..."
+                  className="min-h-[160px] w-full border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 resize-none"
+                />
+              </div>
+            )}
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between pt-6 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (currentQuestionIndex > 0) {
+                    setIsTransitioning(true);
+                    setTimeout(() => { setCurrentQuestionIndex((i) => i - 1); setIsTransitioning(false); }, 300);
+                  }
+                }}
+                disabled={currentQuestionIndex === 0}
+                className="w-full sm:w-auto"
+              >
+                <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+                Back
+              </Button>
+              {currentQuestionIndex < questions.length - 1 ? (
+                <Button
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    setIsTransitioning(true);
+                    setTimeout(() => { setCurrentQuestionIndex((i) => i + 1); setIsTransitioning(false); }, 300);
+                  }}
+                  disabled={isTransitioning}
+                >
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                  onClick={handleCompleteQuestions}
+                  disabled={generating}
+                >
+                  {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  {generating ? "Generating…" : "Complete & Generate Plan"}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Plan view: main content
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="mb-5 flex items-center justify-between">
@@ -618,59 +607,31 @@ export default function BattlePlanPage() {
             Define and manage your business strategy and vision
           </p>
         </div>
-        {/* Unified Edit/Save/Cancel Buttons */}
-        {!editMode ? (
-          <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setEditMode(true)}>
-            Edit All
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => setEditMode(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveAll}>
-              Save All
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* AI Assistant Section */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg flex-wrap gap-4 mb-5">
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-gray-900">AI Assistant Ready</h3>
-            <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-              We've analysed your company data and our AI assistant can help create your strategic business plan. 
-              You can also write it manually if you prefer.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2 ml-4">
-          {generatedData && (
-            <Button
-              size="sm"
-              className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
-              onClick={handleSaveGeneratedContent}
-            >
-              <Save className="h-3 w-3 mr-1" />
-              Save AI Content
-            </Button>
+        <div className="flex gap-2">
+          {!editMode ? (
+            <>
+              <Button
+                size="sm"
+                className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleSave}
+                disabled={!generatedData}
+              >
+                <Save className="h-3 w-3 mr-1" />
+                Save
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => setEditMode(true)}>
+                Edit All
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => setEditMode(false)}>Cancel</Button>
+              <Button size="sm" className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
+                <Save className="h-3 w-3 mr-1" />
+                Save
+              </Button>
+            </>
           )}
-          <Button
-            size="sm"
-            className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={generatedData ? handleRegenerate : handleGenerateWithAI}
-            disabled={generating || isLoadingQuestions}
-          >
-            {(generating || isLoadingQuestions) ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            {(generating || isLoadingQuestions) ? 'AI Working...' : generatedData ? 'Regenerate with AI' : 'Let AI Help Create This'}
-          </Button>
         </div>
       </div>
 
@@ -682,7 +643,7 @@ export default function BattlePlanPage() {
         <div className="space-y-4">
           {/* Row 1: Mission & Vision - Full Width */}
           <Card className="overflow-hidden border-gray-200">
-            <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b border-gray-200 !px-5 !py-2">
+            <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b border-gray-200 !px-5 !py-2 mb-5">
               <CardTitle className="!text-xl font-medium text-gray-800 uppercase">Mission & Vision</CardTitle>
             </CardHeader>
             <BattlePlanDetails 
@@ -754,180 +715,6 @@ export default function BattlePlanPage() {
           </Card>
         </div>
       )}
-      
-      {/* Question Flow Dialog */}
-      <Dialog 
-        open={showQuestions} 
-        onOpenChange={(open) => {
-          // Prevent closing while questions are loading
-          if (!open && isLoadingQuestions) {
-            return;
-          }
-          setShowQuestions(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden p-0 gap-0">
-          {/* Header with Progress */}
-          <div className="px-8 pt-8 pb-6 border-b border-gray-100">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <DialogTitle className="text-2xl font-semibold text-gray-900 mb-2">
-                  Let's Personalise Your Business Plan
-                </DialogTitle>
-                <p className="text-sm text-gray-500">
-                  Answer {questions.length} questions to help us create a tailored business plan
-                </p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full">
-                <span className="text-xs font-medium text-blue-700">
-                  {currentQuestionIndex + 1} / {questions.length}
-                </span>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="relative w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="absolute top-0 left-0 h-full bg-blue-600 transition-all duration-300 ease-out"
-                style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {questions.length > 0 && (
-            <>
-              {/* Question Content */}
-              <div className="px-8 py-8 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 240px)' }}>
-                {(() => {
-                  const currentQuestion = questions[currentQuestionIndex];
-                  if (!currentQuestion) return null;
-
-                  return (
-                    <div className="space-y-6">
-                      {/* Question Text */}
-                      <div>
-                        <h2 className="text-xl font-medium text-gray-900 leading-relaxed">
-                          {currentQuestion.question_text}
-                        </h2>
-                      </div>
-
-                      {/* Answer Input */}
-                      <div>
-                        {currentQuestion.question_type === 'select' && currentQuestion.options ? (
-                          <Select
-                            value={answers[currentQuestion.id] || ''}
-                            onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
-                          >
-                            <SelectTrigger className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                              <SelectValue placeholder="Select an option..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {currentQuestion.options.map((option: string, index: number) => (
-                                <SelectItem key={index} value={option} className="text-base py-3">
-                                  {option}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : currentQuestion.question_type === 'text' ? (
-                          <Textarea
-                            value={answers[currentQuestion.id] || ''}
-                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                            placeholder="Type your answer here..."
-                            className="min-h-[80px] text-base border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none placeholder:text-gray-400"
-                          />
-                        ) : (
-                          <Textarea
-                            value={answers[currentQuestion.id] || ''}
-                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                            placeholder="Type your answer here..."
-                            className="min-h-[160px] text-base border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none placeholder:text-gray-400"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Footer Navigation */}
-              <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50">
-                <div className="flex items-center justify-between">
-                  {/* Previous Button */}
-                  <Button
-                    variant="ghost"
-                    onClick={previousQuestion}
-                    disabled={currentQuestionIndex === 0}
-                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-0"
-                  >
-                    <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
-                    Previous
-                  </Button>
-
-                  {/* Question Dots */}
-                  <div className="flex gap-1.5">
-                    {questions.map((question, index) => {
-                      const hasAnswer = answers[question.id] && answers[question.id].trim() !== '';
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentQuestionIndex(index)}
-                          className={`h-1.5 rounded-full transition-all duration-200 ${
-                            index === currentQuestionIndex
-                              ? 'bg-blue-600 w-8'
-                              : hasAnswer
-                              ? 'bg-blue-400 w-1.5'
-                              : 'bg-gray-300 w-1.5 hover:bg-gray-400'
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Next/Complete Button */}
-                  {currentQuestionIndex < questions.length - 1 ? (
-                    <Button
-                      onClick={nextQuestion}
-                      disabled={isTransitioning}
-                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                    >
-                      {isTransitioning ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          Next
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleCompleteQuestions}
-                      disabled={generating}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
-                    >
-                      {generating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Complete
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 } 

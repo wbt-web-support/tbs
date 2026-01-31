@@ -341,24 +341,7 @@ export default function PagePermissionsPage() {
         </div>
       </Card>
 
-      {/* Pending Changes Banner */}
-      {hasPendingChanges && (
-        <Card className="p-4 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-400 shadow-sm">
-              <AlertCircle className="w-5 h-5 text-amber-900" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-slate-900 text-sm">
-                You have {changedCount} unsaved change{changedCount !== 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Changes are highlighted in amber. Click "Save Changes" to apply them.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
+     
 
       {/* Permissions Matrix Table */}
       {filteredUsers.length === 0 ? (

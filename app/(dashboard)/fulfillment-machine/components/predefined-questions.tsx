@@ -7,6 +7,7 @@ import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 interface PredefinedQuestionsProps {
@@ -562,11 +563,11 @@ export default function PredefinedQuestions({ machineId, teamServiceId, serviceN
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Input
+                  <Textarea
                     value={answers.completion_event}
                     onChange={(e) => setAnswers({ ...answers, completion_event: e.target.value })}
                     placeholder="Enter your completion event"
-                    className="w-full min-h-12 border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors"
+                    className="w-full min-h-[120px] border-2 border-gray-300 bg-white placeholder:text-gray-500 focus-visible:border-gray-400 transition-colors resize-none"
                   />
                   <Button
                     onClick={() => handleImproveField("completion_event", answers.completion_event)}

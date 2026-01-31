@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Sparkles, ArrowRight, ArrowLeft, Check, Rocket, ImageIcon } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight, ArrowLeft, Check, Rocket } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Card, CardHeader, CardContent, CardDescription } from "@/components/ui/card";
@@ -81,7 +81,6 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
   const [showCustomServiceInput, setShowCustomServiceInput] = useState(false);
   const [showFulfillmentPrompt, setShowFulfillmentPrompt] = useState(false);
   const [fulfillmentRedirecting, setFulfillmentRedirecting] = useState(false);
-  const [showStepsExampleDialog, setShowStepsExampleDialog] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -362,6 +361,14 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
         ? prev.traffic_sources.filter((s) => s !== source)
         : [...prev.traffic_sources, source],
     }));
+  };
+
+  const handleTrafficSourceSelectAll = () => {
+    setAnswers((prev) => ({ ...prev, traffic_sources: [...TRAFFIC_SOURCE_OPTIONS] }));
+  };
+
+  const handleTrafficSourceClear = () => {
+    setAnswers((prev) => ({ ...prev, traffic_sources: [] }));
   };
 
   const handleServiceChange = (value: string) => {
@@ -774,6 +781,22 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                 <p className="text-sm text-gray-600 mb-4">
                   This is the triggering event. No need to overthink it.
                 </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mb-3">
+                  <button
+                    type="button"
+                    onClick={handleTrafficSourceSelectAll}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTrafficSourceClear}
+                    className="text-gray-500 hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {TRAFFIC_SOURCE_OPTIONS.map((source) => (
                     <div key={source} className="flex items-center space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
@@ -848,23 +871,11 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
                 <h3 className="text-lg sm:text-2xl font-medium text-gray-900 mb-3">
                   List the main steps that happen between someone discovering you and the job being sold.
                 </h3>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-sm text-gray-600 mb-4">
                   Keep this high level.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-blue-900 mb-2">Examples:</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowStepsExampleDialog(true)}
-                      className="text-blue-600 hover:text-blue-700 border-blue-300"
-                    >
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      See example growth machine
-                    </Button>
-                  </div>
+                  <p className="text-sm font-medium text-blue-900 mb-2">Examples:</p>
                   <ul className="text-sm text-blue-800 list-disc list-inside space-y-1">
                     <li>Ads or marketing activity</li>
                     <li>Website or landing page</li>
@@ -967,22 +978,6 @@ export default function PredefinedQuestions({ machineId, preselectedServiceName,
           </div>
         </CardContent>
       </Card>
-
-      {/* Example Growth Machine image popup */}
-      <Dialog open={showStepsExampleDialog} onOpenChange={setShowStepsExampleDialog}>
-        <DialogContent className="sm:max-w-7xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>Example of a Growth Machine</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <img
-              src="/growth-fimga.png"
-              alt="Example of a Growth Machine"
-              className="w-full h-auto rounded-lg border border-gray-200"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Fulfillment Machine Prompt Dialog */}
       <Dialog

@@ -10,6 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PredefinedQuestions from "./components/predefined-questions";
 import MachinePlanner from "./components/machine-planner";
 import MachineDesign from "./components/machine-design";
+import MachineExampleFloater, { type ExampleImage } from "@/components/machine-example-floater";
+
+const GROWTH_EXAMPLE_IMAGES: ExampleImage[] = [
+  { src: "/flows/growth/image.png", alt: "Growth machine example 1" },
+  { src: "/flows/growth/image-2.png", alt: "Growth machine example 2" },
+  { src: "/flows/growth/image-3.png", alt: "Growth machine example 3" },
+];
 
 type FlowStep = "welcome" | "questions" | "machine";
 
@@ -193,9 +200,15 @@ export default function GrowthMachinePage() {
   // Full-page questions: only when 0 team_services and user clicked welcome
   if (currentStep === "questions") {
     return (
-      <PredefinedQuestions
-        onComplete={handleQuestionsComplete}
-      />
+      <>
+        <PredefinedQuestions
+          onComplete={handleQuestionsComplete}
+        />
+        <MachineExampleFloater
+          title="See growth machine example"
+          images={GROWTH_EXAMPLE_IMAGES}
+        />
+      </>
     );
   }
 
@@ -252,7 +265,7 @@ export default function GrowthMachinePage() {
           <div className="flex-1 min-h-0 overflow-auto">
             {!selectedTab ? null : tabHasMachine ? (
               selectedTab.machine && (
-                <Tabs defaultValue="planner" className="w-full h-full flex flex-col">
+                <Tabs defaultValue="planner" className="w-full flex flex-col">
                   <div className="px-3 sm:px-6 pt-4 sm:pt-6 shrink-0">
                     <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 break-words">{selectedTab.service_name}</h2>
                     <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -266,7 +279,7 @@ export default function GrowthMachinePage() {
                       </TabsTrigger>
                     </TabsList>
                   </div>
-                  <TabsContent value="planner" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6 flex-1 min-h-0 overflow-auto">
+                  <TabsContent value="planner" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6">
                     <MachinePlanner
                       machineId={selectedTab.machine.id}
                       engineType="GROWTH"
@@ -274,7 +287,7 @@ export default function GrowthMachinePage() {
                       isPlannerTabActive={true}
                     />
                   </TabsContent>
-                  <TabsContent value="design" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6 flex-1 min-h-0 overflow-auto">
+                  <TabsContent value="design" className="px-3 sm:px-6 pb-4 sm:pb-6 mt-4 sm:mt-6">
                     <MachineDesign
                       machineId={selectedTab.machine.id}
                       engineType="GROWTH"
@@ -291,6 +304,10 @@ export default function GrowthMachinePage() {
             )}
           </div>
         </div>
+        <MachineExampleFloater
+          title="See growth machine example"
+          images={GROWTH_EXAMPLE_IMAGES}
+        />
       </div>
     );
   }

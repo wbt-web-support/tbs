@@ -123,6 +123,23 @@ const navigationSections: NavigationSection[] = [
       // }
     ],
   },
+
+  {
+    title: "Value Machines",
+    items: [
+      {
+        name: "Growth Machine",
+        href: "/growth-machine",
+        icon: LineChart,
+      },
+      {
+        name: "Fulfilment Machine",
+        href: "/fulfillment-machine",
+        icon: Gauge,
+      },
+    ],
+  },
+
   {
     title: "Strategy",
     items: [
@@ -141,21 +158,6 @@ const navigationSections: NavigationSection[] = [
         href: "/playbook-planner",
         icon: BookText,
       }
-    ],
-  },
-  {
-    title: "Value Machines",
-    items: [
-      {
-        name: "Growth Machine",
-        href: "/growth-machine",
-        icon: LineChart,
-      },
-      {
-        name: "Fulfilment Machine",
-        href: "/fulfillment-machine",
-        icon: Gauge,
-      },
     ],
   },
  

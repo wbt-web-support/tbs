@@ -156,22 +156,36 @@ function formatCompanyContext(companyData: any) {
     });
   }
 
-  // Format existing machines (for context)
+  // Format existing machines (Growth & Fulfillment) with full Q&A context for business plan
   if (companyData.machines && companyData.machines.length > 0) {
     parts.push(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## ⚙️ EXISTING MACHINES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+## ⚙️ EXISTING MACHINES (GROWTH & FULFILLMENT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Use this context to align the business plan with how the business attracts and delivers value.`);
     
     companyData.machines.forEach((machine: any, index: number) => {
       parts.push(`
-🔧 Machine #${index + 1} (${machine.enginetype}):
+🔧 Machine #${index + 1} — ${machine.enginetype}:
 - Name: ${machine.enginename || 'No name'}
 - Type: ${machine.enginetype || 'Unknown'}
 - Description: ${machine.description || 'No description'}
 - Triggering Events: ${machine.triggeringevents ? JSON.stringify(machine.triggeringevents) : 'None'}
 - Ending Events: ${machine.endingevent ? JSON.stringify(machine.endingevent) : 'None'}
 - Actions/Activities: ${machine.actionsactivities ? JSON.stringify(machine.actionsactivities) : 'None'}`);
+
+      // Include machine onboarding answers (primary_service, service_description, traffic_sources, ending_event, actions_activities, etc.)
+      if (machine.answers && typeof machine.answers === 'object' && Object.keys(machine.answers).length > 0) {
+        parts.push(`\n  User answers from ${machine.enginetype} machine onboarding:`);
+        const qList = machine.questions?.questions;
+        Object.entries(machine.answers).forEach(([key, value]: [string, any]) => {
+          if (value == null || String(value).trim() === '') return;
+          const label = qList?.find((q: any) => q.id === key)?.question_text || key;
+          const display = Array.isArray(value) ? value.join(', ') : String(value);
+          parts.push(`  - ${label}: ${display}`);
+        });
+      }
     });
   }
 
@@ -344,6 +358,7 @@ CRITICAL: You must respond with ONLY a valid JSON object. Do not include any exp
 }
 
 IMPORTANT RULES:
+- This is an internal tool for business owners documenting their own plans. Write in first person (we/our) or as internal strategy documentation. Do NOT write as if addressing customers or in marketing/sales tone.
 - Do NOT include empty strings or null values
 - Each array must contain at least 3 items
 - All text must be specific and actionable
