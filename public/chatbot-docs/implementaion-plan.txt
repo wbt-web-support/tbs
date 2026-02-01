@@ -1,0 +1,505 @@
+Node-Based Chatbot System - Implementation Plan
+Overview
+This document outlines the step-by-step implementation plan for building a visual node-based chatbot builder where superadmins can create chatbots by connecting data nodes, instruction nodes, and configuration nodes to generate custom AI assistants with role-based data access.
+
+Phase 1: Core Foundation (Week 1-2)
+Goal
+Get the basic infrastructure working with one simple chatbot that can answer questions using assembled prompts.
+Tasks
+1.1 Database Setup
+Time: 1 day
+[ ] Create chatbots table in Supabase
+[ ] Create nodes table in Supabase
+[ ] Create chatbot_nodes junction table in Supabase
+[ ] Set up Row Level Security (RLS) policies for superadmin-only access
+[ ] Add indexes for performance (chatbot_id, node_id)
+1.2 Backend API - Basic CRUD
+Time: 2-3 days
+Chatbots API:
+[ ] POST /api/chatbots - Create new chatbot
+[ ] GET /api/chatbots - List all chatbots
+[ ] GET /api/chatbots/:id - Get single chatbot
+[ ] PUT /api/chatbots/:id - Update chatbot
+[ ] DELETE /api/chatbots/:id - Delete chatbot
+Nodes API:
+[ ] POST /api/nodes - Create new node
+[ ] GET /api/nodes - List all available nodes
+[ ] GET /api/nodes/:id - Get single node
+[ ] PUT /api/nodes/:id - Update node
+[ ] DELETE /api/nodes/:id - Delete node
+Chatbot-Nodes Connection API:
+[ ] POST /api/chatbots/:id/nodes - Attach node to chatbot
+[ ] GET /api/chatbots/:id/nodes - Get all nodes for a chatbot
+[ ] DELETE /api/chatbots/:id/nodes/:nodeId - Remove node from chatbot
+[ ] PUT /api/chatbots/:id/nodes/reorder - Change node order
+1.3 Create First Two Node Types
+Time: 2 days
+Node Type 1: Data Access Node Purpose: Defines what data the chatbot can access
+// Example node configuration
+{
+  node_type: "data_access",
+  name: "Team Products Access",
+  settings: {
+    data_source: "products",
+    scope: "team_specific", // "all", "team_specific", "user_specific"
+    filters: {
+      include_archived: false,
+      category: null // or specific category
+    }
+  }
+}
+
+Implementation:
+[ ] Create node type definition/schema
+[ ] Build prompt generation function for this node type
+[ ] Build data query function that respects scope settings
+[ ] Test with sample data
+Node Type 2: Instructions Node Purpose: Adds custom instructions/SOPs to the chatbot
+{
+  node_type: "instructions",
+  name: "Customer Service Guidelines",
+  settings: {
+    content: "Always be polite and professional...",
+    priority: "high" // affects where in prompt this appears
+  }
+}
+
+Implementation:
+[ ] Create node type definition/schema
+[ ] Build prompt generation function
+[ ] Test with sample instructions
+1.4 Prompt Assembly Engine
+Time: 2 days
+Build the core logic that takes connected nodes and builds a complete system prompt.
+File: lib/prompt-assembler.js
+[ ] Function: assemblePrompt(chatbotId, userContext)
+Fetches all nodes for chatbot (ordered)
+Iterates through each node
+Calls node-specific prompt builder
+Combines into final system prompt
+Returns assembled prompt
+async function assemblePrompt(chatbotId, userContext) {
+  const chatbot = await getChatbot(chatbotId);
+  const nodes = await getNodesForChatbot(chatbotId); // ordered by order field
+  
+  let systemPrompt = chatbot.base_prompt || "You are a helpful AI assistant.";
+  
+  for (const node of nodes) {
+    const nodeContribution = await buildPromptFromNode(node, userContext);
+    systemPrompt += "\n\n" + nodeContribution;
+  }
+  
+  return systemPrompt;
+}
+
+[ ] Function: buildPromptFromNode(node, userContext)
+
+
+Switch statement based on node_type
+Calls specific builder for each type
+Returns prompt string
+[ ] Create builder for "data_access" node type
+
+
+[ ] Create builder for "instructions" node type
+
+
+1.5 Gemini Integration
+Time: 1-2 days
+Chat Endpoint:
+[ ] POST /api/chatbot/:id/chat - Main chat endpoint
+Implementation:
+async function handleChatRequest(chatbotId, userMessage, userId, teamId) {
+  // 1. Assemble system prompt
+  const systemPrompt = await assemblePrompt(chatbotId, { userId, teamId });
+  
+  // 2. Call Gemini
+  const response = await gemini.generateContent({
+    contents: [
+      { role: "user", parts: [{ text: systemPrompt }] },
+      { role: "model", parts: [{ text: "Understood." }] },
+      { role: "user", parts: [{ text: userMessage }] }
+    ]
+  });
+  
+  // 3. Return response
+  return response.text();
+}
+
+[ ] Set up Gemini API credentials
+[ ] Create Gemini client wrapper
+[ ] Implement chat endpoint
+[ ] Add error handling
+[ ] Add rate limiting
+1.6 Simple Admin UI (List View)
+Time: 2-3 days
+Build basic CRUD interface - no visual editor yet, just lists and forms.
+Pages needed:
+Page 1: Chatbots List (/admin/chatbots)
+[ ] Table showing all chatbots
+[ ] Columns: Name, Created Date, Active, Actions
+[ ] "Create New Chatbot" button
+[ ] Edit/Delete buttons per row
+[ ] Click row → Goes to editor
+Page 2: Chatbot Editor - Basic (/admin/chatbots/:id/edit)
+[ ] Form to edit chatbot name and base prompt
+[ ] Section: "Connected Nodes"
+[ ] List of currently connected nodes (with remove button)
+[ ] Dropdown: "Add Node" (shows available nodes)
+[ ] Save button
+Page 3: Nodes Library (/admin/nodes)
+[ ] Table showing all available nodes
+[ ] Columns: Name, Type, Created Date, Actions
+[ ] "Create New Node" button
+[ ] Edit/Delete buttons per row
+Page 4: Node Creator/Editor (/admin/nodes/new or /admin/nodes/:id/edit)
+[ ] Form with node name
+[ ] Dropdown for node type
+[ ] Dynamic settings form based on selected type
+[ ] Save button
+1.7 Testing Phase 1
+Time: 1 day
+[ ] Create test chatbot with 2-3 nodes
+[ ] Test prompt assembly
+[ ] Send test messages through chat endpoint
+[ ] Verify responses make sense
+[ ] Test data filtering (team_id, user_id scoping)
+[ ] Fix any bugs
+
+Phase 2: Expand Node Types & Features (Week 3-4)
+Goal
+Add more node types, implement web search, and build sub-agent support.
+Tasks
+2.1 Add More Node Types
+Time: 4-5 days
+Node Type 3: Sub-Agent Node Purpose: Adds specialized expertise to the chatbot
+{
+  node_type: "sub_agent",
+  name: "Financial Analysis Agent",
+  settings: {
+    specialization: "financial",
+    expertise_prompt: "You are a financial analysis expert. Focus on...",
+    query_parameter: "agent=financial" // adds to endpoint
+  }
+}
+
+Implementation:
+[ ] Create node type schema
+[ ] Build prompt generation function
+[ ] Modify chat endpoint to accept ?agent=X parameter
+[ ] Filter sub-agent nodes based on parameter
+[ ] Test with multiple sub-agents
+Node Type 4: Web Search Node Purpose: Enables web search for specific queries
+{
+  node_type: "web_search",
+  name: "Product Web Search",
+  settings: {
+    trigger_keywords: ["product", "review", "compare", "latest"],
+    search_scope: "product_reviews",
+    max_results: 5,
+    auto_trigger: false
+  }
+}
+
+Implementation:
+[ ] Create node type schema
+[ ] Implement keyword detection logic
+[ ] Integrate web search API (Google, Bing, or custom)
+[ ] Build search result formatter
+[ ] Add search results to prompt context
+[ ] Test with various queries
+Node Type 5: Meeting Data Node Node Type 6: Customer Data Node Node Type 7: Performance Data Node
+For each:
+[ ] Define settings schema
+[ ] Build prompt generation function
+[ ] Build data query function with proper filtering
+[ ] Test thoroughly
+2.2 Enhanced Prompt Assembly
+Time: 2 days
+[ ] Add prompt optimization (token counting, truncation)
+[ ] Implement node priority/ordering logic
+[ ] Add conditional node inclusion (e.g., only include web search if triggered)
+[ ] Add prompt templates per node type
+[ ] Add validation to prevent conflicting nodes
+2.3 Data Query Layer
+Time: 3 days
+Build abstraction layer for querying Supabase with proper filtering.
+File: lib/data-queries.js
+// Generic query builder that respects scope settings
+async function queryData(tableName, scope, filters, userContext) {
+  let query = supabase.from(tableName).select('*');
+  
+  // Apply scope filtering
+  if (scope === 'team_specific') {
+    query = query.eq('team_id', userContext.teamId);
+  } else if (scope === 'user_specific') {
+    query = query.eq('user_id', userContext.userId);
+  }
+  // 'all' scope = no filtering (superadmin only)
+  
+  // Apply additional filters from node settings
+  if (filters.category) {
+    query = query.eq('category', filters.category);
+  }
+  if (!filters.include_archived) {
+    query = query.eq('archived', false);
+  }
+  
+  return await query;
+}
+
+Implementation:
+[ ] Create query builder for each data source
+[ ] Add RLS as backup security layer
+[ ] Implement caching for frequently accessed data
+[ ] Add query performance monitoring
+[ ] Test all scope combinations
+2.4 Endpoint Generation & Management
+Time: 1-2 days
+[ ] Generate unique endpoint URLs per chatbot
+[ ] Format: /api/chatbot/{chatbot_id}/chat
+[ ] With sub-agents: /api/chatbot/{chatbot_id}/chat?agent=financial
+[ ] Create endpoint testing UI in admin
+[ ] Add endpoint documentation generator
+[ ] Display endpoint + usage instructions after chatbot creation
+2.5 Testing Phase 2
+Time: 2 days
+[ ] Create chatbots for each role (Business Owner, Team Member, Customer)
+[ ] Test data isolation between roles
+[ ] Test sub-agent switching
+[ ] Test web search triggering
+[ ] Test with real user data
+[ ] Performance testing (response time, token usage)
+[ ] Fix bugs
+
+Phase 3: Visual Node Editor (Week 5-6)
+Goal
+Build the drag-and-drop visual editor for connecting nodes.
+Tasks
+3.1 Choose Visual Editor Library
+Time: 1 day
+Options:
+React Flow (recommended) - https://reactflow.dev/
+Xyflow
+Drawflow
+Custom canvas implementation
+Decision criteria:
+Easy to customize
+
+
+Good documentation
+
+
+Active maintenance
+
+
+Supports drag-drop, connections, node settings panel
+
+
+[ ] Research and choose library
+
+
+[ ] Install and set up in project
+
+
+[ ] Create basic proof of concept
+
+
+3.2 Build Visual Canvas
+Time: 3-4 days
+Page: /admin/chatbots/:id/editor
+Components:
+Left Sidebar - Node Library:
+[ ] List of all available nodes (grouped by type)
+[ ] Search/filter nodes
+[ ] Drag nodes to canvas
+[ ] "Create New Node" quick button
+Center Canvas:
+[ ] Drag-and-drop area
+[ ] Show connected nodes visually
+[ ] Lines connecting nodes to chatbot (or just ordered list)
+[ ] Node cards show: icon, name, type
+[ ] Click node to select
+[ ] Delete node from canvas
+[ ] Reorder nodes (drag to reposition)
+Right Sidebar - Node Settings:
+[ ] Shows settings when node is selected
+[ ] Dynamic form based on node type
+[ ] Save changes button
+[ ] Preview what this node adds to prompt
+Top Bar:
+[ ] Chatbot name (editable)
+[ ] Save button (saves entire configuration)
+[ ] Test button (opens chat test modal)
+[ ] Back to list button
+3.3 Node Settings Forms
+Time: 2-3 days
+Build dynamic forms for each node type's settings.
+Implementation:
+[ ] Create form component that renders based on settings schema
+[ ] Support input types: text, select, checkbox, multi-select, JSON editor
+[ ] Add validation per field
+[ ] Real-time updates (no explicit save needed)
+[ ] "Reset to default" button
+Example for Data Access Node:
+<SettingsForm>
+  <Select label="Data Source" options={['products', 'meetings', 'customers']} />
+  <Select label="Scope" options={['all', 'team_specific', 'user_specific']} />
+  <Input label="Category Filter" optional />
+  <Checkbox label="Include Archived" />
+</SettingsForm>
+
+3.4 Visual Feedback & UX
+Time: 2 days
+[ ] Add node type icons/colors for visual distinction
+[ ] Show node count badge on chatbot card
+[ ] Add loading states during save
+[ ] Add success/error toast notifications
+[ ] Add "unsaved changes" warning
+[ ] Add keyboard shortcuts (delete, copy, etc.)
+[ ] Add undo/redo functionality
+3.5 Testing Modal
+Time: 1-2 days
+Build in-editor chat testing interface.
+Modal: Chat Tester
+[ ] Opens from editor
+[ ] Shows assembled system prompt (expandable)
+[ ] Chat interface to test the chatbot
+[ ] Can select user role for testing (to simulate different user_id/team_id)
+[ ] Shows response time and token usage
+[ ] Clear chat button
+3.6 Testing Phase 3
+Time: 1-2 days
+[ ] Test drag-and-drop functionality
+[ ] Test all node settings forms
+[ ] Test saving and loading configurations
+[ ] Test chat functionality from editor
+[ ] Cross-browser testing
+[ ] Mobile responsive testing (if needed)
+[ ] Fix bugs
+
+Phase 4: Production Features (Week 7-8)
+Goal
+Add production-ready features, monitoring, and polish.
+Tasks
+4.1 Chatbot Versioning
+Time: 2 days
+[ ] Add version tracking to chatbots
+[ ] Save history of prompt configurations
+[ ] Ability to rollback to previous version
+[ ] Compare versions side-by-side
+[ ] Add "Draft" vs "Published" status
+4.2 Analytics & Monitoring
+Time: 2-3 days
+Dashboard: /admin/chatbots/:id/analytics
+Track and display:
+[ ] Total messages sent
+[ ] Average response time
+[ ] Token usage and costs
+[ ] Most common queries
+[ ] Error rate
+[ ] User satisfaction (if feedback implemented)
+[ ] Web search trigger rate
+Implementation:
+[ ] Add logging to chat endpoint
+[ ] Store metrics in database or analytics service
+[ ] Build analytics dashboard
+[ ] Add date range filters
+[ ] Export data as CSV
+4.3 Node Templates & Presets
+Time: 2 days
+Make it easier to create common chatbot configurations.
+Features:
+[ ] Save chatbot configuration as template
+[ ] "Create from template" option
+[ ] Pre-built templates for common use cases:
+"Business Owner Full Access"
+"Team Member Standard"
+"Customer Support Bot"
+[ ] Template marketplace/library
+4.4 Advanced Node Features
+Time: 2-3 days
+Conditional Nodes:
+[ ] Nodes that only activate based on conditions
+[ ] Example: "Only include web search if query contains X"
+Node Dependencies:
+[ ] Some nodes require other nodes to be present
+[ ] Visual indication of dependencies
+[ ] Warning if dependency missing
+Node Groups:
+[ ] Group related nodes together
+[ ] Collapse/expand groups in editor
+[ ] Apply settings to entire group
+4.5 Security & Validation
+Time: 2 days
+[ ] Add input sanitization for all user inputs
+[ ] Validate node settings before save
+[ ] Prevent malicious prompt injection in custom instructions
+[ ] Add rate limiting per chatbot endpoint
+[ ] Add request authentication/API keys for endpoints
+[ ] Audit logging for all admin actions
+4.6 Documentation
+Time: 2 days
+[ ] Write API documentation for endpoints
+[ ] Create user guide for superadmins
+[ ] Document each node type and its settings
+[ ] Create video tutorials for editor
+[ ] Add in-app tooltips and help text
+[ ] Create troubleshooting guide
+4.7 Error Handling & Resilience
+Time: 2 days
+[ ] Graceful degradation if Gemini API fails
+[ ] Retry logic with exponential backoff
+[ ] Fallback responses for errors
+[ ] Better error messages for users
+[ ] Error monitoring and alerting
+[ ] Timeout handling for long-running queries
+4.8 Performance Optimization
+Time: 2 days
+[ ] Implement prompt caching (cache assembled prompts)
+[ ] Database query optimization
+[ ] Add indexes for frequently queried fields
+[ ] Implement response caching for common queries
+[ ] Lazy load nodes in editor
+[ ] Optimize bundle size
+4.9 Final Testing & Bug Fixes
+Time: 3-4 days
+[ ] End-to-end testing of all features
+[ ] Load testing (simulate many concurrent users)
+[ ] Security testing (try to break data isolation)
+[ ] User acceptance testing with real users
+[ ] Fix all critical and high-priority bugs
+[ ] Regression testing
+
+Phase 5: Deployment & Launch (Week 9)
+Tasks
+5.1 Deployment Preparation
+Time: 2 days
+[ ] Set up production environment (Vercel/AWS/etc)
+[ ] Configure environment variables
+[ ] Set up production database
+[ ] Migrate data from dev to production
+[ ] Set up CDN for static assets
+[ ] Configure domain and SSL
+5.2 Monitoring Setup
+Time: 1 day
+[ ] Set up error tracking (Sentry, Rollbar, etc)
+[ ] Set up performance monitoring
+[ ] Set up uptime monitoring
+[ ] Configure alerts for critical issues
+[ ] Set up logging infrastructure
+5.3 Launch
+Time: 1 day
+[ ] Final smoke tests in production
+[ ] Deploy to production
+[ ] Create initial chatbots for each role
+[ ] Train superadmin users
+[ ] Announce launch to team
+[ ] Monitor for issues
+5.4 Post-Launch
+Time: Ongoing
+[ ] Monitor analytics and user feedback
+[ ] Fix urgent bugs
+[ ] Iterate on node types based on usage
+[ ] Plan next features
+

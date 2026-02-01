@@ -1,0 +1,55 @@
+import type { NodeDefinition } from "./types";
+import { companyOnboardingNode } from "./company-onboarding";
+import { departmentsNode } from "./departments";
+import { financeAnalysisNode } from "./finance-analysis";
+import { googleCalendarEventsNode } from "./google-calendar-events";
+import { globalServicesNode } from "./global-services";
+import { leaveApprovalsNode } from "./leave-approvals";
+import { leaveEntitlementsNode } from "./leave-entitlements";
+import { machinesNode } from "./machines";
+import { performanceKpisNode } from "./performance-kpis";
+import { playbookAssignmentsNode } from "./playbook-assignments";
+import { playbooksNode } from "./playbooks";
+import { softwareNode } from "./software";
+import { sopDataNode } from "./sop-data";
+import { tasksNode } from "./tasks";
+import { teamLeavesNode } from "./team-leaves";
+import { teamServicesNode } from "./team-services";
+import { battlePlanNode } from "./battle-plan";
+import { aiInstructionsNode } from "./ai-instructions";
+import { instructionsNode } from "./instructions";
+
+const ALL_NODES: NodeDefinition[] = [
+  companyOnboardingNode,
+  departmentsNode,
+  financeAnalysisNode,
+  googleCalendarEventsNode,
+  globalServicesNode,
+  leaveApprovalsNode,
+  leaveEntitlementsNode,
+  machinesNode,
+  performanceKpisNode,
+  playbookAssignmentsNode,
+  playbooksNode,
+  softwareNode,
+  sopDataNode,
+  tasksNode,
+  teamLeavesNode,
+  teamServicesNode,
+  battlePlanNode,
+  aiInstructionsNode,
+  instructionsNode,
+];
+
+export type { NodeDefinition };
+export { ALL_NODES };
+
+export const NODE_REGISTRY: Record<string, NodeDefinition> = Object.fromEntries(
+  ALL_NODES.map((n) => [n.key, n])
+);
+
+export const NODE_KEYS = ALL_NODES.map((n) => n.key);
+
+export function getNodeDefinition(key: string): NodeDefinition | null {
+  return NODE_REGISTRY[key] ?? null;
+}

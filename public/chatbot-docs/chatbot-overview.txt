@@ -1,0 +1,318 @@
+Multi-Role AI Chatbot System - Project Overview
+Executive Summary
+We're building an AI-powered chatbot system for our business management platform that serves 5 different user roles, each with unique data access permissions and capabilities. This document outlines what we're building, the technical challenges we face, and our recommended approach.
+
+System Overview
+User Roles & Data Access
+Our platform has 5 distinct user roles, each requiring a separate chatbot experience:
+1. Superadmin (We Build Trades - WBT)
+Access Level: Full platform access
+Can See:
+Own account data
+ALL business owner accounts
+Cross-account analytics
+Platform-wide activity logs
+Use Cases: Platform monitoring, cross-business insights, system administration
+2. Business Owner (Admin)
+Access Level: Full access to their business
+Can See:
+Own account data
+All team members' data
+All customers' data
+Business-specific analytics
+Special Feature: 7 specialized sub-agents
+General
+Innovation
+Operations
+Growth
+Financials
+Competitors
+Business Forecasting
+Data Access:
+Platform data
+Performance data (Google Analytics, service metrics)
+Team-specific data
+Product data for team & customers
+Account-specific data
+3. Team Members (Engineers/Staff)
+Access Level: Limited to team-related data
+Can See:
+Own account data
+Team meetings data
+Products data (role-based)
+Product data & error codes
+Cannot See: Other team members' personal data, financial data, customer details (unless specifically granted)
+4. Customers
+Access Level: Highly restricted
+Can See:
+Own account data only
+Purchased products
+Service history
+Support tickets
+Cannot See: Any business internal data, other customers' data
+
+Data Model
+Database Structure (Supabase)
+Every user in the system has:
+user_id - Unique identifier for the individual user
+role - Their role (superadmin, business_owner, team_member, customer)
+team_id - Links users to a specific business (null for superadmin)
+Data Tables Structure
+All data tables include:
+user_id - For user-specific data
+team_id - For team/business-specific data
+Example Tables:
+Platform data (onboarding, usage metrics)
+Performance data (analytics, service metrics)
+Team-specific data (projects, tasks)
+Product data (shared between team & customers)
+Meeting data (team collaboration)
+Customer purchases (transaction history)
+Service history (support interactions)
+Data Isolation Rules
+Superadmin: Can query across all team_id values
+Business Owner: Can query all data where team_id matches their business
+Team Member: Can query data where team_id matches + additional role-based filters
+Customer: Can ONLY query data where user_id = their own ID
+
+Technical Challenges
+1. Security & Data Isolation ⚠️ CRITICAL
+Challenge: Preventing data leakage between accounts
+Users must NEVER see data from other businesses
+Chatbot cannot be "tricked" into revealing unauthorized data through prompt injection
+Each query must be automatically filtered by user_id and/or team_id
+Risk Level: HIGH - Data breach would be catastrophic for business trust
+2. Multi-Tenant Architecture with Cross-Tenant Access
+Challenge: WBT role breaks typical isolation patterns
+Most multi-tenant apps isolate data completely
+Our WBT role needs to see across ALL businesses
+Must maintain security while allowing cross-tenant queries
+3. Role-Based Context Management
+Challenge: Each role needs different capabilities
+5 different system prompts with unique instructions
+Different data access functions per role
+Business Owner has 7 sub-agents (same data, different expertise)
+Sub-agents are the same chatbot with specialized system prompts
+4. Custom Chatbot Instructions
+Challenge: Dynamic configuration system
+Superadmin & Business Owners can add custom instructions/SOPs
+Instructions have filters:
+Scope: Single account vs All accounts
+Role targeting: Which roles should see these instructions
+Must fetch and inject relevant instructions at runtime
+Instructions stored as documents/text in database
+Example Use Case:
+Business Owner uploads "Customer Service SOP" document
+Filters: Apply to "Team Members" only
+When team member chats, this SOP is automatically included in context
+5. Real-Time Data Access
+Challenge: Data constantly updates
+Users perform actions on platform → Data changes immediately
+Chatbot needs fresh data for accurate responses
+Can't rely on stale/cached data for critical queries
+Need to decide: Real-time queries vs periodic sync
+6. LLM Function Calling with Secure Queries
+Challenge: Allowing AI to query data safely
+LLM needs to fetch data to answer questions
+Cannot give LLM direct SQL access (security risk)
+Must create pre-defined functions with built-in filters
+Functions automatically apply user_id/team_id filters server-side
+7. Complexity Scale
+Challenge: Large surface area to build and maintain
+5 complete UI/dashboard implementations
+5 separate chatbot experiences
+7 sub-agent variations for Business Owners
+Custom instructions system
+Authentication & authorization for all roles
+Testing each role's data access thoroughly
+
+Proposed Architecture
+High-Level Flow
+User sends message
+    ↓
+Backend receives with auth context (user_id, role, team_id)
+    ↓
+1. Identify user's role
+2. Fetch custom instructions matching their role & team
+3. Build role-specific system prompt
+4. Send to Gemini AI
+    ↓
+Gemini processes and may call functions
+    ↓
+Backend functions query Supabase (automatically filtered)
+    ↓
+Return scoped data to Gemini
+    ↓
+Gemini generates response
+    ↓
+Send response to user
+
+Core Components
+1. Authentication & Context Layer
+Validates user identity on every request
+Extracts: user_id, role, team_id
+NEVER trusts user input for identity - always from session/JWT
+2. System Prompt Builder
+Dynamically constructs prompts from:
+Base instructions (common to all)
+Role-specific instructions
+Sub-agent specialization (for Business Owner)
+Custom instructions from database (filtered by role & account)
+Data scope rules
+Example Prompt Structure:
+[Base Instructions]
+You are a helpful AI assistant for a business management platform.
+
+[Role-Specific Instructions]
+You are helping a Business Owner. You have access to all team and customer data 
+for their business. Never share data from other businesses.
+
+[Sub-Agent Specialization] (if applicable)
+You are the Financial Analysis specialist. Focus on financial metrics, 
+cash flow, profitability, and financial forecasting.
+
+[Custom Instructions from Database]
+[Inserted SOPs and documents uploaded by admin]
+
+[Data Scope Rules]
+You can only access data where team_id = "team_123"
+
+3. Secure Function Layer
+Pre-defined functions that LLM can call:
+For Business Owner:
+getTeamPerformance() - Automatically filters by their team_id
+getTeamMembers() - Returns team roster
+getCustomerList() - Returns customers for their business
+getFinancialMetrics() - Revenue, expenses for their team_id
+For Team Member:
+getMyMeetings() - Filters by their user_id
+getTeamProducts() - Products they're authorized to see
+getMyTasks() - Their assigned tasks
+For Customer:
+getMyPurchases() - Only their user_id
+getMyServiceHistory() - Only their tickets
+getMyAccount() - Personal account info
+Security:
+Functions are server-side only
+All queries include WHERE clause with user_id/team_id
+Use parameterized queries (no SQL injection)
+Leverage Supabase Row Level Security (RLS) as backup
+4. Custom Instructions System
+Database table structure:
+chatbot_instructions:
+  - id
+  - team_id (null for superadmin global instructions)
+  - created_by_user_id
+  - content (text/document)
+  - applies_to_scope ("single_account" | "all_accounts")
+  - applies_to_roles (array: ["business_owner", "team_member", "customer"])
+  - created_at
+  - updated_at
+
+Fetching Logic:
+Get instructions WHERE:
+  (team_id = user's_team_id OR applies_to_scope = "all_accounts")
+  AND
+  user's_role IN applies_to_roles
+
+5. Sub-Agent System (Business Owner)
+Same chatbot instance
+Same data access
+Different system prompts based on selected sub-agent
+User can switch between sub-agents in UI
+Each sub-agent has domain expertise:
+General: Broad business questions
+Innovation: Product development, R&D
+Operations: Process efficiency, workflows
+Growth: Marketing, sales, expansion
+Financials: Budgets, forecasting, metrics
+Competitors: Market analysis, competitive intel
+Business Forecasting: Predictive analytics, trends
+
+Technology Stack
+LLM Provider: Google Gemini
+Database: Supabase (PostgreSQL)
+Backend: [Your stack here - Node.js/Python/etc]
+Frontend: [Your framework - React/Next.js/etc]
+Authentication: [Your auth solution - Supabase Auth/etc]
+
+Development Phases (Recommended)
+Phase 1: MVP - Single Role Proof of Concept
+Goal: Get one role working end-to-end
+Scope:
+Implement Business Owner chatbot only
+Hard-coded system prompt (no custom instructions yet)
+2 sub-agents to prove concept (e.g., General + Financials)
+3-5 basic functions for data access
+Read-only queries (no data modification)
+Basic authentication & data filtering
+Success Criteria:
+Business Owner can ask questions about their team data
+Data is properly filtered by team_id
+Cannot access other businesses' data
+Sub-agent switching works
+Timeline: 2-3 weeks
+Phase 2: Multi-Role Implementation
+Goal: Expand to all roles
+Scope:
+Add Superadmin chatbot (cross-account access)
+Add Team Member chatbot (limited access)
+Add Customer chatbot (highly restricted)
+Comprehensive testing of data isolation
+More functions for each role
+Success Criteria:
+All 4 main roles functional
+Thorough testing confirms no data leakage
+Role transitions work correctly
+Timeline: 3-4 weeks
+Phase 3: Custom Instructions & Remaining Sub-Agents
+Goal: Add dynamic configuration
+Scope:
+Build custom instructions UI
+Implement instruction fetching & injection
+Add remaining 5 Business Owner sub-agents
+Document/SOP upload functionality
+Success Criteria:
+Admins can add custom instructions
+Instructions properly filter by role & account
+All 7 sub-agents available
+Timeline: 2-3 weeks
+Phase 4: Polish & Advanced Features
+Goal: Production-ready system
+Scope:
+Error handling & edge cases
+Performance optimization
+Comprehensive testing suite
+User feedback incorporation
+Monitoring & logging
+Rate limiting & usage tracking
+Timeline: 2-3 weeks
+Total Estimated Timeline: 9-13 weeks
+
+Risk Assessment
+Risk
+Severity
+Mitigation
+Data leakage between accounts
+CRITICAL
+Multi-layer security: RLS, function-level filtering, testing
+Prompt injection attacks
+HIGH
+Server-side filtering, no user input in queries, sanitization
+Performance issues with real-time data
+MEDIUM
+Caching strategy, query optimization, pagination
+LLM costs exceeding budget
+MEDIUM
+Rate limiting, response caching, usage monitoring
+Complexity leading to bugs
+MEDIUM
+Phased development, comprehensive testing, code reviews
+Custom instructions conflicts
+LOW
+Clear priority rules, admin interface for management
+
+
+
+
+

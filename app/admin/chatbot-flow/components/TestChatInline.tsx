@@ -1,0 +1,421 @@
+"use client";
+
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Send, RefreshCw, RotateCcw } from "lucide-react";
+
+const STORAGE_KEY_PREFIX = "chatbot-flow-test-";
+
+type Message = { role: "user" | "assistant"; content: string; thoughtSummary?: string };
+
+function getStorageKey(chatbotId: string) {
+  return `${STORAGE_KEY_PREFIX}${chatbotId}`;
+}
+
+function loadPersistedState(chatbotId: string): { selectedUser: string; messages: Message[] } {
+  if (typeof window === "undefined") return { selectedUser: "__default__", messages: [] };
+  try {
+    const raw = localStorage.getItem(getStorageKey(chatbotId));
+    if (!raw) return { selectedUser: "__default__", messages: [] };
+    const data = JSON.parse(raw) as { selectedUser?: string; messages?: Message[] };
+    const selectedUser = typeof data?.selectedUser === "string" ? data.selectedUser : "__default__";
+    const messages = Array.isArray(data?.messages) ? data.messages : [];
+    return { selectedUser, messages };
+  } catch {
+    return { selectedUser: "__default__", messages: [] };
+  }
+}
+
+function savePersistedState(chatbotId: string, selectedUser: string, messages: Message[]) {
+  try {
+    localStorage.setItem(getStorageKey(chatbotId), JSON.stringify({ selectedUser, messages }));
+  } catch {
+    // ignore quota or other storage errors
+  }
+}
+
+type TestUser = {
+  id: string;
+  email: string;
+  full_name: string;
+  team_id: string | null;
+  role: string;
+};
+
+type InstructionBlock = { nodeName: string; content: string };
+type DataModule = { nodeName: string; label: string; dataSource: string; content: string };
+
+type Props = {
+  chatbotId: string;
+  chatbotName?: string;
+};
+
+export function TestChatInline({ chatbotId, chatbotName }: Props) {
+  const [fullPrompt, setFullPrompt] = useState<string>("");
+  const [basePrompt, setBasePrompt] = useState<string>("");
+  const [instructionBlocks, setInstructionBlocks] = useState<InstructionBlock[]>([]);
+  const [dataModules, setDataModules] = useState<DataModule[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [testUsers, setTestUsers] = useState<TestUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<string>("__default__");
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [contextRefreshing, setContextRefreshing] = useState(false);
+  const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const testUsersRef = useRef<TestUser[]>([]);
+  const skipNextPersistRef = useRef(true); // skip persist until after we've loaded from storage
+  testUsersRef.current = testUsers;
+
+  const refreshContext = useCallback(async () => {
+    if (!chatbotId) return;
+    setContextRefreshing(true);
+    const users = testUsersRef.current;
+    const user = selectedUser && selectedUser !== "__default__" ? users.find((u) => u.id === selectedUser) : null;
+    const body: { chatbotId: string; userId?: string; teamId?: string; structured: boolean } = {
+      chatbotId,
+      structured: true,
+    };
+    if (user) {
+      body.userId = user.id;
+      body.teamId = user.team_id ?? undefined;
+    }
+    try {
+      const r = await fetch("/api/chatbot-flow/assemble", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (data.prompt != null) {
+        setFullPrompt(data.prompt);
+        setBasePrompt(data.basePrompt ?? "");
+        setInstructionBlocks(Array.isArray(data.instructionBlocks) ? data.instructionBlocks : []);
+        setDataModules(Array.isArray(data.dataModules) ? data.dataModules : []);
+      } else {
+        setFullPrompt("");
+        setBasePrompt("");
+        setInstructionBlocks([]);
+        setDataModules([]);
+      }
+    } catch {
+      setFullPrompt("");
+      setBasePrompt("");
+      setInstructionBlocks([]);
+      setDataModules([]);
+    } finally {
+      setContextRefreshing(false);
+    }
+  }, [chatbotId, selectedUser]);
+
+  useEffect(() => {
+    setUsersLoading(true);
+    fetch("/api/chatbot-flow/test-users")
+      .then((r) => r.json())
+      .then((data) => {
+        setTestUsers(data.users ?? []);
+      })
+      .catch(() => setTestUsers([]))
+      .finally(() => setUsersLoading(false));
+  }, []);
+
+  // Load from localStorage when chatbotId changes (or on mount)
+  useLayoutEffect(() => {
+    if (!chatbotId) return;
+    skipNextPersistRef.current = true; // do not overwrite storage when persist effect runs after this
+    const { selectedUser: savedUser, messages: savedMessages } = loadPersistedState(chatbotId);
+    setSelectedUser(savedUser);
+    setMessages(savedMessages);
+    setInput("");
+    setError(null);
+  }, [chatbotId]);
+
+  // Persist selected user and messages so they survive page reloads
+  useEffect(() => {
+    if (!chatbotId) return;
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
+    savePersistedState(chatbotId, selectedUser, messages);
+  }, [chatbotId, selectedUser, messages]);
+
+  useEffect(() => {
+    if (chatbotId) {
+      refreshContext();
+    }
+  }, [chatbotId, selectedUser, refreshContext]);
+
+  // Scroll to show the latest message or "Thinking..." while the LLM is responding
+  useEffect(() => {
+    scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading]);
+
+  const handleReset = useCallback(() => {
+    if (!chatbotId) return;
+    try {
+      localStorage.removeItem(getStorageKey(chatbotId));
+    } catch {}
+    setSelectedUser("__default__");
+    setMessages([]);
+    setInput("");
+    setError(null);
+  }, [chatbotId]);
+
+  const history = messages.map((m) => ({
+    role: m.role as "user" | "model",
+    parts: [{ text: m.content }],
+  }));
+
+  const sendMessage = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setLoading(true);
+    setError(null);
+    const user = selectedUser && selectedUser !== "__default__" ? testUsers.find((u) => u.id === selectedUser) : null;
+    const body: {
+      chatbotId: string;
+      message: string;
+      history: typeof history;
+      includeThoughts: boolean;
+      userId?: string;
+      teamId?: string;
+    } = {
+      chatbotId,
+      message: text,
+      history,
+      includeThoughts: true,
+    };
+    if (user) {
+      body.userId = user.id;
+      body.teamId = user.team_id ?? undefined;
+    }
+    try {
+      const res = await fetch("/api/chatbot-flow/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.reply ?? "",
+          thoughtSummary: data.thoughtSummary,
+        },
+      ]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Context (top) */}
+      <div className="shrink-0 border-b border-border bg-muted/10">
+        <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Context</p>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground whitespace-nowrap">Test as user</Label>
+            <Select value={selectedUser} onValueChange={(v) => { setSelectedUser(v); }} disabled={usersLoading}>
+              <SelectTrigger className="w-[220px] h-8 text-xs border-border">
+                <SelectValue placeholder={usersLoading ? "Loading users..." : "Default (no specific user)"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">Default (no specific user)</SelectItem>
+                {testUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name ? `${u.full_name} (${u.email})` : u.email} ({u.role})
+                    {u.team_id ? " · team" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={refreshContext}
+              disabled={contextRefreshing || !chatbotId}
+              title="Refresh context"
+              className="shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={`h-4 w-4 ${contextRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        </div>
+        <ScrollArea className="h-[180px] border-t border-border">
+          <div className="p-3 space-y-2">
+            {contextRefreshing ? (
+              <p className="text-xs text-muted-foreground py-2">Refreshing...</p>
+            ) : (
+              <>
+                <details className="rounded-lg border border-border overflow-hidden bg-background">
+                  <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                    Base prompt
+                  </summary>
+                  <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
+                    {basePrompt || "(empty)"}
+                  </pre>
+                </details>
+                {instructionBlocks.map((block, i) => (
+                  <details key={`inst-${i}`} className="rounded-lg border border-border overflow-hidden bg-background">
+                    <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                      Instructions: {block.nodeName}
+                    </summary>
+                    <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
+                      {block.content}
+                    </pre>
+                  </details>
+                ))}
+                {dataModules.map((mod, i) => (
+                  <details key={`data-${i}`} className="rounded-lg border border-border overflow-hidden bg-background">
+                    <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                      Data: {mod.label} ({mod.nodeName})
+                    </summary>
+                    <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-32 overflow-auto">
+                      {mod.content}
+                    </pre>
+                  </details>
+                ))}
+                <details className="rounded-lg border border-border overflow-hidden bg-background">
+                  <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                    Full context (everything sent to the LLM)
+                  </summary>
+                  <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-40 overflow-auto">
+                    {fullPrompt || "(empty)"}
+                  </pre>
+                </details>
+              </>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Chat (bottom) */}
+      <div className="flex flex-col flex-1 min-h-0 border-t border-border">
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between gap-2 shrink-0">
+          {chatbotName && (
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              Test: {chatbotName}
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
+            title="Reset test user and chat history"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+            Reset
+          </Button>
+        </div>
+        <ScrollArea className="flex-1 min-h-0 px-4">
+          <div className="py-4 space-y-4">
+            {messages.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">Send a message to test the chatbot.</p>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} className={m.role === "user" ? "text-right" : ""}>
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{m.role}</span>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "inline-block mt-1 px-4 py-2.5 rounded-lg border border-border bg-muted text-sm max-w-[85%]"
+                      : "mt-1 px-4 py-2.5 rounded-lg border border-border bg-muted/40 text-sm text-left max-w-[85%]"
+                  }
+                >
+                  {m.role === "assistant" ? (
+                    <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+                          li: ({ children }) => <li className="mb-1">{children}</li>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          em: ({ children }) => <em className="italic">{children}</em>,
+                          a: ({ href, children }) => (
+                            <a href={href} className="text-primary underline" target="_blank" rel="noopener noreferrer">
+                              {children}
+                            </a>
+                          ),
+                          code: ({ children }) => (
+                            <code className="bg-background/50 rounded px-1.5 py-0.5 text-xs font-mono">
+                              {children}
+                            </code>
+                          ),
+                          pre: ({ children }) => (
+                            <pre className="bg-background/50 rounded p-2 text-xs font-mono overflow-x-auto my-2">
+                              {children}
+                            </pre>
+                          ),
+                        }}
+                      >
+                        {m.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    m.content
+                  )}
+                </div>
+                {m.thoughtSummary && (
+                  <details className="mt-1 text-xs text-muted-foreground">
+                    <summary>Thought summary</summary>
+                    <pre className="whitespace-pre-wrap mt-1 p-2 rounded-lg border border-border bg-muted/20">{m.thoughtSummary}</pre>
+                  </details>
+                )}
+              </div>
+            ))}
+            {loading && <p className="text-sm text-muted-foreground">Thinking...</p>}
+            <div ref={scrollAnchorRef} aria-hidden="true" className="h-0 w-full" />
+          </div>
+        </ScrollArea>
+
+        {error && (
+          <div className="mx-4 mt-2 p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-sm shrink-0">
+            {error}
+          </div>
+        )}
+
+        <div className="p-4 flex flex-col gap-2 shrink-0 border-t border-border bg-muted/5">
+          <Textarea
+            placeholder="Type a message..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            rows={2}
+            className="resize-none w-full min-w-0 rounded-lg border-border"
+          />
+          <Button onClick={sendMessage} disabled={loading} className="shrink-0 w-full">
+            <Send className="h-4 w-4 mr-1.5" />
+            Send
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -25,6 +25,7 @@ import {
   UserIcon,
   ChevronDown,
   Settings2,
+  Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -118,6 +119,11 @@ const navigationSections = [
         name: "Error Codes",
         href: "/admin/error-codes",
         icon: AlertTriangle,
+      },
+      {
+        name: "Chatbot Flow",
+        href: "/admin/chatbot-flow",
+        icon: Workflow,
       }
     ]
   },
@@ -144,6 +150,7 @@ export default function AdminLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isFlowEditPage = pathname?.includes("/admin/chatbot-flow/") && pathname?.includes("/edit");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userDetails, setUserDetails] = useState<{ email: string; fullName: string } | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{
@@ -322,14 +329,15 @@ export default function AdminLayoutClient({
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-100">
       {/* Backdrop for mobile - appears when sidebar is open on small screens */}
-      {isSidebarOpen && (
+      {!isFlowEditPage && isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - hidden on flow edit page */}
+      {!isFlowEditPage && (
       <aside
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-blue-100 transform transition-transform duration-200 ease-in-out flex flex-col h-full",
@@ -444,18 +452,21 @@ export default function AdminLayoutClient({
           </div>
         </nav>
       </aside>
+      )}
 
       {/* Main content area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         <header className="sticky top-0 z-20 bg-white border-b border-blue-100 h-16">
           <div className="flex h-full items-center justify-between px-6">
             <div className="flex items-center gap-4">
+              {!isFlowEditPage && (
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="p-2 text-gray-600 hover:bg-blue-50 rounded-md lg:hidden"
               >
                 <Menu className="h-5 w-5" />
               </button>
+              )}
 
               {/* Impersonation Banner */}
               {isImpersonating && impersonatedUser && (
@@ -508,7 +519,14 @@ export default function AdminLayoutClient({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto",
+            pathname?.startsWith("/admin/chatbot-flow")
+              ? "p-0"
+              : "p-4 sm:p-6 lg:p-8"
+          )}
+        >
           {children}
         </div>
       </main>
