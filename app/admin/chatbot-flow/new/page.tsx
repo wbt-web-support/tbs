@@ -32,7 +32,7 @@ export default function NewChatbotPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          base_prompt: basePrompt,
+          base_prompts: basePrompt.trim() ? [{ type: "text", content: basePrompt.trim() }] : [],
           model_name: modelName.trim() || undefined,
         }),
       });

@@ -6,7 +6,7 @@ export async function GET() {
     const supabase = await verifySuperAdmin();
     const { data: chatbots, error } = await supabase
       .from("chatbots")
-      .select("id, name, base_prompt, is_active, model_name, created_by, created_at, updated_at")
+      .select("id, name, base_prompts, is_active, model_name, created_by, created_at, updated_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
     const body = await request.json();
-    const { name, base_prompt, model_name, is_active } = body;
+    const { name, base_prompts, model_name, is_active } = body;
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
@@ -53,12 +53,12 @@ export async function POST(request: NextRequest) {
       .from("chatbots")
       .insert({
         name: name.trim(),
-        base_prompt: typeof base_prompt === "string" ? base_prompt : "",
+        base_prompts: Array.isArray(base_prompts) ? base_prompts : [],
         model_name: typeof model_name === "string" ? model_name : null,
         is_active: typeof is_active === "boolean" ? is_active : true,
         created_by: user.id,
       })
-      .select("id, name, base_prompt, is_active, model_name, created_by, created_at, updated_at")
+      .select("id, name, base_prompts, is_active, model_name, created_by, created_at, updated_at")
       .single();
 
     if (error) {

@@ -10,7 +10,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
     const { data, error } = await supabase
       .from("chatbots")
-      .select("id, name, base_prompt, is_active, model_name, created_by, created_at, updated_at")
+      .select("id, name, base_prompts, is_active, model_name, created_by, created_at, updated_at")
       .eq("id", id)
       .single();
 
@@ -34,7 +34,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const body = await request.json();
     const updates: Record<string, unknown> = {};
     if (typeof body.name === "string") updates.name = body.name.trim();
-    if (typeof body.base_prompt === "string") updates.base_prompt = body.base_prompt;
+    if (Array.isArray(body.base_prompts)) updates.base_prompts = body.base_prompts;
     if (typeof body.model_name === "string") updates.model_name = body.model_name; else if (body.model_name === null) updates.model_name = null;
     if (typeof body.is_active === "boolean") updates.is_active = body.is_active;
 
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       .from("chatbots")
       .update(updates)
       .eq("id", id)
-      .select("id, name, base_prompt, is_active, model_name, created_by, created_at, updated_at")
+      .select("id, name, base_prompts, is_active, model_name, created_by, created_at, updated_at")
       .single();
 
     if (error) {

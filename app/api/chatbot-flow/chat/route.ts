@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
     const userContext = (userId != null || teamId != null)
       ? { userId: userId ?? null, teamId: teamId ?? null }
       : undefined;
-    const dataFetchClient = userContext ? getAdminClient() : undefined;
+    // Always use service-role for data fetch: platform-wide (scope: "all") nodes need full data; "Test as user" needs correct user/team filter.
+    const dataFetchClient = getAdminClient();
     const { prompt: systemPrompt, chatbot } = await assemblePrompt(supabase, chatbotId, userContext, dataFetchClient);
     if (!chatbot) {
       return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });

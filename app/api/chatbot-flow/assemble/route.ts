@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     }
 
     const userContext = (userId != null || teamId != null) ? { userId, teamId } : undefined;
-    const dataFetchClient = userContext ? getAdminClient() : undefined;
+    // Always use service-role for data fetch: platform-wide nodes need full data; "Test as user" needs correct user/team filter.
+    const dataFetchClient = getAdminClient();
 
     if (structured) {
       const result = await assemblePromptStructured(supabase, chatbotId, userContext, dataFetchClient);

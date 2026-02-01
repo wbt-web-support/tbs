@@ -6,10 +6,33 @@ export type UserContext = {
   teamId?: string | null;
 };
 
+export type ExtractionMetadata = {
+  extracted_text?: string;
+  file_name?: string;
+  file_size?: number;
+  extraction_date?: string;
+  loom_metadata?: {
+    thumbnailUrl?: string;
+    views?: number;
+    createdAt?: string;
+    owner?: string;
+    duration_formatted?: string;
+  };
+};
+
+export type BasePromptEntry = {
+  type: string;
+  content: string;
+  url?: string | null;
+  document_url?: string | null;
+  document_name?: string | null;
+  extraction_metadata?: ExtractionMetadata | null;
+};
+
 export type ChatbotRow = {
   id: string;
   name: string;
-  base_prompt: string;
+  base_prompts: BasePromptEntry[];
   is_active: boolean;
   model_name: string | null;
 };
@@ -173,7 +196,6 @@ async function fetchDataForSource(
   const userFilter = scope === "user_specific" && config.userColumn && userId;
   const teamFallbackToUser = scope === "team_specific" && !config.teamColumn && config.userColumn && userId;
   const isAllScope = scope === "all";
-  const noFilterTable = !config.teamColumn && !config.userColumn;
 
   let query = supabase.from(config.table).select(config.select);
 
@@ -183,11 +205,10 @@ async function fetchDataForSource(
     query = query.eq(config.userColumn, userId);
   } else if (teamFallbackToUser) {
     query = query.eq(config.userColumn!, userId);
-  } else if (isAllScope && !noFilterTable) {
-    return "";
   } else if (!isAllScope && !teamFilter && !userFilter && !teamFallbackToUser) {
     return "";
   }
+  // scope "all" (platform-wide): no filter applied; query runs with full table access
 
   try {
     const { data, error } = await query
@@ -238,11 +259,17 @@ export async function getChatbot(
 ): Promise<ChatbotRow | null> {
   const { data, error } = await supabase
     .from("chatbots")
-    .select("id, name, base_prompt, is_active, model_name")
+    .select("id, name, base_prompts, is_active, model_name")
     .eq("id", chatbotId)
     .single();
   if (error || !data) return null;
-  return data as ChatbotRow;
+  const row = data as { base_prompts?: unknown };
+  const base_prompts = Array.isArray(row.base_prompts)
+    ? (row.base_prompts as BasePromptEntry[]).filter(
+        (p): p is BasePromptEntry => p && typeof p.content === "string"
+      )
+    : [];
+  return { ...data, base_prompts } as ChatbotRow;
 }
 
 type LinkRow = {
@@ -300,7 +327,11 @@ export async function assemblePrompt(
   if (!chatbot) return { prompt: "", chatbot: null };
 
   const nodes = await getLinkedNodes(supabase, chatbotId);
-  const parts: string[] = [chatbot.base_prompt.trim() || "You are a helpful AI assistant."];
+  const baseText = (chatbot.base_prompts ?? [])
+    .map((p) => (p.content ?? "").trim())
+    .filter(Boolean)
+    .join("\n\n") || "You are a helpful AI assistant.";
+  const parts: string[] = [baseText];
 
   const hasUserContext = userContext && (userContext.userId || userContext.teamId);
   const clientForData = dataFetchClient ?? supabase;
@@ -353,7 +384,10 @@ export async function assemblePromptStructured(
   if (!chatbot) return empty;
 
   const nodes = await getLinkedNodes(supabase, chatbotId);
-  const basePrompt = chatbot.base_prompt.trim() || "You are a helpful AI assistant.";
+  const basePrompt = (chatbot.base_prompts ?? [])
+    .map((p) => (p.content ?? "").trim())
+    .filter(Boolean)
+    .join("\n\n") || "You are a helpful AI assistant.";
   const parts: string[] = [basePrompt];
   const instructionBlocks: InstructionBlock[] = [];
   const dataModules: DataModule[] = [];
