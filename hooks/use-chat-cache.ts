@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { Message } from '@/types/chat';
@@ -13,16 +14,23 @@ const CHAT_KEYS = {
 
 export function useChatCache() {
   const queryClient = useQueryClient();
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Fetch chat history from cache first, then network
   const { data: chatHistory, isLoading: isLoadingHistory } = useQuery({
-    queryKey: CHAT_KEYS.history(userId),
+    queryKey: CHAT_KEYS.history(userId ?? ''),
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      
       if (!userId) return [];
-
       const { data, error } = await supabase
         .from('chat_history')
         .select('messages')
@@ -33,20 +41,17 @@ export function useChatCache() {
         throw error;
       }
 
-      return data?.messages || [];
+      return (data?.messages ?? []) as Message[];
     },
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 
   // Mutation to update chat history
   const { mutate: updateChatHistory } = useMutation({
     mutationFn: async (messages: Message[]) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      
       if (!userId) throw new Error('No user ID');
-
       await supabase
         .from('chat_history')
         .upsert({
@@ -56,20 +61,18 @@ export function useChatCache() {
         }, { onConflict: 'user_id' });
     },
     onSuccess: (_, messages) => {
-      // Update cache immediately
-      queryClient.setQueryData(CHAT_KEYS.messages(userId), messages);
+      if (userId) {
+        queryClient.setQueryData(CHAT_KEYS.messages(userId), messages);
+      }
     },
   });
 
   // Optimistic updates for messages
   const addMessage = (message: Message) => {
-    const previousMessages = queryClient.getQueryData(CHAT_KEYS.messages(userId)) || [];
+    if (!userId) return;
+    const previousMessages = (queryClient.getQueryData(CHAT_KEYS.messages(userId)) as Message[] | undefined) ?? [];
     const newMessages = [...previousMessages, message];
-    
-    // Update cache immediately
     queryClient.setQueryData(CHAT_KEYS.messages(userId), newMessages);
-    
-    // Then update database
     updateChatHistory(newMessages);
   };
 

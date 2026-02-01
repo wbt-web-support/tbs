@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { getEffectiveUserId } from "@/lib/get-effective-user-id";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +80,7 @@ export default function Leaderboard() {
       if (leaderboardError) throw leaderboardError;
 
       // Find current user's stats
-      const currentUserStats = leaderboard?.find(u => u.user_id === effectiveUserId);
+      const currentUserStats = leaderboard?.find((u: { user_id: string }) => u.user_id === effectiveUserId);
       
       if (currentUserStats) {
         setUserStats({

@@ -77,9 +77,10 @@ export async function POST(request: NextRequest) {
     });
 
     const cookieOptions = getImpersonationCookieOptions('remove');
+    const opts = cookieOptions as { name: string; value?: string; maxAge: number; httpOnly: boolean; secure: boolean; sameSite: "lax"; path: string };
     response.cookies.set(
-      cookieOptions.name,
-      cookieOptions.value,
+      opts.name,
+      opts.value ?? "",
       {
         httpOnly: cookieOptions.httpOnly,
         secure: cookieOptions.secure,

@@ -167,9 +167,10 @@ export function MemberChat() {
           await fetchInstanceHistory(chatIdFromUrl);
         } else {
           // Fetch chat instances but don't auto-load
+          const { data: { session: authSession } } = await supabase.auth.getSession();
           const instancesResponse = await fetch(`/api/gemini?action=instances&group=general`, {
             headers: {
-              'Authorization': `Bearer ${session.access_token}`
+              ...(authSession?.access_token && { 'Authorization': `Bearer ${authSession.access_token}` })
             }
           });
 

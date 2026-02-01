@@ -90,10 +90,9 @@ export default async function ExportPage() {
 
     // Get auth user for client component structure
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    const effectiveUserForClient = authUser ? {
-      ...authUser,
-      id: effectiveUser.userId,
-    } : null;
+    const effectiveUserForClient = authUser
+      ? { ...authUser, id: effectiveUser.userId }
+      : { id: effectiveUser.userId, email: effectiveUser.email ?? "", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" } as import("@supabase/supabase-js").User;
 
     // Render the client component with the fetched data
     return <ExportClientContent user={effectiveUserForClient} userData={userData} />;

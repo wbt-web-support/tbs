@@ -308,4 +308,4 @@ function useToast() {
 }
 
 export { useToast, toast }
-export type { ToastInfo as Toast } 
+export type { ToastInfo } 

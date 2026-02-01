@@ -109,7 +109,7 @@ export default function LeaveApprovals({ onLeaveUpdated }: LeaveApprovalsProps) 
       if (teamError) throw teamError;
 
       // Get approval information
-      const leaveIds = leaves?.map(l => l.id) || [];
+      const leaveIds = leaves?.map((l: { id: string }) => l.id) || [];
       const { data: approvals } = await supabase
         .from('leave_approvals')
         .select(`
@@ -123,9 +123,9 @@ export default function LeaveApprovals({ onLeaveUpdated }: LeaveApprovalsProps) 
         .order('created_at', { ascending: false });
 
       // Combine the data
-      const leavesWithDetails = leaves?.map(leave => {
-        const teamMember = teamMembers?.find(m => m.user_id === leave.user_id);
-        const approval = approvals?.find(a => a.leave_id === leave.id);
+      const leavesWithDetails = leaves?.map((leave: { id: string; user_id: string }) => {
+        const teamMember = teamMembers?.find((m: { user_id: string }) => m.user_id === leave.user_id);
+        const approval = approvals?.find((a: { leave_id: string }) => a.leave_id === leave.id);
         
         return {
           ...leave,

@@ -126,7 +126,7 @@ export default function CalendarView({ events }: CalendarViewProps) {
     }
     
     if (isLeaveRequest) {
-      const status = event.resource.status;
+      const status = event.resource?.status;
       const colors = {
         pending: { bg: "#f59e0b", border: "#d97706" }, // amber
         approved: { bg: "#10b981", border: "#059669" }, // green
