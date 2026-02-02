@@ -675,27 +675,45 @@ export function AiChat({
           {/* ChatGPT-like input: one box, then row with Attach, Search, Send */}
           <div className="rounded-2xl border border-border bg-background transition-colors focus-within:border-primary/50 shadow-sm">
             {isRecording && (
-              <div className="px-4 pt-3">
+              <div className="px-4 pt-3 pb-2">
                 <AudioVisualizer isRecording={isRecording} stream={audioStreamRef.current} />
               </div>
             )}
             {isTranscribing && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground px-4 pt-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-4 pt-3 pb-2">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Transcribing audio...
               </div>
             )}
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isRecording ? "Recording..." : useWebSearch ? "Search on the web" : "Ask anything"}
-              disabled={loading || isRecording || isTranscribing}
-              rows={1}
-              style={{ minHeight: MIN_TEXTAREA_HEIGHT, maxHeight: MAX_TEXTAREA_HEIGHT }}
-              className="w-full resize-none overflow-y-auto bg-transparent border-0 focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground disabled:opacity-50 px-4 pt-4 pb-3"
-            />
+            <div className="relative">
+              <textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={isRecording ? "Recording..." : useWebSearch ? "Search on the web" : "Type a message..."}
+                disabled={loading || isRecording || isTranscribing}
+                rows={1}
+                style={{ minHeight: MIN_TEXTAREA_HEIGHT, maxHeight: MAX_TEXTAREA_HEIGHT }}
+                className="w-full resize-none overflow-y-auto bg-transparent border-0 focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground disabled:opacity-50 px-4 pt-4 pb-3 pr-14"
+              />
+              {voiceConfig?.stt_enabled && (
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  disabled={isTranscribing || loading}
+                  className={cn(
+                    "absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors",
+                    isRecording
+                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                  title={isRecording ? "Stop recording" : "Start voice recording"}
+                >
+                  {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </button>
+              )}
+            </div>
             {attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 px-4 pb-2">
                 {attachments.map((a) => (
@@ -805,20 +823,6 @@ export function AiChat({
                   >
                     <Globe className="h-4 w-4" />
                     <span className="text-xs">Search</span>
-                  </Button>
-                )}
-                {voiceConfig?.stt_enabled && (
-                  <Button
-                    type="button"
-                    variant={isRecording ? "destructive" : "ghost"}
-                    size="sm"
-                    onClick={toggleRecording}
-                    disabled={isTranscribing || loading}
-                    className="h-8 gap-1.5 rounded-lg"
-                    title={isRecording ? "Stop recording" : "Start voice recording"}
-                  >
-                    {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    <span className="text-xs">{isRecording ? "Stop" : "Record"}</span>
                   </Button>
                 )}
               </div>
