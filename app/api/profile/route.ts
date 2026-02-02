@@ -93,7 +93,6 @@ async function getUserData(userId: string) {
     // Fetch data from other tables
     const tables = [
       'battle_plan',
-      'chain_of_command',
       'hwgt_plan',
       'machines',
       'meeting_rhythm_planner',
@@ -346,7 +345,6 @@ function prepareUserContext(userData: any) {
   // Process all relevant tables
   const relevantTables = [
     'battle_plan',
-    'chain_of_command',
     'hwgt_plan',
     'machines',
     'meeting_rhythm_planner',

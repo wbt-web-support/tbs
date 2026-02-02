@@ -33,7 +33,6 @@ export default async function ExportPage() {
     // Fetch data from all relevant tables
     const regularTables = [
       'battle_plan',
-      'chain_of_command',
       'company_onboarding',
       'hwgt_plan',
       'machines',

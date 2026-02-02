@@ -18,8 +18,12 @@ import { teamServicesNode } from "./team-services";
 import { battlePlanNode } from "./battle-plan";
 import { aiInstructionsNode } from "./ai-instructions";
 import { instructionsNode } from "./instructions";
+import { businessInfoNode } from "./business-info";
+import { webSearchNode } from "./web-search";
 
 const ALL_NODES: NodeDefinition[] = [
+  businessInfoNode,
+  webSearchNode,
   companyOnboardingNode,
   departmentsNode,
   financeAnalysisNode,

@@ -453,7 +453,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         // User-specific data with user_id foreign key
         { table: 'company_onboarding', field: 'user_id', value: userId },
         { table: 'battle_plan', field: 'user_id', value: userId },
-        { table: 'chain_of_command', field: 'user_id', value: userId },
         { table: 'hwgt_plan', field: 'user_id', value: userId },
         { table: 'meeting_rhythm_planner', field: 'user_id', value: userId },
         { table: 'playbooks', field: 'user_id', value: userId },

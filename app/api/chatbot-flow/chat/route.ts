@@ -3,16 +3,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySuperAdmin, getAdminClient } from "@/lib/chatbot-flow/superadmin";
 import { assemblePrompt } from "@/lib/chatbot-flow/assemble-prompt";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "";
 
 type HistoryMessage = { role: "user" | "model" | "assistant"; parts: { text: string }[] };
+
+/**
+ * Gemini 2.5 requires the "google_search" tool (not google_search_retrieval).
+ * The @google/generative-ai SDK only types the legacy tool; we pass the correct format for 2.5.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const GOOGLE_SEARCH_TOOL = { google_search: {} } as any;
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await verifySuperAdmin();
     const body = await request.json();
-    const { chatbotId, message, history, includeThoughts, userId, teamId } = body;
+    const { chatbotId, message, history, includeThoughts, userId, teamId, use_web_search } = body;
 
     if (!chatbotId || typeof chatbotId !== "string") {
       return NextResponse.json({ error: "chatbotId is required" }, { status: 400 });
@@ -30,7 +37,7 @@ export async function POST(request: NextRequest) {
       : undefined;
     // Always use service-role for data fetch: platform-wide (scope: "all") nodes need full data; "Test as user" needs correct user/team filter.
     const dataFetchClient = getAdminClient();
-    const { prompt: systemPrompt, chatbot } = await assemblePrompt(supabase, chatbotId, userContext, dataFetchClient);
+    const { prompt: systemPrompt, chatbot, webSearch } = await assemblePrompt(supabase, chatbotId, userContext, dataFetchClient);
     if (!chatbot) {
       return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
     }
@@ -38,6 +45,9 @@ export async function POST(request: NextRequest) {
     const modelName = (chatbot.model_name as string)?.trim() || DEFAULT_MODEL;
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: modelName });
+
+    // Web search only when the user checks "Search web" for this turn.
+    const shouldUseWebSearch = Boolean(use_web_search);
 
     const contents: { role: string; parts: { text: string }[] }[] = [
       { role: "user", parts: [{ text: systemPrompt }] },
@@ -47,14 +57,16 @@ export async function POST(request: NextRequest) {
     const hist = Array.isArray(history) ? (history as HistoryMessage[]) : [];
     const recent = hist.slice(-30);
     for (const msg of recent) {
-      if (msg?.role && Array.isArray(msg.parts)) {
-        const role = msg.role === "assistant" ? "model" : msg.role;
-        if (role !== "user" && role !== "model") continue;
-        contents.push({
-          role,
-          parts: msg.parts.filter((p) => p?.text),
-        });
-      }
+      if (!msg?.role) continue;
+      const role = msg.role === "assistant" ? "model" : msg.role;
+      if (role !== "user" && role !== "model") continue;
+      const parts = Array.isArray(msg.parts)
+        ? msg.parts.filter((p) => p?.text)
+        : typeof (msg as unknown as { content?: string }).content === "string"
+          ? [{ text: (msg as unknown as { content: string }).content }]
+          : [];
+      if (parts.length === 0) continue;
+      contents.push({ role, parts });
     }
     contents.push({ role: "user", parts: [{ text: message }] });
 
@@ -70,10 +82,12 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    const result = await model.generateContent({
+    const payload = {
       contents,
       generationConfig,
-    } as { contents: typeof contents; generationConfig: Record<string, unknown> });
+      ...(shouldUseWebSearch ? { tools: [GOOGLE_SEARCH_TOOL] } : {}),
+    };
+    const result = await model.generateContent(payload as Parameters<typeof model.generateContent>[0]);
 
     const response = result.response;
     if (!response?.candidates?.length) {
@@ -104,6 +118,15 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     if (message.includes("authenticated") || message.includes("Super admin")) {
       return NextResponse.json({ error: message }, { status: 403 });
+    }
+    if (message.includes("fetch failed") || message.includes("Error fetching")) {
+      return NextResponse.json(
+        {
+          error:
+            "Could not reach Gemini API. Check NEXT_PUBLIC_GEMINI_API_KEY in .env and that the server can reach https://generativelanguage.googleapis.com.",
+        },
+        { status: 502 }
+      );
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

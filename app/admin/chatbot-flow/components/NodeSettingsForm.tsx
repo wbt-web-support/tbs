@@ -12,11 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const NODE_TYPES = [
-  { value: "data_access", label: "Data access" },
-  { value: "instructions", label: "Instructions" },
-] as const;
-
 const DATA_SOURCES = [
   "products",
   "business_info",
@@ -70,24 +65,6 @@ export function NodeSettingsForm({ state, onChange }: Props) {
           placeholder="e.g. Team Products Access"
           className="mt-1"
         />
-      </div>
-      <div>
-        <Label>Node type</Label>
-        <Select
-          value={state.node_type}
-          onValueChange={(v) => update({ node_type: v as "data_access" | "instructions" })}
-        >
-          <SelectTrigger className="mt-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {NODE_TYPES.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {state.node_type === "data_access" && (

@@ -69,14 +69,34 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Unknown node key" }, { status: 400 });
     }
 
-    const { data: max } = await supabase
-      .from("chatbot_flow_node_links")
-      .select("order_index")
-      .eq("chatbot_id", chatbotId)
-      .order("order_index", { ascending: false })
-      .limit(1)
-      .single();
-    const nextOrder = (max?.order_index ?? -1) + 1;
+    const isWebSearch = node_key === "web_search";
+    let insertOrderIndex: number;
+
+    if (isWebSearch) {
+      insertOrderIndex = 0;
+      const { data: existing } = await supabase
+        .from("chatbot_flow_node_links")
+        .select("id, order_index")
+        .eq("chatbot_id", chatbotId)
+        .order("order_index", { ascending: true });
+      if (existing?.length) {
+        for (const row of existing as { id: string; order_index: number }[]) {
+          await supabase
+            .from("chatbot_flow_node_links")
+            .update({ order_index: row.order_index + 1 })
+            .eq("id", row.id);
+        }
+      }
+    } else {
+      const { data: max } = await supabase
+        .from("chatbot_flow_node_links")
+        .select("order_index")
+        .eq("chatbot_id", chatbotId)
+        .order("order_index", { ascending: false })
+        .limit(1)
+        .single();
+      insertOrderIndex = (max?.order_index ?? -1) + 1;
+    }
 
     const initialSettings =
       typeof bodySettings === "object" && bodySettings !== null
@@ -90,7 +110,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       .insert({
         chatbot_id: chatbotId,
         node_key,
-        order_index: nextOrder,
+        order_index: insertOrderIndex,
         settings: initialSettings,
       })
       .select("id, chatbot_id, node_key, order_index, settings, created_at")

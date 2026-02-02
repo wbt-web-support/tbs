@@ -14,6 +14,7 @@ import {
   applyNodeChanges,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { getNodeDefinition } from "@/lib/chatbot-flow/nodes";
 import { ChatbotRootNode } from "./flow-nodes/ChatbotRootNode";
 import { FlowNodeCard } from "./flow-nodes/FlowNodeCard";
 
@@ -86,14 +87,15 @@ function buildNodesAndEdges(
     // Use position from settings if available, otherwise stack vertically below chatbot
     const storedPosition = n.settings?.position as { x: number; y: number } | undefined;
     const position = storedPosition ?? { x: START_X, y: START_Y + (i + 1) * (NODE_HEIGHT + VERTICAL_GAP) };
+    const def = getNodeDefinition(nodeKey);
     nodes.push({
       id: nodeId,
       type: "flowNode",
       position,
       data: {
         label: n.name,
-        nodeType: n.node_type,
         nodeKey,
+        description: def?.description,
         onEdit: () => onEditNode(n),
         onDelete: () => onRemoveNode(nodeKey),
       },

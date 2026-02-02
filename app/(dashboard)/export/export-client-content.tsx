@@ -20,7 +20,6 @@ import {
   Clock, 
   Link as LinkIcon,
   Target,
-  Users,
   Briefcase,
   Rocket,
   Cog,
@@ -149,7 +148,6 @@ const formatValue = (value: any): React.ReactNode => {
 const getTableIcon = (table: string) => {
   const iconMap: Record<string, React.ReactNode> = {
     'battle_plan': <Target className="h-4 w-4 text-red-500" />,
-    'chain_of_command': <Users className="h-4 w-4 text-blue-500" />,
     'company_onboarding': <Building2 className="h-4 w-4 text-purple-500" />,
     'hwgt_plan': <MapPin className="h-4 w-4 text-green-500" />,
     'machines': <Cog className="h-4 w-4 text-gray-500" />,
@@ -278,7 +276,7 @@ export function ExportClientContent({ user, userData }: ExportClientContentProps
   };
 
   const relevantTables = [
-    'battle_plan', 'chain_of_command', 'hwgt_plan', 'quarterly_sprint_canvas',
+    'battle_plan', 'hwgt_plan', 'quarterly_sprint_canvas',
     'triage_planner', 'machines', 'meeting_rhythm_planner', 'playbooks',
     'company_onboarding', 'user_timeline_claims'
   ];

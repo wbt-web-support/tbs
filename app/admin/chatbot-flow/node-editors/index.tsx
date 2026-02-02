@@ -3,6 +3,7 @@
 import { getNodeDefinition } from "@/lib/chatbot-flow/nodes";
 import { DataAccessEditor } from "./DataAccessEditor";
 import { InstructionsEditor } from "./InstructionsEditor";
+import { WebSearchEditor } from "./WebSearchEditor";
 
 export type NodeEditorProps = {
   nodeKey: string;
@@ -31,6 +32,10 @@ export function NodeEditor({ nodeKey, settings, onChange }: NodeEditorProps) {
 
   if (def.nodeType === "instructions") {
     return <InstructionsEditor settings={settings} onChange={onChange} />;
+  }
+
+  if (def.nodeType === "web_search") {
+    return <WebSearchEditor settings={settings} onChange={onChange} />;
   }
 
   return (

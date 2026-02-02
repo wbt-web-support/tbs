@@ -153,55 +153,75 @@ export function FloatingChat() {
     try {
       console.log('🔄 [FloatingChat] Fetching chat instances');
       setIsLoadingInstances(true);
-      
+      setChatInstances([]);
+
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
-      
-      if (userId) {
-        const response = await fetch('/api/gemini?action=instances', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch chat instances');
-        }
+      if (!userId) {
+        setIsLoadingInstances(false);
+        return;
+      }
 
-        const data = await response.json();
-        
-        if (data.type === 'chat_instances' && Array.isArray(data.instances)) {
-          console.log('🔄 [FloatingChat] Fetched instances:', data.instances.length);
-          setChatInstances(data.instances);
-          
-          // If no current instance is selected, select the most recent one
-          if (!currentInstanceId && data.instances.length > 0) {
-            const mostRecent = data.instances[0]; // Already sorted by updated_at desc
-            setCurrentInstanceId(mostRecent.id);
-            console.log('🔄 [FloatingChat] Set current instance to:', mostRecent.id);
-          }
-        } else if (data.instances?.length === 0) {
-          // No instances exist, create a new one
-          console.log('🔄 [FloatingChat] No instances found, creating new one');
-          await createNewInstance();
+      const response = await fetch('/api/gemini?action=instances', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setChatInstances([]);
+          setIsLoadingInstances(false);
+          return;
         }
+        const errData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch chat instances:', response.status, errData);
+        const created = await createNewInstance();
+        if (!created) setChatInstances([]);
+        setIsLoadingInstances(false);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.type === 'chat_instances' && Array.isArray(data.instances)) {
+        console.log('🔄 [FloatingChat] Fetched instances:', data.instances.length);
+        setChatInstances(data.instances);
+
+        if (!currentInstanceId && data.instances.length > 0) {
+          const mostRecent = data.instances[0];
+          setCurrentInstanceId(mostRecent.id);
+          console.log('🔄 [FloatingChat] Set current instance to:', mostRecent.id);
+        }
+      } else if (data.instances?.length === 0) {
+        console.log('🔄 [FloatingChat] No instances found, creating new one');
+        await createNewInstance();
       }
     } catch (error) {
       console.error('Error fetching chat instances:', error);
-      // Fallback to creating a new instance
-      await createNewInstance();
+      try {
+        await createNewInstance();
+      } catch (createErr) {
+        console.error('Fallback create also failed:', createErr);
+        setChatInstances([]);
+      }
     } finally {
       setIsLoadingInstances(false);
     }
   };
 
-  // Function to create a new chat instance
-  const createNewInstance = async (title: string = 'New Chat') => {
+  // Function to create a new chat instance. Returns true if created, false otherwise.
+  const createNewInstance = async (title: string = 'New Chat'): Promise<boolean> => {
     try {
       console.log('🔄 [FloatingChat] Creating new chat instance:', title);
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) return;
+
+      if (!session?.user) {
+        console.warn('🔄 [FloatingChat] No session, skipping create');
+        return false;
+      }
 
       const response = await fetch('/api/gemini', {
         method: 'PUT',
@@ -209,6 +229,7 @@ export function FloatingChat() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
+        credentials: 'include',
         body: JSON.stringify({
           action: 'create',
           title: title
@@ -216,29 +237,31 @@ export function FloatingChat() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create new chat instance');
+        const errData = await response.json().catch(() => ({}));
+        console.error('Failed to create new chat instance:', response.status, errData);
+        return false;
       }
 
       const data = await response.json();
       console.log('🔄 [FloatingChat] API response:', data);
-      
+
       if (data.type === 'instance_created' && data.instance) {
-        // Optimistically update the list and switch to the new instance
         setChatInstances(prev => [data.instance, ...prev]);
         setCurrentInstanceId(data.instance.id);
         setShowInstancePopup(false);
         setIsOpen(true);
-        
-        // Trigger force reload
-        console.log('🔄 [FloatingChat] Triggering force reload after new chat creation');
+
         setForceReloadKey(prev => {
           const newKey = prev + 1;
           console.log(`🔄 [FloatingChat] forceReloadKey updated from ${prev} to ${newKey}`);
           return newKey;
         });
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error creating new chat instance:', error);
+      return false;
     }
   };
 

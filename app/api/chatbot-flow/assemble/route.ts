@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
         basePrompt: result.basePrompt,
         instructionBlocks: result.instructionBlocks,
         dataModules: result.dataModules,
+        webSearchEnabled: !!result.webSearch,
       });
     }
 

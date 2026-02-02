@@ -52,6 +52,7 @@ const SCOPE_LABELS: Record<string, string> = {
 };
 
 const DATA_SOURCE_LABELS: Record<string, string> = {
+  business_info: "Business info",
   company_onboarding: "Company onboarding",
   departments: "Departments",
   finance_analysis: "Finance analysis",
@@ -77,6 +78,12 @@ const DATA_SOURCE_CONFIG: Record<
   string,
   { table: string; select: string; teamColumn?: string; userColumn?: string }
 > = {
+  business_info: {
+    table: "business_info",
+    select: "id, user_id, full_name, business_name, email, phone_number, payment_option, payment_remaining, command_hq_link, command_hq_created, gd_folder_created, meeting_scheduled, created_at, updated_at, profile_picture_url, role, google_review_link, team_id, permissions, job_title, manager, critical_accountabilities, playbooks_owned, department, manager_id, department_id, wbt_onboarding",
+    teamColumn: "team_id",
+    userColumn: "user_id",
+  },
   company_onboarding: {
     table: "company_onboarding",
     select: "id, user_id, onboarding_data, completed, competitor_data, created_at, updated_at",
@@ -243,8 +250,9 @@ function buildPromptFromNode(node: NodeRow, dataContext?: string): string {
       const expertise = (settings.expertise_prompt as string) || "";
       return expertise.trim() ? `[Specialization]\n${expertise.trim()}` : "";
     }
-    case "web_search":
-      return "";
+    case "web_search": {
+      return "[Web search] When web search is enabled for this turn, you may use Google Search to fetch current information from the web.";
+    }
     default:
       return "";
   }
@@ -312,9 +320,13 @@ export async function getLinkedNodes(
   return result;
 }
 
+/** Present when the chatbot has a Web search node; search is enabled only when the client sends use_web_search: true. */
+export type WebSearchConfig = object;
+
 /**
  * Assemble the full system prompt for a chatbot: base_prompt + contributions from each linked node.
  * When userContext (userId / teamId) is provided, data_access nodes load real data for that context into the prompt.
+ * When a web_search node is linked, returns webSearch config so the chat API can enable Google Search grounding.
  * Pass dataFetchClient (service-role) when testing as another user so RLS does not block reading their data.
  */
 export async function assemblePrompt(
@@ -322,7 +334,7 @@ export async function assemblePrompt(
   chatbotId: string,
   userContext?: UserContext,
   dataFetchClient?: SupabaseClient
-): Promise<{ prompt: string; chatbot: ChatbotRow | null }> {
+): Promise<{ prompt: string; chatbot: ChatbotRow | null; webSearch?: WebSearchConfig }> {
   const chatbot = await getChatbot(supabase, chatbotId);
   if (!chatbot) return { prompt: "", chatbot: null };
 
@@ -336,6 +348,7 @@ export async function assemblePrompt(
   const hasUserContext = userContext && (userContext.userId || userContext.teamId);
   const clientForData = dataFetchClient ?? supabase;
   const emptyUserContext: UserContext = { userId: null, teamId: null };
+  let webSearch: WebSearchConfig | undefined;
 
   for (const node of nodes) {
     let dataContext: string | undefined;
@@ -351,12 +364,15 @@ export async function assemblePrompt(
         dataContext = await fetchDataForSource(clientForData, dataSource, scope, emptyUserContext);
       }
     }
+    if (node.node_type === "web_search") {
+      webSearch = {};
+    }
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
   }
 
   const prompt = parts.join("\n\n");
-  return { prompt, chatbot };
+  return { prompt, chatbot, webSearch };
 }
 
 export type InstructionBlock = { nodeName: string; content: string };
@@ -368,6 +384,7 @@ export type AssembledStructured = {
   basePrompt: string;
   instructionBlocks: InstructionBlock[];
   dataModules: DataModule[];
+  webSearch?: WebSearchConfig;
 };
 
 /**
@@ -391,6 +408,7 @@ export async function assemblePromptStructured(
   if (!chatbot) return empty;
 
   const nodes = await getLinkedNodes(supabase, chatbotId);
+  let webSearch: WebSearchConfig | undefined;
   const basePrompt = (chatbot.base_prompts ?? [])
     .map((p) => (p.content ?? "").trim())
     .filter(Boolean)
@@ -445,6 +463,10 @@ export async function assemblePromptStructured(
       });
     }
 
+    if (node.node_type === "web_search") {
+      webSearch = {};
+    }
+
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
   }
@@ -456,5 +478,6 @@ export async function assemblePromptStructured(
     basePrompt,
     instructionBlocks,
     dataModules,
+    webSearch,
   };
 }

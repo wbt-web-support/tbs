@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Send, RefreshCw, RotateCcw } from "lucide-react";
+import { Send, RefreshCw, RotateCcw, Globe } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const STORAGE_KEY_PREFIX = "chatbot-flow-test-";
 
@@ -23,23 +24,27 @@ function getStorageKey(chatbotId: string) {
   return `${STORAGE_KEY_PREFIX}${chatbotId}`;
 }
 
-function loadPersistedState(chatbotId: string): { selectedUser: string; messages: Message[] } {
+function loadPersistedState(chatbotId: string): { selectedUser: string; messages: Message[]; useWebSearch?: boolean } {
   if (typeof window === "undefined") return { selectedUser: "__default__", messages: [] };
   try {
     const raw = localStorage.getItem(getStorageKey(chatbotId));
     if (!raw) return { selectedUser: "__default__", messages: [] };
-    const data = JSON.parse(raw) as { selectedUser?: string; messages?: Message[] };
+    const data = JSON.parse(raw) as { selectedUser?: string; messages?: Message[]; useWebSearch?: boolean };
     const selectedUser = typeof data?.selectedUser === "string" ? data.selectedUser : "__default__";
     const messages = Array.isArray(data?.messages) ? data.messages : [];
-    return { selectedUser, messages };
+    const useWebSearch = typeof data?.useWebSearch === "boolean" ? data.useWebSearch : false;
+    return { selectedUser, messages, useWebSearch };
   } catch {
     return { selectedUser: "__default__", messages: [] };
   }
 }
 
-function savePersistedState(chatbotId: string, selectedUser: string, messages: Message[]) {
+function savePersistedState(chatbotId: string, selectedUser: string, messages: Message[], useWebSearch?: boolean) {
   try {
-    localStorage.setItem(getStorageKey(chatbotId), JSON.stringify({ selectedUser, messages }));
+    localStorage.setItem(
+      getStorageKey(chatbotId),
+      JSON.stringify({ selectedUser, messages, useWebSearch: useWebSearch ?? false })
+    );
   } catch {
     // ignore quota or other storage errors
   }
@@ -72,6 +77,8 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [testUsers, setTestUsers] = useState<TestUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>("__default__");
+  const [useWebSearch, setUseWebSearch] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
   const [contextRefreshing, setContextRefreshing] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
@@ -104,17 +111,20 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
         setBasePrompt(data.basePrompt ?? "");
         setInstructionBlocks(Array.isArray(data.instructionBlocks) ? data.instructionBlocks : []);
         setDataModules(Array.isArray(data.dataModules) ? data.dataModules : []);
+        setWebSearchEnabled(Boolean(data.webSearchEnabled));
       } else {
         setFullPrompt("");
         setBasePrompt("");
         setInstructionBlocks([]);
         setDataModules([]);
+        setWebSearchEnabled(false);
       }
     } catch {
       setFullPrompt("");
       setBasePrompt("");
       setInstructionBlocks([]);
       setDataModules([]);
+      setWebSearchEnabled(false);
     } finally {
       setContextRefreshing(false);
     }
@@ -135,28 +145,30 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
   useLayoutEffect(() => {
     if (!chatbotId) return;
     skipNextPersistRef.current = true; // do not overwrite storage when persist effect runs after this
-    const { selectedUser: savedUser, messages: savedMessages } = loadPersistedState(chatbotId);
+    const { selectedUser: savedUser, messages: savedMessages, useWebSearch: savedUseWebSearch } = loadPersistedState(chatbotId);
     setSelectedUser(savedUser);
     setMessages(savedMessages);
+    setUseWebSearch(savedUseWebSearch ?? false);
     setInput("");
     setError(null);
   }, [chatbotId]);
 
-  // Persist selected user and messages so they survive page reloads
+  // Persist selected user, messages, and useWebSearch so they survive page reloads
   useEffect(() => {
     if (!chatbotId) return;
     if (skipNextPersistRef.current) {
       skipNextPersistRef.current = false;
       return;
     }
-    savePersistedState(chatbotId, selectedUser, messages);
-  }, [chatbotId, selectedUser, messages]);
+    savePersistedState(chatbotId, selectedUser, messages, useWebSearch);
+  }, [chatbotId, selectedUser, messages, useWebSearch]);
 
+  // Refetch context when chatbot, selected user, or test users list changes (e.g. after reload when testUsers load and selectedUser was restored from storage)
   useEffect(() => {
     if (chatbotId) {
       refreshContext();
     }
-  }, [chatbotId, selectedUser, refreshContext]);
+  }, [chatbotId, selectedUser, refreshContext, testUsers]);
 
   // Scroll to show the latest message or "Thinking..." while the LLM is responding
   useEffect(() => {
@@ -169,6 +181,7 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
       localStorage.removeItem(getStorageKey(chatbotId));
     } catch {}
     setSelectedUser("__default__");
+    setUseWebSearch(false);
     setMessages([]);
     setInput("");
     setError(null);
@@ -179,10 +192,18 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
     parts: [{ text: m.content }],
   }));
 
+  const contextLoading =
+    contextRefreshing || (selectedUser !== "__default__" && usersLoading);
+
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || loading) return;
     setInput("");
+    // Build history from current messages so context is up to date (before we add this turn)
+    const historyToSend = messages.map((m) => ({
+      role: m.role as "user" | "model",
+      parts: [{ text: m.content }],
+    }));
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
     setError(null);
@@ -190,15 +211,17 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
     const body: {
       chatbotId: string;
       message: string;
-      history: typeof history;
+      history: { role: "user" | "model"; parts: { text: string }[] }[];
       includeThoughts: boolean;
       userId?: string;
       teamId?: string;
+      use_web_search?: boolean;
     } = {
       chatbotId,
       message: text,
-      history,
+      history: historyToSend,
       includeThoughts: true,
+      use_web_search: useWebSearch,
     };
     if (user) {
       body.userId = user.id;
@@ -249,6 +272,19 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            {webSearchEnabled && (
+              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                <Checkbox
+                  checked={useWebSearch}
+                  onCheckedChange={(c) => setUseWebSearch(Boolean(c))}
+                  aria-label="Search web"
+                />
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Globe className="h-3.5 w-3.5" />
+                  Search web
+                </span>
+              </label>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -263,48 +299,42 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
         </div>
         <ScrollArea className="h-[180px] border-t border-border">
           <div className="p-3 space-y-2">
-            {contextRefreshing ? (
-              <p className="text-xs text-muted-foreground py-2">Refreshing...</p>
-            ) : (
-              <>
-                <details className="rounded-lg border border-border overflow-hidden bg-background">
-                  <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                    Base prompt
-                  </summary>
-                  <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
-                    {basePrompt || "(empty)"}
-                  </pre>
-                </details>
-                {instructionBlocks.map((block, i) => (
-                  <details key={`inst-${i}`} className="rounded-lg border border-border overflow-hidden bg-background">
-                    <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                      Instructions: {block.nodeName}
-                    </summary>
-                    <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
-                      {block.content}
-                    </pre>
-                  </details>
-                ))}
-                {dataModules.map((mod, i) => (
-                  <details key={`data-${i}`} className="rounded-lg border border-border overflow-hidden bg-background">
-                    <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                      Data: {mod.label} ({mod.nodeName})
-                    </summary>
-                    <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-32 overflow-auto">
-                      {mod.content}
-                    </pre>
-                  </details>
-                ))}
-                <details className="rounded-lg border border-border overflow-hidden bg-background">
-                  <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                    Full context (everything sent to the LLM)
-                  </summary>
-                  <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-40 overflow-auto">
-                    {fullPrompt || "(empty)"}
-                  </pre>
-                </details>
-              </>
-            )}
+            <details className="rounded-lg border border-border overflow-hidden bg-background">
+              <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                Base prompt
+              </summary>
+              <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
+                {contextLoading ? "Loading..." : basePrompt || "(empty)"}
+              </pre>
+            </details>
+            {instructionBlocks.map((block, i) => (
+              <details key={`inst-${i}`} className="rounded-lg border border-border overflow-hidden bg-background">
+                <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                  Instructions: {block.nodeName}
+                </summary>
+                <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
+                  {contextLoading ? "Loading..." : block.content}
+                </pre>
+              </details>
+            ))}
+            {dataModules.map((mod, i) => (
+              <details key={`data-${i}`} className="rounded-lg border border-border overflow-hidden bg-background">
+                <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                  Data: {mod.label} ({mod.nodeName})
+                </summary>
+                <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-32 overflow-auto">
+                  {contextLoading ? "Loading..." : mod.content}
+                </pre>
+              </details>
+            ))}
+            <details className="rounded-lg border border-border overflow-hidden bg-background">
+              <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                Full context (everything sent to the LLM)
+              </summary>
+              <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-40 overflow-auto">
+                {contextLoading ? "Loading..." : fullPrompt || "(empty)"}
+              </pre>
+            </details>
           </div>
         </ScrollArea>
       </div>
@@ -385,7 +415,17 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
                 )}
               </div>
             ))}
-            {loading && <p className="text-sm text-muted-foreground">Thinking...</p>}
+            {loading && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <span>Thinking...</span>
+                {useWebSearch && (
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground/90">
+                    <Globe className="h-3.5 w-3.5 animate-pulse" />
+                    Searching the web
+                  </span>
+                )}
+              </p>
+            )}
             <div ref={scrollAnchorRef} aria-hidden="true" className="h-0 w-full" />
           </div>
         </ScrollArea>

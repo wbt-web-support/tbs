@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -24,10 +25,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getNodeDefinition } from "@/lib/chatbot-flow/nodes";
-import { FlowCanvas } from "../../components/FlowCanvas";
 import { NodesSidebar } from "../../components/NodesSidebar";
 import { TestChatInline } from "../../components/TestChatInline";
 import { NodeEditor } from "../../node-editors";
+import { ChunkLoadErrorBoundary } from "../../components/ChunkLoadErrorBoundary";
+
+function loadFlowCanvas() {
+  return import("../../components/FlowCanvas").then((m) => ({ default: m.FlowCanvas }));
+}
+
+const FlowCanvas = dynamic(
+  () =>
+    loadFlowCanvas().catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isChunkLoad =
+        msg.includes("ChunkLoadError") || msg.includes("Loading chunk") || msg.includes("Loading CSS chunk");
+      if (isChunkLoad) return loadFlowCanvas();
+      throw err;
+    }),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+        Loading canvas...
+      </div>
+    ),
+  }
+);
 
 type LinkedNode = {
   id: string;
@@ -328,19 +352,20 @@ export default function EditChatbotPage() {
           throw new Error(data.error || "Failed to add node");
         }
         const def = getNodeDefinition(nodeKey);
-        const newOrderIndex = linkedNodes.length;
-        const newSettings = position
+        const orderIndex = (data as { order_index?: number })?.order_index ?? linkedNodes.length;
+        const newSettings = (data as { settings?: Record<string, unknown> })?.settings ?? (position
           ? { ...def?.defaultSettings, position }
-          : (def?.defaultSettings ?? {});
+          : (def?.defaultSettings ?? {}));
         const newNode: LinkedNode = {
           id: nodeKey,
           node_key: nodeKey,
           name: def?.name ?? nodeKey,
           node_type: def?.nodeType ?? "data_access",
           settings: newSettings,
-          order_index: newOrderIndex,
+          order_index: orderIndex,
         };
         setLinkedNodes((prev) => [...prev, newNode]);
+        await fetchLinkedNodes();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to add node");
         await fetchLinkedNodes();
@@ -442,9 +467,10 @@ export default function EditChatbotPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-70px)] bg-background">
-      {/* Top bar */}
-      <header className="shrink-0 flex items-center justify-between gap-4 px-5 py-3 border-b border-border bg-card">
+    <ChunkLoadErrorBoundary>
+      <div className="flex flex-col h-[calc(100vh-70px)] bg-background">
+        {/* Top bar */}
+        <header className="shrink-0 flex items-center justify-between gap-4 px-5 py-3 border-b border-border bg-card">
         <div className="flex items-center gap-4 min-w-0">
           <Link
             href="/admin/chatbot-flow"
@@ -508,7 +534,7 @@ export default function EditChatbotPage() {
             </Button>
           </div>
         )}
-        <div className="w-[580px] shrink-0 flex flex-col min-h-0 border-l border-border bg-card">
+        <div className="w-[680px] shrink-0 flex flex-col min-h-0 border-l border-border bg-card">
           <TestChatInline chatbotId={id} chatbotName={chatbot.name} />
         </div>
       </div>
@@ -912,6 +938,7 @@ export default function EditChatbotPage() {
         </DialogContent>
       </Dialog>
 
-    </div>
+      </div>
+    </ChunkLoadErrorBoundary>
   );
 }
