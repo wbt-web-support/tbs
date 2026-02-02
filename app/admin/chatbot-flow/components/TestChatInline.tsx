@@ -13,12 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Send, RefreshCw, RotateCcw, Globe } from "lucide-react";
+import { Send, RefreshCw, RotateCcw, Globe, Mic, MicOff, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useStreamingTTS } from "@/hooks/useStreamingTTS";
+import { AudioVisualizer } from "@/components/audio-visualizer";
+import { toast } from "sonner";
 
 const STORAGE_KEY_PREFIX = "chatbot-flow-test-";
 
-type Message = { role: "user" | "assistant"; content: string; thoughtSummary?: string };
+type Message = { role: "user" | "assistant"; content: string; thoughtSummary?: string; id?: string };
 
 function getStorageKey(chatbotId: string) {
   return `${STORAGE_KEY_PREFIX}${chatbotId}`;
@@ -79,12 +82,22 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
   const [selectedUser, setSelectedUser] = useState<string>("__default__");
   const [useWebSearch, setUseWebSearch] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceConfig, setVoiceConfig] = useState<{ tts_enabled: boolean; stt_enabled: boolean; voice_id: string; auto_play_responses: boolean } | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioStreamRef = useRef<MediaStream | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
   const [contextRefreshing, setContextRefreshing] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const testUsersRef = useRef<TestUser[]>([]);
   const skipNextPersistRef = useRef(true); // skip persist until after we've loaded from storage
   testUsersRef.current = testUsers;
+
+  const { sendText: playTTS, isSpeaking, stopPlayback } = useStreamingTTS(voiceEnabled && voiceConfig?.tts_enabled);
 
   const refreshContext = useCallback(async () => {
     if (!chatbotId) return;
@@ -112,12 +125,16 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
         setInstructionBlocks(Array.isArray(data.instructionBlocks) ? data.instructionBlocks : []);
         setDataModules(Array.isArray(data.dataModules) ? data.dataModules : []);
         setWebSearchEnabled(Boolean(data.webSearchEnabled));
+        setVoiceEnabled(Boolean(data.voiceEnabled));
+        setVoiceConfig(data.voiceConfig ?? null);
       } else {
         setFullPrompt("");
         setBasePrompt("");
         setInstructionBlocks([]);
         setDataModules([]);
         setWebSearchEnabled(false);
+        setVoiceEnabled(false);
+        setVoiceConfig(null);
       }
     } catch {
       setFullPrompt("");
@@ -125,10 +142,25 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
       setInstructionBlocks([]);
       setDataModules([]);
       setWebSearchEnabled(false);
+      setVoiceEnabled(false);
+      setVoiceConfig(null);
     } finally {
       setContextRefreshing(false);
     }
   }, [chatbotId, selectedUser]);
+
+  // Cleanup audio streams on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setUsersLoading(true);
@@ -175,6 +207,101 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
 
+  // Toggle voice recording (STT)
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+      setIsRecording(false);
+    } else {
+      // Start recording
+      try {
+        setIsRecording(true);
+        audioChunksRef.current = [];
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+
+        audioStreamRef.current = stream;
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+
+          // Send to STT endpoint
+          setIsTranscribing(true);
+          try {
+            const formData = new FormData();
+            formData.append("file", audioBlob, "recording.webm");
+
+            const response = await fetch("/api/ai-instructions/stt", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ error: "Failed to transcribe audio" }));
+              throw new Error(errorData.error || errorData.details || "Failed to transcribe audio");
+            }
+
+            const data = await response.json();
+
+            if (data.text) {
+              setInput(data.text);
+            } else {
+              throw new Error("No transcription returned");
+            }
+          } catch (error) {
+            console.error("Error transcribing audio:", error);
+            toast.error(error instanceof Error ? error.message : "Failed to transcribe audio");
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        recorder.start();
+      } catch (error) {
+        console.error("Error starting recording:", error);
+        setIsRecording(false);
+        if (error instanceof Error && error.name === "NotAllowedError") {
+          toast.error("Microphone permission denied. Please allow microphone access.");
+        } else {
+          toast.error("Failed to start recording. Please try again.");
+        }
+      }
+    }
+  };
+
+  // Play TTS for a message
+  const handlePlayMessage = async (messageId: string, text: string) => {
+    if (playingMessageId === messageId) {
+      stopPlayback();
+      setPlayingMessageId(null);
+    } else {
+      setPlayingMessageId(messageId);
+      await playTTS(text);
+      setPlayingMessageId(null);
+    }
+  };
+
   const handleReset = useCallback(() => {
     if (!chatbotId) return;
     try {
@@ -204,7 +331,7 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
       role: m.role as "user" | "model",
       parts: [{ text: m.content }],
     }));
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setMessages((prev) => [...prev, { role: "user", content: text, id: `user-${Date.now()}` }]);
     setLoading(true);
     setError(null);
     const user = selectedUser && selectedUser !== "__default__" ? testUsers.find((u) => u.id === selectedUser) : null;
@@ -235,14 +362,20 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.reply ?? "",
-          thoughtSummary: data.thoughtSummary,
-        },
-      ]);
+      const assistantMsg = {
+        role: "assistant" as const,
+        content: data.reply ?? "",
+        thoughtSummary: data.thoughtSummary,
+        id: `assistant-${Date.now()}`,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      // Auto-play if enabled
+      if (voiceConfig?.auto_play_responses && voiceConfig?.tts_enabled && assistantMsg.content) {
+        setTimeout(() => {
+          handlePlayMessage(assistantMsg.id!, assistantMsg.content);
+        }, 100);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -407,6 +540,22 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
                     m.content
                   )}
                 </div>
+                {m.role === "assistant" && voiceConfig?.tts_enabled && m.id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handlePlayMessage(m.id!, m.content)}
+                    className="mt-1 h-7 px-2 text-xs"
+                    disabled={isTranscribing || loading}
+                    title={playingMessageId === m.id ? "Stop playing" : "Play as audio"}
+                  >
+                    {playingMessageId === m.id ? (
+                      <><VolumeX className="h-3 w-3 mr-1" /> Stop</>
+                    ) : (
+                      <><Volume2 className="h-3 w-3 mr-1" /> Play</>
+                    )}
+                  </Button>
+                )}
                 {m.thoughtSummary && (
                   <details className="mt-1 text-xs text-muted-foreground">
                     <summary>Thought summary</summary>
@@ -437,20 +586,42 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
         )}
 
         <div className="p-4 flex flex-col gap-2 shrink-0 border-t border-border bg-muted/5">
-          <Textarea
-            placeholder="Type a message..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            rows={2}
-            className="resize-none w-full min-w-0 rounded-lg border-border"
-          />
-          <Button onClick={sendMessage} disabled={loading} className="shrink-0 w-full">
+          {isRecording && <AudioVisualizer isRecording={isRecording} stream={audioStreamRef.current} />}
+          {isTranscribing && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Transcribing audio...
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Textarea
+              placeholder={isRecording ? "Recording..." : "Type a message..."}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              rows={2}
+              className="resize-none w-full min-w-0 rounded-lg border-border"
+              disabled={isRecording || isTranscribing}
+            />
+            {voiceConfig?.stt_enabled && (
+              <Button
+                variant={isRecording ? "destructive" : "outline"}
+                size="icon"
+                onClick={toggleRecording}
+                disabled={isTranscribing || loading}
+                title={isRecording ? "Stop recording" : "Start voice recording"}
+                className="shrink-0 h-[72px]"
+              >
+                {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
+            )}
+          </div>
+          <Button onClick={sendMessage} disabled={loading || isRecording || isTranscribing} className="shrink-0 w-full">
             <Send className="h-4 w-4 mr-1.5" />
             Send
           </Button>

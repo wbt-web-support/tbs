@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X } from "lucide-react";
+import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import {
@@ -21,8 +21,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStreamingTTS } from "@/hooks/useStreamingTTS";
+import { AudioVisualizer } from "@/components/audio-visualizer";
+import { toast } from "sonner";
 
-export type Message = { role: "user" | "assistant"; content: string };
+export type Message = { role: "user" | "assistant"; content: string; id?: string };
 
 type QuickAction = { label: string; prompt: string };
 
@@ -63,6 +66,14 @@ export function AiChat({
     { id: string; type: "image" | "document"; url?: string; text?: string; fileName: string }[]
   >([]);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceConfig, setVoiceConfig] = useState<{ tts_enabled: boolean; stt_enabled: boolean; voice_id: string; auto_play_responses: boolean } | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioStreamRef = useRef<MediaStream | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +87,8 @@ export function AiChat({
   const [initialLoading, setInitialLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { sendText: playTTS, isSpeaking, stopPlayback } = useStreamingTTS(voiceEnabled && voiceConfig?.tts_enabled);
 
   const MIN_TEXTAREA_HEIGHT = 60;
   const MAX_TEXTAREA_HEIGHT = 500;
@@ -135,6 +148,8 @@ export function AiChat({
       setFullPrompt(data.fullPrompt ?? "");
       if (data.webSearchEnabled != null) setWebSearchEnabled(Boolean(data.webSearchEnabled));
       if (data.attachmentsEnabled != null) setAttachmentsEnabled(Boolean(data.attachmentsEnabled));
+      if (data.voiceEnabled != null) setVoiceEnabled(Boolean(data.voiceEnabled));
+      if (data.voiceConfig) setVoiceConfig(data.voiceConfig);
     } catch (e) {
       setContextError(e instanceof Error ? e.message : "Failed to load context");
     } finally {
@@ -155,6 +170,7 @@ export function AiChat({
         if (cancelled) return;
         setWebSearchEnabled(Boolean(data?.webSearchEnabled));
         setAttachmentsEnabled(Boolean(data?.attachmentsEnabled));
+        setVoiceEnabled(Boolean(data?.voiceEnabled));
       })
       .catch(() => {})
       .finally(() => {
@@ -172,6 +188,19 @@ export function AiChat({
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
+
+  // Cleanup audio streams on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+    };
+  }, []);
 
   const removeAttachment = (id: string) => {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
@@ -234,6 +263,89 @@ export function AiChat({
     }
   }, []);
 
+  // Toggle voice recording (STT)
+  const toggleRecording = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+      setIsRecording(false);
+    } else {
+      try {
+        setIsRecording(true);
+        audioChunksRef.current = [];
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+
+        audioStreamRef.current = stream;
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          setIsTranscribing(true);
+          try {
+            const formData = new FormData();
+            formData.append("file", audioBlob, "recording.webm");
+            const response = await fetch("/api/ai-instructions/stt", {
+              method: "POST",
+              body: formData,
+            });
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ error: "Failed to transcribe audio" }));
+              throw new Error(errorData.error || errorData.details || "Failed to transcribe audio");
+            }
+            const data = await response.json();
+            if (data.text) {
+              setInputText(data.text);
+            } else {
+              throw new Error("No transcription returned");
+            }
+          } catch (error) {
+            console.error("Error transcribing audio:", error);
+            toast.error(error instanceof Error ? error.message : "Failed to transcribe audio");
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        recorder.start();
+      } catch (error) {
+        console.error("Error starting recording:", error);
+        setIsRecording(false);
+        if (error instanceof Error && error.name === "NotAllowedError") {
+          toast.error("Microphone permission denied. Please allow microphone access.");
+        } else {
+          toast.error("Failed to start recording. Please try again.");
+        }
+      }
+    }
+  };
+
+  // Play TTS for a message
+  const handlePlayMessage = async (messageId: string, text: string) => {
+    if (playingMessageId === messageId) {
+      stopPlayback();
+      setPlayingMessageId(null);
+    } else {
+      setPlayingMessageId(messageId);
+      await playTTS(text);
+      setPlayingMessageId(null);
+    }
+  };
+
   const sendMessage = async (textOverride?: string) => {
     const text = (textOverride ?? inputText).trim();
     if (!text || loading) return;
@@ -251,7 +363,7 @@ export function AiChat({
         )
       : [];
 
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setMessages((prev) => [...prev, { role: "user", content: text, id: `user-${Date.now()}` }]);
     setAttachments([]);
     setLoading(true);
 
@@ -268,10 +380,19 @@ export function AiChat({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Request failed");
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply ?? "" },
-      ]);
+      const assistantMsg = {
+        role: "assistant" as const,
+        content: data.reply ?? "",
+        id: `assistant-${Date.now()}`,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      // Auto-play if enabled
+      if (voiceConfig?.auto_play_responses && voiceConfig?.tts_enabled && assistantMsg.content) {
+        setTimeout(() => {
+          handlePlayMessage(assistantMsg.id!, assistantMsg.content);
+        }, 100);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong";
       if (
@@ -479,6 +600,22 @@ export function AiChat({
                           >
                             {message.content}
                           </ReactMarkdown>
+                          {voiceConfig?.tts_enabled && message.id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePlayMessage(message.id!, message.content)}
+                              className="mt-2 h-7 px-2 text-xs"
+                              disabled={isTranscribing || loading}
+                              title={playingMessageId === message.id ? "Stop playing" : "Play as audio"}
+                            >
+                              {playingMessageId === message.id ? (
+                                <><VolumeX className="h-3 w-3 mr-1" /> Stop</>
+                              ) : (
+                                <><Volume2 className="h-3 w-3 mr-1" /> Play</>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       ) : (
                         <p className="whitespace-pre-wrap leading-relaxed text-[15px]">
@@ -537,13 +674,24 @@ export function AiChat({
 
           {/* ChatGPT-like input: one box, then row with Attach, Search, Send */}
           <div className="rounded-2xl border border-border bg-background transition-colors focus-within:border-primary/50 shadow-sm">
+            {isRecording && (
+              <div className="px-4 pt-3">
+                <AudioVisualizer isRecording={isRecording} stream={audioStreamRef.current} />
+              </div>
+            )}
+            {isTranscribing && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-4 pt-3">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Transcribing audio...
+              </div>
+            )}
             <textarea
               ref={textareaRef}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={useWebSearch ? "Search on the web" : "Ask anything"}
-              disabled={loading}
+              placeholder={isRecording ? "Recording..." : useWebSearch ? "Search on the web" : "Ask anything"}
+              disabled={loading || isRecording || isTranscribing}
               rows={1}
               style={{ minHeight: MIN_TEXTAREA_HEIGHT, maxHeight: MAX_TEXTAREA_HEIGHT }}
               className="w-full resize-none overflow-y-auto bg-transparent border-0 focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground disabled:opacity-50 px-4 pt-4 pb-3"
@@ -659,12 +807,26 @@ export function AiChat({
                     <span className="text-xs">Search</span>
                   </Button>
                 )}
+                {voiceConfig?.stt_enabled && (
+                  <Button
+                    type="button"
+                    variant={isRecording ? "destructive" : "ghost"}
+                    size="sm"
+                    onClick={toggleRecording}
+                    disabled={isTranscribing || loading}
+                    className="h-8 gap-1.5 rounded-lg"
+                    title={isRecording ? "Stop recording" : "Start voice recording"}
+                  >
+                    {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    <span className="text-xs">{isRecording ? "Stop" : "Record"}</span>
+                  </Button>
+                )}
               </div>
               <Button
                 type="button"
                 size="sm"
                 onClick={() => sendMessage()}
-                disabled={loading || !inputText.trim()}
+                disabled={loading || !inputText.trim() || isRecording || isTranscribing}
                 className="h-8 gap-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 border-0"
               >
                 {loading ? (
