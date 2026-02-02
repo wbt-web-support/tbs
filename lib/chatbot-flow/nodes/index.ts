@@ -20,12 +20,14 @@ import { attachmentsNode } from "./attachments";
 import { businessInfoNode } from "./business-info";
 import { businessOwnerInstructionsNode } from "./business-owner-instructions";
 import { webSearchNode } from "./web-search";
+import { voiceInterfaceNode } from "./voice-interface";
 
 const ALL_NODES: NodeDefinition[] = [
   attachmentsNode,
   businessInfoNode,
   businessOwnerInstructionsNode,
   webSearchNode,
+  voiceInterfaceNode,
   companyOnboardingNode,
   departmentsNode,
   financeAnalysisNode,

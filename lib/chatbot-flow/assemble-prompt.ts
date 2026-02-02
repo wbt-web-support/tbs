@@ -248,6 +248,9 @@ function buildPromptFromNode(node: NodeRow, dataContext?: string): string {
     case "attachments": {
       return "[Attachments] The user may attach images, PDFs, or documents to their message. Use the provided image and document content when answering.";
     }
+    case "voice_interface": {
+      return "[Voice Interface] Voice input (speech-to-text) and voice output (text-to-speech) are enabled. The user may speak their messages, and your responses can be played back as audio.";
+    }
     default:
       return "";
   }
@@ -321,6 +324,14 @@ export type WebSearchConfig = object;
 /** Present when the chatbot has an Attachments node; the client may send attachments with messages. */
 export type AttachmentsConfig = object;
 
+/** Present when the chatbot has a Voice Interface node; enables voice input (STT) and output (TTS). */
+export type VoiceConfig = {
+  tts_enabled: boolean;
+  stt_enabled: boolean;
+  voice_id: string;
+  auto_play_responses: boolean;
+};
+
 /**
  * Assemble the full system prompt for a chatbot: base_prompt + contributions from each linked node.
  * When userContext (userId / teamId) is provided, data_access nodes load real data for that context into the prompt.
@@ -333,7 +344,7 @@ export async function assemblePrompt(
   chatbotId: string,
   userContext?: UserContext,
   dataFetchClient?: SupabaseClient
-): Promise<{ prompt: string; chatbot: ChatbotRow | null; webSearch?: WebSearchConfig; attachments?: AttachmentsConfig }> {
+): Promise<{ prompt: string; chatbot: ChatbotRow | null; webSearch?: WebSearchConfig; attachments?: AttachmentsConfig; voice?: VoiceConfig }> {
   const configClient = dataFetchClient ?? supabase;
   const chatbot = await getChatbot(configClient, chatbotId);
   if (!chatbot) return { prompt: "", chatbot: null };
@@ -350,6 +361,7 @@ export async function assemblePrompt(
   const emptyUserContext: UserContext = { userId: null, teamId: null };
   let webSearch: WebSearchConfig | undefined;
   let attachments: AttachmentsConfig | undefined;
+  let voice: VoiceConfig | undefined;
 
   for (const node of nodes) {
     let dataContext: string | undefined;
@@ -371,12 +383,21 @@ export async function assemblePrompt(
     if (node.node_type === "attachments") {
       attachments = {};
     }
+    if (node.node_type === "voice_interface") {
+      const settings = node.settings || {};
+      voice = {
+        tts_enabled: Boolean(settings.tts_enabled ?? true),
+        stt_enabled: Boolean(settings.stt_enabled ?? true),
+        voice_id: String(settings.voice_id ?? "EXAVITQu4vr4xnSDxMaL"),
+        auto_play_responses: Boolean(settings.auto_play_responses ?? false),
+      };
+    }
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
   }
 
   const prompt = parts.join("\n\n");
-  return { prompt, chatbot, webSearch, attachments };
+  return { prompt, chatbot, webSearch, attachments, voice };
 }
 
 export type InstructionBlock = { nodeName: string; content: string };
@@ -390,6 +411,7 @@ export type AssembledStructured = {
   dataModules: DataModule[];
   webSearch?: WebSearchConfig;
   attachments?: AttachmentsConfig;
+  voice?: VoiceConfig;
 };
 
 /**
@@ -416,6 +438,7 @@ export async function assemblePromptStructured(
   const nodes = await getLinkedNodes(configClient, chatbotId);
   let webSearch: WebSearchConfig | undefined;
   let attachments: AttachmentsConfig | undefined;
+  let voice: VoiceConfig | undefined;
   const basePrompt = (chatbot.base_prompts ?? [])
     .map((p) => (p.content ?? "").trim())
     .filter(Boolean)
@@ -468,6 +491,15 @@ export async function assemblePromptStructured(
     if (node.node_type === "attachments") {
       attachments = {};
     }
+    if (node.node_type === "voice_interface") {
+      const settings = node.settings || {};
+      voice = {
+        tts_enabled: Boolean(settings.tts_enabled ?? true),
+        stt_enabled: Boolean(settings.stt_enabled ?? true),
+        voice_id: String(settings.voice_id ?? "EXAVITQu4vr4xnSDxMaL"),
+        auto_play_responses: Boolean(settings.auto_play_responses ?? false),
+      };
+    }
 
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
@@ -482,5 +514,6 @@ export async function assemblePromptStructured(
     dataModules,
     webSearch,
     attachments,
+    voice,
   };
 }

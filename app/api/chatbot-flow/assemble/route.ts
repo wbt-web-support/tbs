@@ -29,6 +29,8 @@ export async function POST(request: NextRequest) {
         instructionBlocks: result.instructionBlocks,
         dataModules: result.dataModules,
         webSearchEnabled: !!result.webSearch,
+        voiceEnabled: !!result.voice,
+        voiceConfig: result.voice,
       });
     }
 
