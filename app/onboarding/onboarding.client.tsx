@@ -4113,9 +4113,9 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
 
       toast({ title: "Success", description: "Your company information has been saved successfully!" });
       
-      // If in edit mode, redirect to thank-you page
+      // If in edit mode, redirect to dashboard
       if (isEditMode) {
-        router.push('/thank-you');
+        router.push('/dashboard');
         router.refresh();
         return;
       }
@@ -4206,9 +4206,9 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
         description: "Your changes have been saved successfully." 
       });
       
-      // Redirect to thank-you page after saving (small delay to show toast)
+      // Redirect to dashboard after saving (small delay to show toast)
       setTimeout(() => {
-        window.location.href = '/thank-you';
+        window.location.href = '/dashboard';
       }, 500);
     } catch (error) {
       toast({ 
@@ -4336,7 +4336,7 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
             onSaveProgress={saveProgress}
             isSavingProgress={isSavingProgress}
             onCancel={() => {
-              window.location.href = '/thank-you';
+              window.location.href = '/dashboard';
             }}
             onFeedbackClick={() => setShowFeedbackDialog(true)}
           />

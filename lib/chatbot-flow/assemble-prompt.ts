@@ -335,14 +335,21 @@ export async function assemblePrompt(
 
   const hasUserContext = userContext && (userContext.userId || userContext.teamId);
   const clientForData = dataFetchClient ?? supabase;
+  const emptyUserContext: UserContext = { userId: null, teamId: null };
 
   for (const node of nodes) {
     let dataContext: string | undefined;
-    if (node.node_type === "data_access" && hasUserContext && userContext) {
+    if (node.node_type === "data_access") {
       const settings = node.settings || {};
       const dataSource = (settings.data_source as string) || "";
       const scope = (settings.scope as string) || "team_specific";
-      dataContext = await fetchDataForSource(clientForData, dataSource, scope, userContext);
+      const isPlatformScope = scope === "all";
+      // Fetch data when: user/team context is set, OR node is platform-wide (scope "all") so all accounts data is included
+      if (hasUserContext && userContext) {
+        dataContext = await fetchDataForSource(clientForData, dataSource, scope, userContext);
+      } else if (isPlatformScope) {
+        dataContext = await fetchDataForSource(clientForData, dataSource, scope, emptyUserContext);
+      }
     }
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
@@ -393,17 +400,27 @@ export async function assemblePromptStructured(
   const dataModules: DataModule[] = [];
   const hasUserContext = userContext && (userContext.userId || userContext.teamId);
   const clientForData = dataFetchClient ?? supabase;
+  const emptyUserContext: UserContext = { userId: null, teamId: null };
 
   for (const node of nodes) {
     let dataContext: string | undefined;
     const settings = node.settings || {};
     const dataSource = (settings.data_source as string) || "";
+    const scope = (settings.scope as string) || "team_specific";
+    const isPlatformScope = scope === "all";
 
     if (node.node_type === "data_access") {
       const label = DATA_SOURCE_LABELS[dataSource] || dataSource;
       if (hasUserContext && userContext) {
-        const scope = (settings.scope as string) || "team_specific";
         dataContext = await fetchDataForSource(clientForData, dataSource, scope, userContext);
+        dataModules.push({
+          nodeName: node.name,
+          label,
+          dataSource,
+          content: dataContext || "(No data for this context)",
+        });
+      } else if (isPlatformScope) {
+        dataContext = await fetchDataForSource(clientForData, dataSource, scope, emptyUserContext);
         dataModules.push({
           nodeName: node.name,
           label,

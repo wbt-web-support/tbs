@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ArrowLeft, FileText, Loader2, PanelRightOpen, Plus, Settings, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, FileText, Loader2, PanelRightOpen, Plus, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -101,6 +101,7 @@ export default function EditChatbotPage() {
   const [extractingIndex, setExtractingIndex] = useState<number | null>(null);
   const [editContentIndex, setEditContentIndex] = useState<number | null>(null);
   const [editContentValue, setEditContentValue] = useState("");
+  const [openBasePromptIndex, setOpenBasePromptIndex] = useState<number | null>(0);
 
   const fetchChatbot = useCallback(async () => {
     const res = await fetch(`/api/chatbot-flow/chatbots/${id}`);
@@ -514,7 +515,7 @@ export default function EditChatbotPage() {
 
       {/* Settings dialog: full width/height, name, multiple base prompts (type + content), model */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="max-w-[100vw] w-full max-h-[100vh] h-[100vh] sm:max-w-[100vw] sm:w-full sm:h-[100vh] p-0 gap-0 flex flex-col">
+        <DialogContent className="max-w-[1500px] w-full max-h-[100vh] p-0 gap-0 flex flex-col">
           <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle>Chatbot settings</DialogTitle>
             <DialogDescription>
@@ -550,13 +551,19 @@ export default function EditChatbotPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setBasePrompts((prev) => [...prev, { type: "text", content: "" }])}
+                  onClick={() => {
+                    setBasePrompts((prev) => {
+                      const next = [...prev, { type: "text", content: "" }];
+                      setOpenBasePromptIndex(next.length - 1);
+                      return next;
+                    });
+                  }}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add prompt
                 </Button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {basePrompts.map((entry, index) => {
                   const needsUrl =
                     entry.type !== "text" &&
@@ -568,49 +575,92 @@ export default function EditChatbotPage() {
                     entry.type === "sheet";
                   const isExtracting = extractingIndex === index;
                   const meta = entry.extraction_metadata;
+                  const isOpen = openBasePromptIndex === index;
+                  const typeLabel = PROMPT_TYPES.find((t) => t.value === (entry.type || "text"))?.label ?? entry.type ?? "Text";
+                  const preview =
+                    entry.content.trim().length > 0
+                      ? entry.content.trim().length > 50
+                        ? `${entry.content.trim().slice(0, 50).replace(/\n/g, " ")}…`
+                        : entry.content.trim().replace(/\n/g, " ")
+                      : entry.url
+                        ? entry.url.slice(0, 40) + (entry.url.length > 40 ? "…" : "")
+                        : entry.document_name
+                          ? `📄 ${entry.document_name}`
+                          : "Empty";
                   return (
                     <div
                       key={index}
-                      className="rounded-lg border border-border p-4 space-y-3 bg-card"
+                      className="rounded-lg border border-border bg-card overflow-hidden"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <Label className="text-xs text-muted-foreground">Prompt type</Label>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={entry.type || "text"}
-                            onValueChange={(v) =>
-                              setBasePrompts((prev) =>
-                                prev.map((p, i) => (i === index ? { ...p, type: v } : p))
-                              )
-                            }
-                          >
-                            <SelectTrigger className="w-[140px] h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {PROMPT_TYPES.map((t) => (
-                                <SelectItem key={t.value} value={t.value}>
-                                  {t.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() =>
-                              setBasePrompts((prev) => prev.filter((_, i) => i !== index))
-                            }
-                            title="Remove prompt"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      {/* Header: always visible, click to expand/collapse */}
+                      <div
+                        className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors min-h-0"
+                        onClick={() => setOpenBasePromptIndex((prev) => (prev === index ? null : index))}
+                      >
+                        <button
+                          type="button"
+                          className="shrink-0 p-0.5 rounded hover:bg-muted"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenBasePromptIndex((prev) => (prev === index ? null : index));
+                          }}
+                          aria-expanded={isOpen}
+                        >
+                          {isOpen ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                        <span className="text-xs font-medium text-muted-foreground shrink-0 w-[100px]">
+                          {typeLabel}
+                        </span>
+                        <span className="text-xs text-foreground truncate flex-1 min-w-0" title={preview}>
+                          {preview || "—"}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBasePrompts((prev) => prev.filter((_, i) => i !== index));
+                            setOpenBasePromptIndex((prev) => (prev === index ? null : prev === null ? null : prev > index ? prev - 1 : prev));
+                          }}
+                          title="Remove prompt"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
 
-                      {needsUrl && (
+                      {/* Body: only when open */}
+                      {isOpen && (
+                        <div className="border-t border-border p-4 space-y-3 bg-muted/5">
+                          <div className="flex items-center justify-between gap-2">
+                            <Label className="text-xs text-muted-foreground">Prompt type</Label>
+                            <Select
+                              value={entry.type || "text"}
+                              onValueChange={(v) =>
+                                setBasePrompts((prev) =>
+                                  prev.map((p, i) => (i === index ? { ...p, type: v } : p))
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-[140px] h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PROMPT_TYPES.map((t) => (
+                                  <SelectItem key={t.value} value={t.value}>
+                                    {t.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {needsUrl && (
                         <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/30">
                           <Label className="text-xs">URL</Label>
                           <div className="flex gap-2">
@@ -757,6 +807,8 @@ export default function EditChatbotPage() {
                           )}
                         </div>
                       )}
+                          </div>
+                        )}
                     </div>
                   );
                 })}

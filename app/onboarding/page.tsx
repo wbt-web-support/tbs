@@ -18,7 +18,7 @@ export default async function OnboardingPage({
 
   const isEditMode = searchParams.edit === 'true';
 
-  // If user is accessing from thank-you page (edit mode), always allow access
+  // If user is accessing from dashboard (edit mode), always allow access
   if (isEditMode) {
     return <OnboardingClient isEditMode={isEditMode} />;
   }
@@ -32,7 +32,7 @@ export default async function OnboardingPage({
 
   // Only redirect if onboarding is completed AND not in edit mode
   if (onboardingData?.completed) {
-    redirect('/thank-you');
+    redirect('/dashboard');
   }
 
   return <OnboardingClient isEditMode={isEditMode} />;

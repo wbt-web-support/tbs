@@ -1,16 +1,18 @@
 "use client";
 
 import { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 
 export type ChatbotRootNodeData = {
   label: string;
 };
 
-function ChatbotRootNodeComponent({ data }: NodeProps<{ type: "chatbot"; data: ChatbotRootNodeData }>) {
+export type ChatbotRootNodeType = Node<ChatbotRootNodeData, "chatbot">;
+
+function ChatbotRootNodeComponent({ data }: NodeProps<ChatbotRootNodeType>) {
   return (
     <div className="rounded-lg border-2 border-primary bg-card px-4 py-3 min-w-[200px]">
-      <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !border-2 !bg-primary !-right-1" />
+      <Handle type="source" position={Position.Bottom} className="!w-2.5 !h-2.5 !border-2 !bg-primary !-bottom-1" />
       <div className="flex items-center gap-3">
         <div className="rounded-lg bg-primary/10 border border-primary/20 p-2">
           <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">

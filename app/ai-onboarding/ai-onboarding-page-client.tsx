@@ -115,7 +115,7 @@ export default function AIOnboardingPageClient({ userName }: { userName: string 
   };
 
   const handleCancel = () => {
-    window.location.href = '/thank-you';
+    window.location.href = '/dashboard';
   };
 
   // Handle feedback submission
@@ -184,16 +184,16 @@ export default function AIOnboardingPageClient({ userName }: { userName: string 
             <Button
               type="button"
               variant="ghost"
-              onClick={() => router.push('/thank-you')}
+              onClick={() => router.push('/dashboard')}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Thank You Page
+              Back to Dashboard
             </Button>
           </div>
           
           <AIOnboardingClient 
-            redirectTo="/thank-you" 
+            redirectTo="/dashboard" 
             onSaveRef={saveHandlerRef}
             onSavingState={setIsSaving}
           />

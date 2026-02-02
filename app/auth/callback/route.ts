@@ -59,12 +59,12 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .single();
 
-    // Redirect super_admin to /admin, admin to /thank-you, users with role "user" to /member/dashboard, others to /thank-you
+    // Redirect super_admin to /admin, admin to /dashboard, users with role "user" to /member/dashboard, others to /dashboard
     if (userProfile?.role === 'super_admin') {
       return NextResponse.redirect(`${origin}/admin`);
     }
     if (userProfile?.role === 'admin') {
-      return NextResponse.redirect(`${origin}/thank-you`);
+      return NextResponse.redirect(`${origin}/dashboard`);
     }
     if (userProfile?.role === 'user') {
       return NextResponse.redirect(`${origin}/member/dashboard`);
@@ -72,5 +72,5 @@ export async function GET(request: Request) {
   }
 
   // URL to redirect to after sign up process completes
-  return NextResponse.redirect(`${origin}/thank-you`);
+  return NextResponse.redirect(`${origin}/dashboard`);
 }

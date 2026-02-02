@@ -10,6 +10,7 @@ import {
   type Node,
   type Edge,
   type NodeChange,
+  type NodeTypes,
   applyNodeChanges,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -30,16 +31,17 @@ function FitViewWhenNodesChange({ nodeCount }: { nodeCount: number }) {
   return null;
 }
 
-const NODE_TYPES = {
-  chatbot: ChatbotRootNode,
-  flowNode: FlowNodeCard,
+const NODE_TYPES: NodeTypes = {
+  chatbot: ChatbotRootNode as NodeTypes["chatbot"],
+  flowNode: FlowNodeCard as NodeTypes["flowNode"],
 };
 
 const CHATBOT_NODE_ID = "chatbot-root";
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 80;
+const VERTICAL_GAP = 24;
 const START_X = 40;
-const START_Y = 200;
+const START_Y = 40;
 
 type LinkedNode = {
   id: string;
@@ -81,9 +83,9 @@ function buildNodesAndEdges(
   linkedNodes.forEach((n, i) => {
     const nodeKey = n.node_key;
     const nodeId = `flow-${nodeKey}`;
-    // Use position from settings if available, otherwise calculate default position
+    // Use position from settings if available, otherwise stack vertically below chatbot
     const storedPosition = n.settings?.position as { x: number; y: number } | undefined;
-    const position = storedPosition ?? { x: START_X + (i + 1) * NODE_WIDTH, y: START_Y };
+    const position = storedPosition ?? { x: START_X, y: START_Y + (i + 1) * (NODE_HEIGHT + VERTICAL_GAP) };
     nodes.push({
       id: nodeId,
       type: "flowNode",

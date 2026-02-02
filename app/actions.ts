@@ -98,13 +98,13 @@ export const signInAction = async (formData: FormData) => {
     } else if (userData?.role === 'super_admin') {
       return redirect("/admin");
     } else if (userData?.role === 'admin') {
-      return redirect("/thank-you");
+      return redirect("/dashboard");
     } else if (userData?.role === 'user') {
       return redirect("/member/dashboard");
     }
   }
 
-  return redirect("/thank-you");
+  return redirect("/dashboard");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {

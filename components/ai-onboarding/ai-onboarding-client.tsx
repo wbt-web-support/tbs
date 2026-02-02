@@ -340,13 +340,13 @@ export default function AIOnboardingClient({ redirectTo, onSaveRef, onSavingStat
             description: "You've completed all the AI-generated questions.",
           });
           // Redirect based on edit mode or custom redirect
-          const redirectPath = redirectTo || (isEditMode ? '/thank-you' : '/dashboard');
+          const redirectPath = redirectTo || '/dashboard';
           setTimeout(() => {
             router.push(redirectPath);
           }, 2000);
         } else {
           // Redirect based on edit mode or custom redirect
-          const redirectPath = redirectTo || (isEditMode ? '/thank-you' : '/dashboard');
+          const redirectPath = redirectTo || '/dashboard';
           setTimeout(() => {
             router.push(redirectPath);
           }, 1500);

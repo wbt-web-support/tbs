@@ -57,7 +57,7 @@ export default function DiscoveryCallPage() {
 
   const handleSkipToDashboard = () => {
     // Add URL parameter to indicate fresh onboarding completion and show welcome popup
-    router.push('/thank-you?onboarding=completed&welcome=true');
+    router.push('/dashboard?onboarding=completed&welcome=true');
     router.refresh();
   };
 
