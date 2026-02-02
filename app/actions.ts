@@ -100,7 +100,7 @@ export const signInAction = async (formData: FormData) => {
     } else if (userData?.role === 'admin') {
       return redirect("/dashboard");
     } else if (userData?.role === 'user') {
-      return redirect("/member/dashboard");
+      return redirect("/member/ai");
     }
   }
 

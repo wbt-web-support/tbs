@@ -9,7 +9,6 @@ import { initializeSupabaseStorage } from "@/utils/supabase/storage-init";
 import { Toaster as SonnerToaster } from "sonner";
 import GoogleAnalyticsScript from "@/components/google-analytics-script";
 import { ImpersonationIndicator } from "@/components/impersonation-indicator";
-// import { FloatingChat } from "@/components/floating-chat";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`

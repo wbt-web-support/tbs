@@ -22,29 +22,9 @@ async function getUserId(req: Request) {
   }
 }
 
-// Helper function to get global instructions
+// Stub: chatbot_instructions table removed
 async function getGlobalInstructions() {
-  try {
-    console.log('🔄 [Supabase] Fetching global instructions');
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('chatbot_instructions')
-      .select('content, content_type, url, updated_at, created_at, extraction_metadata, priority')
-      .eq('is_active', true)
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('❌ [Supabase] Error fetching global instructions:', error);
-      throw error;
-    }
-
-    console.log(`✅ [Supabase] Fetched ${data?.length || 0} global instructions`);
-    return data || [];
-  } catch (error) {
-    console.error("❌ [Supabase] Error fetching global instructions:", error);
-    return [];
-  }
+  return [];
 }
 
 // Helper function to get user data

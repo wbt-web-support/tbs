@@ -5,7 +5,6 @@ import { createClient } from "@/utils/supabase/client";
 import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Plus, ExternalLink, Edit2, FileText, Info, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";

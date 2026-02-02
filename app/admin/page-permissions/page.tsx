@@ -280,7 +280,7 @@ export default function PagePermissionsPage() {
             Admin Page Permissions
           </h1>
           <p className="text-slate-600 text-base">
-            Manage which dashboard pages are visible to each admin user
+            Manage which dashboard and member pages are visible to each admin user
           </p>
         </div>
         <div className="flex items-center gap-3">

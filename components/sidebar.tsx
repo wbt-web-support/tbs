@@ -192,19 +192,14 @@ const navigationSections: NavigationSection[] = [
   //     }
   //   ],
   // },
-  {
-    title: "AI",
-    items: [
-      {
-        name: "AI Assistant",
-        href: "/chat",
-        icon: Sparkles,
-        disabled: false,
-      },
-    ],
-  },
-
-
+  // AI section hidden for now – uncomment when ready to show to users
+  // {
+  //   title: "AI",
+  //   items: [
+  //     { name: "AI Assistant", href: "/chat", icon: Sparkles, disabled: false },
+  //     { name: "Business owner", href: "/ai", icon: Lightbulb, disabled: false },
+  //   ],
+  // },
 ];
 
 interface SidebarProps {

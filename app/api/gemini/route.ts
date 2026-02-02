@@ -23,61 +23,14 @@ async function getUserId(req: Request) {
   }
 }
 
-// Helper function to get global instructions
-async function getGlobalInstructions(categories?: string[]) {
-  try {
-    console.log('🔄 [Supabase] Fetching global instructions');
-    const supabase = await createClient();
-    let query = supabase
-      .from('chatbot_instructions')
-      .select('title, content, content_type, url, updated_at, created_at, extraction_metadata, priority, category')
-      .eq('is_active', true)
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: true });
-
-    if (categories && categories.length > 0) {
-      query = query.in('category', categories);
-      console.log(`✅ [Supabase] Filtering instructions by categories: ${categories.join(', ')}`);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('❌ [Supabase] Error fetching global instructions:', error);
-      throw error;
-    }
-
-    console.log(`✅ [Supabase] Fetched ${data?.length || 0} global instructions`);
-    return data || [];
-  } catch (error) {
-    console.error("❌ [Supabase] Error fetching global instructions:", error);
-    return [];
-  }
+// Stub: chatbot_instructions table removed
+async function getGlobalInstructions(_categories?: string[]) {
+  return [];
 }
 
-// Helper function to get Innovation Documents
-async function getInnovationDocuments(documentIds: string[]) {
-  if (!documentIds || documentIds.length === 0) return [];
-
-  try {
-    console.log(`🔄 [Supabase] Fetching innovation documents for IDs: ${documentIds.join(', ')}`);
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('innovation_documents')
-      .select('id, title, extracted_content, file_name, file_type')
-      .in('id', documentIds);
-
-    if (error) {
-      console.error('❌ [Supabase] Error fetching innovation documents:', error);
-      throw error;
-    }
-
-    console.log(`✅ [Supabase] Fetched ${data?.length || 0} innovation documents`);
-    return data || [];
-  } catch (error) {
-    console.error("❌ [Supabase] Error fetching innovation documents:", error);
-    return [];
-  }
+// Stub: innovation_documents table removed
+async function getInnovationDocuments(_documentIds: string[]) {
+  return [];
 }
 
 // Helper function to get external API data metrics

@@ -28,7 +28,7 @@ export default function DashboardActionSection({
     if (onNavigateToChat) {
       onNavigateToChat();
     } else {
-      router.push('/chat');
+      router.push('/ai');
     }
   };
 

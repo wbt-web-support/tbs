@@ -16,13 +16,15 @@ import { tasksNode } from "./tasks";
 import { teamLeavesNode } from "./team-leaves";
 import { teamServicesNode } from "./team-services";
 import { battlePlanNode } from "./battle-plan";
-import { aiInstructionsNode } from "./ai-instructions";
-import { instructionsNode } from "./instructions";
+import { attachmentsNode } from "./attachments";
 import { businessInfoNode } from "./business-info";
+import { businessOwnerInstructionsNode } from "./business-owner-instructions";
 import { webSearchNode } from "./web-search";
 
 const ALL_NODES: NodeDefinition[] = [
+  attachmentsNode,
   businessInfoNode,
+  businessOwnerInstructionsNode,
   webSearchNode,
   companyOnboardingNode,
   departmentsNode,
@@ -41,8 +43,6 @@ const ALL_NODES: NodeDefinition[] = [
   teamLeavesNode,
   teamServicesNode,
   battlePlanNode,
-  aiInstructionsNode,
-  instructionsNode,
 ];
 
 export type { NodeDefinition };

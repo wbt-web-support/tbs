@@ -90,17 +90,6 @@ const navigationSections = [
       },
      
       {
-        name: "AI Assistant Instructions",
-        href: "/admin/instructions",
-        icon: MessageSquare,
-      },
-
-      {
-        name: "AI Instructions",
-        href: "/admin/ai-instructions",
-        icon: Brain,
-      },
-      {
         name: "Google Analytics",
         href: "/admin/analytics",
         icon: BarChart3,

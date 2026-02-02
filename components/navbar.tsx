@@ -227,7 +227,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           </Button>
 
           {showAIAssistant && (
-            <Link href="/chat" className="header-ai-assistant">
+            <Link href="/ai" className="header-ai-assistant">
               <Button variant="ghost" size="sm" className="rounded-full flex items-center gap-2 bg-gradient-to-r hover:from-blue-700 hover:to-blue-900 hover:text-white from-blue-600 to-blue-800 text-white">
                 <Sparkles className="h-4 w-4 flex-shrink-0" />
                 <span>AI</span>

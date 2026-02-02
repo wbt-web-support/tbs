@@ -53,6 +53,7 @@ const SCOPE_LABELS: Record<string, string> = {
 
 const DATA_SOURCE_LABELS: Record<string, string> = {
   business_info: "Business info",
+  business_owner_instructions: "Business owner instructions",
   company_onboarding: "Company onboarding",
   departments: "Departments",
   finance_analysis: "Finance analysis",
@@ -69,7 +70,6 @@ const DATA_SOURCE_LABELS: Record<string, string> = {
   team_leaves: "Team leaves",
   team_services: "Team services",
   battle_plan: "Battle plan",
-  ai_instructions: "AI instructions",
   playbooks: "Playbooks",
 };
 
@@ -82,6 +82,11 @@ const DATA_SOURCE_CONFIG: Record<
     table: "business_info",
     select: "id, user_id, full_name, business_name, email, phone_number, payment_option, payment_remaining, command_hq_link, command_hq_created, gd_folder_created, meeting_scheduled, created_at, updated_at, profile_picture_url, role, google_review_link, team_id, permissions, job_title, manager, critical_accountabilities, playbooks_owned, department, manager_id, department_id, wbt_onboarding",
     teamColumn: "team_id",
+    userColumn: "user_id",
+  },
+  business_owner_instructions: {
+    table: "business_owner_instructions",
+    select: "id, user_id, title, content, content_type, url, extraction_metadata, created_at, updated_at",
     userColumn: "user_id",
   },
   company_onboarding: {
@@ -163,11 +168,6 @@ const DATA_SOURCE_CONFIG: Record<
     select: "id, user_id, businessplanlink, missionstatement, visionstatement, purposewhy, strategicanchors, corevalues, business_plan_content, oneyeartarget, tenyeartarget, fiveyeartarget, static_questions_answers, created_at, updated_at",
     userColumn: "user_id",
   },
-  ai_instructions: {
-    table: "ai_instructions",
-    select: "id, title, content, instruction_type, role_access, category, url, is_active, priority, created_by, created_at, updated_at",
-    userColumn: "created_by",
-  },
   playbooks: {
     table: "playbooks",
     select: "id, user_id, playbookname, description, enginetype, status, link, department_id, content, created_at, updated_at",
@@ -233,25 +233,20 @@ async function fetchDataForSource(
   }
 }
 
-function buildInstructionsPrompt(settings: Record<string, unknown>): string {
-  const content = (settings.content as string) || "";
-  if (!content.trim()) return "";
-  return `[Custom instructions]\n${content.trim()}`;
-}
-
 function buildPromptFromNode(node: NodeRow, dataContext?: string): string {
   const settings = node.settings || {};
   switch (node.node_type) {
     case "data_access":
       return buildDataAccessPrompt(settings, dataContext);
-    case "instructions":
-      return buildInstructionsPrompt(settings);
     case "sub_agent": {
       const expertise = (settings.expertise_prompt as string) || "";
       return expertise.trim() ? `[Specialization]\n${expertise.trim()}` : "";
     }
     case "web_search": {
       return "[Web search] When web search is enabled for this turn, you may use Google Search to fetch current information from the web.";
+    }
+    case "attachments": {
+      return "[Attachments] The user may attach images, PDFs, or documents to their message. Use the provided image and document content when answering.";
     }
     default:
       return "";
@@ -323,22 +318,27 @@ export async function getLinkedNodes(
 /** Present when the chatbot has a Web search node; search is enabled only when the client sends use_web_search: true. */
 export type WebSearchConfig = object;
 
+/** Present when the chatbot has an Attachments node; the client may send attachments with messages. */
+export type AttachmentsConfig = object;
+
 /**
  * Assemble the full system prompt for a chatbot: base_prompt + contributions from each linked node.
  * When userContext (userId / teamId) is provided, data_access nodes load real data for that context into the prompt.
  * When a web_search node is linked, returns webSearch config so the chat API can enable Google Search grounding.
- * Pass dataFetchClient (service-role) when testing as another user so RLS does not block reading their data.
+ * Pass dataFetchClient (service-role) for reading chatbot config and links (RLS restricts these to super_admin)
+ * and for fetching user/team data. When omitted, supabase is used for config and data (admin-only flows).
  */
 export async function assemblePrompt(
   supabase: SupabaseClient,
   chatbotId: string,
   userContext?: UserContext,
   dataFetchClient?: SupabaseClient
-): Promise<{ prompt: string; chatbot: ChatbotRow | null; webSearch?: WebSearchConfig }> {
-  const chatbot = await getChatbot(supabase, chatbotId);
+): Promise<{ prompt: string; chatbot: ChatbotRow | null; webSearch?: WebSearchConfig; attachments?: AttachmentsConfig }> {
+  const configClient = dataFetchClient ?? supabase;
+  const chatbot = await getChatbot(configClient, chatbotId);
   if (!chatbot) return { prompt: "", chatbot: null };
 
-  const nodes = await getLinkedNodes(supabase, chatbotId);
+  const nodes = await getLinkedNodes(configClient, chatbotId);
   const baseText = (chatbot.base_prompts ?? [])
     .map((p) => (p.content ?? "").trim())
     .filter(Boolean)
@@ -349,6 +349,7 @@ export async function assemblePrompt(
   const clientForData = dataFetchClient ?? supabase;
   const emptyUserContext: UserContext = { userId: null, teamId: null };
   let webSearch: WebSearchConfig | undefined;
+  let attachments: AttachmentsConfig | undefined;
 
   for (const node of nodes) {
     let dataContext: string | undefined;
@@ -367,12 +368,15 @@ export async function assemblePrompt(
     if (node.node_type === "web_search") {
       webSearch = {};
     }
+    if (node.node_type === "attachments") {
+      attachments = {};
+    }
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
   }
 
   const prompt = parts.join("\n\n");
-  return { prompt, chatbot, webSearch };
+  return { prompt, chatbot, webSearch, attachments };
 }
 
 export type InstructionBlock = { nodeName: string; content: string };
@@ -385,11 +389,12 @@ export type AssembledStructured = {
   instructionBlocks: InstructionBlock[];
   dataModules: DataModule[];
   webSearch?: WebSearchConfig;
+  attachments?: AttachmentsConfig;
 };
 
 /**
  * Same as assemblePrompt but returns a breakdown for display: base prompt, each instruction block, each data module, and full prompt.
- * Pass dataFetchClient (service-role) when testing as another user so RLS does not block reading their data.
+ * Pass dataFetchClient (service-role) for reading chatbot config and links (RLS restricts these to super_admin) and for data fetch.
  */
 export async function assemblePromptStructured(
   supabase: SupabaseClient,
@@ -397,7 +402,8 @@ export async function assemblePromptStructured(
   userContext?: UserContext,
   dataFetchClient?: SupabaseClient
 ): Promise<AssembledStructured> {
-  const chatbot = await getChatbot(supabase, chatbotId);
+  const configClient = dataFetchClient ?? supabase;
+  const chatbot = await getChatbot(configClient, chatbotId);
   const empty: AssembledStructured = {
     prompt: "",
     chatbot: null,
@@ -407,8 +413,9 @@ export async function assemblePromptStructured(
   };
   if (!chatbot) return empty;
 
-  const nodes = await getLinkedNodes(supabase, chatbotId);
+  const nodes = await getLinkedNodes(configClient, chatbotId);
   let webSearch: WebSearchConfig | undefined;
+  let attachments: AttachmentsConfig | undefined;
   const basePrompt = (chatbot.base_prompts ?? [])
     .map((p) => (p.content ?? "").trim())
     .filter(Boolean)
@@ -455,16 +462,11 @@ export async function assemblePromptStructured(
       }
     }
 
-    if (node.node_type === "instructions") {
-      const content = buildInstructionsPrompt(node.settings || {});
-      instructionBlocks.push({
-        nodeName: node.name,
-        content: content || "(No instructions added yet)",
-      });
-    }
-
     if (node.node_type === "web_search") {
       webSearch = {};
+    }
+    if (node.node_type === "attachments") {
+      attachments = {};
     }
 
     const contribution = buildPromptFromNode(node, dataContext);
@@ -479,5 +481,6 @@ export async function assemblePromptStructured(
     instructionBlocks,
     dataModules,
     webSearch,
+    attachments,
   };
 }

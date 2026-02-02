@@ -80,7 +80,6 @@ function buildNodesAndEdges(
     },
   ];
   const edges: Edge[] = [];
-  let prevId = CHATBOT_NODE_ID;
   linkedNodes.forEach((n, i) => {
     const nodeKey = n.node_key;
     const nodeId = `flow-${nodeKey}`;
@@ -101,8 +100,8 @@ function buildNodesAndEdges(
       },
       draggable: true,
     });
-    edges.push({ id: `e-${prevId}-${nodeId}`, source: prevId, target: nodeId });
-    prevId = nodeId;
+    // Every node (web_search, attachments, data_access, etc.) connects directly to the chatbot
+    edges.push({ id: `e-${CHATBOT_NODE_ID}-${nodeId}`, source: CHATBOT_NODE_ID, target: nodeId });
   });
   return { nodes, edges };
 }

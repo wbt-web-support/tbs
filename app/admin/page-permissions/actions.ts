@@ -29,7 +29,7 @@ export type AdminUserPermissions = {
  * Get all available dashboard pages from the sidebar navigation
  */
 export async function getAvailablePages(): Promise<PageInfo[]> {
-  // These match the navigationSections in components/sidebar.tsx
+  // These match the navigationSections in components/sidebar.tsx and member routes
   // Note: Dashboard is always visible and not included here
   const pages: PageInfo[] = [
     { path: "calendar", name: "Calendar", section: "Overview" },
@@ -41,8 +41,9 @@ export async function getAvailablePages(): Promise<PageInfo[]> {
     { path: "playbook-planner", name: "Playbooks", section: "Strategy" },
     { path: "growth-machine", name: "Growth Machine", section: "Value Machines" },
     { path: "fulfillment-machine", name: "Fulfilment Machine", section: "Value Machines" },
-    { path: "chat", name: "AI Assistant", section: "AI" },
+    { path: "ai", name: "AI Assistant", section: "AI" },
     { path: "integrations", name: "Integrations", section: "Settings" },
+    { path: "member/ai", name: "Engineer AI", section: "Member" },
   ];
   
   return pages;
@@ -148,7 +149,7 @@ export async function getAllAdminPermissions(): Promise<AdminUserPermissions[]> 
 
     return Array.from(grouped.values()).map((p) => ({
       ...p,
-      page_paths: p.page_paths.sort(),
+      page_paths: normalizePagePaths(p.page_paths).sort(),
     }));
   } else {
     // New structure: one row per user with JSON array
@@ -161,15 +162,21 @@ export async function getAllAdminPermissions(): Promise<AdminUserPermissions[]> 
       throw new Error("Failed to fetch admin page permissions");
     }
 
-    // Transform page_paths from JSONB to string array
+    // Transform page_paths from JSONB to string array and normalize legacy paths
     return (data || []).map((item) => ({
       id: item.id,
       admin_user_id: item.admin_user_id,
-      page_paths: Array.isArray(item.page_paths) ? item.page_paths : [],
+      page_paths: normalizePagePaths(Array.isArray(item.page_paths) ? item.page_paths : []),
       created_at: item.created_at,
       updated_at: item.updated_at,
     }));
   }
+}
+
+/** Normalize legacy path names (e.g. "chat" -> "ai") for backward compatibility */
+function normalizePagePaths(paths: string[]): string[] {
+  const normalized = paths.map((p) => (p === "chat" ? "ai" : p));
+  return Array.from(new Set(normalized));
 }
 
 /**
@@ -192,7 +199,7 @@ export async function getAdminUserPermissions(adminUserId: string): Promise<stri
       throw new Error("Failed to fetch user permissions");
     }
 
-    return (data || []).map((p: any) => p.page_path).sort();
+    return normalizePagePaths((data || []).map((p: any) => p.page_path)).sort();
   } else {
     // New structure: single row with JSON array
     const { data, error } = await supabase
@@ -210,7 +217,8 @@ export async function getAdminUserPermissions(adminUserId: string): Promise<stri
       throw new Error("Failed to fetch user permissions");
     }
 
-    return Array.isArray(data?.page_paths) ? data.page_paths : [];
+    const raw = Array.isArray(data?.page_paths) ? data.page_paths : [];
+    return normalizePagePaths(raw);
   }
 }
 

@@ -394,65 +394,6 @@ const helpSections: HelpSection[] = [
     ]
   },
   {
-    id: 'instructions-management',
-    title: 'AI Assistant Instructions Management',
-    description: 'Complete guide for managing AI assistant instructions and knowledge base',
-    icon: FileText,
-    color: 'gray',
-    items: [
-      {
-        id: 'im-step-1',
-        title: 'Access AI Assistant Instructions Management',
-        description: 'Navigate to the AI assistant instructions management interface',
-        icon: FileText,
-        steps: [
-          'From admin dashboard, go to /admin/instructions',
-          'Access the AI Assistant Instructions page',
-          'View all AI assistant instructions and knowledge base items'
-        ],
-        url: '/admin/instructions'
-      },
-      {
-        id: 'im-step-2',
-        title: 'Create New AI Assistant Instructions',
-        description: 'Add new instructions for the AI assistant',
-        icon: Plus,
-        steps: [
-          'Click "Add Instruction" button',
-          'Fill in AI assistant instruction details: Title, Content, Category',
-          'Set content type (text, PDF, document, video)',
-          'Choose priority level (Normal, High, Very High, Critical)',
-          'Set status (Active/Inactive)',
-          'Save the AI assistant instruction'
-        ],
-        fields: [
-          { name: 'Title', type: 'text', required: true, description: 'Name or title of the AI assistant instruction' },
-          { name: 'Content', type: 'textarea', required: true, description: 'The actual AI assistant instruction content for the AI' },
-          { name: 'Category', type: 'select', required: false, description: 'Instruction category (Innovation, Course Videos, Main Chat, Global, etc.)' },
-          { name: 'Content Type', type: 'select', required: true, description: 'Type of content (text, PDF, document, video, URL)' },
-          { name: 'Priority', type: 'select', required: false, description: 'Priority level (Normal=0, High=1, Very High=2, Critical=3)' },
-          { name: 'URL', type: 'url', required: false, description: 'Source URL for the instruction content' },
-          { name: 'Status', type: 'switch', required: false, description: 'Active or Inactive status' }
-        ],
-        url: '/admin/instructions/new'
-      },
-      {
-        id: 'im-step-3',
-        title: 'Manage AI Assistant Instruction Categories',
-        description: 'Organise AI assistant instructions by categories and priorities',
-        icon: Settings,
-        steps: [
-          'View AI assistant instructions organised by categories',
-          'Use filters to find specific instruction types',
-          'Sort by priority (Critical, Very High, High, Normal)',
-          'Filter by content type (text, PDF, document, video)',
-          'Search AI assistant instructions by title or content'
-        ],
-        url: '/admin/instructions'
-      }
-    ]
-  },
-  {
     id: 'prompts-management',
     title: 'Prompts Management',
     description: 'Complete guide for managing AI system prompts and dynamic templates',

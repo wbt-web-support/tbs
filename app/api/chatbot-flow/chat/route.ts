@@ -4,7 +4,7 @@ import { verifySuperAdmin, getAdminClient } from "@/lib/chatbot-flow/superadmin"
 import { assemblePrompt } from "@/lib/chatbot-flow/assemble-prompt";
 
 const DEFAULT_MODEL = "gemini-3-flash-preview";
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "";
+const API_KEY = process.env.GEMINI_API_KEY ?? process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "";
 
 type HistoryMessage = { role: "user" | "model" | "assistant"; parts: { text: string }[] };
 
@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    // Web search only when the user checks "Search web" for this turn.
-    const shouldUseWebSearch = Boolean(use_web_search);
+    // Enable web search when the chatbot has the web_search node, or when the user checks "Search web".
+    const shouldUseWebSearch = Boolean(use_web_search) || webSearch != null;
 
     const contents: { role: string; parts: { text: string }[] }[] = [
       { role: "user", parts: [{ text: systemPrompt }] },

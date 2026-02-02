@@ -32,7 +32,7 @@ export default function QuickAccessDropdown({ userPermissions, isAdmin }: QuickA
   const quickAccessItems = [
     {
       name: "AI Assistant",
-      href: "/chat",
+      href: "/ai",
       icon: Sparkles,
       permission: "chat",
       color: "text-blue-600",

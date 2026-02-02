@@ -1,8 +1,8 @@
 "use client";
 
 import { getNodeDefinition } from "@/lib/chatbot-flow/nodes";
+import { AttachmentsEditor } from "./AttachmentsEditor";
 import { DataAccessEditor } from "./DataAccessEditor";
-import { InstructionsEditor } from "./InstructionsEditor";
 import { WebSearchEditor } from "./WebSearchEditor";
 
 export type NodeEditorProps = {
@@ -30,12 +30,12 @@ export function NodeEditor({ nodeKey, settings, onChange }: NodeEditorProps) {
     );
   }
 
-  if (def.nodeType === "instructions") {
-    return <InstructionsEditor settings={settings} onChange={onChange} />;
-  }
-
   if (def.nodeType === "web_search") {
     return <WebSearchEditor settings={settings} onChange={onChange} />;
+  }
+
+  if (def.nodeType === "attachments") {
+    return <AttachmentsEditor settings={settings} onChange={onChange} />;
   }
 
   return (

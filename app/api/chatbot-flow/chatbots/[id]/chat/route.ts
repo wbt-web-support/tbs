@@ -1,12 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { getEffectiveUser } from "@/lib/get-effective-user";
 import { getAdminClient } from "@/lib/chatbot-flow/superadmin";
 import { assemblePrompt } from "@/lib/chatbot-flow/assemble-prompt";
 
 const DEFAULT_MODEL = "gemini-3-flash-preview";
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "";
+// Prefer server-only key so API routes always have it; fall back to NEXT_PUBLIC_ for parity with admin test UI
+const API_KEY = process.env.GEMINI_API_KEY ?? process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "";
 
 /**
  * Gemini 2.5 requires the "google_search" tool (not google_search_retrieval).
@@ -17,14 +17,33 @@ const GOOGLE_SEARCH_TOOL = { google_search: {} } as any;
 
 type HistoryMessage = { role: "user" | "model" | "assistant"; parts: { text: string }[] };
 
+type AttachmentInput =
+  | { type: "image"; url: string }
+  | { type: "document"; text: string; fileName: string };
+
 type Params = { params: Promise<{ id: string }> };
+
+/** Fetch image from URL and return base64 + mimeType for Gemini inlineData. */
+async function imageUrlToInlineData(url: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> {
+  try {
+    const res = await fetch(url, { headers: { Accept: "image/*" } });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const base64 = buf.toString("base64");
+    const contentType = res.headers.get("content-type") || "image/png";
+    const mimeType = contentType.split(";")[0].trim();
+    return { inlineData: { mimeType, data: base64 } };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * POST /api/chatbot-flow/chatbots/[id]/chat
  * Send a message as the current (effective) user. Used from dashboard or any non-admin page.
  * Auth: any authenticated user. userId and teamId are taken from effective user's business_info.
- * Body: { message: string, history?: HistoryMessage[], use_web_search?: boolean }
- * When use_web_search is true, web search grounding is enabled and the model is more likely to search.
+ * Body: { message: string, history?: HistoryMessage[], use_web_search?: boolean, attachments?: AttachmentInput[] }
+ * attachments: images (url) and documents (extracted text + fileName). Only used when chatbot has attachments node.
  * Returns: { reply: string, thoughtSummary?: string }
  */
 export async function POST(request: NextRequest, { params }: Params) {
@@ -44,7 +63,12 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { message, history, use_web_search } = body as { message?: string; history?: HistoryMessage[]; use_web_search?: boolean };
+    const { message, history, use_web_search, attachments } = body as {
+      message?: string;
+      history?: HistoryMessage[];
+      use_web_search?: boolean;
+      attachments?: AttachmentInput[];
+    };
 
     if (!message || typeof message !== "string") {
       return NextResponse.json({ error: "message is required" }, { status: 400 });
@@ -54,9 +78,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
     }
 
-    const effectiveUser = await getEffectiveUser();
-    const userId = effectiveUser?.userId ?? session.user.id;
-
+    // Use the logged-in user directly so the chatbot has access to their context (team, data).
+    const userId = session.user.id;
     const adminClient = getAdminClient();
     const { data: biz } = await adminClient
       .from("business_info")
@@ -64,10 +87,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       .eq("user_id", userId)
       .single();
     const teamId = (biz as { team_id?: string } | null)?.team_id ?? null;
-
     const userContext = { userId, teamId };
     const dataFetchClient = getAdminClient();
-    const { prompt: systemPrompt, chatbot, webSearch } = await assemblePrompt(
+    const { prompt: systemPrompt, chatbot, webSearch, attachments: attachmentsConfig } = await assemblePrompt(
       supabase,
       chatbotId,
       userContext,
@@ -82,10 +104,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    // Web search only when the user checks "Search web" for this turn.
-    const shouldUseWebSearch = Boolean(use_web_search);
+    // Enable web search when the chatbot has the web_search node, or when the user checks "Search web".
+    const shouldUseWebSearch = Boolean(use_web_search) || webSearch != null;
 
-    const contents: { role: string; parts: { text: string }[] }[] = [
+    type ContentPart = { text: string } | { inlineData: { mimeType: string; data: string } };
+    const contents: { role: string; parts: ContentPart[] }[] = [
       { role: "user", parts: [{ text: systemPrompt }] },
       { role: "model", parts: [{ text: "I understand and will follow these instructions." }] },
     ];
@@ -104,7 +127,21 @@ export async function POST(request: NextRequest, { params }: Params) {
       if (parts.length === 0) continue;
       contents.push({ role, parts });
     }
-    contents.push({ role: "user", parts: [{ text: message }] });
+
+    // Build last user message parts: text, then images (inlineData), then document texts
+    const lastUserParts: ContentPart[] = [{ text: message }];
+    const attachmentList = Array.isArray(attachments) && attachmentsConfig ? (attachments as AttachmentInput[]) : [];
+    for (const att of attachmentList) {
+      if (att.type === "image" && att.url) {
+        const part = await imageUrlToInlineData(att.url);
+        if (part) lastUserParts.push(part);
+      } else if (att.type === "document" && att.text) {
+        lastUserParts.push({
+          text: `[Attachment: ${(att as { fileName?: string }).fileName ?? "document"}]\n${att.text}`,
+        });
+      }
+    }
+    contents.push({ role: "user", parts: lastUserParts });
 
     const generationConfig: Record<string, unknown> = {
       maxOutputTokens: 2048,
@@ -158,7 +195,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json(
         {
           error:
-            "Could not reach Gemini API. Check NEXT_PUBLIC_GEMINI_API_KEY in .env and that the server can reach https://generativelanguage.googleapis.com.",
+            "Could not reach Gemini API. If it works in Admin → Chatbot Flow test UI, add GEMINI_API_KEY to .env.local (same value as NEXT_PUBLIC_GEMINI_API_KEY) and restart the dev server.",
         },
         { status: 502 }
       );

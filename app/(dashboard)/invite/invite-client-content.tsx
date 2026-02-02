@@ -72,7 +72,6 @@ const permissionOptions = [
   { id: 'business-plan', label: 'Business Plan' },
   { id: 'growth-machine', label: 'Growth Machine' },
   { id: 'fulfilment-machine', label: 'Fulfilment Machine' },
-  { id: 'innovation-machine', label: 'Create Innovations' },
   { id: 'playbook-planner', label: 'Playbook & Machine Planner' },
   { id: 'meeting-rhythm-planner', label: 'Meeting Rhythm Planner' },
   { id: 'quarterly-sprint-canvas', label: 'Quarterly Sprint Canvas' },

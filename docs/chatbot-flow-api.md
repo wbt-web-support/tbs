@@ -24,10 +24,18 @@ Use to show a list of assistants and link to chat.
 
 - `webSearchEnabled`: `true` when the chatbot has a Web search node. Only show the “Search web” option in your chat UI when this is `true`.
 
+### 2b. Get context for current user (debug panel)
+
+- **GET** `/api/chatbot-flow/public/chatbots/[id]/context`
+- **Auth:** Any authenticated user. Uses the **logged-in user** (session) and their `business_info` team for data.
+- **Response:** `{ basePrompt, instructionBlocks, dataModules, fullPrompt, webSearchEnabled }`. 404 if chatbot not found.
+
+Use to show a debug/context panel: base prompt, instruction blocks, data modules (team/user data), and full prompt sent to the LLM.
+
 ### 3. Send message (chat)
 
 - **POST** `/api/chatbot-flow/chatbots/[id]/chat`
-- **Auth:** Any authenticated user. The API uses the **effective user** (session user and their `business_info` team) for context.
+- **Auth:** Any authenticated user. The API uses the **logged-in user** (session) and their `business_info` team for context so the chatbot has access to that user's data.
 - **Request body:**
 
 | Field            | Type     | Required | Description |

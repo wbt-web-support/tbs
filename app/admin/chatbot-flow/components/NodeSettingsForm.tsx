@@ -2,7 +2,6 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -15,6 +14,7 @@ import {
 const DATA_SOURCES = [
   "products",
   "business_info",
+  "business_owner_instructions",
   "performance_sessions",
   "tasks",
   "playbooks",
@@ -22,7 +22,6 @@ const DATA_SOURCES = [
   "team_leaves",
   "finance_files",
   "chat_history",
-  "chatbot_instructions",
   "company_onboarding",
 ];
 
@@ -34,7 +33,7 @@ const SCOPES = [
 
 export type NodeFormState = {
   name: string;
-  node_type: "data_access" | "instructions";
+  node_type: "data_access";
   settings: Record<string, unknown>;
 };
 
@@ -118,31 +117,6 @@ export function NodeSettingsForm({ state, onChange }: Props) {
         </>
       )}
 
-      {state.node_type === "instructions" && (
-        <>
-          <div>
-            <Label htmlFor="instructions-content">Content</Label>
-            <Textarea
-              id="instructions-content"
-              value={(state.settings.content as string) || ""}
-              onChange={(e) => updateSettings("content", e.target.value)}
-              placeholder="Always be polite and professional..."
-              rows={6}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="instructions-priority">Priority (higher = earlier in prompt)</Label>
-            <Input
-              id="instructions-priority"
-              type="number"
-              value={String(state.settings.priority ?? 0)}
-              onChange={(e) => updateSettings("priority", e.target.value ? Number(e.target.value) : 0)}
-              className="mt-1 w-24"
-            />
-          </div>
-        </>
-      )}
     </div>
   );
 }

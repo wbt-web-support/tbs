@@ -40,9 +40,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
       .from("chatbot_flow_node_links")
       .select("node_key")
       .eq("chatbot_id", id);
-    const hasWebSearch = Array.isArray(links) && links.some((l: { node_key?: string }) => l.node_key === "web_search");
+    const nodeKeys = Array.isArray(links) ? (links as { node_key?: string }[]).map((l) => l.node_key) : [];
+    const hasWebSearch = nodeKeys.includes("web_search");
+    const hasAttachments = nodeKeys.includes("attachments");
 
-    return NextResponse.json({ ...data, webSearchEnabled: !!hasWebSearch });
+    return NextResponse.json({ ...data, webSearchEnabled: !!hasWebSearch, attachmentsEnabled: !!hasAttachments });
   } catch (err) {
     console.error("[chatbot-flow/public/chatbots/[id]] error:", err);
     return NextResponse.json(

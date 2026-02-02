@@ -6,8 +6,6 @@ const dashboardPages = [
   '/dashboard',
   '/battle-plan',
   '/team',
-  '/chat',
-  '/chat-v2',
   '/calendar',
   '/company-scorecard',
   '/export',
@@ -16,7 +14,6 @@ const dashboardPages = [
   '/growth-machine',
   '/growth-machine-planner',
   'hwgt-plan',
-  '/innovation-machine',
   '/invite',
   '/meeting-rhythm-planner',
   '/playbook-planner',
@@ -25,9 +22,6 @@ const dashboardPages = [
   '/sop',
   '/triage-planner',
   '/ai-onboarding',
-  '/member',
-  '/member/playbook-planner',
-  '/member/playbook-planner/edit',
   '/performance',
   '/performance/detail',
 ]
@@ -73,7 +67,8 @@ export async function middleware(request: NextRequest) {
 
   const isDashboardPage =
     dashboardPages.some((p) => request.nextUrl.pathname.startsWith(p)) ||
-    request.nextUrl.pathname.startsWith('/admin')
+    request.nextUrl.pathname.startsWith('/admin') ||
+    request.nextUrl.pathname.startsWith('/member')
 
   if (!user && isDashboardPage) {
     const redirectUrl = new URL('/sign-in', request.url)
@@ -148,13 +143,9 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/onboarding') &&
       !isEditMode
     ) {
-      // Redirect super_admin to /admin, users with role "user" to /member/dashboard, others to /dashboard
-      let redirectUrl = '/dashboard'
-      if (userData?.role === 'super_admin') {
-        redirectUrl = '/admin'
-      } else if (userData?.role === 'user') {
-        redirectUrl = '/member/dashboard'
-      }
+      // Redirect super_admin to /admin, user to /member/ai, others to /dashboard
+      const redirectUrl =
+        userData?.role === 'super_admin' ? '/admin' : userData?.role === 'user' ? '/member/ai' : '/dashboard'
       return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
@@ -168,12 +159,12 @@ export async function middleware(request: NextRequest) {
       if (!onboardingData?.completed) {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       }
-      // Redirect based on role: super_admin -> /admin, admin -> /dashboard, user -> /member/dashboard, others -> /dashboard
-      if (userData?.role === 'user') {
-        return NextResponse.redirect(new URL('/member/dashboard', request.url))
-      }
-      if (userData?.role === 'admin') {
+      // Redirect based on role: super_admin -> /admin, others -> /dashboard
+      if (userData?.role === 'admin' ) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+      if (userData?.role === 'user'){
+        return NextResponse.redirect(new URL('/member/ai', request.url))
       }
       // Default redirect for other roles (including admin)
       return NextResponse.redirect(new URL('/dashboard', request.url))
@@ -181,33 +172,28 @@ export async function middleware(request: NextRequest) {
 
     if (request.nextUrl.pathname.startsWith('/admin')) {
       if (userData?.role !== 'super_admin') {
-        const redirectUrl = userData?.role === 'user' ? '/member/dashboard' : '/dashboard'
-        return NextResponse.redirect(new URL(redirectUrl, request.url))
+        return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     }
 
-    // Redirect users with role "user" from /dashboard to /member/dashboard
-    if (userData?.role === 'user' && request.nextUrl.pathname === '/dashboard') {
-      return NextResponse.redirect(new URL('/member/dashboard', request.url))
+    // Only role "user" can access /member; others go to dashboard
+    if (request.nextUrl.pathname.startsWith('/member')) {
+      if (userData?.role !== 'user') {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
     }
 
-    // Prevent non-user roles from accessing /member routes
-    if (request.nextUrl.pathname.startsWith('/member') && userData?.role !== 'user') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    // Role "user": redirect from dashboard to /member/ai
+    if (userData?.role === 'user' && request.nextUrl.pathname === '/dashboard') {
+      return NextResponse.redirect(new URL('/member/ai', request.url))
     }
 
     if (isDashboardPage && userData?.role === 'user') {
       const pageSlug = request.nextUrl.pathname.substring(1).split('/')[0]
-      const permissions = userData.permissions as { pages?: string[] } | null
-      const allowedPages = permissions?.pages ?? []
-
-      if (pageSlug === 'invite') {
-        return NextResponse.redirect(new URL('/member/dashboard', request.url))
-      }
-
-      const defaultAllowed = ['dashboard', 'profile', 'member']
-      if (!allowedPages.includes(pageSlug) && !defaultAllowed.includes(pageSlug)) {
-        return NextResponse.redirect(new URL('/member/dashboard', request.url))
+      if (pageSlug === 'dashboard' || pageSlug === 'member') return response
+      // User role: only /member/* is allowed; redirect rest to /member/ai
+      if (!request.nextUrl.pathname.startsWith('/member')) {
+        return NextResponse.redirect(new URL('/member/ai', request.url))
       }
     }
   }

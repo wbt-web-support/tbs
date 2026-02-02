@@ -225,7 +225,7 @@ export default function EditChatbotPage() {
             apiEndpoint = "/api/extract/loom";
             break;
           case "url":
-            apiEndpoint = "/api/ai-instructions/scrape-url";
+            apiEndpoint = "/api/extract/url";
             break;
           case "pdf":
             apiEndpoint = "/api/extract/pdf";
@@ -294,7 +294,7 @@ export default function EditChatbotPage() {
       formData.append("category", "other");
       formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
       formData.append("instruction_type", type);
-      const uploadRes = await fetch("/api/ai-instructions/upload", { method: "POST", body: formData });
+      const uploadRes = await fetch("/api/chatbot-flow/upload", { method: "POST", body: formData });
       if (!uploadRes.ok) throw new Error("Upload failed");
       const uploadData = await uploadRes.json();
       const documentUrl = uploadData.documentUrl as string;

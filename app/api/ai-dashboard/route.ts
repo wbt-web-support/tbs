@@ -21,36 +21,9 @@ async function getUserId(req: Request) {
   }
 }
 
-// Helper function to get global instructions
-async function getGlobalInstructions(categories?: string[]) {
-  try {
-    console.log('🔄 [Supabase] Fetching global instructions');
-    const supabase = await createClient();
-    let query = supabase
-      .from('chatbot_instructions')
-      .select('title, content, content_type, url, updated_at, created_at, extraction_metadata, priority, category')
-      .eq('is_active', true)
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: true });
-
-    if (categories && categories.length > 0) {
-      query = query.in('category', categories);
-      console.log(`✅ [Supabase] Filtering instructions by categories: ${categories.join(', ')}`);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('❌ [Supabase] Error fetching global instructions:', error);
-      throw error;
-    }
-
-    console.log(`✅ [Supabase] Fetched ${data?.length || 0} global instructions`);
-    return data || [];
-  } catch (error) {
-    console.error("❌ [Supabase] Error fetching global instructions:", error);
-    return [];
-  }
+// Stub: chatbot_instructions table removed
+async function getGlobalInstructions(_categories?: string[]) {
+  return [];
 }
 
 // Helper function to get user data (reused from gemini route)
@@ -499,7 +472,6 @@ Available app pages to reference:
 - /triage-planner - Business triage and planning
 - /growth-machine - Growth strategy planning
 - /fulfillment-machine - Customer fulfillment processes
-- /innovation-machine - Innovation and idea management
 - /meeting-rhythm-planner - Meeting scheduling and rhythm
 - /playbook-planner - Process documentation
 - /team - Team hierarchy and roles
