@@ -1,90 +1,129 @@
 # Chatbot Flow API
 
-API for building and running flow-based chatbots (admin) and for using them elsewhere in the app (public/user endpoints).
+API for building and running flow-based chatbots (admin) and for using them in your application (public endpoints).
 
 ---
 
-## Admin-only endpoints (super_admin required)
+## Application integration (public endpoints)
 
-Used by `/admin/chatbot-flow` only. All require `verifySuperAdmin()`.
+Use these from your app: dashboard chat, embedded widgets, or any authenticated page.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/chatbot-flow/chatbots` | List all chatbots. Returns `{ chatbots: Array<{ id, name, base_prompts, is_active, model_name, created_by, created_at, updated_at, node_count }> }`. |
-| POST | `/api/chatbot-flow/chatbots` | Create chatbot. Body: `{ name, base_prompts?, model_name?, is_active? }`. |
-| GET | `/api/chatbot-flow/chatbots/[id]` | Get one chatbot (full). Returns full row including `base_prompts`. |
-| PUT | `/api/chatbot-flow/chatbots/[id]` | Update chatbot. Body: `{ name?, base_prompts?, model_name?, is_active? }`. |
-| DELETE | `/api/chatbot-flow/chatbots/[id]` | Delete chatbot. |
-| GET | `/api/chatbot-flow/chatbots/[id]/nodes` | Get linked nodes for a chatbot. Returns `{ nodes: Array<{ id, node_key, name, node_type, settings, order_index, link_id? }> }`. |
-| POST | `/api/chatbot-flow/chatbots/[id]/nodes` | Add node. Body: `{ node_key, position? }`. |
-| PUT | `/api/chatbot-flow/chatbots/[id]/nodes/[nodeId]` | Update node (settings/position). Body: `{ settings?, position? }`. |
-| DELETE | `/api/chatbot-flow/chatbots/[id]/nodes/[nodeId]` | Remove node. |
-| POST | `/api/chatbot-flow/assemble` | Build system prompt for a chatbot. Body: `{ chatbotId, userId?, teamId?, structured? }`. Returns `{ prompt, chatbotId, chatbotName }` or structured breakdown if `structured: true`. |
-| POST | `/api/chatbot-flow/chat` | Send message (admin test). Body: `{ chatbotId, message, history?, userId?, teamId? }`. Returns `{ reply, thoughtSummary? }`. |
-| GET | `/api/chatbot-flow/test-users` | List users for "Test as user". Returns `{ users: Array<{ id, email, full_name, business_name, role }> }`. |
-
----
-
-## Public / use-elsewhere endpoints (any authenticated user)
-
-Use these from dashboard pages, embedded chat widgets, or any non-admin part of the app.
-
-### List chatbots (for display)
+### 1. List chatbots
 
 - **GET** `/api/chatbot-flow/public/chatbots`
 - **Auth:** Any authenticated user.
-- **Response:** `{ chatbots: Array<{ id, name, is_active, model_name }> }` — only active chatbots, no `base_prompts`.
+- **Response:** `{ chatbots: Array<{ id, name, is_active, model_name }> }` — active chatbots only.
 
-Use to show a list of available assistants (e.g. "Fulfillment assistant", "Growth assistant") and link to chat.
+Use to show a list of assistants and link to chat.
 
-### Get one chatbot details (for header / config)
+### 2. Get one chatbot (for header + web search option)
 
 - **GET** `/api/chatbot-flow/public/chatbots/[id]`
 - **Auth:** Any authenticated user.
-- **Response:** `{ id, name, is_active, model_name }`. Returns 404 if chatbot is inactive or missing.
+- **Response:** `{ id, name, is_active, model_name, webSearchEnabled: boolean }`. 404 if not found or inactive.
 
-Use to show the chatbot name and status when rendering a chat UI elsewhere.
+- `webSearchEnabled`: `true` when the chatbot has a Web search node. Only show the “Search web” option in your chat UI when this is `true`.
 
-### Send message as current user (chat from dashboard, etc.)
+### 3. Send message (chat)
 
 - **POST** `/api/chatbot-flow/chatbots/[id]/chat`
-- **Auth:** Any authenticated user. Uses the **effective user** (or session user) for context: `userId` and `teamId` from `business_info`.
-- **Body:** `{ message: string, history?: Array<{ role: "user" | "model", parts: [{ text: string }] }> }`.
+- **Auth:** Any authenticated user. The API uses the **effective user** (session user and their `business_info` team) for context.
+- **Request body:**
+
+| Field            | Type     | Required | Description |
+|------------------|----------|----------|-------------|
+| `message`        | string   | Yes      | User message for this turn. |
+| `history`        | array    | No       | Previous turns for context. See format below. |
+| `use_web_search` | boolean  | No       | When `true`, enables Google Search grounding for this turn. Only send when the user has checked “Search web” and the chatbot has `webSearchEnabled: true`. |
+
 - **Response:** `{ reply: string, thoughtSummary?: string }`.
+- **Errors:** 400 (missing message), 401 (not authenticated), 404 (chatbot not found), 502 (model/API error).
 
-Use from any page that has a chat UI: pass `message` and optional `history`; the API resolves the current user and team and runs the chatbot with that context (same data access as if that user were talking to the bot).
+#### History format
 
-**Example (from a dashboard component):**
+Send the last N turns so the model keeps conversation context. Each item can be:
+
+**Preferred (Gemini format):**
+```json
+{ "role": "user", "parts": [{ "text": "Hello" }] }
+{ "role": "assistant", "parts": [{ "text": "Hi! How can I help?" }] }
+```
+or `"model"` instead of `"assistant"` for assistant messages.
+
+**Also accepted (simplified):**
+```json
+{ "role": "user", "content": "Hello" }
+{ "role": "assistant", "content": "Hi! How can I help?" }
+```
+
+- `role`: `"user"` or `"assistant"` (or `"model"`).
+- Either `parts: [{ "text": "..." }]` or `content: "..."`.
+- API keeps the last 30 history messages; you can send fewer (e.g. last 10–20).
+
+---
+
+## Example: chat in your app
 
 ```ts
-// Fetch chatbot list for selector
+// 1. List chatbots (e.g. for a selector)
 const { chatbots } = await fetch('/api/chatbot-flow/public/chatbots').then(r => r.json());
 
-// Optional: get one chatbot's name for header
+// 2. Get chatbot details (name, and whether to show "Search web")
 const bot = await fetch(`/api/chatbot-flow/public/chatbots/${chatbotId}`).then(r => r.json());
+// bot: { id, name, is_active, model_name, webSearchEnabled }
 
-// Send message as current user (no userId/teamId needed)
+// 3. Send a message (keep history on the client and send last N turns)
+const history = messages.slice(-20).map((m) => ({
+  role: m.role,
+  parts: [{ text: m.content }],
+}));
+
 const res = await fetch(`/api/chatbot-flow/chatbots/${chatbotId}/chat`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ message: userInput, history: messages }),
+  body: JSON.stringify({
+    message: userInput,
+    history,
+    use_web_search: userCheckedSearchWeb && bot.webSearchEnabled,
+  }),
 });
-const { reply } = await res.json();
+const data = await res.json();
+if (!res.ok) throw new Error(data.error ?? 'Request failed');
+// data.reply, data.thoughtSummary
 ```
 
+**UI behavior:**
+
+- Show a “Search web” checkbox only when `bot.webSearchEnabled === true`.
+- When the user checks it, send `use_web_search: true` for that message.
+- Maintain `messages` (user + assistant) on the client and send the last 10–30 as `history` for each request.
+
 ---
 
-## Where details are shown today
+## Admin-only endpoints (super_admin)
 
-- **Admin flow editor** (`/admin/chatbot-flow/[id]/edit`): Uses GET `/api/chatbot-flow/chatbots/[id]` and GET `/api/chatbot-flow/chatbots/[id]/nodes` for full config; POST `/api/chatbot-flow/assemble` for context preview; POST `/api/chatbot-flow/chat` for test chat (with optional `userId`/`teamId` for "Test as user").
-- **Admin list** (`/admin/chatbot-flow`): Uses GET `/api/chatbot-flow/chatbots` for the table with `node_count`.
+Used by `/admin/chatbot-flow`. All require `verifySuperAdmin()`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/chatbot-flow/chatbots` | List all chatbots. Returns `{ chatbots }` with `node_count`. |
+| POST | `/api/chatbot-flow/chatbots` | Create chatbot. Body: `{ name, base_prompts?, model_name?, is_active? }`. |
+| GET | `/api/chatbot-flow/chatbots/[id]` | Get one chatbot (full, including `base_prompts`). |
+| PUT | `/api/chatbot-flow/chatbots/[id]` | Update chatbot. Body: `{ name?, base_prompts?, model_name?, is_active? }`. |
+| DELETE | `/api/chatbot-flow/chatbots/[id]` | Delete chatbot. |
+| GET | `/api/chatbot-flow/chatbots/[id]/nodes` | Get linked nodes. Returns `{ nodes: Array<{ id, node_key, name, node_type, settings, order_index, link_id? }> }`. |
+| POST | `/api/chatbot-flow/chatbots/[id]/nodes` | Add node. Body: `{ node_key, position? }`. |
+| PUT | `/api/chatbot-flow/chatbots/[id]/nodes/[nodeId]` | Update node. Body: `{ settings?, position? }`. |
+| DELETE | `/api/chatbot-flow/chatbots/[id]/nodes/[nodeId]` | Remove node. |
+| POST | `/api/chatbot-flow/assemble` | Build system prompt. Body: `{ chatbotId, userId?, teamId?, structured? }`. If `structured: true`, returns `{ prompt, chatbotId, chatbotName, basePrompt, instructionBlocks, dataModules, webSearchEnabled }`. |
+| POST | `/api/chatbot-flow/chat` | Send message (admin test). Body: `{ chatbotId, message, history?, userId?, teamId?, use_web_search? }`. Returns `{ reply, thoughtSummary? }`. |
+| GET | `/api/chatbot-flow/test-users` | List users for “Test as user”. Returns `{ users }`. |
 
 ---
 
-## Using in other places
+## Summary for application implementation
 
 1. **List assistants:** `GET /api/chatbot-flow/public/chatbots` → show cards/links.
-2. **Chat page/embed:** For a chosen `chatbotId`, call `POST /api/chatbot-flow/chatbots/[id]/chat` with `{ message, history }`; no need to pass `userId`/`teamId` — the API uses the current (effective) user.
-3. **Header/label:** `GET /api/chatbot-flow/public/chatbots/[id]` → display `name` and optionally `model_name`.
-
-All public endpoints return 401 if not authenticated and 404 if the chatbot does not exist or is inactive where applicable.
+2. **Chat screen:** `GET /api/chatbot-flow/public/chatbots/[id]` → show name and, if `webSearchEnabled`, a “Search web” checkbox.
+3. **Send message:** `POST /api/chatbot-flow/chatbots/[id]/chat` with `{ message, history, use_web_search? }`; keep conversation history on the client and send last N turns as `history`.
+4. All public endpoints return **401** if not authenticated and **404** when the chatbot is missing or inactive where applicable.

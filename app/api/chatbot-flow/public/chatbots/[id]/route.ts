@@ -36,7 +36,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
     }
 
-    return NextResponse.json(data);
+    const { data: links } = await supabase
+      .from("chatbot_flow_node_links")
+      .select("node_key")
+      .eq("chatbot_id", id);
+    const hasWebSearch = Array.isArray(links) && links.some((l: { node_key?: string }) => l.node_key === "web_search");
+
+    return NextResponse.json({ ...data, webSearchEnabled: !!hasWebSearch });
   } catch (err) {
     console.error("[chatbot-flow/public/chatbots/[id]] error:", err);
     return NextResponse.json(
