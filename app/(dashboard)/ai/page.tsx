@@ -62,7 +62,7 @@ export default function AiPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[400px] w-full">
+    <div className="h-[calc(100vh-5rem)] min-h-[400px] w-full flex flex-col">
       <AiChat
         chatbotId={chatbotId}
         chatbotName={chatbotName}

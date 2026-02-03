@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X, MessageSquare, Plus, ChevronLeft } from "lucide-react";
+import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X, MessageSquare, Plus, Menu, Edit2, Trash2, Check, MoreVertical } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import {
@@ -21,6 +21,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
 
 export type Message = { role: "user" | "assistant"; content: string };
 
@@ -77,12 +82,16 @@ export function AiChat({
   const [sessions, setSessions] = useState<{ id: string; title: string; created_at: string; updated_at: string }[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const MIN_TEXTAREA_HEIGHT = 60;
-  const MAX_TEXTAREA_HEIGHT = 500;
+  const MAX_TEXTAREA_HEIGHT = 300;
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -95,6 +104,18 @@ export function AiChat({
   useEffect(() => {
     resizeTextarea();
   }, [inputText, resizeTextarea]);
+
+  // Detect mobile; on mobile keep sidebar closed and use overlay
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = typeof window !== "undefined" && window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const getGreetingMessage = () => {
     const hour = new Date().getHours();
@@ -200,7 +221,7 @@ export function AiChat({
       const msgs = Array.isArray(data.messages) ? data.messages : [];
       setMessages(msgs.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })));
       setCurrentSessionId(sessionId);
-      setSidebarOpen(false);
+      if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load session");
     }
@@ -210,8 +231,42 @@ export function AiChat({
     setCurrentSessionId(null);
     setMessages([]);
     setError(null);
-    setSidebarOpen(false);
+    if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false);
   }, []);
+
+  const deleteSession = useCallback(async (sessionId: string) => {
+    if (!chatbotId || !confirm("Are you sure you want to delete this chat?")) return;
+    try {
+      const r = await fetch(`/api/chatbot-flow/chatbots/${chatbotId}/sessions/${sessionId}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("Failed to delete");
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (currentSessionId === sessionId) {
+        setCurrentSessionId(null);
+        setMessages([]);
+      }
+      setOpenDropdownId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete session");
+    }
+  }, [chatbotId, currentSessionId]);
+
+  const updateSessionTitle = useCallback(async (sessionId: string, newTitle: string) => {
+    if (!chatbotId || !newTitle.trim()) return;
+    try {
+      const r = await fetch(`/api/chatbot-flow/chatbots/${chatbotId}/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle.trim() }),
+      });
+      if (!r.ok) throw new Error("Failed to rename");
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title: newTitle.trim(), updated_at: new Date().toISOString() } : s)));
+      setEditingSessionId(null);
+      setEditingTitle("");
+      setOpenDropdownId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to rename session");
+    }
+  }, [chatbotId]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -396,157 +451,252 @@ export function AiChat({
     );
   }
 
-  return (
-    <div className="flex flex-col h-full w-full relative">
-      {/* Sessions sidebar toggle */}
-      <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setSidebarOpen((o) => {
-              if (!o) fetchSessions();
-              return !o;
-            });
-          }}
-          className="text-muted-foreground hover:text-foreground gap-2"
-          title={sidebarOpen ? "Close sessions" : "Chat history"}
-        >
-          {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
-          <span className="text-xs hidden sm:inline">History</span>
-        </Button>
-      </div>
-
-      {/* Sessions sidebar */}
-      {sidebarOpen && (
-        <div className="absolute left-0 top-0 bottom-0 z-20 w-64 border-r border-border bg-background flex flex-col">
-          <div className="p-3 border-b border-border flex items-center justify-between">
-            <span className="text-sm font-medium">Chat sessions</span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={createNewChat}
-            className="m-3 gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            New chat
-          </Button>
-          <ScrollArea className="flex-1 px-2">
-            {sessionsLoading ? (
-              <div className="py-4 text-center text-sm text-muted-foreground">Loading...</div>
-            ) : sessions.length === 0 ? (
-              <div className="py-4 text-center text-sm text-muted-foreground">No sessions yet</div>
-            ) : (
-              <div className="space-y-1 pb-4">
-                {sessions.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
+  const sidebarBody = (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={createNewChat}
+        className="m-3 gap-2"
+      >
+        <Plus className="h-4 w-4" />
+        New chat
+      </Button>
+      <ScrollArea className="flex-1 min-h-0 px-2">
+        {sessionsLoading ? (
+          <div className="py-4 text-center text-sm text-muted-foreground">Loading...</div>
+        ) : sessions.length === 0 ? (
+          <div className="py-4 text-center text-sm text-muted-foreground">No sessions yet</div>
+        ) : (
+          <div className="space-y-0 pb-4">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={cn(
+                  "group relative rounded-xl transition-all px-3 py-1.5",
+                  currentSessionId === s.id
+                    ? "bg-gray-100 text-gray-900"
+                    : "hover:bg-gray-50 text-gray-700 cursor-pointer"
+                )}
+              >
+                {editingSessionId === s.id ? (
+                  <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") updateSessionTitle(s.id, editingTitle);
+                        else if (e.key === "Escape") {
+                          setEditingSessionId(null);
+                          setEditingTitle("");
+                        }
+                      }}
+                      className="flex-1 h-8 text-sm"
+                      autoFocus
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => updateSessionTitle(s.id, editingTitle)}
+                      className="h-8 w-8 shrink-0"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center justify-between gap-2"
                     onClick={() => loadSession(s.id)}
-                    className={cn(
-                      "w-full text-left rounded-lg px-3 py-2 text-sm transition-colors",
-                      currentSessionId === s.id
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted text-foreground"
-                    )}
                   >
-                    <span className="block truncate font-medium">{s.title}</span>
-                    <span className="block truncate text-xs opacity-80">
-                      {new Date(s.updated_at).toLocaleDateString()}
-                    </span>
-                  </button>
-                ))}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <MessageSquare className="h-4 w-4 shrink-0 text-gray-500" />
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate font-medium text-sm">{s.title}</span>
+                        <span className="block truncate text-xs opacity-80">
+                          {new Date(s.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <DropdownMenu
+                      open={openDropdownId === s.id}
+                      onOpenChange={(open) => setOpenDropdownId(open ? s.id : null)}
+                    >
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-8 w-8 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSessionId(s.id);
+                            setEditingTitle(s.title);
+                            setOpenDropdownId(null);
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSession(s.id);
+                          }}
+                          className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
               </div>
-            )}
-          </ScrollArea>
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </>
+  );
 
-      {/* Context popup trigger (only when showDebugPanel) */}
-      {showDebugPanel && (
-        <div className="absolute top-2 right-2">
-          <Dialog onOpenChange={(open) => open && fetchContext()}>
-            <DialogTrigger asChild>
+  return (
+    <div className="flex flex-col h-full min-h-0 w-full flex-1">
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+        {/* Desktop: Chat history sidebar in flow (no collapse) */}
+        {!isMobile && (
+          <div className="flex flex-col border-r border-border bg-background flex-shrink-0 w-64 overflow-hidden">
+            <div className="p-3 border-b border-border shrink-0">
+              <span className="text-sm font-medium">Chat sessions</span>
+            </div>
+            {sidebarBody}
+          </div>
+        )}
+
+        {/* Mobile: Sheet overlay for chat history (absolute) */}
+        {isMobile && (
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent side="left" className="w-64 p-0 flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <div className="p-3 border-b border-border shrink-0">
+                <span className="text-sm font-medium">Chat sessions</span>
+              </div>
+              <div className="flex flex-col flex-1 min-h-0">
+                {sidebarBody}
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
+
+        {/* Main chat area - flexes to fill remaining space */}
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col relative">
+          {/* Mobile: hamburger to open history */}
+          {isMobile && (
+            <div className="absolute top-2 left-2 z-10">
               <Button
                 variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground gap-2"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setSidebarOpen(true);
+                  fetchSessions();
+                }}
+                title="Chat history"
               >
-                <Bug className="h-4 w-4" />
-                Context
+                <Menu className="h-4 w-4" />
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-              <DialogHeader className="shrink-0">
-                <DialogTitle className="flex items-center gap-2">
-                  Context (what the chatbot sees for your account)
+            </div>
+          )}
+          {/* Context popup trigger (only when showDebugPanel) */}
+          {showDebugPanel && (
+            <div className="absolute top-2 right-2 z-10">
+              <Dialog onOpenChange={(open) => open && fetchContext()}>
+                <DialogTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    onClick={(e) => { e.preventDefault(); fetchContext(); }}
-                    disabled={contextLoading || !chatbotId}
-                    title="Refresh context"
-                    className="h-8 w-8"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground gap-2"
                   >
-                    <RefreshCw className={cn("h-4 w-4", contextLoading && "animate-spin")} />
+                    <Bug className="h-4 w-4" />
+                    Context
                   </Button>
-                </DialogTitle>
-              </DialogHeader>
-              <ScrollArea className="flex-1 min-h-0 border rounded-lg border-border">
-                <div className="p-3 space-y-2">
-                  <details className="rounded-lg border border-border overflow-hidden bg-muted/20">
-                    <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                      Base prompt
-                    </summary>
-                    <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
-                      {contextLoading ? "Loading..." : basePrompt || "(empty)"}
-                    </pre>
-                  </details>
-                  {instructionBlocks.map((block, i) => (
-                    <details key={`inst-${i}`} className="rounded-lg border border-border overflow-hidden bg-muted/20">
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+                <DialogHeader className="shrink-0">
+                  <DialogTitle className="flex items-center gap-2">
+                    Context (what the chatbot sees for your account)
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => { e.preventDefault(); fetchContext(); }}
+                      disabled={contextLoading || !chatbotId}
+                      title="Refresh context"
+                      className="h-8 w-8"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", contextLoading && "animate-spin")} />
+                    </Button>
+                  </DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="flex-1 min-h-0 border rounded-lg border-border">
+                  <div className="p-3 space-y-2">
+                    <details className="rounded-lg border border-border overflow-hidden bg-muted/20">
                       <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                        Instructions: {block.nodeName}
+                        Base prompt
                       </summary>
                       <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
-                        {contextLoading ? "Loading..." : block.content}
+                        {contextLoading ? "Loading..." : basePrompt || "(empty)"}
                       </pre>
                     </details>
-                  ))}
-                  {dataModules.map((mod, i) => (
-                    <details key={`data-${i}`} className="rounded-lg border border-border overflow-hidden bg-muted/20">
+                    {instructionBlocks.map((block, i) => (
+                      <details key={`inst-${i}`} className="rounded-lg border border-border overflow-hidden bg-muted/20">
+                        <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                          Instructions: {block.nodeName}
+                        </summary>
+                        <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono">
+                          {contextLoading ? "Loading..." : block.content}
+                        </pre>
+                      </details>
+                    ))}
+                    {dataModules.map((mod, i) => (
+                      <details key={`data-${i}`} className="rounded-lg border border-border overflow-hidden bg-muted/20">
+                        <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
+                          Data: {mod.label} ({mod.nodeName})
+                        </summary>
+                        <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-32 overflow-auto">
+                          {contextLoading ? "Loading..." : mod.content}
+                        </pre>
+                      </details>
+                    ))}
+                    <details className="rounded-lg border border-border overflow-hidden bg-muted/20">
                       <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                        Data: {mod.label} ({mod.nodeName})
+                        Full context (everything sent to the LLM)
                       </summary>
-                      <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-32 overflow-auto">
-                        {contextLoading ? "Loading..." : mod.content}
+                      <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-40 overflow-auto">
+                        {contextLoading ? "Loading..." : fullPrompt || "(empty)"}
                       </pre>
                     </details>
-                  ))}
-                  <details className="rounded-lg border border-border overflow-hidden bg-muted/20">
-                    <summary className="px-3 py-2 text-xs font-medium cursor-pointer list-none bg-muted/30 hover:bg-muted/50 border-b border-border">
-                      Full context (everything sent to the LLM)
-                    </summary>
-                    <pre className="p-3 text-xs whitespace-pre-wrap break-words font-mono max-h-40 overflow-auto">
-                      {contextLoading ? "Loading..." : fullPrompt || "(empty)"}
-                    </pre>
-                  </details>
-                  {contextError && (
-                    <p className="text-xs text-destructive px-3 py-2">{contextError}</p>
-                  )}
-                </div>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
+                    {contextError && (
+                      <p className="text-xs text-destructive px-3 py-2">{contextError}</p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+              </Dialog>
+            </div>
+          )}
 
       {/* Messages area */}
       {!showGreeting && (
         <div className="flex-1 overflow-hidden bg-background">
           <ScrollArea className="h-full">
-            <div className="max-w-4xl mx-auto w-full">
-              <div className="space-y-6 py-6 pb-4">
+            <div className="max-w-4xl mx-auto w-full p-4">
+              <div className="space-y-8 py-6 pb-4">
                 {messages.map((message, index) => (
                   <div
                     key={index}
@@ -558,29 +708,30 @@ export function AiChat({
                     <div
                       className={cn(
                         "max-w-[90%]",
+                        message.role === "assistant" && "max-w-[min(90%,65ch)]",
                         message.role === "user"
-                          ? "bg-muted text-foreground px-3 py-2 rounded-xl"
-                          : "bg-background text-foreground"
+                          ? "bg-muted text-foreground/90 px-4 py-3 rounded-xl"
+                          : "bg-background text-foreground/90 px-4 py-4 rounded-xl"
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                        <div className="prose prose-sm max-w-none text-foreground/90 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                           <ReactMarkdown
                             components={{
                               p: ({ ...props }) => (
-                                <p {...props} className="mb-3 last:mb-0 leading-relaxed text-[15px]" />
+                                <p {...props} className="mb-4 last:mb-0 leading-loose text-[15px] text-foreground/90" />
                               ),
                               ul: ({ ...props }) => (
-                                <ul {...props} className="mb-3 last:mb-0 space-y-1 list-none pl-0" />
+                                <ul {...props} className="mb-4 last:mb-0 space-y-2 list-none pl-0" />
                               ),
                               ol: ({ ...props }) => (
-                                <ol {...props} className="mb-3 last:mb-0 space-y-1 list-decimal pl-5" />
+                                <ol {...props} className="mb-4 last:mb-0 space-y-2 list-decimal pl-5" />
                               ),
                               li: ({ ...props }) => (
-                                <li {...props} className="leading-relaxed text-[15px]" />
+                                <li {...props} className="leading-loose text-[15px] text-foreground/90 pl-1" />
                               ),
                               strong: ({ ...props }) => (
-                                <strong {...props} className="font-semibold" />
+                                <strong {...props} className="font-semibold text-foreground" />
                               ),
                               a: ({ href, ...props }) => (
                                 <a
@@ -595,7 +746,7 @@ export function AiChat({
                                 <code
                                   {...props}
                                   className={cn(
-                                    "bg-muted px-1.5 py-0.5 rounded text-sm font-mono",
+                                    "bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground/90",
                                     className
                                   )}
                                 />
@@ -603,7 +754,7 @@ export function AiChat({
                               pre: ({ ...props }) => (
                                 <pre
                                   {...props}
-                                  className="bg-muted border border-border rounded-lg p-4 text-sm overflow-x-auto my-3 font-mono"
+                                  className="bg-muted border border-border rounded-lg p-4 text-sm overflow-x-auto my-4 font-mono text-foreground/90"
                                 />
                               ),
                             }}
@@ -612,7 +763,7 @@ export function AiChat({
                           </ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap leading-relaxed text-[15px]">
+                        <p className="whitespace-pre-wrap leading-loose text-[15px] text-foreground/90">
                           {message.content}
                         </p>
                       )}
@@ -640,13 +791,13 @@ export function AiChat({
       <div
         className={cn(
           "",
-          showGreeting && "flex-1 flex items-center justify-center"
+          showGreeting && "flex-1 flex items-center justify-center p-4"
         )}
       >
         <div
           className={cn(
             "w-full",
-            showGreeting ? "max-w-3xl mx-auto" : "max-w-4xl mx-auto"
+            showGreeting ? "max-w-3xl mx-auto" : "max-w-4xl mx-auto p-4 pt-0"
           )}
         >
           {error && (
@@ -667,7 +818,7 @@ export function AiChat({
           )}
 
           {/* ChatGPT-like input: one box, then row with Attach, Search, Send */}
-          <div className="rounded-2xl border border-border bg-background transition-colors focus-within:border-primary/50 shadow-sm">
+          <div className=" rounded-2xl border border-border bg-background transition-colors focus-within:border-primary/50 shadow-lg">
             <textarea
               ref={textareaRef}
               value={inputText}
@@ -826,6 +977,8 @@ export function AiChat({
           )}
         </div>
       </div>
+      </div>
+    </div>
     </div>
   );
 }

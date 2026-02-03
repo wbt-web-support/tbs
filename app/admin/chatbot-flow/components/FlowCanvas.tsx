@@ -40,9 +40,11 @@ const NODE_TYPES: NodeTypes = {
 const CHATBOT_NODE_ID = "chatbot-root";
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 80;
-const VERTICAL_GAP = 24;
-const START_X = 40;
-const START_Y = 40;
+const VERTICAL_GAP = 8;
+const START_Y = 24;
+/** Flow width used to center the column of nodes horizontally. */
+const FLOW_WIDTH = 640;
+const CENTER_X = (FLOW_WIDTH - NODE_WIDTH) / 2;
 
 type LinkedNode = {
   id: string;
@@ -60,32 +62,34 @@ type FlowCanvasInnerProps = {
   onAddNode: (nodeKey: string, position?: { x: number; y: number }) => void;
   onEditNode: (node: LinkedNode) => void;
   onRemoveNode: (nodeKey: string) => void;
-  onPositionChange?: (nodeKey: string, position: { x: number; y: number }) => void;
+  onReorderNodes?: (draggedKey: string, targetKey: string) => void;
 };
 
+/** Fixed vertical layout: chatbot at top, then nodes in order_index (1, 2, 3...). No free positioning. */
 function buildNodesAndEdges(
   chatbotName: string,
   linkedNodes: LinkedNode[],
   onEditNode: (node: LinkedNode) => void,
   onRemoveNode: (nodeIdOrKey: string) => void,
-  chatbotPosition?: { x: number; y: number }
+  onReorderNodes: (draggedKey: string, targetKey: string) => void
 ): { nodes: Node[]; edges: Edge[] } {
+  const sorted = [...linkedNodes].sort((a, b) => a.order_index - b.order_index);
+
   const nodes: Node[] = [
     {
       id: CHATBOT_NODE_ID,
       type: "chatbot",
-      position: chatbotPosition ?? { x: START_X, y: START_Y },
+      position: { x: CENTER_X, y: START_Y },
       data: { label: chatbotName },
-      draggable: true,
+      draggable: false,
     },
   ];
   const edges: Edge[] = [];
-  linkedNodes.forEach((n, i) => {
+
+  sorted.forEach((n, i) => {
     const nodeKey = n.node_key;
     const nodeId = `flow-${nodeKey}`;
-    // Use position from settings if available, otherwise stack vertically below chatbot
-    const storedPosition = n.settings?.position as { x: number; y: number } | undefined;
-    const position = storedPosition ?? { x: START_X, y: START_Y + (i + 1) * (NODE_HEIGHT + VERTICAL_GAP) };
+    const position = { x: CENTER_X, y: START_Y + (i + 1) * (NODE_HEIGHT + VERTICAL_GAP) };
     const def = getNodeDefinition(nodeKey);
     nodes.push({
       id: nodeId,
@@ -94,14 +98,14 @@ function buildNodesAndEdges(
       data: {
         label: n.name,
         nodeKey,
+        orderIndex: i + 1,
         description: def?.description,
         onEdit: () => onEditNode(n),
         onDelete: () => onRemoveNode(nodeKey),
+        onReorder: onReorderNodes,
       },
-      draggable: true,
+      draggable: false,
     });
-    // Every node (web_search, attachments, data_access, etc.) connects directly to the chatbot
-    edges.push({ id: `e-${CHATBOT_NODE_ID}-${nodeId}`, source: CHATBOT_NODE_ID, target: nodeId });
   });
   return { nodes, edges };
 }
@@ -112,59 +116,40 @@ function FlowCanvasInner({
   onAddNode,
   onEditNode,
   onRemoveNode,
-  onPositionChange,
+  onReorderNodes,
 }: FlowCanvasInnerProps) {
   const { screenToFlowPosition } = useReactFlow();
-  // Store chatbot root position (not saved to DB, just for this session)
-  const [chatbotPosition, setChatbotPosition] = useState<{ x: number; y: number }>();
 
-  // Derive nodes and edges directly from linkedNodes so canvas always matches API state
   const initialData = useMemo(
-    () => buildNodesAndEdges(chatbotName, linkedNodes, onEditNode, onRemoveNode, chatbotPosition),
-    [chatbotName, linkedNodes, onEditNode, onRemoveNode, chatbotPosition]
+    () =>
+      buildNodesAndEdges(chatbotName, linkedNodes, onEditNode, onRemoveNode, onReorderNodes ?? (() => {})),
+    [chatbotName, linkedNodes, onEditNode, onRemoveNode, onReorderNodes]
   );
 
   const [nodes, setNodes] = useState<Node[]>(initialData.nodes);
   const edges = initialData.edges;
 
-  // Update nodes when linkedNodes change
   useEffect(() => {
     setNodes(initialData.nodes);
   }, [initialData.nodes]);
 
   const nodeCount = nodes.length;
 
-  const handleNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      // Apply changes to update node positions in state
-      setNodes((nds) => applyNodeChanges(changes, nds));
-
-      // When drag ends, save position to database
-      changes.forEach((change) => {
-        if (change.type === "position" && change.dragging === false && change.position) {
-          const nodeId = change.id;
-          if (nodeId === CHATBOT_NODE_ID) {
-            // Update chatbot root position in local state only
-            setChatbotPosition(change.position);
-          } else if (nodeId.startsWith("flow-") && onPositionChange) {
-            // Extract nodeKey from nodeId (format: "flow-{nodeKey}")
-            const nodeKey = nodeId.substring(5);
-            onPositionChange(nodeKey, change.position);
-          }
-        }
-      });
-    },
-    [onPositionChange]
-  );
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((nds) => applyNodeChanges(changes, nds));
+  }, []);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   }, []);
 
+  const REORDER_DATA_KEY = "application/x-chatbot-flow-node";
+
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      if (e.dataTransfer.types.includes(REORDER_DATA_KEY)) return;
       const raw = e.dataTransfer.getData("application/json");
       if (!raw) return;
       try {

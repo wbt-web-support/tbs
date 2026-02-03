@@ -15,7 +15,25 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ArrowLeft, ChevronDown, ChevronRight, FileText, Loader2, PanelRightOpen, Plus, Settings, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Loader2,
+  PanelRightOpen,
+  Plus,
+  Settings,
+  Trash2,
+  Upload,
+  Link2,
+  Sparkles,
+  Save,
+  X,
+  Eye,
+  MessageSquare,
+  Workflow
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -24,6 +42,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getNodeDefinition } from "@/lib/chatbot-flow/nodes";
 import { NodesSidebar } from "../../components/NodesSidebar";
 import { TestChatInline } from "../../components/TestChatInline";
@@ -414,50 +435,80 @@ export default function EditChatbotPage() {
     }
   };
 
-  const handlePositionChange = useCallback(
-    async (nodeKey: string, position: { x: number; y: number }) => {
-      try {
-        // Find the node to get its current settings
-        const node = linkedNodes.find((n) => n.node_key === nodeKey);
-        if (!node) return;
+  const handleReorderNodes = useCallback(
+    (draggedKey: string, targetKey: string) => {
+      const dragged = linkedNodes.find((n) => n.node_key === draggedKey);
+      const target = linkedNodes.find((n) => n.node_key === targetKey);
+      if (!dragged || !target || draggedKey === targetKey) return;
 
-        // Merge position into settings
-        const updatedSettings = { ...node.settings, position };
+      const draggedOrder = dragged.order_index;
+      const targetOrder = target.order_index;
+      if (draggedOrder === targetOrder) return;
 
-        const res = await fetch(`/api/chatbot-flow/chatbots/${id}/nodes/${nodeKey}`, {
+      setError(null);
+      // Optimistic update: swap order in UI immediately
+      setLinkedNodes((prev) =>
+        prev.map((n) => {
+          if (n.node_key === draggedKey) return { ...n, order_index: targetOrder };
+          if (n.node_key === targetKey) return { ...n, order_index: draggedOrder };
+          return n;
+        })
+      );
+      toast.success("Order updated");
+
+      // Persist in background; revert on failure
+      Promise.all([
+        fetch(`/api/chatbot-flow/chatbots/${id}/nodes/${draggedKey}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: updatedSettings }),
+          body: JSON.stringify({ order_index: targetOrder }),
+        }),
+        fetch(`/api/chatbot-flow/chatbots/${id}/nodes/${targetKey}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_index: draggedOrder }),
+        }),
+      ])
+        .then(([resA, resB]) => {
+          if (!resA.ok || !resB.ok) throw new Error("Failed to reorder");
+          return fetchLinkedNodes();
+        })
+        .catch((e) => {
+          setError(e instanceof Error ? e.message : "Failed to reorder");
+          toast.error("Failed to reorder nodes");
+          fetchLinkedNodes();
         });
-        if (!res.ok) throw new Error("Failed to save position");
-
-        // Update local state immediately for responsive UI
-        setLinkedNodes((prevNodes) =>
-          prevNodes.map((n) => (n.node_key === nodeKey ? { ...n, settings: updatedSettings } : n))
-        );
-      } catch (e) {
-        console.error("Failed to save node position:", e);
-        setError(e instanceof Error ? e.message : "Failed to save position");
-      }
     },
-    [id, linkedNodes]
+    [id, linkedNodes, fetchLinkedNodes]
   );
 
   const attachedKeys = new Set(linkedNodes.map((n) => n.node_key));
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center text-muted-foreground">
-        Loading...
+      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 animate-pulse">
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        </div>
+        <p className="text-lg font-medium text-muted-foreground animate-pulse">Loading chatbot editor...</p>
       </div>
     );
   }
   if (!chatbot) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Chatbot not found.</p>
+      <div className="h-screen flex flex-col items-center justify-center gap-6 bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10">
+          <Workflow className="h-10 w-10 text-destructive/60" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Chatbot Not Found</h2>
+          <p className="text-muted-foreground">The chatbot you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+        </div>
         <Link href="/admin/chatbot-flow">
-          <Button variant="outline">Back to Chatbot Flow</Button>
+          <Button variant="default" size="lg" className="gap-2 shadow-sm">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Chatbot Flow
+          </Button>
         </Link>
       </div>
     );
@@ -465,49 +516,66 @@ export default function EditChatbotPage() {
 
   return (
     <ChunkLoadErrorBoundary>
-      <div className="flex flex-col h-[calc(100vh-70px)] bg-background">
-        {/* Top bar */}
-        <header className="shrink-0 flex items-center justify-between gap-4 px-5 py-3 border-b border-border bg-card">
-        <div className="flex items-center gap-4 min-w-0">
-          <Link
-            href="/admin/chatbot-flow"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground shrink-0 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-          <span className="text-border">/</span>
-          <h1 className="font-semibold text-base truncate">{chatbot.name}</h1>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {error && (
-            <span className="text-sm text-destructive truncate max-w-[200px]" title={error}>
-              {error}
-            </span>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-            <Settings className="h-4 w-4 mr-1.5" />
-            Settings
-          </Button>
-        </div>
-      </header>
+      <div className="flex flex-col h-[calc(100vh-70px)] bg-gradient-to-br from-background via-background to-muted/20">
+        {/* Modern Top Bar with Gradient */}
+        <header className="shrink-0 flex items-center justify-between gap-6 px-6 py-4 border-b border-border/50 bg-card/95 backdrop-blur-sm shadow-sm">
+          <div className="flex items-center gap-4 min-w-0">
+            <Link
+              href="/admin/chatbot-flow"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 shrink-0 transition-all duration-200"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+            <Separator orientation="vertical" className="h-6" />
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 shrink-0">
+                <Workflow className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-semibold text-lg truncate">{chatbot.name}</h1>
+                <p className="text-xs text-muted-foreground">Chatbot Flow Editor</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {error && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20">
+                <span className="text-sm text-destructive font-medium truncate max-w-[200px]" title={error}>
+                  {error}
+                </span>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => setSettingsOpen(true)}
+              className="gap-2 font-medium shadow-sm hover:shadow transition-shadow"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+          </div>
+        </header>
 
       {/* Main: canvas | nodes (closable) | context + chat on the right */}
       <div className="flex-1 flex min-h-0 overflow-hidden" style={{ minHeight: 320 }}>
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-muted/20 relative">
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-gradient-to-br from-muted/30 via-background to-muted/20 relative">
           <FlowCanvas
             chatbotName={chatbot.name}
             linkedNodes={linkedNodes}
             onAddNode={handleAddNode}
             onEditNode={openEdit}
             onRemoveNode={handleRemoveNode}
-            onPositionChange={handlePositionChange}
+            onReorderNodes={handleReorderNodes}
           />
           {addingNodeKey && (
-            <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <span>Adding node...</span>
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-4 px-8 py-6 rounded-2xl bg-card/95 border border-border shadow-2xl">
+                <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-primary/10">
+                  <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                </div>
+                <span className="text-base font-medium text-foreground">Adding node...</span>
               </div>
             </div>
           )}
@@ -518,317 +586,388 @@ export default function EditChatbotPage() {
             onClose={() => setNodesOpen(false)}
           />
         ) : (
-          <div className="shrink-0 border-l border-border bg-card flex items-center">
+          <div className="shrink-0 border-l border-border/50 bg-card/95 backdrop-blur-sm flex items-center shadow-sm">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setNodesOpen(true)}
-              className="flex flex-col gap-1.5 h-auto py-4 px-3 rounded-none border-0"
+              className="flex flex-col gap-2 h-auto py-6 px-4 rounded-none border-0 hover:bg-accent/50 transition-colors"
               title="Open nodes panel"
             >
-              <PanelRightOpen className="h-5 w-5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Nodes</span>
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
+                <PanelRightOpen className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground tracking-wide">NODES</span>
             </Button>
           </div>
         )}
-        <div className="w-[680px] shrink-0 flex flex-col min-h-0 border-l border-border bg-card">
+        <div className="w-[680px] shrink-0 flex flex-col min-h-0 border-l border-border/50 bg-card/95 backdrop-blur-sm shadow-lg">
           <TestChatInline chatbotId={id} chatbotName={chatbot.name} />
         </div>
       </div>
 
-      {/* Settings dialog: full width/height, name, multiple base prompts (type + content), model */}
+      {/* Modern Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="max-w-[1500px] w-full max-h-[100vh] p-0 gap-0 flex flex-col">
-          <DialogHeader className="px-6 py-4 border-b shrink-0">
-            <DialogTitle>Chatbot settings</DialogTitle>
-            <DialogDescription>
-              Update name and base prompts (add multiple with type).
-            </DialogDescription>
+        <DialogContent className="max-w-[1400px] w-full max-h-[95vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-8 py-5 border-b bg-gradient-to-r from-card to-muted/30 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                <Settings className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Chatbot Settings</DialogTitle>
+                <DialogDescription className="text-sm mt-1">
+                  Configure your chatbot name and knowledge base prompts
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           <form onSubmit={handleSaveChatbot} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className="px-6 py-4 space-y-4 border-b shrink-0">
-              <div>
-                <Label htmlFor="name">Name</Label>
+            <div className="px-8 py-6 space-y-5 border-b bg-card/50 shrink-0">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm font-semibold flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Chatbot Name
+                </Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="mt-1"
+                  placeholder="Enter a descriptive name for your chatbot"
+                  className="h-11 text-base font-medium"
                 />
               </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-auto px-6 py-4">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <Label>Base prompts</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setBasePrompts((prev) => {
-                      const next = [...prev, { type: "text", content: "" }];
-                      setOpenBasePromptIndex(next.length - 1);
-                      return next;
-                    });
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add prompt
-                </Button>
+            <div className="flex-1 min-h-0 overflow-auto px-8 py-6 bg-muted/10">
+              <div className="mb-6">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h3 className="text-base font-semibold flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      Knowledge Base Prompts
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Add multiple prompts with different content types to train your chatbot
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="default"
+                    onClick={() => {
+                      setBasePrompts((prev) => {
+                        const next = [...prev, { type: "text", content: "" }];
+                        setOpenBasePromptIndex(next.length - 1);
+                        return next;
+                      });
+                    }}
+                    className="gap-2 shadow-sm"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add New Prompt
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                {basePrompts.map((entry, index) => {
-                  const needsUrl =
-                    entry.type !== "text" &&
-                    entry.type !== "document" &&
-                    entry.type !== "sheet";
-                  const needsFile =
-                    entry.type === "pdf" ||
-                    entry.type === "document" ||
-                    entry.type === "sheet";
-                  const isExtracting = extractingIndex === index;
-                  const meta = entry.extraction_metadata;
-                  const isOpen = openBasePromptIndex === index;
-                  const typeLabel = PROMPT_TYPES.find((t) => t.value === (entry.type || "text"))?.label ?? entry.type ?? "Text";
-                  const preview =
-                    entry.content.trim().length > 0
-                      ? entry.content.trim().length > 50
-                        ? `${entry.content.trim().slice(0, 50).replace(/\n/g, " ")}…`
-                        : entry.content.trim().replace(/\n/g, " ")
-                      : entry.url
-                        ? entry.url.slice(0, 40) + (entry.url.length > 40 ? "…" : "")
-                        : entry.document_name
-                          ? `📄 ${entry.document_name}`
-                          : "Empty";
-                  return (
-                    <div
-                      key={index}
-                      className="rounded-lg border border-border bg-card overflow-hidden"
+              <div className="space-y-4">
+                {basePrompts.length === 0 ? (
+                  <div className="text-center py-16 px-6 rounded-xl border-2 border-dashed border-border bg-card/50">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h4 className="text-lg font-semibold mb-2">No prompts yet</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Get started by adding your first knowledge base prompt
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setBasePrompts([{ type: "text", content: "" }]);
+                        setOpenBasePromptIndex(0);
+                      }}
+                      className="gap-2"
                     >
-                      {/* Header: always visible, click to expand/collapse */}
-                      <div
-                        className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors min-h-0"
-                        onClick={() => setOpenBasePromptIndex((prev) => (prev === index ? null : index))}
+                      <Plus className="h-4 w-4" />
+                      Add Your First Prompt
+                    </Button>
+                  </div>
+                ) : (
+                  basePrompts.map((entry, index) => {
+                    const needsUrl =
+                      entry.type !== "text" &&
+                      entry.type !== "document" &&
+                      entry.type !== "sheet";
+                    const needsFile =
+                      entry.type === "pdf" ||
+                      entry.type === "document" ||
+                      entry.type === "sheet";
+                    const isExtracting = extractingIndex === index;
+                    const meta = entry.extraction_metadata;
+                    const isOpen = openBasePromptIndex === index;
+                    const typeLabel = PROMPT_TYPES.find((t) => t.value === (entry.type || "text"))?.label ?? entry.type ?? "Text";
+                    const preview =
+                      entry.content.trim().length > 0
+                        ? entry.content.trim().length > 50
+                          ? `${entry.content.trim().slice(0, 50).replace(/\n/g, " ")}…`
+                          : entry.content.trim().replace(/\n/g, " ")
+                        : entry.url
+                          ? entry.url.slice(0, 40) + (entry.url.length > 40 ? "…" : "")
+                          : entry.document_name
+                            ? `📄 ${entry.document_name}`
+                            : "Empty prompt";
+                    return (
+                      <Card
+                        key={index}
+                        className={`overflow-hidden transition-all duration-200 ${
+                          isOpen
+                            ? "shadow-lg border-primary/30 ring-2 ring-primary/10"
+                            : "shadow-sm hover:shadow-md border-border"
+                        }`}
                       >
-                        <button
-                          type="button"
-                          className="shrink-0 p-0.5 rounded hover:bg-muted"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenBasePromptIndex((prev) => (prev === index ? null : index));
-                          }}
-                          aria-expanded={isOpen}
+                        {/* Header: always visible, click to expand/collapse */}
+                        <div
+                          className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-accent/30 transition-colors"
+                          onClick={() => setOpenBasePromptIndex((prev) => (prev === index ? null : index))}
                         >
-                          {isOpen ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
-                        <span className="text-xs font-medium text-muted-foreground shrink-0 w-[100px]">
-                          {typeLabel}
-                        </span>
-                        <span className="text-xs text-foreground truncate flex-1 min-w-0" title={preview}>
-                          {preview || "—"}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setBasePrompts((prev) => prev.filter((_, i) => i !== index));
-                            setOpenBasePromptIndex((prev) => (prev === index ? null : prev === null ? null : prev > index ? prev - 1 : prev));
-                          }}
-                          title="Remove prompt"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-
-                      {/* Body: only when open */}
-                      {isOpen && (
-                        <div className="border-t border-border p-4 space-y-3 bg-muted/5">
-                          <div className="flex items-center justify-between gap-2">
-                            <Label className="text-xs text-muted-foreground">Prompt type</Label>
-                            <Select
-                              value={entry.type || "text"}
-                              onValueChange={(v) =>
-                                setBasePrompts((prev) =>
-                                  prev.map((p, i) => (i === index ? { ...p, type: v } : p))
-                                )
-                              }
-                            >
-                              <SelectTrigger className="w-[140px] h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {PROMPT_TYPES.map((t) => (
-                                  <SelectItem key={t.value} value={t.value}>
-                                    {t.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {needsUrl && (
-                        <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/30">
-                          <Label className="text-xs">URL</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              value={entry.url ?? ""}
-                              onChange={(e) =>
-                                setBasePrompts((prev) =>
-                                  prev.map((p, i) =>
-                                    i === index ? { ...p, url: e.target.value } : p
-                                  )
-                                )
-                              }
-                              placeholder="Enter resource URL"
-                              className="flex-1 h-9"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleExtractFromUrl(index, entry.url ?? "", entry.type)
-                              }
-                              disabled={!entry.url?.trim() || isExtracting}
-                              className="whitespace-nowrap h-9"
-                            >
-                              {isExtracting ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                                  Extracting
-                                </>
-                              ) : (
-                                "Extract"
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {needsFile && (
-                        <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/30">
-                          <Label className="text-xs">Upload file</Label>
-                          <Input
-                            type="file"
-                            accept={
-                              entry.type === "pdf"
-                                ? ".pdf"
-                                : entry.type === "sheet"
-                                  ? ".csv,.xlsx,.xls"
-                                  : ".doc,.docx,.odt"
-                            }
-                            className="h-9"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file)
-                                handleFileUpload(index, file, entry.type);
-                              e.target.value = "";
+                          <button
+                            type="button"
+                            className="shrink-0 p-1.5 rounded-md hover:bg-accent transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenBasePromptIndex((prev) => (prev === index ? null : index));
                             }}
-                            disabled={isExtracting}
-                          />
-                          {(entry.document_url ?? entry.document_name) && (
-                            <p className="text-xs text-muted-foreground">
-                              Uploaded: {entry.document_name ?? "document"}
-                            </p>
-                          )}
+                            aria-expanded={isOpen}
+                          >
+                            {isOpen ? (
+                              <ChevronDown className="h-4 w-4 text-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </button>
+                          <Badge variant="secondary" className="shrink-0 px-3 py-1 text-xs font-semibold">
+                            {typeLabel}
+                          </Badge>
+                          <span className="text-sm text-foreground truncate flex-1 min-w-0 font-medium" title={preview}>
+                            {preview}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBasePrompts((prev) => prev.filter((_, i) => i !== index));
+                              setOpenBasePromptIndex((prev) => (prev === index ? null : prev === null ? null : prev > index ? prev - 1 : prev));
+                            }}
+                            title="Remove prompt"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                      )}
 
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Content (used in system prompt)</Label>
-                        <Textarea
-                          value={entry.content}
-                          onChange={(e) =>
-                            setBasePrompts((prev) =>
-                              prev.map((p, i) =>
-                                i === index ? { ...p, content: e.target.value } : p
-                              )
-                            )
-                          }
-                          placeholder={
-                            entry.type === "text"
-                              ? "Enter prompt content..."
-                              : "Use Extract or upload a file to fill content, or type manually."
-                          }
-                          rows={6}
-                          className="resize-y min-h-[120px] font-mono text-sm mt-1"
-                        />
-                      </div>
-
-                      {meta && (
-                        <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Extracted content
-                            </span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={() => {
-                                setEditContentValue(entry.content);
-                                setEditContentIndex(index);
-                              }}
-                            >
-                              <FileText className="h-3 w-3 mr-1" />
-                              Edit content
-                            </Button>
-                          </div>
-                          {meta.extraction_date && (
-                            <p className="text-xs text-muted-foreground">
-                              Extracted:{" "}
-                              {new Date(meta.extraction_date).toLocaleString()}
-                            </p>
-                          )}
-                          {meta.file_name && (
-                            <p className="text-xs text-muted-foreground">
-                              File: {meta.file_name}
-                            </p>
-                          )}
-                          {meta.loom_metadata && (
-                            <div className="flex flex-wrap gap-3 pt-1 border-t border-border text-xs text-muted-foreground">
-                              {meta.loom_metadata.views != null && (
-                                <span>Views: {meta.loom_metadata.views}</span>
-                              )}
-                              {meta.loom_metadata.duration_formatted && (
-                                <span>Duration: {meta.loom_metadata.duration_formatted}</span>
-                              )}
-                              {meta.loom_metadata.owner && (
-                                <span>Owner: {meta.loom_metadata.owner}</span>
-                              )}
-                              {meta.loom_metadata.createdAt && (
-                                <span>
-                                  Created:{" "}
-                                  {new Date(meta.loom_metadata.createdAt).toLocaleDateString()}
-                                </span>
-                              )}
+                        {/* Body: only when open */}
+                        {isOpen && (
+                          <div className="border-t border-border p-6 space-y-5 bg-gradient-to-b from-muted/10 to-background">
+                            <div className="flex items-center justify-between gap-3 pb-3 border-b">
+                              <Label className="text-sm font-semibold">Prompt Type</Label>
+                              <Select
+                                value={entry.type || "text"}
+                                onValueChange={(v) =>
+                                  setBasePrompts((prev) =>
+                                    prev.map((p, i) => (i === index ? { ...p, type: v } : p))
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="w-[160px] h-10">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {PROMPT_TYPES.map((t) => (
+                                    <SelectItem key={t.value} value={t.value}>
+                                      {t.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
-                          )}
-                          {(meta.extracted_text ?? entry.content) && (
-                            <p className="text-xs text-muted-foreground line-clamp-3 break-words mt-1">
-                              {(meta.extracted_text ?? entry.content).substring(0, 200)}
-                              {(meta.extracted_text ?? entry.content).length > 200 ? "…" : ""}
-                            </p>
-                          )}
-                        </div>
-                      )}
+
+                            {needsUrl && (
+                              <div className="rounded-xl border border-border p-4 space-y-3 bg-accent/30">
+                                <Label className="text-sm font-semibold flex items-center gap-2">
+                                  <Link2 className="h-4 w-4 text-primary" />
+                                  Resource URL
+                                </Label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={entry.url ?? ""}
+                                    onChange={(e) =>
+                                      setBasePrompts((prev) =>
+                                        prev.map((p, i) =>
+                                          i === index ? { ...p, url: e.target.value } : p
+                                        )
+                                      )
+                                    }
+                                    placeholder="https://example.com/resource"
+                                    className="flex-1 h-11"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="default"
+                                    size="default"
+                                    onClick={() =>
+                                      handleExtractFromUrl(index, entry.url ?? "", entry.type)
+                                    }
+                                    disabled={!entry.url?.trim() || isExtracting}
+                                    className="whitespace-nowrap gap-2 min-w-[130px]"
+                                  >
+                                    {isExtracting ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Extracting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="h-4 w-4" />
+                                        Extract
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {needsFile && (
+                              <div className="rounded-xl border border-border p-4 space-y-3 bg-accent/30">
+                                <Label className="text-sm font-semibold flex items-center gap-2">
+                                  <Upload className="h-4 w-4 text-primary" />
+                                  Upload File
+                                </Label>
+                                <Input
+                                  type="file"
+                                  accept={
+                                    entry.type === "pdf"
+                                      ? ".pdf"
+                                      : entry.type === "sheet"
+                                        ? ".csv,.xlsx,.xls"
+                                        : ".doc,.docx,.odt"
+                                  }
+                                  className="h-11 cursor-pointer"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file)
+                                      handleFileUpload(index, file, entry.type);
+                                    e.target.value = "";
+                                  }}
+                                  disabled={isExtracting}
+                                />
+                                {(entry.document_url ?? entry.document_name) && (
+                                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                                    <FileText className="h-4 w-4 text-primary" />
+                                    <p className="text-sm text-foreground font-medium">
+                                      {entry.document_name ?? "document"}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-semibold flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-primary" />
+                                Prompt Content
+                                <span className="text-xs text-muted-foreground font-normal">
+                                  (Used in system prompt)
+                                </span>
+                              </Label>
+                              <Textarea
+                                value={entry.content}
+                                onChange={(e) =>
+                                  setBasePrompts((prev) =>
+                                    prev.map((p, i) =>
+                                      i === index ? { ...p, content: e.target.value } : p
+                                    )
+                                  )
+                                }
+                                placeholder={
+                                  entry.type === "text"
+                                    ? "Enter your prompt content here..."
+                                    : "Extract from URL or upload a file to auto-fill, or type manually."
+                                }
+                                rows={8}
+                                className="resize-y min-h-[160px] font-mono text-sm border-2 focus:border-primary/50"
+                              />
+                            </div>
+
+                            {meta && (
+                              <div className="rounded-xl border border-border p-4 space-y-3 bg-gradient-to-br from-primary/5 to-primary/10">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-semibold flex items-center gap-2">
+                                    <Eye className="h-4 w-4 text-primary" />
+                                    Extraction Details
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-2"
+                                    onClick={() => {
+                                      setEditContentValue(entry.content);
+                                      setEditContentIndex(index);
+                                    }}
+                                  >
+                                    <FileText className="h-3.5 w-3.5" />
+                                    Edit Content
+                                  </Button>
+                                </div>
+                                <Separator />
+                                {meta.extraction_date && (
+                                  <p className="text-xs text-muted-foreground">
+                                    <span className="font-semibold">Extracted:</span>{" "}
+                                    {new Date(meta.extraction_date).toLocaleString()}
+                                  </p>
+                                )}
+                                {meta.file_name && (
+                                  <p className="text-xs text-muted-foreground">
+                                    <span className="font-semibold">File:</span> {meta.file_name}
+                                  </p>
+                                )}
+                                {meta.loom_metadata && (
+                                  <div className="flex flex-wrap gap-3 pt-2 border-t border-border/50 text-xs text-muted-foreground">
+                                    {meta.loom_metadata.views != null && (
+                                      <span><strong>Views:</strong> {meta.loom_metadata.views}</span>
+                                    )}
+                                    {meta.loom_metadata.duration_formatted && (
+                                      <span><strong>Duration:</strong> {meta.loom_metadata.duration_formatted}</span>
+                                    )}
+                                    {meta.loom_metadata.owner && (
+                                      <span><strong>Owner:</strong> {meta.loom_metadata.owner}</span>
+                                    )}
+                                    {meta.loom_metadata.createdAt && (
+                                      <span>
+                                        <strong>Created:</strong>{" "}
+                                        {new Date(meta.loom_metadata.createdAt).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {(meta.extracted_text ?? entry.content) && (
+                                  <div className="mt-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                                    <p className="text-xs text-muted-foreground line-clamp-3 break-words">
+                                      {(meta.extracted_text ?? entry.content).substring(0, 250)}
+                                      {(meta.extracted_text ?? entry.content).length > 250 ? "..." : ""}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
-                    </div>
-                  );
-                })}
+                      </Card>
+                    );
+                  })
+                )}
               </div>
             </div>
 
-            {/* Edit extracted content dialog */}
+            {/* Modern Edit Extracted Content Dialog */}
             <Dialog
               open={editContentIndex !== null}
               onOpenChange={(open) => {
@@ -838,86 +977,164 @@ export default function EditChatbotPage() {
                 }
               }}
             >
-              <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                  <DialogTitle>Edit content</DialogTitle>
-                  <DialogDescription>
-                    Change the content used in the system prompt for this base prompt.
-                  </DialogDescription>
+              <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+                <DialogHeader className="px-8 py-5 border-b bg-gradient-to-r from-card to-muted/30 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl">Edit Prompt Content</DialogTitle>
+                      <DialogDescription className="text-sm mt-1">
+                        Modify the content that will be used in your chatbot&apos;s system prompt
+                      </DialogDescription>
+                    </div>
+                  </div>
                 </DialogHeader>
-                <Textarea
-                  value={editContentValue}
-                  onChange={(e) => setEditContentValue(e.target.value)}
-                  className="min-h-[50vh] font-mono text-sm resize-y"
-                  placeholder="Content..."
-                />
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setEditContentIndex(null);
-                      setEditContentValue("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (editContentIndex !== null) {
-                        setBasePrompts((prev) =>
-                          prev.map((p, i) =>
-                            i === editContentIndex
-                              ? { ...p, content: editContentValue }
-                              : p
-                          )
-                        );
-                        setEditContentIndex(null);
-                        setEditContentValue("");
-                        toast.success("Content updated");
-                      }
-                    }}
-                  >
-                    Save changes
-                  </Button>
+                <div className="flex-1 min-h-0 p-8 overflow-hidden flex flex-col">
+                  <Textarea
+                    value={editContentValue}
+                    onChange={(e) => setEditContentValue(e.target.value)}
+                    className="flex-1 min-h-[50vh] font-mono text-sm resize-none border-2 focus:border-primary/50"
+                    placeholder="Enter your prompt content here..."
+                  />
+                  <div className="flex items-center justify-between gap-4 pt-6 mt-auto">
+                    <p className="text-sm text-muted-foreground">
+                      {editContentValue.length} characters
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="default"
+                        onClick={() => {
+                          setEditContentIndex(null);
+                          setEditContentValue("");
+                        }}
+                        className="min-w-[100px] gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="default"
+                        onClick={() => {
+                          if (editContentIndex !== null) {
+                            setBasePrompts((prev) =>
+                              prev.map((p, i) =>
+                                i === editContentIndex
+                                  ? { ...p, content: editContentValue }
+                                  : p
+                              )
+                            );
+                            setEditContentIndex(null);
+                            setEditContentValue("");
+                            toast.success("Content updated successfully");
+                          }
+                        }}
+                        className="min-w-[120px] gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        Save Changes
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
-            <div className="px-6 py-4 border-t flex justify-end gap-2 shrink-0">
-              <Button type="button" variant="outline" onClick={() => setSettingsOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </Button>
+            <div className="px-8 py-5 border-t bg-gradient-to-r from-card to-muted/20 flex justify-between items-center gap-4 shrink-0">
+              <p className="text-sm text-muted-foreground">
+                {basePrompts.length} prompt{basePrompts.length !== 1 ? "s" : ""} configured
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="default"
+                  onClick={() => setSettingsOpen(false)}
+                  className="min-w-[100px] gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  size="default"
+                  className="min-w-[120px] gap-2 shadow-sm"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Edit node settings dialog */}
+      {/* Modern Edit Node Settings Dialog */}
       <Dialog open={!!editNode} onOpenChange={(open) => !open && setEditNode(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit: {editNode?.name}</DialogTitle>
-            <DialogDescription>
-              Change this node&apos;s settings. Each node type has its own edit UI.
-            </DialogDescription>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader className="pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                <Settings className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Edit Node: {editNode?.name}</DialogTitle>
+                <DialogDescription className="text-sm mt-1">
+                  Configure this node&apos;s settings and behavior
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           {editNode && (
-            <div className="space-y-4">
-              <NodeEditor
-                nodeKey={editNode.node_key ?? editNode.id}
-                settings={editSettings}
-                onChange={setEditSettings}
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setEditNode(null)}>
+            <div className="space-y-6 py-4">
+              <div className="rounded-lg border border-border p-4 bg-muted/20">
+                <NodeEditor
+                  nodeKey={editNode.node_key ?? editNode.id}
+                  settings={editSettings}
+                  onChange={setEditSettings}
+                />
+              </div>
+              <Separator />
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={() => setEditNode(null)}
+                  className="min-w-[100px] gap-2"
+                >
+                  <X className="h-4 w-4" />
                   Cancel
                 </Button>
-                <Button onClick={handleSaveSettings} disabled={savingSettings}>
-                  {savingSettings ? "Saving..." : "Save settings"}
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={savingSettings}
+                  size="default"
+                  className="min-w-[120px] gap-2"
+                >
+                  {savingSettings ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Settings
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
