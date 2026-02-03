@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const authEnd = performance.now();
 
     const parseStart = performance.now();
-    const { text } = await req.json();
+    const { text, voice_id } = await req.json();
     const parseEnd = performance.now();
 
     // #region agent log
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const voiceId = "EXAVITQu4vr4xnSDxMaL"; // Default voice (Bella)
+    const voiceId = voice_id || "EXAVITQu4vr4xnSDxMaL"; // Default voice (Bella)
 
     // Use ElevenLabs HTTP API for TTS (non-streaming endpoint for complete text)
     // Using non-streaming endpoint since we have complete text - more reliable

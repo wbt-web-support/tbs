@@ -355,12 +355,16 @@ export function AiChat({
       const response = await fetch("/api/ai-instructions/tts-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          voice_id: voiceConfig?.voice_id,
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Failed to generate audio" }));
-        throw new Error(errorData.error || errorData.details || "Failed to generate audio");
+        const errorMsg = errorData.details || errorData.error || "Failed to generate audio";
+        throw new Error(errorMsg);
       }
 
       const audioBlob = await response.blob();
