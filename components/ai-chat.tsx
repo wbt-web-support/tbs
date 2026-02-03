@@ -382,11 +382,14 @@ export function AiChat({
   };
 
   // Cleanup audio URLs on unmount
+  const audioUrlsRef = useRef<Map<string, string>>(new Map());
+  audioUrlsRef.current = audioUrls;
+
   useEffect(() => {
     return () => {
-      audioUrls.forEach((url) => URL.revokeObjectURL(url));
+      audioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [audioUrls]);
+  }, []);
 
   const sendMessage = async (textOverride?: string) => {
     const text = (textOverride ?? inputText).trim();

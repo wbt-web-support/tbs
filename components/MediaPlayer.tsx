@@ -26,7 +26,6 @@ export function MediaPlayer({ audioUrl, onEnded }: MediaPlayerProps) {
     seek,
     skipForward,
     skipBackward,
-    reset,
   } = useAudioPlayer();
 
   const hasLoadedRef = useRef(false);
@@ -46,12 +45,8 @@ export function MediaPlayer({ audioUrl, onEnded }: MediaPlayerProps) {
     }
   }, [state.isPlaying, state.currentTime, state.duration, onEnded]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      reset();
-    };
-  }, [reset]);
+  // Note: No cleanup needed here - useAudioPlayer handles its own cleanup
+  // and the blob URL is managed by the parent component
 
   const handleProgressChange = (value: number[]) => {
     seek(value[0]);

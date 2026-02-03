@@ -18,15 +18,11 @@ export function useAudioPlayer() {
     error: null,
   });
 
-  // Cleanup on unmount
+  // Cleanup on unmount - pause but keep ref for potential remount (React Strict Mode)
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
-        if (audioRef.current.src && audioRef.current.src.startsWith("blob:")) {
-          URL.revokeObjectURL(audioRef.current.src);
-        }
-        audioRef.current = null;
       }
     };
   }, []);
@@ -170,9 +166,7 @@ export function useAudioPlayer() {
   const reset = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
-      if (audioRef.current.src && audioRef.current.src.startsWith("blob:")) {
-        URL.revokeObjectURL(audioRef.current.src);
-      }
+      // Don't revoke blob URLs - they may be managed externally and reused
       audioRef.current.src = "";
     }
     setState({

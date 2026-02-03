@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
     elevenLabsFormData.append("file", audioFile);
     // ElevenLabs STT API requires model_id parameter - using scribe_v1 (stable model)
     elevenLabsFormData.append("model_id", "scribe_v1");
+    // Force English language to prevent auto-detection issues
+    elevenLabsFormData.append("language_code", "en");
 
     // Call ElevenLabs STT API
     const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
