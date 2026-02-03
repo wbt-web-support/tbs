@@ -54,6 +54,8 @@ export async function GET(request: NextRequest, { params }: Params) {
       fullPrompt: result.prompt,
       webSearchEnabled: !!result.webSearch,
       attachmentsEnabled: !!result.attachments,
+      voiceEnabled: !!result.voice,
+      voiceConfig: result.voice,
     });
   } catch (err) {
     console.error("[chatbot-flow/public/chatbots/[id]/context]", err);

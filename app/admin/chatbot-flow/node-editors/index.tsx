@@ -4,6 +4,7 @@ import { getNodeDefinition } from "@/lib/chatbot-flow/nodes";
 import { AttachmentsEditor } from "./AttachmentsEditor";
 import { DataAccessEditor } from "./DataAccessEditor";
 import { WebSearchEditor } from "./WebSearchEditor";
+import { VoiceEditor } from "./VoiceEditor";
 
 export type NodeEditorProps = {
   nodeKey: string;
@@ -36,6 +37,10 @@ export function NodeEditor({ nodeKey, settings, onChange }: NodeEditorProps) {
 
   if (def.nodeType === "attachments") {
     return <AttachmentsEditor settings={settings} onChange={onChange} />;
+  }
+
+  if (def.nodeType === "voice_interface") {
+    return <VoiceEditor settings={settings} onChange={onChange} />;
   }
 
   return (
