@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X } from "lucide-react";
+import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X, MessageSquare, Plus, ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import {
@@ -74,6 +74,10 @@ export function AiChat({
   const [contextError, setContextError] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [sessions, setSessions] = useState<{ id: string; title: string; created_at: string; updated_at: string }[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -169,6 +173,46 @@ export function AiChat({
     if (chatbotId && showDebugPanel) fetchContext();
   }, [chatbotId, showDebugPanel, fetchContext]);
 
+  const fetchSessions = useCallback(async () => {
+    if (!chatbotId) return;
+    setSessionsLoading(true);
+    try {
+      const r = await fetch(`/api/chatbot-flow/chatbots/${chatbotId}/sessions`);
+      const data = await r.json();
+      if (r.ok && Array.isArray(data.sessions)) setSessions(data.sessions);
+    } catch {
+      // ignore
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, [chatbotId]);
+
+  useEffect(() => {
+    if (chatbotId && !initialLoading) fetchSessions();
+  }, [chatbotId, initialLoading, fetchSessions]);
+
+  const loadSession = useCallback(async (sessionId: string) => {
+    if (!chatbotId) return;
+    try {
+      const r = await fetch(`/api/chatbot-flow/chatbots/${chatbotId}/sessions/${sessionId}`);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error ?? "Failed to load");
+      const msgs = Array.isArray(data.messages) ? data.messages : [];
+      setMessages(msgs.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })));
+      setCurrentSessionId(sessionId);
+      setSidebarOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load session");
+    }
+  }, [chatbotId]);
+
+  const createNewChat = useCallback(() => {
+    setCurrentSessionId(null);
+    setMessages([]);
+    setError(null);
+    setSidebarOpen(false);
+  }, []);
+
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
@@ -263,15 +307,37 @@ export function AiChat({
           message: text,
           history: historyToSend,
           use_web_search: useWebSearch,
+          session_id: currentSessionId ?? undefined,
           ...(attachmentsToSend.length ? { attachments: attachmentsToSend } : {}),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Request failed");
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply ?? "" },
-      ]);
+      const reply = data.reply ?? "";
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+
+      if (data.new_session && data.session_id) {
+        setCurrentSessionId(data.session_id);
+        setSessions((prev) => [
+          { id: data.session_id, title: "New Chat", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+          ...prev,
+        ]);
+        fetch(`/api/gemini/rename`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text }),
+        })
+          .then((r) => r.json())
+          .then((renameData) => {
+            const title = (renameData.title ?? text.slice(0, 40)).trim() || "New Chat";
+            fetch(`/api/chatbot-flow/chatbots/${chatbotId}/sessions/${data.session_id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title }),
+            }).then(() => fetchSessions());
+          })
+          .catch(() => fetchSessions());
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong";
       if (
@@ -331,7 +397,72 @@ export function AiChat({
   }
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full relative">
+      {/* Sessions sidebar toggle */}
+      <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setSidebarOpen((o) => {
+              if (!o) fetchSessions();
+              return !o;
+            });
+          }}
+          className="text-muted-foreground hover:text-foreground gap-2"
+          title={sidebarOpen ? "Close sessions" : "Chat history"}
+        >
+          {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+          <span className="text-xs hidden sm:inline">History</span>
+        </Button>
+      </div>
+
+      {/* Sessions sidebar */}
+      {sidebarOpen && (
+        <div className="absolute left-0 top-0 bottom-0 z-20 w-64 border-r border-border bg-background flex flex-col">
+          <div className="p-3 border-b border-border flex items-center justify-between">
+            <span className="text-sm font-medium">Chat sessions</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={createNewChat}
+            className="m-3 gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New chat
+          </Button>
+          <ScrollArea className="flex-1 px-2">
+            {sessionsLoading ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">Loading...</div>
+            ) : sessions.length === 0 ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">No sessions yet</div>
+            ) : (
+              <div className="space-y-1 pb-4">
+                {sessions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => loadSession(s.id)}
+                    className={cn(
+                      "w-full text-left rounded-lg px-3 py-2 text-sm transition-colors",
+                      currentSessionId === s.id
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-foreground"
+                    )}
+                  >
+                    <span className="block truncate font-medium">{s.title}</span>
+                    <span className="block truncate text-xs opacity-80">
+                      {new Date(s.updated_at).toLocaleDateString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+      )}
+
       {/* Context popup trigger (only when showDebugPanel) */}
       {showDebugPanel && (
         <div className="absolute top-2 right-2">

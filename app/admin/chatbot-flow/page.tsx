@@ -100,9 +100,9 @@ export default function ChatbotFlowPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 !pt-6">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-3xl font-semibold flex items-center gap-2">
             <Workflow className="h-8 w-8" />
             Chatbot Flow
           </h1>

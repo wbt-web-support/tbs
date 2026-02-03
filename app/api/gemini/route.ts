@@ -459,7 +459,8 @@ async function getChatInstances(userId: string, group?: string) {
     let query = supabase
       .from('chat_history')
       .select('id, title, created_at, updated_at, document_ids, pinned, group_type')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .is('chatbot_id', null);
     
     // Filter by group if provided
     if (group) {

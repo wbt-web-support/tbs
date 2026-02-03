@@ -14,7 +14,6 @@ export default function NewChatbotPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [basePrompt, setBasePrompt] = useState("");
-  const [modelName, setModelName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +32,6 @@ export default function NewChatbotPage() {
         body: JSON.stringify({
           name: name.trim(),
           base_prompts: basePrompt.trim() ? [{ type: "text", content: basePrompt.trim() }] : [],
-          model_name: modelName.trim() || undefined,
         }),
       });
       if (!res.ok) {
@@ -89,16 +87,6 @@ export default function NewChatbotPage() {
                 onChange={(e) => setBasePrompt(e.target.value)}
                 placeholder="You are a helpful AI assistant for..."
                 rows={4}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="model_name">Model name (optional)</Label>
-              <Input
-                id="model_name"
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-                placeholder="e.g. gemini-2.5-flash (default if empty)"
                 className="mt-1"
               />
             </div>

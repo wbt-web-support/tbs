@@ -112,7 +112,6 @@ export default function EditChatbotPage() {
   const [linkedNodes, setLinkedNodes] = useState<LinkedNode[]>([]);
   const [name, setName] = useState("");
   const [basePrompts, setBasePrompts] = useState<BasePromptEntry[]>([]);
-  const [modelName, setModelName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +124,7 @@ export default function EditChatbotPage() {
   const [extractingIndex, setExtractingIndex] = useState<number | null>(null);
   const [editContentIndex, setEditContentIndex] = useState<number | null>(null);
   const [editContentValue, setEditContentValue] = useState("");
-  const [openBasePromptIndex, setOpenBasePromptIndex] = useState<number | null>(0);
+  const [openBasePromptIndex, setOpenBasePromptIndex] = useState<number | null>(null);
 
   const fetchChatbot = useCallback(async () => {
     const res = await fetch(`/api/chatbot-flow/chatbots/${id}`);
@@ -155,7 +154,6 @@ export default function EditChatbotPage() {
           }))
         : [{ type: "text", content: "" }]
     );
-    setModelName(data.model_name ?? "");
   }, [id]);
 
   const fetchLinkedNodes = useCallback(async () => {
@@ -195,7 +193,6 @@ export default function EditChatbotPage() {
                 }))
                 .filter((p) => Boolean(p.content))
             : [{ type: "text", content: "" }],
-          model_name: modelName.trim() || null,
         }),
       });
       if (!res.ok) {
@@ -545,7 +542,7 @@ export default function EditChatbotPage() {
           <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle>Chatbot settings</DialogTitle>
             <DialogDescription>
-              Update name, base prompts (add multiple with type), and model.
+              Update name and base prompts (add multiple with type).
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveChatbot} className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -556,16 +553,6 @@ export default function EditChatbotPage() {
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="model_name">Model name (optional)</Label>
-                <Input
-                  id="model_name"
-                  value={modelName}
-                  onChange={(e) => setModelName(e.target.value)}
-                  placeholder="e.g. gemini-2.5-flash"
                   className="mt-1"
                 />
               </div>

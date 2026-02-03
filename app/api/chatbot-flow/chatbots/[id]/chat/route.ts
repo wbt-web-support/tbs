@@ -63,23 +63,45 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { message, history, use_web_search, attachments } = body as {
+    const { message, history, use_web_search, attachments, session_id: sessionId } = body as {
       message?: string;
       history?: HistoryMessage[];
       use_web_search?: boolean;
       attachments?: AttachmentInput[];
+      session_id?: string | null;
     };
 
     if (!message || typeof message !== "string") {
       return NextResponse.json({ error: "message is required" }, { status: 400 });
     }
 
+    const userId = session.user.id;
+    type StoredMessage = { role: "user" | "assistant"; content: string };
+    let effectiveHistory = Array.isArray(history) ? (history as HistoryMessage[]) : [];
+    let resolvedSessionId: string | null = sessionId ?? null;
+    let isNewSession = false;
+
+    if (sessionId) {
+      const { data: sessionRow } = await supabase
+        .from("chat_history")
+        .select("messages")
+        .eq("id", sessionId)
+        .eq("user_id", userId)
+        .eq("chatbot_id", chatbotId)
+        .single();
+      if (sessionRow && Array.isArray(sessionRow.messages)) {
+        const stored = sessionRow.messages as StoredMessage[];
+        effectiveHistory = stored.map((m) => ({
+          role: (m.role === "assistant" ? "model" : "user") as "user" | "model",
+          parts: [{ text: m.content }],
+        }));
+      }
+    }
+
     if (!API_KEY) {
       return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
     }
 
-    // Use the logged-in user directly so the chatbot has access to their context (team, data).
-    const userId = session.user.id;
     const adminClient = getAdminClient();
     const { data: biz } = await adminClient
       .from("business_info")
@@ -113,8 +135,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       { role: "model", parts: [{ text: "I understand and will follow these instructions." }] },
     ];
 
-    const hist = Array.isArray(history) ? (history as HistoryMessage[]) : [];
-    const recent = hist.slice(-30);
+    const recent = effectiveHistory.slice(-30);
     for (const msg of recent) {
       if (!msg?.role) continue;
       const role = msg.role === "assistant" ? "model" : msg.role;
@@ -181,9 +202,50 @@ export async function POST(request: NextRequest, { params }: Params) {
       }
     }
 
+    const replyText = text.trim();
+    const toAppend: StoredMessage[] = [
+      { role: "user", content: message },
+      { role: "assistant", content: replyText },
+    ];
+
+    if (resolvedSessionId) {
+      const { data: existing } = await supabase
+        .from("chat_history")
+        .select("messages")
+        .eq("id", resolvedSessionId)
+        .eq("user_id", userId)
+        .eq("chatbot_id", chatbotId)
+        .single();
+      const prev = (existing?.messages ?? []) as StoredMessage[];
+      const limited = [...prev, ...toAppend].slice(-100);
+      await supabase
+        .from("chat_history")
+        .update({ messages: limited, updated_at: new Date().toISOString() })
+        .eq("id", resolvedSessionId)
+        .eq("user_id", userId)
+        .eq("chatbot_id", chatbotId);
+    } else {
+      const { data: newRow } = await supabase
+        .from("chat_history")
+        .insert({
+          user_id: userId,
+          chatbot_id: chatbotId,
+          title: "New Chat",
+          messages: toAppend,
+        })
+        .select("id")
+        .single();
+      if (newRow?.id) {
+        resolvedSessionId = newRow.id;
+        isNewSession = true;
+      }
+    }
+
     return NextResponse.json({
-      reply: text.trim(),
+      reply: replyText,
       thoughtSummary: thoughtSummary.trim() || undefined,
+      session_id: resolvedSessionId ?? undefined,
+      new_session: isNewSession,
     });
   } catch (err) {
     console.error("[chatbot-flow/chatbots/[id]/chat] error:", err);
