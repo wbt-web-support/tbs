@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X, MessageSquare, Plus, Menu, Edit2, Trash2, Check, MoreVertical } from "lucide-react";
+import { Send, Loader2, Globe, RefreshCw, Bug, Paperclip, FileText, Image, X, Plus, Menu, Edit2, Trash2, Check, MoreVertical } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import {
@@ -468,7 +468,7 @@ export function AiChat({
         ) : sessions.length === 0 ? (
           <div className="py-4 text-center text-sm text-muted-foreground">No sessions yet</div>
         ) : (
-          <div className="space-y-0 pb-4">
+          <div className="space-y-1 pb-4">
             {sessions.map((s) => (
               <div
                 key={s.id}
@@ -508,14 +508,11 @@ export function AiChat({
                     className="flex items-center justify-between gap-2"
                     onClick={() => loadSession(s.id)}
                   >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <MessageSquare className="h-4 w-4 shrink-0 text-gray-500" />
-                      <div className="flex-1 min-w-0">
-                        <span className="block truncate font-medium text-sm">{s.title}</span>
-                        <span className="block truncate text-xs opacity-80">
-                          {new Date(s.updated_at).toLocaleDateString()}
-                        </span>
-                      </div>
+                    <div className="flex-1 min-w-0 p-1">
+                      <span className="block truncate font-medium text-sm">{s.title}</span>
+                      <span className="block truncate text-xs text-gray-400">
+                        {new Date(s.updated_at).toLocaleDateString()}
+                      </span>
                     </div>
                     <DropdownMenu
                       open={openDropdownId === s.id}
@@ -603,10 +600,7 @@ export function AiChat({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  setSidebarOpen(true);
-                  fetchSessions();
-                }}
+                onClick={() => setSidebarOpen(true)}
                 title="Chat history"
               >
                 <Menu className="h-4 w-4" />
@@ -938,7 +932,7 @@ export function AiChat({
                     title={useWebSearch ? "Web search on" : "Web search off"}
                   >
                     <Globe className="h-4 w-4" />
-                    <span className="text-xs">Search</span>
+                    <span className="text-xs"> Web Search</span>
                   </Button>
                 )}
               </div>
