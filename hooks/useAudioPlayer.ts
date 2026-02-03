@@ -88,8 +88,17 @@ export function useAudioPlayer() {
       audio.load();
 
       // Play
-      await audio.play();
-      setState((prev) => ({ ...prev, isPlaying: true }));
+      try {
+        await audio.play();
+        setState((prev) => ({ ...prev, isPlaying: true }));
+      } catch (playError) {
+        // Ignore AbortError - it's caused by rapid play/pause and is harmless
+        if (playError instanceof Error && playError.name === "AbortError") {
+          console.log("Play interrupted (harmless):", playError.message);
+          return;
+        }
+        throw playError;
+      }
     } catch (error) {
       console.error("Audio playback error:", error);
       setState((prev) => ({
@@ -107,6 +116,11 @@ export function useAudioPlayer() {
       await audioRef.current.play();
       setState((prev) => ({ ...prev, isPlaying: true }));
     } catch (error) {
+      // Ignore AbortError - it's caused by rapid play/pause and is harmless
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("Play interrupted (harmless):", error.message);
+        return;
+      }
       console.error("Play error:", error);
       setState((prev) => ({
         ...prev,
