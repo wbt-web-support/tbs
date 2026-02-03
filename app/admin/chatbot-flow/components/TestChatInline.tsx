@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/select";
 import { Send, RefreshCw, RotateCcw, Globe, Mic, MicOff, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useStreamingTTS } from "@/hooks/useStreamingTTS";
 import { AudioVisualizer } from "@/components/audio-visualizer";
+import { MediaPlayer } from "@/components/MediaPlayer";
 import { toast } from "sonner";
 
 const STORAGE_KEY_PREFIX = "chatbot-flow-test-";
@@ -87,6 +87,8 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [audioUrls, setAudioUrls] = useState<Map<string, string>>(new Map());
+  const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioStreamRef = useRef<MediaStream | null>(null);
@@ -96,8 +98,6 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
   const testUsersRef = useRef<TestUser[]>([]);
   const skipNextPersistRef = useRef(true); // skip persist until after we've loaded from storage
   testUsersRef.current = testUsers;
-
-  const { sendText: playTTS, isSpeaking, stopPlayback } = useStreamingTTS(voiceEnabled && voiceConfig?.tts_enabled);
 
   const refreshContext = useCallback(async () => {
     if (!chatbotId) return;
@@ -161,6 +161,13 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
       }
     };
   }, []);
+
+  // Cleanup audio URLs on unmount
+  useEffect(() => {
+    return () => {
+      audioUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [audioUrls]);
 
   useEffect(() => {
     setUsersLoading(true);
@@ -290,15 +297,46 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
     }
   };
 
-  // Play TTS for a message
+  // Load TTS audio for a message
   const handlePlayMessage = async (messageId: string, text: string) => {
+    // If clicking on currently playing message, close player
     if (playingMessageId === messageId) {
-      stopPlayback();
       setPlayingMessageId(null);
-    } else {
+      return;
+    }
+
+    // Check if we already have audio cached
+    const cachedUrl = audioUrls.get(messageId);
+    if (cachedUrl) {
       setPlayingMessageId(messageId);
-      await playTTS(text);
-      setPlayingMessageId(null);
+      return;
+    }
+
+    // Load TTS audio
+    setLoadingAudio(messageId);
+    try {
+      const response = await fetch("/api/ai-instructions/tts-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to generate audio" }));
+        throw new Error(errorData.error || errorData.details || "Failed to generate audio");
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Cache the audio URL
+      setAudioUrls((prev) => new Map(prev).set(messageId, audioUrl));
+      setPlayingMessageId(messageId);
+    } catch (error) {
+      console.error("TTS error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to load audio");
+    } finally {
+      setLoadingAudio(null);
     }
   };
 
@@ -541,20 +579,35 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
                   )}
                 </div>
                 {m.role === "assistant" && voiceConfig?.tts_enabled && m.id && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handlePlayMessage(m.id!, m.content)}
-                    className="mt-1 h-7 px-2 text-xs"
-                    disabled={isTranscribing || loading}
-                    title={playingMessageId === m.id ? "Stop playing" : "Play as audio"}
-                  >
-                    {playingMessageId === m.id ? (
-                      <><VolumeX className="h-3 w-3 mr-1" /> Stop</>
+                  <>
+                    {loadingAudio === m.id ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 h-7 px-2 text-xs"
+                        disabled
+                        title="Loading audio..."
+                      >
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Loading...
+                      </Button>
+                    ) : playingMessageId === m.id && audioUrls.has(m.id) ? (
+                      <MediaPlayer
+                        audioUrl={audioUrls.get(m.id)!}
+                        onEnded={() => setPlayingMessageId(null)}
+                      />
                     ) : (
-                      <><Volume2 className="h-3 w-3 mr-1" /> Play</>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePlayMessage(m.id!, m.content)}
+                        className="mt-1 h-7 px-2 text-xs"
+                        disabled={isTranscribing || loading}
+                        title="Play as audio"
+                      >
+                        <Volume2 className="h-3 w-3 mr-1" /> Play
+                      </Button>
                     )}
-                  </Button>
+                  </>
                 )}
                 {m.thoughtSummary && (
                   <details className="mt-1 text-xs text-muted-foreground">
