@@ -98,6 +98,8 @@ export interface ReusableTiptapEditorProps {
   onLoadHistory?: (historyId: string) => Promise<string[]>;
   onRestoreHistory?: (content: string, historyId: string) => Promise<void>;
   showHistoryButton?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export default function ReusableTiptapEditor({ 
@@ -122,7 +124,9 @@ export default function ReusableTiptapEditor({
   onSaveHistory,
   onLoadHistory,
   onRestoreHistory,
-  showHistoryButton = true
+  showHistoryButton = true,
+  onFocus,
+  onBlur
 }: ReusableTiptapEditorProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
@@ -386,6 +390,19 @@ export default function ReusableTiptapEditor({
       editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
+
+  // Focus/blur callbacks for parent (e.g. AI assistant focus tracking)
+  useEffect(() => {
+    if (!editor || (!onFocus && !onBlur)) return;
+    const focusHandler = () => onFocus?.();
+    const blurHandler = () => onBlur?.();
+    editor.on('focus', focusHandler);
+    editor.on('blur', blurHandler);
+    return () => {
+      editor.off('focus', focusHandler);
+      editor.off('blur', blurHandler);
+    };
+  }, [editor, onFocus, onBlur]);
 
   // DOCX Export Function
   const handleExportDocx = useCallback(async () => {

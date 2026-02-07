@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, ExternalLink, Edit, Save, X, Code, Hand, ZoomIn, Camera, Upload, Image, FileCode2, Check, SwitchCamera } from "lucide-react";
+import { Loader2, ExternalLink, Edit, Save, X, Code, Hand, ZoomIn, Camera, Upload, Image, FileCode2, Check, SwitchCamera, Sparkles, RotateCw, Trash2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import MermaidDiagramEditor from "@/components/mermaid-diagram-editor";
 
 type MachineData = {
   id: string;
@@ -18,6 +27,10 @@ type MachineData = {
   figma_link: string | null;
   figma_embed: string | null;
   image_url: string | null;
+  mermaid_diagram: string | null;
+  triggeringevents?: { value: string }[];
+  endingevent?: { value: string }[];
+  actionsactivities?: { value: string }[];
 };
 
 interface MachineDesignProps {
@@ -37,12 +50,19 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
   const [figmaEmbed, setFigmaEmbed] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeDesignTab, setActiveDesignTab] = useState<"image" | "figma">("image");
+  const [activeDesignTab, setActiveDesignTab] = useState<"image" | "figma" | "ai">("image");
   const [figmaMode, setFigmaMode] = useState<"link" | "embed">("link");
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [showImageWhenFigmaExists, setShowImageWhenFigmaExists] = useState(false);
+  const [viewMode, setViewMode] = useState<"image" | "figma" | "ai">("image");
+  const [generatingDiagram, setGeneratingDiagram] = useState(false);
+  const [editingAiDiagram, setEditingAiDiagram] = useState(false);
+  const [localMermaidCode, setLocalMermaidCode] = useState("");
+  const [aiEditPrompt, setAiEditPrompt] = useState("");
+  const [applyingAiEdit, setApplyingAiEdit] = useState(false);
+  const [aiEditDialogOpen, setAiEditDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -55,6 +75,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
       setFigmaLink(machineData.figma_link || "");
       setFigmaEmbed(machineData.figma_embed || "");
       setImagePreview(machineData.image_url || null);
+      setLocalMermaidCode(machineData.mermaid_diagram || "");
       
       if (machineData.figma_link || machineData.figma_embed) {
         setActiveDesignTab("figma");
@@ -62,6 +83,9 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
       } else {
         setActiveDesignTab("image");
       }
+      // AI flow design hidden for now; prefer figma then image
+      if (machineData.figma_link || machineData.figma_embed) setViewMode("figma");
+      else setViewMode("image");
     }
   }, [machineData]);
 
@@ -77,7 +101,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
 
       let query = supabase
         .from("machines")
-        .select("id, user_id, enginename, enginetype, figma_link, figma_embed, image_url")
+        .select("id, user_id, enginename, enginetype, figma_link, figma_embed, image_url, mermaid_diagram, triggeringevents, endingevent, actionsactivities")
         .eq("user_id", teamId)
         .eq("enginetype", engineType);
       
@@ -112,6 +136,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
           figma_link: null,
           figma_embed: null,
           image_url: null,
+          mermaid_diagram: null,
           welcome_completed: false,
           questions: null,
           answers: null,
@@ -129,7 +154,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
         const { data: newData, error: insertError } = await supabase
           .from("machines")
           .insert(newMachine)
-          .select("id, user_id, enginename, enginetype, figma_link, figma_embed, image_url")
+          .select("id, user_id, enginename, enginetype, figma_link, figma_embed, image_url, mermaid_diagram, triggeringevents, endingevent, actionsactivities")
           .single();
           
         if (insertError) throw insertError;
@@ -268,7 +293,120 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
 
   const hasFigmaContent = !!machineData?.figma_link || !!machineData?.figma_embed;
   const hasImageContent = !!machineData?.image_url;
-  const hasDesignContent = hasFigmaContent || hasImageContent;
+  const hasAiDiagramContent = !!machineData?.mermaid_diagram?.trim();
+  const hasDesignContent = hasFigmaContent || hasImageContent || hasAiDiagramContent;
+
+  const handleGenerateDiagram = async () => {
+    if (!machineData?.id) return;
+    setGeneratingDiagram(true);
+    try {
+      const res = await fetch("/api/gemini/mermaid-diagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          machineId: machineId || undefined,
+          subcategoryId: subcategoryId || undefined,
+          serviceId: serviceId || undefined,
+          engineType,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate diagram");
+      const code = data.mermaidCode || "";
+      setLocalMermaidCode(code);
+      const { error } = await supabase
+        .from("machines")
+        .update({ mermaid_diagram: code })
+        .eq("id", machineData.id);
+      if (error) throw error;
+      setMachineData((prev) => (prev ? { ...prev, mermaid_diagram: code } : null));
+      toast.success("Diagram generated");
+      if (onDataChange) onDataChange();
+    } catch (err: any) {
+      console.error("Generate diagram error:", err);
+      toast.error(err.message || "Failed to generate diagram");
+    } finally {
+      setGeneratingDiagram(false);
+    }
+  };
+
+  const handleSaveMermaid = async (code: string) => {
+    if (!machineData?.id) return;
+    try {
+      const { error } = await supabase
+        .from("machines")
+        .update({ mermaid_diagram: code })
+        .eq("id", machineData.id);
+      if (error) throw error;
+      setMachineData((prev) => (prev ? { ...prev, mermaid_diagram: code } : null));
+      setLocalMermaidCode(code);
+      toast.success("Diagram saved");
+      if (onDataChange) onDataChange();
+    } catch (err: any) {
+      console.error("Save mermaid error:", err);
+      toast.error("Failed to save diagram");
+      throw err;
+    }
+  };
+
+  const handleDeleteDiagram = async () => {
+    if (!machineData?.id) return;
+    if (!confirm("Delete this AI diagram? You can regenerate it later.")) return;
+    try {
+      const { error } = await supabase
+        .from("machines")
+        .update({ mermaid_diagram: null })
+        .eq("id", machineData.id);
+      if (error) throw error;
+      setMachineData((prev) => (prev ? { ...prev, mermaid_diagram: null } : null));
+      setLocalMermaidCode("");
+      toast.success("Diagram deleted");
+      if (onDataChange) onDataChange();
+    } catch (err: any) {
+      console.error("Delete mermaid error:", err);
+      toast.error("Failed to delete diagram");
+    }
+  };
+
+  const handleEditWithAI = async () => {
+    const prompt = aiEditPrompt.trim();
+    const code = machineData?.mermaid_diagram?.trim();
+    if (!prompt || !code || !machineData?.id) {
+      toast.error("Enter a description of the edit you want");
+      return;
+    }
+    setApplyingAiEdit(true);
+    try {
+      const res = await fetch("/api/gemini/mermaid-diagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "edit",
+          mermaidCode: code,
+          editPrompt: prompt,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Edit failed");
+      const newCode = data.mermaidCode || "";
+      const { error } = await supabase
+        .from("machines")
+        .update({ mermaid_diagram: newCode })
+        .eq("id", machineData.id);
+      if (error) throw error;
+      setMachineData((prev) => (prev ? { ...prev, mermaid_diagram: newCode } : null));
+      setLocalMermaidCode(newCode);
+      setAiEditPrompt("");
+      setAiEditDialogOpen(false);
+      toast.success("Diagram updated");
+      if (onDataChange) onDataChange();
+    } catch (err: any) {
+      console.error("Edit with AI error:", err);
+      toast.error(err.message || "Failed to apply edit");
+    } finally {
+      setApplyingAiEdit(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -338,7 +476,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
             
             <Tabs 
               value={activeDesignTab} 
-              onValueChange={(value) => setActiveDesignTab(value as "image" | "figma")}
+              onValueChange={(value) => setActiveDesignTab(value as "image" | "figma" | "ai")}
               className="w-full"
             >
               <TabsList className="grid grid-cols-2 mb-4">
@@ -464,6 +602,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                 variant="outline"
                 onClick={() => {
                   setIsEditing(false);
+                  setEditingAiDiagram(false);
                   if (machineData?.figma_link) {
                     setFigmaLink(machineData.figma_link);
                   }
@@ -471,6 +610,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                     setFigmaEmbed(machineData.figma_embed);
                   }
                   setImagePreview(machineData?.image_url || null);
+                  setLocalMermaidCode(machineData?.mermaid_diagram || "");
                   setUploadSuccess(false);
                   setShowImageWhenFigmaExists(false);
                 }}
@@ -503,33 +643,46 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
           <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between flex-shrink-0">
             <div className="mb-2 sm:mb-0">
               <p className="text-xs sm:text-sm text-gray-500">
-                {showImageWhenFigmaExists ? "Custom Image" : hasFigmaContent ? "Figma Design" : "Custom Image"}
+                {viewMode === "figma" ? "Figma Design" : "Custom Image"}
               </p>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              {hasFigmaContent && hasImageContent && (
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              {hasFigmaContent && viewMode !== "figma" && (
                 <Button
                   variant="outline"
-                  onClick={() => setShowImageWhenFigmaExists(!showImageWhenFigmaExists)}
+                  onClick={() => setViewMode("figma")}
                   className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-purple-200 text-purple-700 hover:bg-purple-50"
                   size="sm"
                 >
-                  <SwitchCamera className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  <span>Switch to {showImageWhenFigmaExists ? "Figma Design" : "Image View"}</span>
+                  <FileCode2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  <span>Switch to Figma Design</span>
+                </Button>
+              )}
+              {hasImageContent && viewMode !== "image" && (
+                <Button
+                  variant="outline"
+                  onClick={() => setViewMode("image")}
+                  className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-purple-200 text-purple-700 hover:bg-purple-50"
+                  size="sm"
+                >
+                  <Image className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  <span>Switch to Image</span>
                 </Button>
               )}
               
               <Button
                 variant="outline"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setIsEditing(true);
+                  setActiveDesignTab(viewMode === "figma" ? "figma" : "image");
+                }}
                 className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-purple-200 text-purple-700 hover:bg-purple-50"
                 size="sm"
               >
                 <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span>Edit {showImageWhenFigmaExists || !hasFigmaContent ? "Image" : "Design"}</span>
+                <span>Edit</span>
               </Button>
-              
-              {hasFigmaContent && !showImageWhenFigmaExists && (
+              {hasFigmaContent && viewMode === "figma" && (
                 <Button
                   asChild
                   className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 bg-purple-600 hover:bg-purple-700"
@@ -553,7 +706,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
           </div>
           
           <div className="flex-1 bg-gray-100 relative">
-            {hasFigmaContent && !showImageWhenFigmaExists && (
+            {hasFigmaContent && viewMode === "figma" && (
               <div className="absolute top-3 left-3 bg-white/90 rounded-lg p-2 z-10 text-xs border border-gray-200 max-w-[180px] sm:max-w-[220px]">
                 <h4 className="font-medium text-gray-900 text-xs mb-1.5 px-1">Figma Navigation</h4>
                 <ul className="space-y-1.5">
@@ -569,15 +722,15 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
               </div>
             )}
 
-            {(hasImageContent && (!hasFigmaContent || showImageWhenFigmaExists)) ? (
+            {viewMode === "image" && hasImageContent ? (
               <div className="w-full h-full flex items-center justify-center p-4 sm:p-8">
                 <img 
                   src={machineData?.image_url!} 
                   alt={machineData?.enginename || "Machine"} 
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-md"
+                  className="max-w-full max-h-full object-contain rounded-lg"
                 />
               </div>
-            ) : machineData?.figma_embed ? (
+            ) : viewMode === "figma" && machineData?.figma_embed ? (
               <iframe
                 className="w-full h-full min-h-[calc(100vh-300px)]"
                 style={{ border: "1px solid rgba(0,0,0,0.1)" }}
@@ -585,7 +738,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                 allowFullScreen
                 title="Machine Figma Design"
               />
-            ) : machineData?.figma_link ? (
+            ) : viewMode === "figma" && machineData?.figma_link ? (
               <iframe
                 className="w-full h-full"
                 style={{ border: "1px solid rgba(0,0,0,0.1)" }}
@@ -597,6 +750,46 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
           </div>
         </div>
       )}
+
+      <Dialog open={aiEditDialogOpen} onOpenChange={setAiEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit with AI</DialogTitle>
+            <DialogDescription>
+              Describe the change you want. The diagram will be updated and saved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <Input
+              value={aiEditPrompt}
+              onChange={(e) => setAiEditPrompt(e.target.value)}
+              placeholder="e.g. Add a step for sending a follow-up email"
+              className="w-full"
+              onKeyDown={(e) => e.key === "Enter" && handleEditWithAI()}
+              disabled={applyingAiEdit}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAiEditDialogOpen(false)}
+              disabled={applyingAiEdit}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditWithAI}
+              disabled={applyingAiEdit || !aiEditPrompt.trim()}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {applyingAiEdit ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
