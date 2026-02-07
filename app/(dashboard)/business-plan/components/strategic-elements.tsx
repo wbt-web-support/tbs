@@ -22,13 +22,34 @@ type StrategicElementsProps = {
   purposeWhy: Item[];
   fiveYearTarget: Item[];
   oneYearTarget: Item[];
-  tenYearTarget: Item[];
   onUpdate: () => void;
   planId: string | undefined;
   generatedData?: any;
   onGeneratedDataChange?: (data: any) => void;
   editMode: boolean;
+  onFieldFocus?: (fieldId: string) => void;
+  onFieldBlur?: () => void;
+  onRepeaterStateChange?: (state: {
+    corevalues: Item[];
+    strategicAnchors: Item[];
+    purposeWhy: Item[];
+    fiveYearTarget: Item[];
+    oneYearTarget: Item[];
+  }) => void;
+  appliedImprovement?: { fieldId: string; value: string } | null;
+  onAppliedImprovementConsumed?: () => void;
 };
+
+function sectionToFieldId(section: string, index: number): string {
+  switch (section) {
+    case "coreValues": return `core_value_${index}`;
+    case "strategicAnchors": return `strategic_anchor_${index}`;
+    case "purposeWhy": return `purpose_${index}`;
+    case "fiveYearTarget": return `five_year_${index}`;
+    case "oneYearTarget": return `one_year_${index}`;
+    default: return `field_${index}`;
+  }
+}
 
 export default function StrategicElements({ 
   coreValues, 
@@ -36,27 +57,86 @@ export default function StrategicElements({
   purposeWhy, 
   fiveYearTarget, 
   oneYearTarget, 
-  tenYearTarget, 
   onUpdate, 
   planId,
   generatedData,
   onGeneratedDataChange,
-  editMode
+  editMode,
+  onFieldFocus,
+  onFieldBlur,
+  onRepeaterStateChange,
+  appliedImprovement,
+  onAppliedImprovementConsumed
 }: StrategicElementsProps) {
   const [values, setValues] = useState<Item[]>(coreValues);
   const [anchors, setAnchors] = useState<Item[]>(strategicAnchors);
   const [purposes, setPurposes] = useState<Item[]>(purposeWhy);
   const [fiveYearTargets, setFiveYearTargets] = useState<Item[]>(fiveYearTarget);
   const [oneYearTargets, setOneYearTargets] = useState<Item[]>(oneYearTarget);
-  const [tenYearTargets, setTenYearTargets] = useState<Item[]>(tenYearTarget);
+
+  useEffect(() => {
+    onRepeaterStateChange?.({
+      corevalues: values,
+      strategicAnchors: anchors,
+      purposeWhy: purposes,
+      fiveYearTarget: fiveYearTargets,
+      oneYearTarget: oneYearTargets,
+    });
+  }, [values, anchors, purposes, fiveYearTargets, oneYearTargets, onRepeaterStateChange]);
+
+  useEffect(() => {
+    if (!appliedImprovement?.fieldId || appliedImprovement.value == null || !onAppliedImprovementConsumed) return;
+    const { fieldId, value } = appliedImprovement;
+    const coreMatch = fieldId.match(/^core_value_(\d+)$/);
+    const anchorMatch = fieldId.match(/^strategic_anchor_(\d+)$/);
+    const purposeMatch = fieldId.match(/^purpose_(\d+)$/);
+    const oneYearMatch = fieldId.match(/^one_year_(\d+)$/);
+    const fiveYearMatch = fieldId.match(/^five_year_(\d+)$/);
+    if (coreMatch) {
+      const i = parseInt(coreMatch[1], 10);
+      setValues((prev) => {
+        const next = [...prev];
+        if (i >= 0 && i < next.length) next[i] = { ...next[i], value };
+        return next;
+      });
+    } else if (anchorMatch) {
+      const i = parseInt(anchorMatch[1], 10);
+      setAnchors((prev) => {
+        const next = [...prev];
+        if (i >= 0 && i < next.length) next[i] = { ...next[i], value };
+        return next;
+      });
+    } else if (purposeMatch) {
+      const i = parseInt(purposeMatch[1], 10);
+      setPurposes((prev) => {
+        const next = [...prev];
+        if (i >= 0 && i < next.length) next[i] = { ...next[i], value };
+        return next;
+      });
+    } else if (oneYearMatch) {
+      const i = parseInt(oneYearMatch[1], 10);
+      setOneYearTargets((prev) => {
+        const next = [...prev];
+        if (i >= 0 && i < next.length) next[i] = { ...next[i], value };
+        return next;
+      });
+    } else if (fiveYearMatch) {
+      const i = parseInt(fiveYearMatch[1], 10);
+      setFiveYearTargets((prev) => {
+        const next = [...prev];
+        if (i >= 0 && i < next.length) next[i] = { ...next[i], value };
+        return next;
+      });
+    }
+    onAppliedImprovementConsumed();
+  }, [appliedImprovement, onAppliedImprovementConsumed]);
   
   const [newItems, setNewItems] = useState({
     coreValues: "",
     strategicAnchors: "",
     purposeWhy: "",
     fiveYearTarget: "",
-    oneYearTarget: "",
-    tenYearTarget: ""
+    oneYearTarget: ""
   });
   const [saving, setSaving] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
@@ -99,13 +179,6 @@ export default function StrategicElements({
           deadline: item.deadline || ""
         })));
       }
-      if (generatedData.tenyeartarget) {
-        setTenYearTargets(generatedData.tenyeartarget.map((item: any) => ({
-          value: item.value || item,
-          completed: item.completed || false,
-          deadline: item.deadline || ""
-        })));
-      }
     }
   }, [generatedData]);
 
@@ -124,7 +197,6 @@ export default function StrategicElements({
     let updatedPurposes = [...purposes];
     let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
-    let updatedTenYearTargets = [...tenYearTargets];
     
     switch (section) {
       case "coreValues":
@@ -152,11 +224,6 @@ export default function StrategicElements({
         setOneYearTargets(updatedOneYearTargets);
         setNewItems({...newItems, oneYearTarget: ""});
         break;
-      case "tenYearTarget":
-        updatedTenYearTargets = [...tenYearTargets, newItem];
-        setTenYearTargets(updatedTenYearTargets);
-        setNewItems({...newItems, tenYearTarget: ""});
-        break;
     }
 
     // Auto-save the changes
@@ -170,8 +237,7 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             fiveyeartarget: updatedFiveYearTargets,
-            oneyeartarget: { targets: updatedOneYearTargets },
-            tenyeartarget: { targets: updatedTenYearTargets }
+            oneyeartarget: { targets: updatedOneYearTargets }
           })
           .eq("id", planId);
           
@@ -190,7 +256,6 @@ export default function StrategicElements({
     let updatedPurposes = [...purposes];
     let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
-    let updatedTenYearTargets = [...tenYearTargets];
 
     switch (section) {
       case "coreValues":
@@ -213,10 +278,6 @@ export default function StrategicElements({
         updatedOneYearTargets.splice(index, 1);
         setOneYearTargets(updatedOneYearTargets);
         break;
-      case "tenYearTarget":
-        updatedTenYearTargets.splice(index, 1);
-        setTenYearTargets(updatedTenYearTargets);
-        break;
     }
 
     // Auto-save the changes
@@ -230,8 +291,7 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             fiveyeartarget: updatedFiveYearTargets,
-            oneyeartarget: { targets: updatedOneYearTargets },
-            tenyeartarget: { targets: updatedTenYearTargets }
+            oneyeartarget: { targets: updatedOneYearTargets }
           })
           .eq("id", planId);
           
@@ -250,7 +310,6 @@ export default function StrategicElements({
     let updatedPurposes = [...purposes];
     let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
-    let updatedTenYearTargets = [...tenYearTargets];
 
     switch (section) {
       case "coreValues":
@@ -273,10 +332,6 @@ export default function StrategicElements({
         updatedOneYearTargets[index] = { ...updatedOneYearTargets[index], value };
         setOneYearTargets(updatedOneYearTargets);
         break;
-      case "tenYearTarget":
-        updatedTenYearTargets[index] = { ...updatedTenYearTargets[index], value };
-        setTenYearTargets(updatedTenYearTargets);
-        break;
     }
 
     // Auto-save the changes
@@ -290,8 +345,7 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             fiveyeartarget: updatedFiveYearTargets,
-            oneyeartarget: { targets: updatedOneYearTargets },
-            tenyeartarget: { targets: updatedTenYearTargets }
+            oneyeartarget: { targets: updatedOneYearTargets }
           })
           .eq("id", planId);
           
@@ -310,7 +364,6 @@ export default function StrategicElements({
     let updatedPurposes = [...purposes];
     let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
-    let updatedTenYearTargets = [...tenYearTargets];
 
     switch (section) {
       case "coreValues":
@@ -333,10 +386,6 @@ export default function StrategicElements({
         updatedOneYearTargets[index] = { ...updatedOneYearTargets[index], completed };
         setOneYearTargets(updatedOneYearTargets);
         break;
-      case "tenYearTarget":
-        updatedTenYearTargets[index] = { ...updatedTenYearTargets[index], completed };
-        setTenYearTargets(updatedTenYearTargets);
-        break;
     }
 
     // Auto-save the changes
@@ -350,8 +399,7 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             fiveyeartarget: updatedFiveYearTargets,
-            oneyeartarget: { targets: updatedOneYearTargets },
-            tenyeartarget: { targets: updatedTenYearTargets }
+            oneyeartarget: { targets: updatedOneYearTargets }
           })
           .eq("id", planId);
           
@@ -370,7 +418,6 @@ export default function StrategicElements({
     let updatedPurposes = [...purposes];
     let updatedFiveYearTargets = [...fiveYearTargets];
     let updatedOneYearTargets = [...oneYearTargets];
-    let updatedTenYearTargets = [...tenYearTargets];
 
     switch (section) {
       case "coreValues":
@@ -393,10 +440,6 @@ export default function StrategicElements({
         updatedOneYearTargets[index] = { ...updatedOneYearTargets[index], deadline };
         setOneYearTargets(updatedOneYearTargets);
         break;
-      case "tenYearTarget":
-        updatedTenYearTargets[index] = { ...updatedTenYearTargets[index], deadline };
-        setTenYearTargets(updatedTenYearTargets);
-        break;
     }
 
     // Auto-save the changes
@@ -410,8 +453,7 @@ export default function StrategicElements({
             strategicanchors: updatedAnchors,
             purposewhy: updatedPurposes,
             fiveyeartarget: updatedFiveYearTargets,
-            oneyeartarget: { targets: updatedOneYearTargets },
-            tenyeartarget: { targets: updatedTenYearTargets }
+            oneyeartarget: { targets: updatedOneYearTargets }
           })
           .eq("id", planId);
           
@@ -437,8 +479,7 @@ export default function StrategicElements({
           strategicanchors: anchors,
           purposewhy: purposes,
           fiveyeartarget: fiveYearTargets,
-          oneyeartarget: { targets: oneYearTargets },
-          tenyeartarget: { targets: tenYearTargets }
+          oneyeartarget: { targets: oneYearTargets }
         })
         .eq("id", planId);
         
@@ -504,13 +545,6 @@ export default function StrategicElements({
           cardHeaderClass: "bg-gray-50 border-b border-gray-200",
           titleClass: "text-gray-800"
         };
-      case "tenYearTarget":
-        return {
-          icon: <CalendarClock className="h-4 w-4 text-indigo-600 mr-2 flex-shrink-0" />,
-          dotColor: "bg-indigo-600",
-          cardHeaderClass: "bg-gray-50 border-b border-gray-200",
-          titleClass: "text-gray-800"
-        };
       default:
         return {
           icon: null,
@@ -533,8 +567,6 @@ export default function StrategicElements({
         return "5-Year Targets";
       case "oneYearTarget":
         return "1-Year Targets";
-      case "tenYearTarget":
-        return "10-Year Targets";
       default:
         return "";
     }
@@ -552,8 +584,6 @@ export default function StrategicElements({
         return "Add a 5-year target...";
       case "oneYearTarget":
         return "Add a 1-year target...";
-      case "tenYearTarget":
-        return "Add a 10-year target...";
       default:
         return "Add new item...";
     }
@@ -571,8 +601,6 @@ export default function StrategicElements({
         return "No 5-year targets added yet";
       case "oneYearTarget":
         return "No 1-year targets added yet";
-      case "tenYearTarget":
-        return "No 10-year targets added yet";
       default:
         return "No items added yet";
     }
@@ -598,15 +626,13 @@ export default function StrategicElements({
         return fiveYearTargets;
       case "oneYearTarget":
         return oneYearTargets;
-      case "tenYearTarget":
-        return tenYearTargets;
       default:
         return [];
     }
   };
 
   const isTargetSection = (section: string) => {
-    return section === "fiveYearTarget" || section === "oneYearTarget" || section === "tenYearTarget";
+    return section === "fiveYearTarget" || section === "oneYearTarget";
   };
 
   const renderSection = (section: string) => {
@@ -657,6 +683,8 @@ export default function StrategicElements({
                           value={item.value}
                           onChange={e => handleChangeItem(section, index, e.target.value)}
                           onInput={handleInput}
+                          onFocus={() => onFieldFocus?.(sectionToFieldId(section, index))}
+                          onBlur={onFieldBlur}
                           rows={1}
                           style={{ overflow: 'hidden' }}
                         />
@@ -786,7 +814,7 @@ export default function StrategicElements({
 
   const getCompletionStats = () => {
     // Only include target sections in stats
-    const targetItems = [...fiveYearTargets, ...oneYearTargets, ...tenYearTargets];
+    const targetItems = [...fiveYearTargets, ...oneYearTargets];
     const total = targetItems.length;
     const completed = targetItems.filter(item => item.completed).length;
     const overdue = targetItems.filter(item => 
@@ -835,10 +863,9 @@ export default function StrategicElements({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {renderSection("oneYearTarget")}
           {renderSection("fiveYearTarget")}
-          {renderSection("tenYearTarget")}
         </div>
       </div>
     </div>

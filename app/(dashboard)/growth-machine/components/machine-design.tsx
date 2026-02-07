@@ -80,13 +80,11 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
       if (machineData.figma_link || machineData.figma_embed) {
         setActiveDesignTab("figma");
         setFigmaMode(machineData.figma_embed ? "embed" : "link");
-      } else if (machineData.mermaid_diagram?.trim()) {
-        setActiveDesignTab("ai");
       } else {
         setActiveDesignTab("image");
       }
-      if (machineData.mermaid_diagram?.trim()) setViewMode("ai");
-      else if (machineData.figma_link || machineData.figma_embed) setViewMode("figma");
+      // AI flow design hidden for now; prefer figma then image
+      if (machineData.figma_link || machineData.figma_embed) setViewMode("figma");
       else setViewMode("image");
     }
   }, [machineData]);
@@ -466,17 +464,6 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                 <FileCode2 className="w-4 h-4 mr-2" />
                 Add Figma Design
               </Button>
-              <Button 
-                onClick={() => {
-                  setIsEditing(true);
-                  setActiveDesignTab("ai");
-                }}
-                variant="outline"
-                className="border-blue-200 text-blue-700"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Create design with AI
-              </Button>
             </div>
           </div>
         </div>
@@ -492,7 +479,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
               onValueChange={(value) => setActiveDesignTab(value as "image" | "figma" | "ai")}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-3 mb-4">
+              <TabsList className="grid grid-cols-2 mb-4">
                 <TabsTrigger value="image" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                   <Image className="h-4 w-4 mr-2" />
                   Image
@@ -500,10 +487,6 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                 <TabsTrigger value="figma" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                   <FileCode2 className="h-4 w-4 mr-2" />
                   Figma Design
-                </TabsTrigger>
-                <TabsTrigger value="ai" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Create design with AI
                 </TabsTrigger>
               </TabsList>
               
@@ -612,66 +595,6 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                   )}
                 </div>
               </TabsContent>
-              
-              <TabsContent value="ai" className="space-y-4">
-                {!localMermaidCode.trim() ? (
-                  <div className="flex flex-col items-center justify-center py-6 px-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <p className="text-sm text-gray-700 text-center mb-4">
-                      Generate a diagram from your actions and activities in the Planner.
-                    </p>
-                    <Button
-                      onClick={handleGenerateDiagram}
-                      disabled={generatingDiagram}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {generatingDiagram ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Generate diagram
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 px-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <p className="text-sm text-gray-700 text-center mb-5">
-                      You have an AI-generated diagram. Regenerate from your current actions or remove it.
-                    </p>
-                    <div className="flex flex-wrap items-center justify-center gap-3">
-                      <Button
-                        onClick={handleGenerateDiagram}
-                        disabled={generatingDiagram}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {generatingDiagram ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Regenerating...
-                          </>
-                        ) : (
-                          <>
-                            <RotateCw className="h-4 w-4 mr-2" />
-                            Regenerate diagram
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleDeleteDiagram}
-                        className="border-red-200 text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete diagram
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
             </Tabs>
             
             <div className="flex space-x-3 mt-6">
@@ -720,21 +643,10 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
           <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between flex-shrink-0">
             <div className="mb-2 sm:mb-0">
               <p className="text-xs sm:text-sm text-gray-500">
-                {viewMode === "ai" ? "Diagram" : viewMode === "figma" ? "Figma Design" : "Custom Image"}
+                {viewMode === "figma" ? "Figma Design" : "Custom Image"}
               </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              {hasAiDiagramContent && viewMode !== "ai" && (
-                <Button
-                  variant="outline"
-                  onClick={() => setViewMode("ai")}
-                  className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-blue-200 text-blue-700 hover:bg-blue-50"
-                  size="sm"
-                >
-                  <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  <span>Switch to AI Diagram</span>
-                </Button>
-              )}
               {hasFigmaContent && viewMode !== "figma" && (
                 <Button
                   variant="outline"
@@ -762,7 +674,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                 variant="outline"
                 onClick={() => {
                   setIsEditing(true);
-                  setActiveDesignTab(viewMode === "ai" ? "ai" : viewMode === "figma" ? "figma" : "image");
+                  setActiveDesignTab(viewMode === "figma" ? "figma" : "image");
                 }}
                 className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-blue-200 text-blue-700 hover:bg-blue-50"
                 size="sm"
@@ -770,17 +682,6 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
                 <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span>Edit</span>
               </Button>
-              {viewMode === "ai" && hasAiDiagramContent && (
-                <Button
-                  variant="outline"
-                  onClick={() => setAiEditDialogOpen(true)}
-                  className="text-xs sm:text-sm h-6 sm:h-9 px-1 sm:px-3 border-blue-200 text-blue-700 hover:bg-blue-50"
-                  size="sm"
-                >
-                  <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  <span>Edit with AI</span>
-                </Button>
-              )}
               {hasFigmaContent && viewMode === "figma" && (
                 <Button
                   asChild
@@ -805,34 +706,6 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
           </div>
           
           <div className="flex-1 bg-gray-100 relative">
-            {viewMode === "ai" && hasAiDiagramContent && (
-              <>
-                <div className="absolute top-3 left-3 bg-white/90 rounded-lg p-2 z-10 text-xs border border-gray-200 max-w-[200px] sm:max-w-[240px]">
-                  <h4 className="font-medium text-gray-900 text-xs mb-1.5 px-1">Diagram canvas</h4>
-                  <ul className="space-y-1 text-gray-600">
-                    <li>Scroll to zoom in/out</li>
-                    <li>Drag to pan</li>
-                    <li>Double-click to reset view</li>
-                  </ul>
-                </div>
-                <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm("Regenerate diagram from your current actions and activities? This will replace the current diagram.")) {
-                        handleGenerateDiagram();
-                      }
-                    }}
-                    disabled={generatingDiagram}
-                    className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 text-xs h-8"
-                  >
-                    {generatingDiagram ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4 mr-1.5" />}
-                    <span>Regenerate</span>
-                  </Button>
-                </div>
-              </>
-            )}
             {hasFigmaContent && viewMode === "figma" && (
               <div className="absolute top-3 left-3 bg-white/90 rounded-lg p-2 z-10 text-xs border border-gray-200 max-w-[180px] sm:max-w-[220px]">
                 <h4 className="font-medium text-gray-900 text-xs mb-1.5 px-1">Figma Navigation</h4>
@@ -849,16 +722,7 @@ export default function MachineDesign({ machineId, subcategoryId, serviceId, eng
               </div>
             )}
 
-            {viewMode === "ai" && hasAiDiagramContent ? (
-              <div className="w-full h-full flex flex-col overflow-hidden min-h-0 p-4 sm:p-6">
-                <MermaidDiagramEditor
-                  mermaidCode={machineData?.mermaid_diagram || ""}
-                  readOnly
-                  engineType={engineType}
-                  className="w-full h-full max-w-full"
-                />
-              </div>
-            ) : viewMode === "image" && hasImageContent ? (
+            {viewMode === "image" && hasImageContent ? (
               <div className="w-full h-full flex items-center justify-center p-4 sm:p-8">
                 <img 
                   src={machineData?.image_url!} 

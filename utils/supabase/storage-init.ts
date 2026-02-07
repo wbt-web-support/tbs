@@ -49,6 +49,25 @@ export async function initializeSupabaseStorage() {
         }
       }
     }
+
+    // Create business-plan-docs bucket if it doesn't exist (PDF, DOC, DOCX, TXT)
+    const bucketName = 'business-plan-docs';
+    const { data: bpBucket, error: bpBucketError } = await supabase.storage.getBucket(bucketName);
+    if (bpBucketError && bpBucketError.message.includes('The resource was not found')) {
+      const { error: createBpError } = await supabase.storage.createBucket(bucketName, {
+        public: true,
+        fileSizeLimit: 10485760, // 10MB
+        allowedMimeTypes: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain'
+        ]
+      });
+      if (createBpError && process.env.NODE_ENV === 'development') {
+        console.warn('Could not create business-plan-docs bucket:', createBpError.message);
+      }
+    }
     
     return { success: true };
   } catch (error) {

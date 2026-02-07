@@ -1,9 +1,44 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { headers } from "next/headers";
+import pdfParse from "pdf-parse";
+import mammoth from "mammoth";
 
 const MODEL_NAME = "gemini-2.5-flash-lite";
+
+const MAX_EXTRACT_LENGTH = 80000;
+
+/** Extract text from an uploaded document URL (PDF or DOCX). Used for business plan context. */
+async function extractDocumentContent(documentUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(documentUrl);
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const urlLower = documentUrl.toLowerCase();
+    if (urlLower.includes(".pdf") || (res.headers.get("content-type") || "").includes("pdf")) {
+      const data = await pdfParse(buffer);
+      let text = (data?.text || "").trim();
+      if (text.length > MAX_EXTRACT_LENGTH) text = text.substring(0, MAX_EXTRACT_LENGTH) + "\n... [Content truncated]";
+      return text || null;
+    }
+    if (urlLower.includes(".docx") || (res.headers.get("content-type") || "").includes("word")) {
+      const result = await mammoth.extractRawText({ buffer });
+      let text = (result?.value || "").trim();
+      if (text.length > MAX_EXTRACT_LENGTH) text = text.substring(0, MAX_EXTRACT_LENGTH) + "\n... [Content truncated]";
+      return text || null;
+    }
+    if (urlLower.includes(".txt") || (res.headers.get("content-type") || "").includes("text/plain")) {
+      let text = buffer.toString("utf-8").trim();
+      if (text.length > MAX_EXTRACT_LENGTH) text = text.substring(0, MAX_EXTRACT_LENGTH) + "\n... [Content truncated]";
+      return text || null;
+    }
+    return null;
+  } catch (e) {
+    console.error("Business plan document extraction error:", e);
+    return null;
+  }
+}
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -284,7 +319,6 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
       purposewhy: generatedData.purposewhy,
       fiveyeartarget: generatedData.fiveyeartarget,
       oneyeartarget: { targets: generatedData.oneyeartarget },
-      tenyeartarget: { targets: generatedData.tenyeartarget },
       business_plan_content: generatedData.business_plan_document_html,
     };
 
@@ -317,13 +351,73 @@ async function saveGeneratedContent(userId: string, teamId: string, generatedDat
   }
 }
 
-// Update the JSON structure to include business_plan_document_html
+/** Parse LLM JSON; on failure, extract business_plan_document_html manually to handle unescaped quotes/newlines in HTML. */
+function parseBusinessPlanResponse(cleanedText: string): any {
+  const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON found in response");
+
+  const raw = jsonMatch[0];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const key = '"business_plan_document_html"';
+    const idx = raw.indexOf(key);
+    if (idx === -1) throw new Error("business_plan_document_html key not found");
+
+    const valueStart = raw.indexOf('"', idx + key.length);
+    if (valueStart === -1) throw new Error("business_plan_document_html value start not found");
+
+    let end = valueStart + 1;
+    let htmlValue = "";
+    while (end < raw.length) {
+      const ch = raw[end];
+      if (ch === "\\") {
+        end += 1;
+        if (end < raw.length) {
+          if (raw[end] === '"') htmlValue += '"';
+          else if (raw[end] === "n") htmlValue += "\n";
+          else if (raw[end] === "\\") htmlValue += "\\";
+        }
+        end += 1;
+        continue;
+      }
+      if (ch === '"') {
+        // In valid JSON the string ends with "; but the model may put unescaped " inside HTML.
+        // Only treat this " as end if it's followed by } or , (optional whitespace).
+        let look = end + 1;
+        while (look < raw.length && /[\s\n\r]/.test(raw[look])) look += 1;
+        if (look < raw.length && (raw[look] === "}" || raw[look] === ",")) break;
+        htmlValue += ch;
+      } else {
+        htmlValue += ch;
+      }
+      end += 1;
+    }
+    const before = raw.slice(0, valueStart + 1);
+    const after = raw.slice(end);
+    const repaired = before + '"__HTML_PLACEHOLDER__"' + after;
+    let parsed: any;
+    try {
+      parsed = JSON.parse(repaired);
+    } catch {
+      throw new Error("Could not parse JSON even after extracting HTML");
+    }
+    parsed.business_plan_document_html = htmlValue;
+    return parsed;
+  }
+}
+
+// JSON structure and layout description for the UI (Structured tab: row 1 = Mission & Vision, row 2 = Core values / Strategic anchors / Purpose & why, row 3 = 1-year / 5-year targets; Docs tab = full HTML).
 const BUSINESS_PLAN_JSON_STRUCTURE = `
-CRITICAL: You must respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON. The JSON must have this exact structure:
+CRITICAL: You must respond with ONLY a valid JSON object. No text before or after. The response will be parsed with JSON.parse(), so every string must be valid JSON:
+- Inside any string, escape double quotes as \\" (backslash-quote) and newlines as \\n.
+- For business_plan_document_html use a single string with no literal newlines; use \\n for line breaks. Escape any " inside the HTML as \\".
+
+Exact structure (keys in this order):
 
 {
-  "missionstatement": "Your mission statement here",
-  "visionstatement": "Your vision statement here",
+  "missionstatement": "One or two sentences.",
+  "visionstatement": "One or two sentences.",
   "corevalues": [
     {"value": "First core value"},
     {"value": "Second core value"},
@@ -340,42 +434,26 @@ CRITICAL: You must respond with ONLY a valid JSON object. Do not include any exp
     {"value": "Third purpose/why"}
   ],
   "oneyeartarget": [
-    {"value": "First one year target", "completed": false, "deadline": "2024-12-31"},
-    {"value": "Second one year target", "completed": false, "deadline": "2024-12-31"},
-    {"value": "Third one year target", "completed": false, "deadline": "2024-12-31"}
+    {"value": "First one year target", "completed": false, "deadline": "YYYY-MM-DD"},
+    {"value": "Second one year target", "completed": false, "deadline": "YYYY-MM-DD"},
+    {"value": "Third one year target", "completed": false, "deadline": "YYYY-MM-DD"}
   ],
   "fiveyeartarget": [
-    {"value": "First five year target", "completed": false, "deadline": "2028-12-31"},
-    {"value": "Second five year target", "completed": false, "deadline": "2028-12-31"},
-    {"value": "Third five year target", "completed": false, "deadline": "2028-12-31"}
+    {"value": "First five year target", "completed": false, "deadline": "YYYY-MM-DD"},
+    {"value": "Second five year target", "completed": false, "deadline": "YYYY-MM-DD"},
+    {"value": "Third five year target", "completed": false, "deadline": "YYYY-MM-DD"}
   ],
-  "tenyeartarget": [
-    {"value": "First ten year target", "completed": false, "deadline": "2033-12-31"},
-    {"value": "Second ten year target", "completed": false, "deadline": "2033-12-31"},
-    {"value": "Third ten year target", "completed": false, "deadline": "2033-12-31"}
-  ],
-  "business_plan_document_html": "<h2>Business Plan</h2>...full HTML document here..."
+  "business_plan_document_html": "<h2>Business Plan</h2><p>...</p>"
 }
 
-IMPORTANT RULES:
-- This is an internal tool for business owners documenting their own plans. Write in first person (we/our) or as internal strategy documentation. Do NOT write as if addressing customers or in marketing/sales tone.
-- Do NOT include empty strings or null values
-- Each array must contain at least 3 items
-- All text must be specific and actionable
-- No placeholder text like "string" or "description"
-- Base everything on the actual company data provided
-- Focus on their specific industry, business model, and current situation
-- Make all statements practical and implementable for their specific business
-- Ensure alignment with their existing machines and business processes
-- For target sections (oneyeartarget, fiveyeartarget, tenyeartarget), each item must include "completed": false and a realistic "deadline" date
-- IMPORTANT: The current date and target date ranges are provided in the context above. Use those dates when setting deadlines.
-- 1-year targets should have deadlines within the next 12 months from the current date provided
-- 5-year targets should have deadlines within the next 5 years from the current date provided
-- 10-year targets should have deadlines within the next 10 years from the current date provided
-- All deadline dates must be in YYYY-MM-DD format (e.g., "2025-12-31")
-- The business_plan_document_html must be a comprehensive, actionable business plan for the company, formatted in HTML (use <h2>, <h3>, <p>, <ul>, <li>, <strong> etc). It should synthesize the structured data and company context into a readable, professional document ready to share with stakeholders.
-- The HTML must be well-structured, readable, and include all major sections of a business plan (executive summary, mission, vision, core values, strategic anchors, purpose/why, 1-year targets, 5-year targets, 10-year targets, and any other relevant sections based on the context).
-- Do NOT include markdown or any non-HTML formatting.
+Layout (for your reference): Row 1 = Mission & Vision. Row 2 = Core values, Strategic anchors, Purpose & why. Row 3 = 1-year targets, 5-year targets. Docs = full HTML document.
+
+RULES:
+- Write in first person (we/our) or internal strategy. Not marketing tone.
+- No empty strings or null. Each array at least 3 items (targets at least 2).
+- All text specific and actionable. No placeholders. Base on company data and industry.
+- Use deadline dates in YYYY-MM-DD from the date context above (1-year within 12 months, 5-year within 5 years).
+- business_plan_document_html: full business plan in HTML only (<h2>, <h3>, <p>, <ul>, <li>, <strong>). Single JSON string; escape " as \\" and use \\n for newlines. No markdown.
 `;
 
 // Only fetch the prompt body (instructions) from DB
@@ -414,15 +492,59 @@ export async function POST(req: Request) {
       const companyData = await getCompanyData(userId, teamId);
       const companyContext = formatCompanyContext(companyData);
 
-      // Format user answers if provided
+      // Extract uploaded document content if user provided a link
+      let uploadedDocumentContext = '';
+      const documentUrl = userAnswers?.existing_business_plan_upload_url?.trim();
+      if (documentUrl) {
+        const extracted = await extractDocumentContent(documentUrl);
+        if (extracted) {
+          uploadedDocumentContext = `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📄 UPLOADED EXISTING BUSINESS PLAN (EXTRACTED TEXT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Use this content to align the new plan with the user's existing document. Do not copy verbatim; synthesize and refine.
+
+${extracted}
+`;
+        }
+      }
+
+      // Format user answers: include both question-based answers and all pasted/text fields
       let userAnswersContext = '';
-      if (userAnswers && questions && Object.keys(userAnswers).length > 0) {
-        userAnswersContext = '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## 💬 USER RESPONSES TO PERSONALIZED QUESTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
-        questions.forEach((q: any) => {
-          const answer = userAnswers[q.id];
-          if (answer && answer.trim() !== '') {
-            userAnswersContext += `Question: ${q.question_text}\nAnswer: ${answer}\n\n`;
-          }
+      if (userAnswers && typeof userAnswers === 'object' && Object.keys(userAnswers).length > 0) {
+        userAnswersContext = '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## 💬 USER RESPONSES (QUESTIONS & PASTED CONTENT)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+        const labelByKey: Record<string, string> = {
+          direction_focus: 'Main focus for the next 12 months',
+          owner_role_shift: 'Owner role shift (less involved in)',
+          strategic_constraint: 'Biggest constraint holding the business back',
+          service_focus: 'Service/area to prioritise and why',
+          existing_business_plan: 'Already has a business plan (yes/no)',
+          existing_business_plan_upload_url: 'Uploaded plan document URL',
+          existing_business_plan_upload_file_name: 'Uploaded plan file name',
+          existing_business_plan_text: 'Pasted or additional business plan details',
+          existing_mission: 'Already has a mission statement (yes/no)',
+          existing_mission_text: 'Pasted mission statement',
+          existing_core_values: 'Already has core values (yes/no)',
+          existing_core_values_list: 'Pasted core values (list)',
+        };
+        if (questions && Array.isArray(questions)) {
+          questions.forEach((q: any) => {
+            const answer = userAnswers[q.id];
+            if (answer != null && String(answer).trim() !== '') {
+              const label = labelByKey[q.id] || q.question_text || q.id;
+              userAnswersContext += `${label}:\n${String(answer).trim()}\n\n`;
+            }
+          });
+        }
+        // Include any other answer keys not covered by questions (e.g. pasted text)
+        Object.keys(userAnswers).forEach((key) => {
+          if (questions?.some((q: any) => q.id === key)) return;
+          const val = userAnswers[key];
+          if (val == null || String(val).trim() === '') return;
+          const label = labelByKey[key] || key;
+          userAnswersContext += `${label}:\n${String(val).trim()}\n\n`;
         });
       }
 
@@ -438,10 +560,6 @@ export async function POST(req: Request) {
       const fiveYearsFromNow = new Date(now);
       fiveYearsFromNow.setFullYear(now.getFullYear() + 5);
       const fiveYearsDate = fiveYearsFromNow.toISOString().split('T')[0];
-      
-      const tenYearsFromNow = new Date(now);
-      tenYearsFromNow.setFullYear(now.getFullYear() + 10);
-      const tenYearsDate = tenYearsFromNow.toISOString().split('T')[0];
 
       // Add current date context
       const currentDateContext = `
@@ -452,7 +570,6 @@ export async function POST(req: Request) {
 Today's Date: ${currentDate}
 - 1-year targets should have deadlines around: ${oneYearDate} (approximately 12 months from today)
 - 5-year targets should have deadlines around: ${fiveYearsDate} (approximately 5 years from today)
-- 10-year targets should have deadlines around: ${tenYearsDate} (approximately 10 years from today)
 
 IMPORTANT: Use these dates as reference points when setting deadlines for targets. You can adjust individual target deadlines slightly (within a few months) based on the specific target, but they should generally align with these timeframes.
 `;
@@ -462,8 +579,8 @@ IMPORTANT: Use these dates as reference points when setting deadlines for target
       if (!promptBody) {
         throw new Error('Prompt body not found for business_plan');
       }
-      // Replace placeholders
-      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext + userAnswersContext + currentDateContext)
+      // Replace placeholders (include uploaded document extracted text when present)
+      promptBody = promptBody.replace(/{{companyContext}}/g, companyContext + userAnswersContext + uploadedDocumentContext + currentDateContext)
         .replace(/{{responseFormat}}/g, BUSINESS_PLAN_JSON_STRUCTURE);
 
       // The final prompt is the body + the fixed structure
@@ -474,20 +591,12 @@ IMPORTANT: Use these dates as reference points when setting deadlines for target
       const response = await result.response;
       const text = response.text();
 
-      // Parse the JSON response
-      let generatedData;
+      // Parse the JSON response (robust to invalid escaping in business_plan_document_html)
+      let generatedData: any;
       try {
-        // Clean the response text
         let cleanedText = text.trim();
-        // Remove any markdown code blocks
-        cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-        // Extract JSON from the response (in case there's extra text)
-        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          generatedData = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("No JSON found in response");
-        }
+        cleanedText = cleanedText.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+        generatedData = parseBusinessPlanResponse(cleanedText);
         // Validate and clean the generated data
         if (!generatedData.missionstatement || generatedData.missionstatement.trim() === '') {
           throw new Error("Mission statement is empty or invalid");
@@ -518,50 +627,42 @@ IMPORTANT: Use these dates as reference points when setting deadlines for target
           throw new Error("One year targets array is empty or invalid");
         }
 
-        if (!Array.isArray(generatedData.tenyeartarget) || generatedData.tenyeartarget.length === 0) {
-          throw new Error("Ten year targets array is empty or invalid");
-        }
-
         if (!generatedData.business_plan_document_html || generatedData.business_plan_document_html.trim() === '') {
           throw new Error("Business plan document HTML is empty or invalid");
         }
 
-        // Clean up array items - remove any empty values
-        generatedData.corevalues = generatedData.corevalues
-          .filter((item: any) => item && item.value && item.value.trim() !== '')
-          .map((item: any) => ({ value: item.value.trim() }));
+        // Normalize array items: accept both plain strings and { value: string }
+        const toValue = (item: any): string =>
+          (typeof item === "string" ? item : item?.value ?? "").trim();
+        const toValueObj = (item: any) => ({ value: toValue(item) });
 
-        generatedData.strategicanchors = generatedData.strategicanchors
-          .filter((item: any) => item && item.value && item.value.trim() !== '')
-          .map((item: any) => ({ value: item.value.trim() }));
+        generatedData.corevalues = (generatedData.corevalues as any[])
+          .map(toValueObj)
+          .filter((o) => o.value !== "");
 
-        generatedData.purposewhy = generatedData.purposewhy
-          .filter((item: any) => item && item.value && item.value.trim() !== '')
-          .map((item: any) => ({ value: item.value.trim() }));
+        generatedData.strategicanchors = (generatedData.strategicanchors as any[])
+          .map(toValueObj)
+          .filter((o) => o.value !== "");
 
-        generatedData.fiveyeartarget = generatedData.fiveyeartarget
-          .filter((item: any) => item && item.value && item.value.trim() !== '')
-          .map((item: any) => ({ 
-            value: item.value.trim(),
-            completed: item.completed || false,
-            deadline: item.deadline || ""
-          }));
+        generatedData.purposewhy = (generatedData.purposewhy as any[])
+          .map(toValueObj)
+          .filter((o) => o.value !== "");
 
-        generatedData.oneyeartarget = generatedData.oneyeartarget
-          .filter((item: any) => item && item.value && item.value.trim() !== '')
-          .map((item: any) => ({ 
-            value: item.value.trim(),
-            completed: item.completed || false,
-            deadline: item.deadline || ""
-          }));
+        generatedData.fiveyeartarget = (generatedData.fiveyeartarget as any[])
+          .map((item: any) => ({
+            value: toValue(item),
+            completed: item?.completed ?? false,
+            deadline: item?.deadline ?? "",
+          }))
+          .filter((o) => o.value !== "");
 
-        generatedData.tenyeartarget = generatedData.tenyeartarget
-          .filter((item: any) => item && item.value && item.value.trim() !== '')
-          .map((item: any) => ({ 
-            value: item.value.trim(),
-            completed: item.completed || false,
-            deadline: item.deadline || ""
-          }));
+        generatedData.oneyeartarget = (generatedData.oneyeartarget as any[])
+          .map((item: any) => ({
+            value: toValue(item),
+            completed: item?.completed ?? false,
+            deadline: item?.deadline ?? "",
+          }))
+          .filter((o) => o.value !== "");
 
         // Ensure we have minimum items
         if (generatedData.corevalues.length < 3) {
@@ -582,10 +683,6 @@ IMPORTANT: Use these dates as reference points when setting deadlines for target
 
         if (generatedData.oneyeartarget.length < 2) {
           throw new Error("Not enough one year targets generated");
-        }
-
-        if (generatedData.tenyeartarget.length < 2) {
-          throw new Error("Not enough ten year targets generated");
         }
 
       } catch (parseError) {
