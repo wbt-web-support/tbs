@@ -187,7 +187,8 @@ export default function BattlePlanPage() {
   const [uploadingPlanFile, setUploadingPlanFile] = useState(false);
   const businessPlanFileInputRef = useRef<HTMLInputElement>(null);
   const [focusedFieldId, setFocusedFieldId] = useState<string | null>(null);
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(true);
+  const aiPanelRef = useRef<HTMLDivElement>(null);
   const [improveInstruction, setImproveInstruction] = useState<string>("improve_clarity");
   const [customInstruction, setCustomInstruction] = useState("");
   const [improving, setImproving] = useState(false);
@@ -306,19 +307,19 @@ export default function BattlePlanPage() {
     try {
       setSavingContent(true);
       
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("battle_plan")
-        .update({
-          business_plan_content: content
-        })
-        .eq("id", battlePlanData.id);
+        .update({ business_plan_content: content })
+        .eq("id", battlePlanData.id)
+        .select("id")
+        .single();
         
-      if (error) throw error;
+      if (error || !updated) throw error ?? new Error("Save failed");
       
-      // Update local state
       setBattlePlanData(prev => prev ? { ...prev, business_plan_content: content } : null);
     } catch (error) {
       console.error("Error saving business plan content:", error);
+      toast.error("Failed to save document");
     } finally {
       setSavingContent(false);
     }
@@ -380,6 +381,15 @@ export default function BattlePlanPage() {
       throw error;
     }
   };
+
+  // Only clear selected field when focus leaves to somewhere outside the AI panel (keeps selection when using the assistant)
+  const handleFieldBlur = useCallback(() => {
+    setTimeout(() => {
+      const el = document.activeElement;
+      if (aiPanelRef.current?.contains(el as Node)) return;
+      setFocusedFieldId(null);
+    }, 0);
+  }, []);
 
   // Handlers to collect data from children
   const handleDetailsChange = useCallback((data: { mission: string; vision: string }) => {
@@ -669,31 +679,26 @@ export default function BattlePlanPage() {
     setCurrentStep("questions");
   };
 
-  // Add useEffect to sync businessPlanContent with generatedData.business_plan_document_html
+  // Sync businessPlanContent from DB when battlePlanData loads/updates (DB is source of truth for docs tab)
   useEffect(() => {
+    if (battlePlanData?.business_plan_content != null && battlePlanData.business_plan_content !== businessPlanContent) {
+      setBusinessPlanContent(battlePlanData.business_plan_content);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battlePlanData]);
+
+  // Only use generatedData draft when there is no saved doc content yet
+  useEffect(() => {
+    const hasSavedDoc = battlePlanData?.business_plan_content?.trim();
     if (
-      generatedData &&
-      generatedData.business_plan_document_html &&
+      !hasSavedDoc &&
+      generatedData?.business_plan_document_html &&
       generatedData.business_plan_document_html !== businessPlanContent
     ) {
       setBusinessPlanContent(generatedData.business_plan_document_html);
     }
-    // Only run when generatedData changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatedData]);
-
-  // Add useEffect to initialize businessPlanContent from battlePlanData
-  useEffect(() => {
-    if (
-      battlePlanData &&
-      battlePlanData.business_plan_content &&
-      !businessPlanContent // only set if not already set by AI or user
-    ) {
-      setBusinessPlanContent(battlePlanData.business_plan_content);
-    }
-    // Only run when battlePlanData changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [battlePlanData]);
+  }, [generatedData, battlePlanData?.business_plan_content]);
 
   const handleSaveGeneratedContent = async () => {
     if (!generatedData) return;
@@ -760,7 +765,7 @@ export default function BattlePlanPage() {
 
   const handleImproveWithAi = async (instructionOverride?: string, sourceContent?: string) => {
     if (!focusedFieldId) {
-      toast.error("Focus on a field you want to change first");
+      toast.error("Select the field you want to change first");
       return;
     }
     const field = improveFieldsList.find((f) => f.fieldId === focusedFieldId);
@@ -1100,13 +1105,13 @@ export default function BattlePlanPage() {
               value="structured"
               className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
             >
-              Structured
+              Overview
             </TabsTrigger>
             <TabsTrigger
               value="docs"
               className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
             >
-              Docs
+              Details plan info
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -1205,6 +1210,7 @@ export default function BattlePlanPage() {
                       minimalStyle={true}
                       onChange={handleDetailsChange}
                       onFieldFocus={setFocusedFieldId}
+                      onFieldBlur={handleFieldBlur}
                     />
                   </section>
                   {/* Rows 2 & 3: Strategic fields in enhanced boxes */}
@@ -1218,6 +1224,7 @@ export default function BattlePlanPage() {
                       oneYearTarget={generatedData?.oneyeartarget?.length ? generatedData.oneyeartarget : (battlePlanData?.oneyeartarget?.targets || [])}
                       onAutoSave={handleStrategicAutoSave}
                       onFieldFocus={setFocusedFieldId}
+                      onFieldBlur={handleFieldBlur}
                       onFieldsTextChange={setStrategicFieldsText}
                       appliedImprovement={appliedImprovement}
                       onAppliedImprovementConsumed={() => setAppliedImprovement(null)}
@@ -1232,7 +1239,7 @@ export default function BattlePlanPage() {
 
           {/* AI Assistant - fixed to viewport so it sticks when main scrolls; capped height so not full window */}
           {planViewTab === "structured" && aiAssistantOpen ? (
-            <div className="hidden lg:block fixed top-54 right-6 z-30 w-96 max-h-[calc(100vh-8rem)] rounded-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
+            <div ref={aiPanelRef} className="hidden lg:block fixed top-54 right-6 z-30 w-96 max-h-[calc(100vh-8rem)] rounded-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -1255,7 +1262,7 @@ export default function BattlePlanPage() {
                       </div>
                       <h3 className="text-gray-900 font-semibold mb-2 text-lg">Hi! I&apos;m here to help you</h3>
                       <p className="text-gray-600 text-sm max-w-sm mx-auto">
-                        Focus on a field (Mission, Vision, or any item below), then I&apos;ll help you improve it.
+                        Select the field you want to change (Mission, Vision, or any item below), then I&apos;ll help you improve it.
                       </p>
                     </div>
                   ) : (improvedResults && focusedFieldId && improvedResults[focusedFieldId] != null) ? (
