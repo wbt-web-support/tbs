@@ -401,13 +401,16 @@ export default function BattlePlanPage() {
       detailsSaveTimerRef.current = null;
       setStructuredSaving(true);
       try {
-        await supabase
+        const { data: updated, error } = await supabase
           .from("battle_plan")
           .update({
             missionstatement: detailsData.mission,
             visionstatement: detailsData.vision,
           })
-          .eq("id", battlePlanData.id);
+          .eq("id", battlePlanData.id)
+          .select("id")
+          .single();
+        if (error || !updated) throw error ?? new Error("Save failed");
         setBattlePlanData((prev) =>
           prev ? { ...prev, missionstatement: detailsData.mission, visionstatement: detailsData.vision } : null
         );
@@ -431,7 +434,7 @@ export default function BattlePlanPage() {
       if (!battlePlanData?.id) return;
       setStructuredSaving(true);
       try {
-        await supabase
+        const { data: updated, error } = await supabase
           .from("battle_plan")
           .update({
             corevalues: data.corevalues,
@@ -440,7 +443,10 @@ export default function BattlePlanPage() {
             oneyeartarget: data.oneyeartarget,
             fiveyeartarget: data.fiveyeartarget,
           })
-          .eq("id", battlePlanData.id);
+          .eq("id", battlePlanData.id)
+          .select("id")
+          .single();
+        if (error || !updated) throw error ?? new Error("Save failed");
         setBattlePlanData((prev) =>
           prev
             ? {

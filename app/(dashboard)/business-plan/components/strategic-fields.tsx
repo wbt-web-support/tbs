@@ -101,8 +101,16 @@ export default function StrategicFields({
       };
       const key = JSON.stringify(payload);
       if (key !== lastSavedRef.current && planId) {
-        lastSavedRef.current = key;
-        onAutoSave?.(payload);
+        const promise = onAutoSave?.(payload);
+        if (promise && typeof promise.then === "function") {
+          promise.then(() => {
+            lastSavedRef.current = key;
+          }).catch(() => {
+            // Leave lastSavedRef unchanged so we retry on next change
+          });
+        } else {
+          lastSavedRef.current = key;
+        }
       }
     }, 1500);
     return () => {

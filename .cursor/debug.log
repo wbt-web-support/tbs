@@ -1,0 +1,84 @@
+{"location":"page.tsx:loadFromLocalStorage","message":"setting generatedData from localStorage","data":{"hasDocHtml":true},"timestamp":1770463691454,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":false,"noContent":true,"noMission":true,"willSet":false},"timestamp":1770463691454,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":true,"noMission":true,"willSet":true},"timestamp":1770463691456,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":false,"contentLen":0},"timestamp":1770463691454,"hypothesisId":"H2"}
+{"location":"page.tsx:fetchBattlePlanData","message":"fetched data","data":{"business_plan_contentLen":2404,"hasMission":true},"timestamp":1770463694029,"hypothesisId":"H6"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463694045,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":true,"contentLen":2404},"timestamp":1770463694046,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":1969,"willSet":true},"timestamp":1770463694046,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"setting content from battlePlanData","data":{"prevLen":15312,"newLen":2404},"timestamp":1770463694047,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"setting content from battlePlanData","data":{"prevLen":15312,"newLen":2404},"timestamp":1770463694047,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770463694055,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770463694066,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save entry","data":{"contentLen":2404,"planId":"097306a4-39a8-47c8-a5cf-cfbaaec4b3ab"},"timestamp":1770463695819,"hypothesisId":"H1"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770463695827,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save success, updating state","data":{"contentLen":2404},"timestamp":1770463696064,"hypothesisId":"H5"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770463696075,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2405,"willSet":true},"timestamp":1770463697169,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2406,"willSet":true},"timestamp":1770463697355,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2407,"willSet":true},"timestamp":1770463697556,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2408,"willSet":true},"timestamp":1770463697756,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2409,"willSet":true},"timestamp":1770463697976,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2410,"willSet":true},"timestamp":1770463698201,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2411,"willSet":true},"timestamp":1770463698429,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2412,"willSet":true},"timestamp":1770463698985,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save entry","data":{"contentLen":2412,"planId":"097306a4-39a8-47c8-a5cf-cfbaaec4b3ab"},"timestamp":1770463700810,"hypothesisId":"H1"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463700821,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2412,"willSet":true},"timestamp":1770463700822,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save success, updating state","data":{"contentLen":2412},"timestamp":1770463701101,"hypothesisId":"H5"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463701110,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":true,"contentLen":2412},"timestamp":1770463701110,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2412,"willSet":true},"timestamp":1770463701111,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save entry","data":{"contentLen":2514,"planId":"097306a4-39a8-47c8-a5cf-cfbaaec4b3ab"},"timestamp":1770463709484,"hypothesisId":"H1"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save success, updating state","data":{"contentLen":2514},"timestamp":1770463709875,"hypothesisId":"H5"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463709910,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":true,"contentLen":2514},"timestamp":1770463709910,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463711227,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463711231,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463711231,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463711242,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463713625,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463713628,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463713636,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463716483,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463716488,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463716500,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save entry","data":{"contentLen":2506,"planId":"097306a4-39a8-47c8-a5cf-cfbaaec4b3ab"},"timestamp":1770463723885,"hypothesisId":"H1"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save success, updating state","data":{"contentLen":2506},"timestamp":1770463724320,"hypothesisId":"H5"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463724349,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":true,"contentLen":2506},"timestamp":1770463724349,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463741729,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463741734,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463741734,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"skipped after Docs→Structured (fix)","data":{"runId":"post-fix"},"timestamp":1770463741746,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save entry","data":{"contentLen":2404,"planId":"097306a4-39a8-47c8-a5cf-cfbaaec4b3ab"},"timestamp":1770463743705,"hypothesisId":"H1"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770463743712,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save success, updating state","data":{"contentLen":2404},"timestamp":1770463744201,"hypothesisId":"H5"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770463744207,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":true,"contentLen":2404},"timestamp":1770463744207,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770463744207,"hypothesisId":"H4"}
+{"location":"page.tsx:loadFromLocalStorage","message":"setting generatedData from localStorage","data":{"hasDocHtml":true},"timestamp":1770464021741,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":true,"noMission":true,"willSet":true},"timestamp":1770464021745,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":false,"noContent":true,"noMission":true,"willSet":false},"timestamp":1770464021741,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":false,"contentLen":0},"timestamp":1770464021741,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":1700,"willSet":true},"timestamp":1770464022703,"hypothesisId":"H4"}
+{"location":"page.tsx:fetchBattlePlanData","message":"fetched data","data":{"business_plan_contentLen":2404,"hasMission":true},"timestamp":1770464024356,"hypothesisId":"H6"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770464024367,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"effect run","data":{"hasContent":true,"contentLen":2404},"timestamp":1770464024367,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":1977,"willSet":true},"timestamp":1770464024367,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"setting content from battlePlanData","data":{"prevLen":1700,"newLen":2404},"timestamp":1770464024369,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-from-battlePlanData","message":"setting content from battlePlanData","data":{"prevLen":1700,"newLen":2404},"timestamp":1770464024369,"hypothesisId":"H2"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2412,"willSet":true},"timestamp":1770464024375,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464024385,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save entry","data":{"contentLen":2404,"planId":"097306a4-39a8-47c8-a5cf-cfbaaec4b3ab"},"timestamp":1770464026156,"hypothesisId":"H1"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464026168,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save entry","data":{"contentLen":2404,"planId":"097306a4-39a8-47c8-a5cf-cfbaaec4b3ab"},"timestamp":1770464026256,"hypothesisId":"H1"}
+{"location":"page.tsx:effect-from-generatedData","message":"effect run","data":{"hasGen":true,"noContent":false,"noMission":false,"willSet":false},"timestamp":1770464026265,"hypothesisId":"H3"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464026265,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save success, updating state","data":{"contentLen":2404},"timestamp":1770464026500,"hypothesisId":"H5"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464026513,"hypothesisId":"H4"}
+{"location":"page.tsx:handleSaveBusinessPlanContent","message":"save success, updating state","data":{"contentLen":2404},"timestamp":1770464026576,"hypothesisId":"H5"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464026587,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464030929,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464039414,"hypothesisId":"H4"}
+{"location":"page.tsx:effect-structuredToDocs","message":"effect run","data":{"planViewTab":"structured","nextHtmlLen":2404,"willSet":true},"timestamp":1770464047577,"hypothesisId":"H4"}
