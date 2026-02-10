@@ -188,7 +188,6 @@ export default function BattlePlanPage() {
   const businessPlanFileInputRef = useRef<HTMLInputElement>(null);
   const [focusedFieldId, setFocusedFieldId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(true);
-  const aiPanelRef = useRef<HTMLDivElement>(null);
   const [improveInstruction, setImproveInstruction] = useState<string>("improve_clarity");
   const [customInstruction, setCustomInstruction] = useState("");
   const [improving, setImproving] = useState(false);
@@ -381,15 +380,6 @@ export default function BattlePlanPage() {
       throw error;
     }
   };
-
-  // Only clear selected field when focus leaves to somewhere outside the AI panel (keeps selection when using the assistant)
-  const handleFieldBlur = useCallback(() => {
-    setTimeout(() => {
-      const el = document.activeElement;
-      if (aiPanelRef.current?.contains(el as Node)) return;
-      setFocusedFieldId(null);
-    }, 0);
-  }, []);
 
   // Handlers to collect data from children
   const handleDetailsChange = useCallback((data: { mission: string; vision: string }) => {
@@ -1210,7 +1200,8 @@ export default function BattlePlanPage() {
                       minimalStyle={true}
                       onChange={handleDetailsChange}
                       onFieldFocus={setFocusedFieldId}
-                      onFieldBlur={handleFieldBlur}
+                      onFieldBlur={() => {}}
+                      focusedFieldId={focusedFieldId}
                     />
                   </section>
                   {/* Rows 2 & 3: Strategic fields in enhanced boxes */}
@@ -1224,10 +1215,10 @@ export default function BattlePlanPage() {
                       oneYearTarget={generatedData?.oneyeartarget?.length ? generatedData.oneyeartarget : (battlePlanData?.oneyeartarget?.targets || [])}
                       onAutoSave={handleStrategicAutoSave}
                       onFieldFocus={setFocusedFieldId}
-                      onFieldBlur={handleFieldBlur}
                       onFieldsTextChange={setStrategicFieldsText}
                       appliedImprovement={appliedImprovement}
                       onAppliedImprovementConsumed={() => setAppliedImprovement(null)}
+                      focusedFieldId={focusedFieldId}
                     />
                   </section>
                 </div>
@@ -1239,7 +1230,7 @@ export default function BattlePlanPage() {
 
           {/* AI Assistant - fixed to viewport so it sticks when main scrolls; capped height so not full window */}
           {planViewTab === "structured" && aiAssistantOpen ? (
-            <div ref={aiPanelRef} className="hidden lg:block fixed top-54 right-6 z-30 w-96 max-h-[calc(100vh-8rem)] rounded-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
+            <div className="hidden lg:block fixed top-54 right-6 z-30 w-96 max-h-[calc(100vh-8rem)] rounded-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">

@@ -33,7 +33,6 @@ type StrategicFieldsProps = {
   oneYearTarget: { value: string }[];
   onAutoSave?: (data: StrategicFieldsData) => void;
   onFieldFocus?: (fieldId: string) => void;
-  onFieldBlur?: () => void;
   onFieldsTextChange?: (texts: {
     core_values: string;
     strategic_anchors: string;
@@ -43,6 +42,7 @@ type StrategicFieldsProps = {
   }) => void;
   appliedImprovement?: { fieldId: string; value: string } | null;
   onAppliedImprovementConsumed?: () => void;
+  focusedFieldId?: string | null;
 };
 
 const FIELD_IDS = ["core_values", "strategic_anchors", "purpose_why", "one_year_targets", "five_year_targets"] as const;
@@ -63,10 +63,10 @@ export default function StrategicFields({
   oneYearTarget,
   onAutoSave,
   onFieldFocus,
-  onFieldBlur,
   onFieldsTextChange,
   appliedImprovement,
   onAppliedImprovementConsumed,
+  focusedFieldId,
 }: StrategicFieldsProps) {
   const initialTexts = {
     core_values: arrayToText(coreValues),
@@ -143,7 +143,7 @@ export default function StrategicFields({
           value={texts[fieldId]}
           onChange={(value) => handleChange(fieldId, value)}
           onFocus={() => onFieldFocus?.(fieldId)}
-          onBlur={onFieldBlur}
+          highlighted={focusedFieldId === fieldId}
           placeholder="Press Enter for a new bullet"
           data-field-id={fieldId}
           className="min-h-[120px]"

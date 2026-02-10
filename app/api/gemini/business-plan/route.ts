@@ -407,7 +407,18 @@ function parseBusinessPlanResponse(cleanedText: string): any {
   }
 }
 
-// JSON structure and layout description for the UI (Structured tab: row 1 = Mission & Vision, row 2 = Core values / Strategic anchors / Purpose & why, row 3 = 1-year / 5-year targets; Docs tab = full HTML).
+// Document (Details plan info tab) must contain ONLY these sections. Mission, Vision, Purpose, Core Values, Strategic Anchors, and Goals are shown in the Structured tab only — do not duplicate them in the document.
+const DOCUMENT_SECTIONS_ORDER = [
+  "Company Snapshot (what we do, who we serve, where we operate, what we're known for)",
+  "Current Baseline (what's working, what's not, main bottlenecks)",
+  "Strategy (offer focus, marketing/sales, delivery, team/delegation)",
+  "Operating Rhythm (weekly scorecard, meeting rhythm, decision rules)",
+  "Risks and Fixes (top 5 risks with early warning + mitigation)",
+  "90-Day Execution Plan (exactly 3 priorities: outcome, actions, owner, dates, metric)",
+  "Notes and Unknowns (missing items + single next question each)",
+];
+
+// JSON structure and layout description for the UI (Structured tab: row 1 = Mission & Vision, row 2 = Core values / Strategic anchors / Purpose & why, row 3 = 1-year / 5-year targets; Docs tab = document-only sections).
 const BUSINESS_PLAN_JSON_STRUCTURE = `
 CRITICAL: You must respond with ONLY a valid JSON object. No text before or after. The response will be parsed with JSON.parse(), so every string must be valid JSON:
 - Inside any string, escape double quotes as \\" (backslash-quote) and newlines as \\n.
@@ -443,17 +454,22 @@ Exact structure (keys in this order):
     {"value": "Second five year target", "completed": false, "deadline": "YYYY-MM-DD"},
     {"value": "Third five year target", "completed": false, "deadline": "YYYY-MM-DD"}
   ],
-  "business_plan_document_html": "<h2>Business Plan</h2><p>...</p>"
+  "business_plan_document_html": "<h2>Company Snapshot</h2><p>...</p><h2>Current Baseline</h2>..."
 }
 
-Layout (for your reference): Row 1 = Mission & Vision. Row 2 = Core values, Strategic anchors, Purpose & why. Row 3 = 1-year targets, 5-year targets. Docs = full HTML document.
+Layout: Mission, Vision, Core values, Strategic anchors, Purpose, 1-year/5-year targets go into the JSON fields above and are shown in the Structured tab. The business_plan_document_html is shown in the "Details plan info" tab ONLY.
+
+DOCUMENT RULE (business_plan_document_html): Do NOT include Mission, Vision, Purpose, Core Values, Strategic Anchors, or Goals in the HTML document — those are already in the Structured tab. The document must contain ONLY these sections in this order (use plain headings, no numbers):
+${DOCUMENT_SECTIONS_ORDER.map((s) => ` • ${s}`).join("\n")}
+
+Use <h2> for each section title with no numbering (e.g. <h2>Company Snapshot</h2>, not <h2>1. Company Snapshot</h2>). Use <h3> for subsections, also unnumbered. Use <ul>/<li> for bullet lists. Valid HTML only (<h2>, <h3>, <p>, <ul>, <li>, <strong>). Single JSON string; escape " as \\" and use \\n for newlines. No markdown.
 
 RULES:
 - Write in first person (we/our) or internal strategy. Not marketing tone.
 - No empty strings or null. Each array at least 3 items (targets at least 2).
 - All text specific and actionable. No placeholders. Base on company data and industry.
 - Use deadline dates in YYYY-MM-DD from the date context above (1-year within 12 months, 5-year within 5 years).
-- business_plan_document_html: full business plan in HTML only (<h2>, <h3>, <p>, <ul>, <li>, <strong>). Single JSON string; escape " as \\" and use \\n for newlines. No markdown.
+- When information is missing or unknown, write "Not confirmed yet" — do not use "TBC" or "To be confirmed".
 `;
 
 // Only fetch the prompt body (instructions) from DB
@@ -583,8 +599,12 @@ IMPORTANT: Use these dates as reference points when setting deadlines for target
       promptBody = promptBody.replace(/{{companyContext}}/g, companyContext + userAnswersContext + uploadedDocumentContext + currentDateContext)
         .replace(/{{responseFormat}}/g, BUSINESS_PLAN_JSON_STRUCTURE);
 
-      // The final prompt is the body + the fixed structure
-      const prompt = promptBody;
+      // Remind model: document (Details plan info tab) must not duplicate Structured tab content
+      const documentOnlyReminder = `
+
+REMINDER — Details plan document (business_plan_document_html): The first tab already shows Mission, Vision, Purpose, Core Values, Strategic Anchors, and Goals. In the document output, include ONLY the sections listed under "DOCUMENT RULE" in the response format above (Company Snapshot through Notes and Unknowns). Do not repeat Mission, Vision, Purpose, Core Values, Strategic Anchors, or Goals in the HTML.`;
+
+      const prompt = promptBody + documentOnlyReminder;
 
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
       const result = await model.generateContent(prompt);

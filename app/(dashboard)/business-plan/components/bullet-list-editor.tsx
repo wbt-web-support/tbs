@@ -31,20 +31,20 @@ type BulletListEditorProps = {
   value: string;
   onChange: (value: string) => void;
   onFocus?: () => void;
-  onBlur?: () => void;
   placeholder?: string;
   className?: string;
   "data-field-id"?: string;
+  highlighted?: boolean;
 };
 
 export default function BulletListEditor({
   value,
   onChange,
   onFocus,
-  onBlur,
   placeholder = "Press Enter for a new bullet",
   className = "",
   "data-field-id": dataFieldId,
+  highlighted = false,
 }: BulletListEditorProps) {
   const ulRef = useRef<HTMLUListElement | null>(null);
   const [refReady, setRefReady] = useState(false);
@@ -125,10 +125,9 @@ export default function BulletListEditor({
       onInput={handleInput}
       onPaste={handlePaste}
       onFocus={onFocus}
-      onBlur={onBlur}
       data-placeholder={placeholder}
       data-field-id={dataFieldId}
-      className={`list-disc pl-6 space-y-2 min-h-[120px] w-full resize-y border-2 border-transparent rounded-md py-3 px-2 text-base leading-relaxed outline-none bg-transparent text-gray-900 empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 [&:focus]:outline-none [&:focus]:border-gray-400 [&_li]:leading-relaxed transition-colors ${className}`}
+      className={`list-disc pl-6 space-y-2 min-h-[120px] w-full resize-y border-2 rounded-md py-3 px-2 text-base leading-relaxed outline-none bg-transparent text-gray-900 empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 [&:focus]:outline-none [&:focus]:border-gray-400 [&_li]:leading-relaxed transition-colors ${highlighted ? "border-gray-900 ring-2 ring-gray-200" : "border-transparent"} ${className}`}
       style={{ outline: "none" }}
     />
   );

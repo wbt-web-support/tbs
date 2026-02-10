@@ -15,6 +15,7 @@ type BattlePlanDetailsProps = {
   onFieldFocus?: (fieldId: string) => void;
   onFieldBlur?: () => void;
   minimalStyle?: boolean;
+  focusedFieldId?: string | null;
 };
 
 export default function BattlePlanDetails({ 
@@ -25,7 +26,8 @@ export default function BattlePlanDetails({
   onChange,
   onFieldFocus,
   onFieldBlur,
-  minimalStyle
+  minimalStyle,
+  focusedFieldId
 }: BattlePlanDetailsProps) {
   const [mission, setMission] = useState(missionStatement);
   const [vision, setVision] = useState(visionStatement);
@@ -57,9 +59,13 @@ export default function BattlePlanDetails({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mission, vision]);
 
-  const textareaClass = minimalStyle
-    ? "min-h-[100px] w-full resize-y border border-transparent rounded-md px-3 py-3 text-base leading-relaxed focus:border-gray-400 focus:ring-0 bg-transparent text-gray-900 placeholder:text-gray-400 transition-colors"
-    : "min-h-[120px] w-full";
+  const getTextareaClass = (fieldId: string) => {
+    const isHighlighted = focusedFieldId === fieldId;
+    if (minimalStyle) {
+      return `min-h-[100px] w-full resize-y border rounded-md px-3 py-3 text-base leading-relaxed focus:border-gray-400 focus:ring-0 bg-transparent text-gray-900 placeholder:text-gray-400 transition-colors ${isHighlighted ? "border-gray-900 ring-2 ring-gray-200" : "border-transparent"}`;
+    }
+    return "min-h-[120px] w-full";
+  };
 
   const cardHeaderClass = "border-b border-gray-200 bg-gray-100 px-4 py-3";
   const cardTitleClass = "text-sm font-semibold text-gray-800 uppercase tracking-wide";
@@ -81,7 +87,7 @@ export default function BattlePlanDetails({
                 onFocus={() => onFieldFocus?.("mission")}
                 onBlur={onFieldBlur}
                 placeholder="Enter your mission statement..."
-                className={textareaClass}
+                className={getTextareaClass("mission")}
               />
             ) : (
               <div className="text-gray-600 whitespace-pre-line text-sm leading-relaxed">
@@ -104,7 +110,7 @@ export default function BattlePlanDetails({
                 onFocus={() => onFieldFocus?.("vision")}
                 onBlur={onFieldBlur}
                 placeholder="Enter your vision statement..."
-                className={textareaClass}
+                className={getTextareaClass("vision")}
               />
             ) : (
               <div className="text-gray-600 whitespace-pre-line text-sm leading-relaxed">
