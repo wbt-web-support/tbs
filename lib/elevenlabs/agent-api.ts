@@ -113,6 +113,16 @@ function buildToolsConfig(tools: ToolConfig[]): object[] {
   });
 }
 
+/** Tools that don't require user/team context */
+const CONTEXT_FREE_TOOLS = new Set(["web_search"]);
+
+function needsDynamicVariables(tools: ToolConfig[]): boolean {
+  return tools.some((t) => {
+    const name = t.name.replace(/[^a-zA-Z0-9\s_-]/g, "").replace(/\s+/g, "_").toLowerCase();
+    return !CONTEXT_FREE_TOOLS.has(name);
+  });
+}
+
 /**
  * Create a new agent in ElevenLabs
  */
@@ -131,13 +141,14 @@ export async function createAgent(
         },
         first_message: config.firstMessage || "Hello, how can I help you today?",
         language: "en",
-        // Set up dynamic variable placeholders for user context
-        dynamic_variables: {
-          dynamic_variable_placeholders: {
-            user_id: "",  // Will be passed at conversation start
-            team_id: "",  // Will be passed at conversation start
+        ...(needsDynamicVariables(config.tools) && {
+          dynamic_variables: {
+            dynamic_variable_placeholders: {
+              user_id: "",
+              team_id: "",
+            },
           },
-        },
+        }),
       },
       tts: {
         voice_id: config.voiceId,
@@ -170,47 +181,40 @@ export async function createAgent(
 
 /**
  * Update an existing agent in ElevenLabs
+ *
+ * Always sends the complete config to avoid ElevenLabs wiping fields
+ * that aren't included in a partial PATCH.
  */
 export async function updateAgent(
   agentId: string,
-  config: Partial<AgentConfig>
+  config: AgentConfig
 ): Promise<void> {
   const apiKey = getApiKey();
 
-  const body: Record<string, unknown> = {};
-
-  if (config.name) {
-    body.name = config.name;
-  }
-
-  if (config.systemPrompt || config.firstMessage || config.voiceId || config.tools) {
-    const promptConfig: Record<string, unknown> = {};
-    if (config.systemPrompt) {
-      promptConfig.prompt = config.systemPrompt;
-    }
-    if (config.tools) {
-      promptConfig.tools = buildToolsConfig(config.tools);
-    }
-
-    body.conversation_config = {
+  const body = {
+    name: config.name,
+    conversation_config: {
       agent: {
-        ...(Object.keys(promptConfig).length > 0 && { prompt: promptConfig }),
-        ...(config.firstMessage && {
-          first_message: config.firstMessage,
-        }),
-        language: "en",
-        dynamic_variables: {
-          dynamic_variable_placeholders: {
-            user_id: "",
-            team_id: "",
-          },
+        prompt: {
+          prompt: config.systemPrompt,
+          tools: buildToolsConfig(config.tools),
         },
+        first_message: config.firstMessage || "Hello, how can I help you today?",
+        language: "en",
+        ...(needsDynamicVariables(config.tools) && {
+          dynamic_variables: {
+            dynamic_variable_placeholders: {
+              user_id: "",
+              team_id: "",
+            },
+          },
+        }),
       },
-      ...(config.voiceId && {
-        tts: { voice_id: config.voiceId },
-      }),
-    };
-  }
+      tts: {
+        voice_id: config.voiceId,
+      },
+    },
+  };
 
   const response = await fetch(`${BASE_URL}/agents/${agentId}`, {
     method: "PATCH",
