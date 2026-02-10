@@ -183,35 +183,33 @@ export async function updateAgent(
     body.name = config.name;
   }
 
-  if (config.systemPrompt || config.firstMessage || config.voiceId) {
+  if (config.systemPrompt || config.firstMessage || config.voiceId || config.tools) {
+    const promptConfig: Record<string, unknown> = {};
+    if (config.systemPrompt) {
+      promptConfig.prompt = config.systemPrompt;
+    }
+    if (config.tools) {
+      promptConfig.tools = buildToolsConfig(config.tools);
+    }
+
     body.conversation_config = {
       agent: {
-        ...(config.systemPrompt && {
-          prompt: { prompt: config.systemPrompt },
-        }),
+        ...(Object.keys(promptConfig).length > 0 && { prompt: promptConfig }),
         ...(config.firstMessage && {
           first_message: config.firstMessage,
         }),
+        language: "en",
+        dynamic_variables: {
+          dynamic_variable_placeholders: {
+            user_id: "",
+            team_id: "",
+          },
+        },
       },
       ...(config.voiceId && {
         tts: { voice_id: config.voiceId },
       }),
     };
-  }
-
-  if (config.tools) {
-    // Tools go in conversation_config.agent.prompt.tools, not platform_settings
-    if (!body.conversation_config) {
-      body.conversation_config = {};
-    }
-    if (!(body.conversation_config as Record<string, unknown>).agent) {
-      (body.conversation_config as Record<string, unknown>).agent = {};
-    }
-    const agent = (body.conversation_config as Record<string, unknown>).agent as Record<string, unknown>;
-    if (!agent.prompt) {
-      agent.prompt = {};
-    }
-    (agent.prompt as Record<string, unknown>).tools = buildToolsConfig(config.tools);
   }
 
   const response = await fetch(`${BASE_URL}/agents/${agentId}`, {
