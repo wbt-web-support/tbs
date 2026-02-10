@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -89,6 +89,14 @@ export function AiChat({
   const [initialLoading, setInitialLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Calculate the index of the last assistant message for TTS controls (for future use if needed)
+  const lastAssistantIndex = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") return i;
+    }
+    return -1;
+  }, [messages]);
 
   const MIN_TEXTAREA_HEIGHT = 60;
   const MAX_TEXTAREA_HEIGHT = 500;
@@ -342,14 +350,6 @@ export function AiChat({
       return;
     }
 
-    // Check if we already have audio cached
-    const cachedUrl = audioUrls.get(messageId);
-    if (cachedUrl) {
-      setPlayingMessageId(messageId);
-      return;
-    }
-
-    // Load TTS audio
     setLoadingAudio(messageId);
     try {
       const response = await fetch("/api/ai-instructions/tts-stream", {
@@ -368,13 +368,20 @@ export function AiChat({
       }
 
       const audioBlob = await response.blob();
+
+      // Revoke old blob URL if exists to prevent memory leaks
+      const oldUrl = audioUrls.get(messageId);
+      if (oldUrl) {
+        URL.revokeObjectURL(oldUrl);
+      }
+
       const audioUrl = URL.createObjectURL(audioBlob);
 
-      // Cache the audio URL
+      // Store the new blob URL
       setAudioUrls((prev) => new Map(prev).set(messageId, audioUrl));
       setPlayingMessageId(messageId);
     } catch (error) {
-      console.error("TTS error:", error);
+      console.error("TTS Error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to load audio");
     } finally {
       setLoadingAudio(null);

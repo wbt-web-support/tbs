@@ -49,7 +49,7 @@ export async function initializeSupabaseStorage() {
         }
       }
     }
-    
+
     return { success: true };
   } catch (error) {
     // Only log in development to avoid console spam in production
