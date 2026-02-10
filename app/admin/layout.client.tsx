@@ -139,7 +139,7 @@ export default function AdminLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isFlowEditPage = pathname?.includes("/admin/agent-flow/") && pathname?.includes("/edit");
+  const isFlowEditPage = false;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userDetails, setUserDetails] = useState<{ email: string; fullName: string } | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{
