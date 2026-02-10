@@ -28,6 +28,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import Youtube from '@tiptap/extension-youtube';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import { DOMSerializer } from '@tiptap/pm/model';
 
 import { Button } from '@/components/ui/button';
 import { 
@@ -58,6 +59,7 @@ import {
   Heading3,
   Code2,
   Palette,
+  ChevronDown,
   Loader2,
   CheckCircle2,
   Plus,
@@ -91,6 +93,8 @@ export interface ReusableTiptapEditorProps {
   isReadOnly?: boolean;
   editorClassName?: string;
   showExportButton?: boolean;
+  showToolbarAI?: boolean;
+  compactToolbar?: boolean;
   // History feature props
   enableHistory?: boolean;
   historyId?: string;
@@ -118,6 +122,8 @@ export default function ReusableTiptapEditor({
   isReadOnly = false,
   editorClassName,
   showExportButton = true,
+  showToolbarAI = true,
+  compactToolbar = false,
   // History feature props
   enableHistory = false,
   historyId,
@@ -128,7 +134,14 @@ export default function ReusableTiptapEditor({
   onFocus,
   onBlur
 }: ReusableTiptapEditorProps) {
+  // Compact toolbar sizing
+  const btnSize = compactToolbar ? "h-7 w-7 p-0" : "h-9 w-9 p-0";
+  const iconSize = compactToolbar ? "h-3.5 w-3.5" : "h-4 w-4";
+  const sepHeight = compactToolbar ? "h-5" : "h-6";
+
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showInsertMenu, setShowInsertMenu] = useState(false);
+  const insertMenuRef = useRef<HTMLDivElement>(null);
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
   const [floatingMenuPosition, setFloatingMenuPosition] = useState({ x: 0, y: 0 });
   const floatingMenuRef = useRef<HTMLDivElement>(null);
@@ -552,34 +565,43 @@ export default function ReusableTiptapEditor({
     }
   }, [editor]);
 
+  // Helper: get HTML from a document slice (for selected content)
+  const getSelectedHTML = useCallback(() => {
+    if (!editor) return '';
+    const { from, to } = editor.state.selection;
+    if (from === to) return '';
+    const slice = editor.state.doc.slice(from, to);
+    const tempDiv = document.createElement('div');
+    const fragment = slice.content;
+    const serializer = DOMSerializer.fromSchema(editor.schema);
+    const dom = serializer.serializeFragment(fragment);
+    tempDiv.appendChild(dom);
+    return tempDiv.innerHTML;
+  }, [editor]);
+
   // AI Enhancement Functions
   const handleAIAction = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format', selectedOnly = false) => {
     if (!editor || aiLoading) return;
 
     setAiLoading(true);
-    
+
     // Disable editing while AI is processing
     editor.setEditable(false);
-    
+
     try {
       let contentToEnhance = '';
-      let selectedText = '';
+      let selectedHtml = '';
       let fullContext = '';
 
       if (selectedOnly) {
-        // Get selected text
         const { from, to } = editor.state.selection;
-        if (from === to) {
-          // No text selected
-          return;
-        }
-        
-        // Get selected text content
-        selectedText = editor.state.doc.textBetween(from, to);
-        contentToEnhance = selectedText;
+        if (from === to) return;
+
+        // Get selected content as HTML to preserve formatting
+        selectedHtml = getSelectedHTML();
+        contentToEnhance = selectedHtml;
         fullContext = editor.getHTML();
       } else {
-        // Enhance full document
         contentToEnhance = editor.getHTML();
       }
 
@@ -591,7 +613,7 @@ export default function ReusableTiptapEditor({
         body: JSON.stringify({
           content: contentToEnhance,
           action: action,
-          selectedText: selectedOnly ? selectedText : null,
+          selectedText: selectedOnly ? selectedHtml : null,
           context: selectedOnly ? fullContext : null,
         }),
       });
@@ -601,21 +623,16 @@ export default function ReusableTiptapEditor({
       }
 
       const data = await response.json();
-      
-      console.log('AI Enhancement Response:', data);
-      console.log('Enhanced content:', data.enhancedContent);
-      
+
       if (selectedOnly) {
-        // Replace selected text
+        // Replace selected text with HTML content
         const { from, to } = editor.state.selection;
-        console.log('Replacing selected text from', from, 'to', to);
         editor.chain()
           .focus()
           .deleteRange({ from, to })
           .insertContent(data.enhancedContent)
           .run();
-        
-        // Trigger onChange to update the parent component with the new full content
+
         setTimeout(() => {
           if (onChange) {
             onChange(editor.getHTML());
@@ -623,10 +640,8 @@ export default function ReusableTiptapEditor({
         }, 100);
       } else {
         // Replace entire content
-        console.log('Replacing entire content');
         editor.commands.setContent(data.enhancedContent);
-        
-        // Trigger onChange to update the parent component
+
         if (onChange) {
           onChange(data.enhancedContent);
         }
@@ -634,23 +649,16 @@ export default function ReusableTiptapEditor({
 
     } catch (error) {
       console.error('AI enhancement failed:', error);
-      
-      // Try to show a user-friendly error message
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-      }
-      
-      // You can add toast notification here later
       alert(`AI enhancement failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setAiLoading(false);
-      
+
       // Re-enable editing after AI processing
       if (editor && !isReadOnly) {
         editor.setEditable(true);
       }
     }
-  }, [editor, aiLoading]);
+  }, [editor, aiLoading, getSelectedHTML, onChange, isReadOnly]);
 
   // History Functions
   const handleLoadHistory = useCallback(async () => {
@@ -659,10 +667,18 @@ export default function ReusableTiptapEditor({
     try {
       setLoadingHistory(true);
       const history = await onLoadHistory(historyId);
-      const formattedHistory = history.map((content, index) => ({
-        content,
-        timestamp: new Date(Date.now() - (history.length - index - 1) * 60000).toLocaleString()
-      }));
+      const formattedHistory = history.map((item) => {
+        // Try to parse JSON with created_at, fallback to raw content
+        try {
+          const parsed = JSON.parse(item);
+          return {
+            content: parsed.content,
+            timestamp: new Date(parsed.created_at).toLocaleString()
+          };
+        } catch {
+          return { content: item, timestamp: '' };
+        }
+      });
       setHistoryList(formattedHistory);
       setShowHistoryPanel(true);
     } catch (error) {
@@ -674,19 +690,29 @@ export default function ReusableTiptapEditor({
 
   const handleRestoreHistory = useCallback(async (content: string) => {
     if (!enableHistory || !onRestoreHistory || !historyId || !editor) return;
-    
+
     try {
+      // Save the current (latest) content to history first so user can revert back
+      if (onSaveHistory) {
+        const currentHtml = editor.getHTML();
+        if (currentHtml?.trim() && currentHtml !== content) {
+          // Cancel any pending debounced history save
+          if (historyTimeoutRef.current) {
+            clearTimeout(historyTimeoutRef.current);
+            historyTimeoutRef.current = undefined;
+          }
+          await onSaveHistory(currentHtml, historyId);
+        }
+      }
+
       await onRestoreHistory(content, historyId);
       editor.commands.setContent(content);
       onChange(content);
       setShowHistoryPanel(false);
-      
-      // Show success message (you can replace with toast)
-      console.log('History restored successfully');
     } catch (error) {
       console.error('Failed to restore history:', error);
     }
-  }, [enableHistory, onRestoreHistory, historyId, editor, onChange]);
+  }, [enableHistory, onRestoreHistory, onSaveHistory, historyId, editor, onChange]);
 
   const handleToolbarAI = useCallback(async (action: 'simplify' | 'grammar' | 'shorter' | 'longer' | 'format') => {
     await handleAIAction(action, false);
@@ -816,20 +842,25 @@ export default function ReusableTiptapEditor({
         setBubbleMenuMode('main');
       }
       
+      // Close insert menu when clicking outside
+      if (showInsertMenu && insertMenuRef.current && !insertMenuRef.current.contains(event.target as Node)) {
+        setShowInsertMenu(false);
+      }
+
       // Reset bubble menu mode when clicking outside bubble menu
       if (bubbleMenuMode !== 'main' && !(event.target as Element).closest('[data-bubble-menu]')) {
         setBubbleMenuMode('main');
       }
     };
 
-    if (showFloatingMenu || showFloatingInput || bubbleMenuMode !== 'main') {
+    if (showFloatingMenu || showFloatingInput || bubbleMenuMode !== 'main' || showInsertMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showFloatingMenu, showFloatingInput, bubbleMenuMode]);
+  }, [showFloatingMenu, showFloatingInput, bubbleMenuMode, showInsertMenu]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -856,7 +887,7 @@ export default function ReusableTiptapEditor({
       {/* Fixed Toolbar */}
       {showToolbar && (
         <div className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-          <div className="px-3 py-2">
+          <div className={cn("px-3", compactToolbar ? "py-1" : "py-2")}>
             <div className="flex justify-between items-center absolute bottom-2 right-2">
               <div className="flex items-center gap-2">
                 {autoSave && savingStatus === 'saving' && (
@@ -873,7 +904,7 @@ export default function ReusableTiptapEditor({
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className={cn("flex flex-wrap items-center", compactToolbar ? "gap-0.5" : "gap-2")}>
               {/* Headings */}
               <div className="flex items-center gap-1">
                 <select
@@ -895,7 +926,8 @@ export default function ReusableTiptapEditor({
                   }
                   disabled={aiLoading}
                   className={cn(
-                    "h-9 px-3 pr-8 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "px-2 pr-7 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    compactToolbar ? "h-7 text-xs" : "h-9",
                     aiLoading && "opacity-50 cursor-not-allowed"
                   )}
                 >
@@ -909,257 +941,239 @@ export default function ReusableTiptapEditor({
                 </select>
               </div>
 
-              <div className="w-px h-6 bg-gray-300" />
+              <div className={cn("w-px bg-gray-300", sepHeight)} />
 
               {/* Text Formatting */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleBold().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('bold') && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive('bold') && "bg-blue-100 text-blue-700")}
                   title="Bold (Ctrl+B)"
                 >
-                  <Bold className="h-4 w-4" />
+                  <Bold className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('italic') && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive('italic') && "bg-blue-100 text-blue-700")}
                   title="Italic (Ctrl+I)"
                 >
-                  <Italic className="h-4 w-4" />
+                  <Italic className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleUnderline().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('underline') && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive('underline') && "bg-blue-100 text-blue-700")}
                   title="Underline (Ctrl+U)"
                 >
-                  <UnderlineIcon className="h-4 w-4" />
+                  <UnderlineIcon className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleStrike().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('strike') && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive('strike') && "bg-blue-100 text-blue-700")}
                   title="Strikethrough"
                 >
-                  <Strikethrough className="h-4 w-4" />
+                  <Strikethrough className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleHighlight().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('highlight') && "bg-yellow-100 text-yellow-700")}
+                  className={cn(btnSize, editor?.isActive('highlight') && "bg-yellow-100 text-yellow-700")}
                   title="Highlight"
                 >
-                  <Highlighter className="h-4 w-4" />
+                  <Highlighter className={iconSize} />
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-gray-300" />
+              <div className={cn("w-px bg-gray-300", sepHeight)} />
 
               {/* Text Alignment */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().setTextAlign('left').run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive({ textAlign: 'left' }) && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive({ textAlign: 'left' }) && "bg-blue-100 text-blue-700")}
                   title="Align Left"
                 >
-                  <AlignLeft className="h-4 w-4" />
+                  <AlignLeft className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().setTextAlign('center').run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive({ textAlign: 'center' }) && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive({ textAlign: 'center' }) && "bg-blue-100 text-blue-700")}
                   title="Align Center"
                 >
-                  <AlignCenter className="h-4 w-4" />
+                  <AlignCenter className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().setTextAlign('right').run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive({ textAlign: 'right' }) && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive({ textAlign: 'right' }) && "bg-blue-100 text-blue-700")}
                   title="Align Right"
                 >
-                  <AlignRight className="h-4 w-4" />
+                  <AlignRight className={iconSize} />
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-gray-300" />
+              <div className={cn("w-px bg-gray-300", sepHeight)} />
 
               {/* Lists */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('bulletList') && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive('bulletList') && "bg-blue-100 text-blue-700")}
                   title="Bullet List"
                 >
-                  <List className="h-4 w-4" />
+                  <List className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('orderedList') && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive('orderedList') && "bg-blue-100 text-blue-700")}
                   title="Numbered List"
                 >
-                  <ListOrdered className="h-4 w-4" />
+                  <ListOrdered className={iconSize} />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => editor?.chain().focus().toggleTaskList().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('taskList') && "bg-blue-100 text-blue-700")}
+                  className={cn(btnSize, editor?.isActive('taskList') && "bg-blue-100 text-blue-700")}
                   title="Task List"
                 >
-                  <Check className="h-4 w-4" />
+                  <Check className={iconSize} />
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-gray-300" />
+              <div className={cn("w-px bg-gray-300", sepHeight)} />
 
-              {/* Block Elements */}
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('blockquote') && "bg-blue-100 text-blue-700")}
-                  title="Quote"
-                >
-                  <Quote className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                  className={cn("h-9 w-9 p-0", editor?.isActive('codeBlock') && "bg-blue-100 text-blue-700")}
-                  title="Code Block"
-                >
-                  <Code2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().setHorizontalRule().run()}
-                  className="h-9 w-9 p-0"
-                  title="Horizontal Rule"
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-              </div>
+              {/* Link */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={addLink}
+                className={cn(btnSize, editor.isActive('link') && "bg-blue-100 text-blue-700")}
+                title="Add Link"
+              >
+                <LinkIcon className={iconSize} />
+              </Button>
 
-              <div className="w-px h-6 bg-gray-300" />
+              <div className={cn("w-px bg-gray-300", sepHeight)} />
 
-              {/* Media & Links */}
-              <div className="flex items-center gap-1">
+              {/* Insert Dropdown */}
+              <div className="relative" ref={insertMenuRef}>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={addLink}
-                  className={cn("h-9 w-9 p-0", editor.isActive('link') && "bg-blue-100 text-blue-700")}
-                  title="Add Link"
+                  onClick={() => setShowInsertMenu(!showInsertMenu)}
+                  className={cn(compactToolbar ? "h-7 px-1.5 gap-0.5" : "h-9 px-2 gap-1")}
+                  title="Insert"
                 >
-                  <LinkIcon className="h-4 w-4" />
+                  <Plus className={iconSize} />
+                  <span className="text-xs">Insert</span>
+                  <ChevronDown className={compactToolbar ? "h-2.5 w-2.5" : "h-3 w-3"} />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={addImage}
-                  className="h-9 w-9 p-0"
-                  title="Insert Image"
-                >
-                  <ImageIcon className="h-4 w-4" />
-                </Button>
-                
-                {/* Table Controls */}
-                <div className="relative group">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={addTable}
-                    className="h-9 w-9 p-0"
-                    title="Insert Table"
-                  >
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                  
-                  <div className="absolute top-10 left-0 hidden group-hover:block bg-white border border-gray-200 rounded-lg shadow-xl p-2 z-50 min-w-[200px]">
-                    <div className="text-xs font-medium text-gray-700 mb-2">Table Actions</div>
-                    <div className="space-y-1">
-                      <button
-                        onClick={() => editor?.chain().focus().addRowBefore().run()}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add Row Above
-                      </button>
-                      <button
-                        onClick={() => editor?.chain().focus().addRowAfter().run()}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add Row Below
-                      </button>
-                      <button
-                        onClick={() => editor?.chain().focus().addColumnBefore().run()}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add Column Before
-                      </button>
-                      <button
-                        onClick={() => editor?.chain().focus().addColumnAfter().run()}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add Column After
-                      </button>
-                      <hr className="my-1" />
-                      <button
-                        onClick={() => editor?.chain().focus().deleteRow().run()}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-red-100 text-red-700 rounded flex items-center gap-2"
-                      >
-                        <Minus className="h-3 w-3" />
-                        Delete Row
-                      </button>
-                      <button
-                        onClick={() => editor?.chain().focus().deleteColumn().run()}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-red-100 text-red-700 rounded flex items-center gap-2"
-                      >
-                        <Minus className="h-3 w-3" />
-                        Delete Column
-                      </button>
-                      <button
-                        onClick={() => editor?.chain().focus().deleteTable().run()}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-red-100 text-red-700 rounded flex items-center gap-2"
-                      >
-                        <Minus className="h-3 w-3" />
-                        Delete Table
-                      </button>
-                    </div>
+                {showInsertMenu && (
+                  <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-lg shadow-xl p-1.5 z-50 min-w-[200px]">
+                    <button
+                      onClick={() => { addImage(); setShowInsertMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5"
+                    >
+                      <ImageIcon className="h-4 w-4 text-gray-500" />
+                      Image
+                    </button>
+                    <button
+                      onClick={() => { addTable(); setShowInsertMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5"
+                    >
+                      <TableIcon className="h-4 w-4 text-gray-500" />
+                      Table
+                    </button>
+                    <button
+                      onClick={() => { addYoutube(); setShowInsertMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5"
+                    >
+                      <YoutubeIcon className="h-4 w-4 text-gray-500" />
+                      YouTube Video
+                    </button>
+                    <hr className="my-1 border-gray-100" />
+                    <button
+                      onClick={() => { editor?.chain().focus().toggleBlockquote().run(); setShowInsertMenu(false); }}
+                      className={cn("w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5", editor?.isActive('blockquote') && "bg-blue-50 text-blue-700")}
+                    >
+                      <Quote className="h-4 w-4 text-gray-500" />
+                      Blockquote
+                    </button>
+                    <button
+                      onClick={() => { editor?.chain().focus().toggleCodeBlock().run(); setShowInsertMenu(false); }}
+                      className={cn("w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5", editor?.isActive('codeBlock') && "bg-blue-50 text-blue-700")}
+                    >
+                      <Code2 className="h-4 w-4 text-gray-500" />
+                      Code Block
+                    </button>
+                    <button
+                      onClick={() => { editor?.chain().focus().setHorizontalRule().run(); setShowInsertMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5"
+                    >
+                      <Minus className="h-4 w-4 text-gray-500" />
+                      Horizontal Line
+                    </button>
+                    {editor?.isActive('table') && (
+                      <>
+                        <hr className="my-1 border-gray-100" />
+                        <div className="px-3 py-1 text-xs font-medium text-gray-400 uppercase tracking-wide">Table</div>
+                        <button
+                          onClick={() => { editor?.chain().focus().addRowAfter().run(); setShowInsertMenu(false); }}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-gray-400" />
+                          Add Row
+                        </button>
+                        <button
+                          onClick={() => { editor?.chain().focus().addColumnAfter().run(); setShowInsertMenu(false); }}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center gap-2.5"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-gray-400" />
+                          Add Column
+                        </button>
+                        <button
+                          onClick={() => { editor?.chain().focus().deleteRow().run(); setShowInsertMenu(false); }}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-red-50 text-red-600 rounded flex items-center gap-2.5"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                          Delete Row
+                        </button>
+                        <button
+                          onClick={() => { editor?.chain().focus().deleteColumn().run(); setShowInsertMenu(false); }}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-red-50 text-red-600 rounded flex items-center gap-2.5"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                          Delete Column
+                        </button>
+                        <button
+                          onClick={() => { editor?.chain().focus().deleteTable().run(); setShowInsertMenu(false); }}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-red-50 text-red-600 rounded flex items-center gap-2.5"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                          Delete Table
+                        </button>
+                      </>
+                    )}
                   </div>
-                </div>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={addYoutube}
-                  className="h-9 w-9 p-0"
-                  title="Insert YouTube Video"
-                >
-                  <YoutubeIcon className="h-4 w-4" />
-                </Button>
+                )}
               </div>
 
               {/* Text Colors */}
@@ -1168,10 +1182,10 @@ export default function ReusableTiptapEditor({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="h-9 w-9 p-0"
+                  className={btnSize}
                   title="Text Color"
                 >
-                  <Palette className="h-4 w-4" />
+                  <Palette className={iconSize} />
                 </Button>
                 {showColorPicker && (
                   <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 min-w-[280px]">
@@ -1207,18 +1221,21 @@ export default function ReusableTiptapEditor({
                 )}
               </div>
 
-              <div className="w-px h-6 bg-gray-300" />
+              <div className={cn("w-px bg-gray-300", sepHeight)} />
 
               {/* AI Enhancement */}
-              <div className="flex items-center gap-1">
-                <AIDropdown
-                  onAction={handleToolbarAI}
-                  isLoading={aiLoading}
-                  variant="toolbar"
-                />
-              </div>
-
-              <div className="w-px h-6 bg-gray-300" />
+              {showToolbarAI && (
+                <>
+                  <div className="flex items-center gap-1">
+                    <AIDropdown
+                      onAction={handleToolbarAI}
+                      isLoading={aiLoading}
+                      variant="toolbar"
+                    />
+                  </div>
+                  <div className={cn("w-px bg-gray-300", sepHeight)} />
+                </>
+              )}
 
               {/* History */}
               {enableHistory && showHistoryButton && (
@@ -1228,13 +1245,13 @@ export default function ReusableTiptapEditor({
                     size="sm"
                     onClick={handleLoadHistory}
                     disabled={loadingHistory || aiLoading}
-                    className="h-9 px-3"
+                    className={compactToolbar ? "h-7 px-1.5" : "h-9 px-3"}
                     title="View History"
                   >
                     {loadingHistory ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className={cn(iconSize, "animate-spin")} />
                     ) : (
-                      <History className="h-4 w-4" />
+                      <History className={iconSize} />
                     )}
                     <span className="ml-1 text-xs">History</span>
                   </Button>
@@ -1244,20 +1261,20 @@ export default function ReusableTiptapEditor({
               {/* Export */}
               {showExportButton && (
                 <>
-                  <div className="w-px h-6 bg-gray-300" />
+                  <div className={cn("w-px bg-gray-300", sepHeight)} />
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleExportDocx}
                       disabled={exportingDocx || aiLoading}
-                      className="h-9 px-3"
+                      className={compactToolbar ? "h-7 px-1.5" : "h-9 px-3"}
                       title="Export as DOCX"
                     >
                       {exportingDocx ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className={cn(iconSize, "animate-spin")} />
                       ) : (
-                        <Download className="h-4 w-4" />
+                        <Download className={iconSize} />
                       )}
                       <span className="ml-1 text-xs">DOCX</span>
                     </Button>

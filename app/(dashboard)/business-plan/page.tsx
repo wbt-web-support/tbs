@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Loader2, Sparkles, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain, Check, ExternalLink, Plus, X, Send } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain, Check, ExternalLink, Plus, X, Send, Download } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { getEffectiveUserId } from '@/lib/get-effective-user-id';
@@ -191,6 +191,7 @@ export default function BattlePlanPage() {
   const [improveInstruction, setImproveInstruction] = useState<string>("improve_clarity");
   const [customInstruction, setCustomInstruction] = useState("");
   const [improving, setImproving] = useState(false);
+  const [improvingActiveKey, setImprovingActiveKey] = useState<string | null>(null);
   const [improvedResults, setImprovedResults] = useState<Record<string, string> | null>(null);
   const [editableImprovedContent, setEditableImprovedContent] = useState<string>("");
   const [appliedImprovement, setAppliedImprovement] = useState<{ fieldId: string; value: string } | null>(null);
@@ -198,6 +199,13 @@ export default function BattlePlanPage() {
   const [structuredSaving, setStructuredSaving] = useState(false);
   const [structuredSavedAt, setStructuredSavedAt] = useState<number | null>(null);
   const structuredSavedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Docs tab AI assistant state
+  const [docAiOpen, setDocAiOpen] = useState(true);
+  const [docAiInstruction, setDocAiInstruction] = useState("");
+  const [docAiImproving, setDocAiImproving] = useState(false);
+  const [docAiActiveKey, setDocAiActiveKey] = useState<string | null>(null);
+  const [exportingFullPlan, setExportingFullPlan] = useState(false);
 
   useEffect(() => () => {
     if (structuredSavedTimeoutRef.current) clearTimeout(structuredSavedTimeoutRef.current);
@@ -353,15 +361,17 @@ export default function BattlePlanPage() {
     try {
       const { data, error } = await supabase
         .from("document_history")
-        .select("content")
+        .select("content, created_at")
         .eq("document_id", historyId)
         .eq("document_type", "business_plan")
         .order("created_at", { ascending: false })
         .limit(10);
-        
+
       if (error) throw error;
-      
-      return data?.map((item: { content: any; }) => item.content) || [];
+
+      return data?.map((item: { content: string; created_at: string }) =>
+        JSON.stringify({ content: item.content, created_at: item.created_at })
+      ) || [];
     } catch (error) {
       console.error("Error loading history:", error);
       return [];
@@ -767,6 +777,7 @@ export default function BattlePlanPage() {
       return;
     }
     setImproving(true);
+    setImprovingActiveKey(instruction);
     if (sourceContent == null) setImprovedResults(null);
     try {
       const fieldToSend = sourceContent != null ? { ...field, currentValue: sourceContent } : field;
@@ -790,6 +801,7 @@ export default function BattlePlanPage() {
       toast.error(err instanceof Error ? err.message : "Failed to improve");
     } finally {
       setImproving(false);
+      setImprovingActiveKey(null);
     }
   };
 
@@ -810,7 +822,115 @@ export default function BattlePlanPage() {
     setEditableImprovedContent("");
     toast.success("Content applied to field.");
   };
-  
+
+  // Docs tab: AI edit document handler — applies directly to the document
+  const handleDocAiEdit = async (instructionOverride?: string) => {
+    const instruction = instructionOverride ?? docAiInstruction.trim();
+    if (!instruction) {
+      toast.error("Type an instruction first");
+      return;
+    }
+    if (!businessPlanContent?.trim()) {
+      toast.error("No document content to edit");
+      return;
+    }
+    setDocAiImproving(true);
+    setDocAiActiveKey(instruction);
+    try {
+      const res = await fetch("/api/business-plan/edit-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruction, documentHtml: businessPlanContent }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to edit document");
+      setBusinessPlanContent(data.updatedHtml);
+      setDocAiInstruction("");
+      // Auto-save the updated content to DB
+      handleSaveBusinessPlanContent(data.updatedHtml);
+      // Save history entry so user can revert AI edits
+      if (battlePlanData?.id) {
+        handleSaveHistory(data.updatedHtml, battlePlanData.id);
+      }
+      toast.success("Document updated.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to edit document");
+    } finally {
+      setDocAiImproving(false);
+      setDocAiActiveKey(null);
+    }
+  };
+
+  // Export full business plan (both tabs combined)
+  const handleExportFullPlan = async () => {
+    if (exportingFullPlan) return;
+    setExportingFullPlan(true);
+    try {
+      const mission = detailsData?.mission ?? battlePlanData?.missionstatement ?? "";
+      const vision = detailsData?.vision ?? battlePlanData?.visionstatement ?? "";
+      const texts = strategicFieldsText ?? {
+        core_values: arrayToTextForFields(battlePlanData?.corevalues ?? []),
+        strategic_anchors: arrayToTextForFields(battlePlanData?.strategicanchors ?? []),
+        purpose_why: arrayToTextForFields(battlePlanData?.purposewhy ?? []),
+        one_year_targets: arrayToTextForFields(battlePlanData?.oneyeartarget?.targets ?? []),
+        five_year_targets: arrayToTextForFields(battlePlanData?.fiveyeartarget ?? []),
+      };
+
+      const bulletList = (text: string) => {
+        const items = text.split("\n").filter(Boolean);
+        if (items.length === 0) return "<p>—</p>";
+        return `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+      };
+
+      // Build combined HTML: Overview section first, then full document
+      const overviewHtml = `
+        <h1>Business Plan</h1>
+        <h2>Mission Statement</h2>
+        ${mission ? `<p>${mission}</p>` : "<p>—</p>"}
+        <h2>Vision Statement</h2>
+        ${vision ? `<p>${vision}</p>` : "<p>—</p>"}
+        <h2>Core Values</h2>
+        ${bulletList(texts.core_values)}
+        <h2>Strategic Anchors</h2>
+        ${bulletList(texts.strategic_anchors)}
+        <h2>Purpose &amp; Why</h2>
+        ${bulletList(texts.purpose_why)}
+        <h2>1-Year Targets</h2>
+        ${bulletList(texts.one_year_targets)}
+        <h2>5-Year Targets</h2>
+        ${bulletList(texts.five_year_targets)}
+      `;
+
+      const docsHtml = businessPlanContent?.trim() || "";
+      const fullHtml = docsHtml
+        ? `${overviewHtml}<hr/><h1>Detailed Plan</h1>${docsHtml}`
+        : overviewHtml;
+
+      const res = await fetch("/api/editor/export-docx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: fullHtml, filename: "Business_Plan" }),
+      });
+
+      if (!res.ok) throw new Error("Failed to export");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Business_Plan_${new Date().toISOString().split("T")[0]}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Business plan exported.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExportingFullPlan(false);
+    }
+  };
+
   // Show loading until we've fetched and determined step (avoids flash of welcome when plan exists)
   if (loading) {
     return (
@@ -1084,12 +1204,17 @@ export default function BattlePlanPage() {
   }
 
   // Plan view: main content (layout like growth machine: title then tabs below on left)
-  const aiPanelOpen = planViewTab === "structured" && aiAssistantOpen;
+  const aiPanelOpen = (planViewTab === "structured" && aiAssistantOpen) || (planViewTab === "docs" && docAiOpen);
   return (
     <div className={`flex flex-col min-h-0 overflow-hidden ${aiPanelOpen ? "lg:pr-[26rem]" : ""}`}>
       <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-4 shrink-0">
-        <h1 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Business Plan</h1>
-        <Tabs value={planViewTab} onValueChange={(v) => setPlanViewTab(v as "structured" | "docs")} className="w-full">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h1 className="text-base sm:text-lg font-semibold text-gray-900">Business Plan</h1>
+       
+        </div>
+
+        <div className="flex items-center gap-2 justify-start">
+        <Tabs value={planViewTab} onValueChange={(v) => setPlanViewTab(v as "structured" | "docs")}>
           <TabsList className="inline-flex h-11 w-fit items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-500">
             <TabsTrigger
               value="structured"
@@ -1104,7 +1229,20 @@ export default function BattlePlanPage() {
               Details plan info
             </TabsTrigger>
           </TabsList>
+          
         </Tabs>
+           <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportFullPlan}
+            disabled={exportingFullPlan}
+            className="shrink-0 h-10"
+          >
+            {exportingFullPlan ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Download className="h-4 w-4 mr-1.5" />}
+            Export DOCX
+          </Button>
+          </div>
+        
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto">
@@ -1143,7 +1281,15 @@ export default function BattlePlanPage() {
                   </div>
                 )}
               </div>
-              <div className="bg-white">
+              <div className="bg-white relative">
+                {docAiImproving && (
+                  <div className="absolute inset-0 z-20 bg-white/60 flex items-center justify-center cursor-not-allowed">
+                    <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-full border border-gray-200 shadow-sm">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="text-sm text-gray-700 font-medium">AI is editing...</span>
+                    </div>
+                  </div>
+                )}
                 <ReusableTiptapEditor
                   content={businessPlanContent}
                   onChange={handleBusinessPlanContentChange}
@@ -1153,6 +1299,9 @@ export default function BattlePlanPage() {
                   showBubbleMenu={true}
                   showSlashCommands={true}
                   showStatusBar={true}
+                  showExportButton={false}
+                  showToolbarAI={false}
+                  compactToolbar={true}
                   editorHeight="680px"
                   autoSave={true}
                   autoSaveDelay={2000}
@@ -1335,7 +1484,7 @@ export default function BattlePlanPage() {
                           >
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center flex-shrink-0">
-                                {improving ? <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> : <Sparkles className="h-4 w-4 text-blue-600" />}
+                                {improvingActiveKey === key ? <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> : <Sparkles className="h-4 w-4 text-blue-600" />}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <span className="text-sm font-medium text-gray-800 block">{label}</span>
@@ -1366,10 +1515,84 @@ export default function BattlePlanPage() {
                   )}
                 </div>
               </div>
-          ) : planViewTab === "structured" ? (
+          ) : planViewTab === "docs" && docAiOpen ? (
+            <div className="hidden lg:block fixed top-54 right-6 z-30 w-96 max-h-[calc(100vh-8rem)] rounded-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Sparkles className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 text-sm">Document Editor</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Tell me what to change</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setDocAiOpen(false)} aria-label="Close">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                  <div className="space-y-4">
+                    <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+                      <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Brain className="h-7 w-7 text-blue-600" />
+                      </div>
+                      <h3 className="text-gray-900 font-semibold mb-1 text-base">Edit your document with AI</h3>
+                      <p className="text-gray-500 text-sm max-w-xs mx-auto">
+                        Tell me which section to change and how. I&apos;ll update only that part.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { key: "Improve the clarity and readability of the entire document", label: "Improve clarity", sub: "Better flow and readability" },
+                        { key: "Make the document more concise — remove filler and tighten language", label: "Make it concise", sub: "Shorter, same meaning" },
+                        { key: "Make the tone more professional and polished", label: "More professional", sub: "Polished business tone" },
+                        { key: "Fix all grammar, spelling, and punctuation errors", label: "Fix grammar & spelling", sub: "Correct all errors" },
+                      ].map(({ key, label, sub }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => handleDocAiEdit(key)}
+                          disabled={docAiImproving}
+                          className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed group bg-white"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center flex-shrink-0">
+                              {docAiActiveKey === key ? <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> : <Sparkles className="h-4 w-4 text-blue-600" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium text-gray-800 block">{label}</span>
+                              {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="relative bg-white rounded-xl border border-gray-200 focus-within:border-blue-300 transition-colors">
+                      <Input
+                        value={docAiInstruction}
+                        onChange={(e) => setDocAiInstruction(e.target.value)}
+                        placeholder="e.g. Rewrite the marketing section to focus on digital..."
+                        className="pr-12 border-0 focus:ring-0 h-12 text-sm placeholder:text-gray-400 rounded-xl"
+                        disabled={docAiImproving}
+                        onKeyDown={(e) => { if (e.key === "Enter" && docAiInstruction.trim()) { e.preventDefault(); handleDocAiEdit(); } }}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => { if (docAiInstruction.trim()) handleDocAiEdit(); }}
+                        disabled={docAiImproving || !docAiInstruction.trim()}
+                        className="absolute right-2 top-2 h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+          ) : !aiPanelOpen ? (
             <div className="hidden lg:flex fixed bottom-6 right-6 z-20">
               <Button
-                onClick={() => setAiAssistantOpen(true)}
+                onClick={() => { if (planViewTab === "structured") setAiAssistantOpen(true); else setDocAiOpen(true); }}
                 className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 p-0"
                 title="Open AI Assistant"
               >

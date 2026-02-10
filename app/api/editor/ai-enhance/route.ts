@@ -103,53 +103,53 @@ export async function POST(req: NextRequest) {
     }
 
     // Define prompts for each action
+    const HTML_RULES = `
+CRITICAL HTML RULES:
+- The input is HTML. Your output MUST also be valid HTML.
+- Preserve ALL existing HTML tags exactly: <h1>, <h2>, <h3>, <p>, <ul>, <li>, <ol>, <strong>, <em>, <a>, <blockquote>, <code>, <table>, <tr>, <td>, <th>, etc.
+- Do NOT strip or flatten HTML formatting. If text is bold (<strong>), keep it bold. If it's a list (<ul><li>), keep it as a list.
+- Do NOT convert HTML to plain text or Markdown.
+- Do NOT wrap your response in \`\`\`html code fences or any markdown formatting.
+- Return ONLY the raw HTML content, nothing else.`;
+
     const prompts = {
-      simplify: `You are an AI editor. Please simplify the following HTML content while keeping the core meaning intact. Make it easier to understand and more concise. and make sure to always use UK English.${userContextString}
+      simplify: `You are an AI HTML editor. Simplify the following HTML content — make it easier to understand and more concise while keeping the core meaning. Use UK English.${userContextString}
+${HTML_RULES}
 
-IMPORTANT: Return ONLY the clean HTML content without any markdown formatting, code blocks, or backticks. Do not wrap your response in \`\`\`html or any other formatting.
-
+INPUT HTML:
 ${content}`,
 
-      grammar: `You are an AI editor. Please fix any spelling and grammar errors in the following HTML content. Maintain the original tone and meaning, but correct any mistakes and make sure to always use UK English and if it's in a USA english, please convert it to UK English.${userContextString}
+      grammar: `You are an AI HTML editor. Fix any spelling and grammar errors in the following HTML content. Maintain the original tone and meaning. Convert any US English to UK English.${userContextString}
+${HTML_RULES}
 
-IMPORTANT: Return ONLY the clean HTML content without any markdown formatting, code blocks, or backticks. Do not wrap your response in \`\`\`html or any other formatting.
-
+INPUT HTML:
 ${content}`,
 
-        shorter: `You are an AI editor. Please make the following HTML content shorter while preserving all the key information and main points. Be concise but comprehensive and make sure to always use UK English.${userContextString}
+      shorter: `You are an AI HTML editor. Make the following HTML content shorter while preserving all key information and main points. Be concise but comprehensive. Use UK English.${userContextString}
+${HTML_RULES}
 
-IMPORTANT: Return ONLY the clean HTML content without any markdown formatting, code blocks, or backticks. Do not wrap your response in \`\`\`html or any other formatting.
-
+INPUT HTML:
 ${content}`,
 
-      longer: `You are an AI editor. Please expand the following HTML content with more detail, examples, and explanations. Add valuable information that enhances the content without changing the core message and make sure to always use UK English.${userContextString}
+      longer: `You are an AI HTML editor. Expand the following HTML content with more detail, examples, and explanations. Enhance the content without changing the core message. Use UK English.${userContextString}
+${HTML_RULES}
 
-IMPORTANT: Return ONLY the clean HTML content without any markdown formatting, code blocks, or backticks. Do not wrap your response in \`\`\`html or any other formatting.
-
+INPUT HTML:
 ${content}`,
 
       format: `You are an HTML formatter. Your ONLY job is to improve the HTML structure of the following content.${userContextString}
 
 RULES:
-- DO NOT change ANY text content - keep every word exactly the same
-- DO NOT add any new content, examples, or explanations
-- DO NOT add extra line breaks or spacing and if there are any, remove them
-- ONLY fix HTML tags and structure but remove any extra line breaks or spacing
+- DO NOT change ANY text content — keep every word exactly the same.
+- DO NOT add any new content, examples, or explanations.
+- Convert plain text titles to proper heading tags (h2, h3, etc.).
+- Ensure paragraphs are properly wrapped in <p> tags.
+- Convert bullet points to proper <ul> and <li> tags.
+- Fix any broken or malformed HTML.
+- Remove unnecessary empty paragraphs or extra spacing.
+- Return ONLY the HTML content — no explanations, no markdown, no code fences.
 
-WHAT TO DO:
-- Convert plain text titles to proper heading tags (h1, h2, h3, etc.)
-- Ensure paragraphs are properly wrapped in <p> tags
-- Convert bullet points to proper <ul> and <li> tags
-- Fix any broken or malformed HTML
-- Keep the content exactly as it is, just with better HTML structure
-- Remove any extra line breaks or spacing and if there are any, remove them
-
-EXAMPLE:
-Input: "Title\nSome content here.\n• Bullet point 1\n• Bullet point 2"
-Output: "<h2>Title</h2><p>Some content here.</p><ul><li>Bullet point 1</li><li>Bullet point 2</li></ul>"
-
-Return ONLY the HTML content - no explanations, no markdown, no extra formatting.
-
+INPUT HTML:
 ${content}`
     };
 
@@ -162,50 +162,45 @@ ${content}`
 
     // Add context if processing selected text
     if (selectedText && context) {
-      const actionDescription = 
-        action === 'simplify' ? 'simplify this text to make it clearer and easier to understand while preserving the key information' :
-        action === 'grammar' ? 'fix any spelling and grammar issues in this text and ensure it uses proper UK English conventions' :
-        action === 'shorter' ? 'make this text more concise while keeping all essential information and main points' :
-        action === 'longer' ? 'expand this text with more details, examples and explanations that enhance the content without changing its core message' :
-        action === 'format' ? 'improve the HTML structure and formatting of this text while keeping the content exactly the same' : 'modify';
-        
-      prompt = `You are helping edit a document. Here's the context of the full document:
+      const actionDescription =
+        action === 'simplify' ? 'simplify this HTML to make it clearer and easier to understand while preserving the key information' :
+        action === 'grammar' ? 'fix any spelling and grammar issues in this HTML and ensure it uses proper UK English conventions' :
+        action === 'shorter' ? 'make this HTML content more concise while keeping all essential information and main points' :
+        action === 'longer' ? 'expand this HTML content with more details, examples and explanations that enhance it without changing its core message' :
+        action === 'format' ? 'improve the HTML structure and formatting while keeping the content exactly the same' : 'modify';
+
+      prompt = `You are helping edit a document. Here's the context of the full document for reference:
 
 FULL DOCUMENT CONTEXT:
 ${context}
 
-Now, please ${actionDescription} this specific selected portion:
+Now, please ${actionDescription} for ONLY this selected HTML portion:
 
-SELECTED TEXT TO MODIFY:
+SELECTED HTML TO MODIFY:
 ${selectedText}
 
-Return only the modified version of the selected text in the same format (HTML if HTML, plain text if plain text). Do not include the full document context in your response.`;
+CRITICAL RULES:
+- The selected content is HTML. Your output MUST also be valid HTML.
+- Preserve ALL HTML tags and formatting (bold, italic, lists, headings, links, etc.).
+- Do NOT convert HTML to plain text or Markdown.
+- Do NOT add \`\`\`html code fences or any wrapping.
+- Return ONLY the modified HTML fragment — not the full document.
+- Use UK English.`;
     }
 
     // Use the generative model
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite-001" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const result = await model.generateContent(prompt);
     const response = result.response;
     let enhancedContent = response.text();
 
-    // Clean up the response - remove markdown code blocks and other unwanted formatting
+    // Clean up the response - remove markdown code blocks if the model wraps them
     enhancedContent = enhancedContent
-      .replace(/```html\s*/gi, '') // Remove ```html
-      .replace(/```\s*/g, '') // Remove closing ```
-      .replace(/^html\s*/gi, '') // Remove leading 'html' text
+      .replace(/^```html\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
       .trim();
-
-    // Additional cleanup for common AI formatting issues
-    if (enhancedContent.startsWith('<') && enhancedContent.endsWith('>')) {
-      // Looks like clean HTML, keep as is
-    } else if (enhancedContent.includes('<') && enhancedContent.includes('>')) {
-      // Contains HTML but might have extra text, try to extract just the HTML
-      const htmlMatch = enhancedContent.match(/<[\s\S]*>/);
-      if (htmlMatch) {
-        enhancedContent = htmlMatch[0];
-      }
-    }
 
     return NextResponse.json({ 
       enhancedContent: enhancedContent.trim(),
