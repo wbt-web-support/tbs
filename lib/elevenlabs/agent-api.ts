@@ -113,16 +113,6 @@ function buildToolsConfig(tools: ToolConfig[]): object[] {
   });
 }
 
-/** Tools that don't require user/team context */
-const CONTEXT_FREE_TOOLS = new Set(["web_search"]);
-
-function needsDynamicVariables(tools: ToolConfig[]): boolean {
-  return tools.some((t) => {
-    const name = t.name.replace(/[^a-zA-Z0-9\s_-]/g, "").replace(/\s+/g, "_").toLowerCase();
-    return !CONTEXT_FREE_TOOLS.has(name);
-  });
-}
-
 /**
  * Create a new agent in ElevenLabs
  */
@@ -141,14 +131,12 @@ export async function createAgent(
         },
         first_message: config.firstMessage || "Hello, how can I help you today?",
         language: "en",
-        ...(needsDynamicVariables(config.tools) && {
-          dynamic_variables: {
-            dynamic_variable_placeholders: {
-              user_id: "",
-              team_id: "",
-            },
+        dynamic_variables: {
+          dynamic_variable_placeholders: {
+            user_id: "",
+            team_id: "",
           },
-        }),
+        },
       },
       tts: {
         voice_id: config.voiceId,
@@ -201,14 +189,12 @@ export async function updateAgent(
         },
         first_message: config.firstMessage || "Hello, how can I help you today?",
         language: "en",
-        ...(needsDynamicVariables(config.tools) && {
-          dynamic_variables: {
-            dynamic_variable_placeholders: {
-              user_id: "",
-              team_id: "",
-            },
+        dynamic_variables: {
+          dynamic_variable_placeholders: {
+            user_id: "",
+            team_id: "",
           },
-        }),
+        },
       },
       tts: {
         voice_id: config.voiceId,
