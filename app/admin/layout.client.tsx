@@ -25,7 +25,7 @@ import {
   UserIcon,
   ChevronDown,
   Settings2,
-  Workflow,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -110,9 +110,9 @@ const navigationSections = [
         icon: AlertTriangle,
       },
       {
-        name: "Chatbot Flow",
-        href: "/admin/chatbot-flow",
-        icon: Workflow,
+        name: "Agent Flow",
+        href: "/admin/agent-flow",
+        icon: Bot,
       }
     ]
   },
@@ -139,7 +139,7 @@ export default function AdminLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isFlowEditPage = pathname?.includes("/admin/chatbot-flow/") && pathname?.includes("/edit");
+  const isFlowEditPage = pathname?.includes("/admin/agent-flow/") && pathname?.includes("/edit");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userDetails, setUserDetails] = useState<{ email: string; fullName: string } | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{
@@ -511,7 +511,7 @@ export default function AdminLayoutClient({
         <div
           className={cn(
             "flex-1 overflow-y-auto",
-            pathname?.startsWith("/admin/chatbot-flow")
+            pathname?.startsWith("/admin/agent-flow")
               ? "p-0"
               : "p-4 sm:p-6 lg:p-8"
           )}
