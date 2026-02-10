@@ -20,6 +20,7 @@ export type AgentConfig = {
   voiceId: string;
   firstMessage?: string;
   tools: ToolConfig[];
+  toolIds?: string[];
 };
 
 export type ElevenLabsAgentResponse = {
@@ -65,6 +66,7 @@ export type DbElevenLabsToolDefinition = {
   parameters_schema: Record<string, unknown>;
   supported_scopes: string[];
   is_active: boolean;
+  elevenlabs_tool_id: string | null;
   created_at: string;
   updated_at: string;
 };

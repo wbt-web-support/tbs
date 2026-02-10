@@ -3,7 +3,14 @@
  *
  * POST: Sync agent configuration to ElevenLabs
  *
- * This creates or updates the agent in ElevenLabs based on the local configuration.
+ * Flow:
+ * 1. Fetch agent + enabled tools from DB
+ * 2. For each tool: create or update as a workspace-level tool in ElevenLabs
+ * 3. Collect workspace tool IDs
+ * 4. Create or update agent with tool_ids array
+ *
+ * Tools are managed as workspace resources (not inline) because ElevenLabs
+ * silently ignores inline tools on PATCH/update.
  */
 
 import { NextResponse } from "next/server";
@@ -12,6 +19,8 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import {
   createAgent,
   updateAgent,
+  createWorkspaceTool,
+  updateWorkspaceTool,
 } from "@/lib/elevenlabs/agent-api";
 import type { ToolConfig, DbElevenLabsToolDefinition } from "@/lib/elevenlabs/types";
 
@@ -47,6 +56,40 @@ async function verifyAuth() {
 }
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+/**
+ * Ensure a tool definition has a workspace-level tool in ElevenLabs.
+ * Creates one if elevenlabs_tool_id is NULL, otherwise updates the existing one.
+ * Returns the ElevenLabs tool_id.
+ */
+async function ensureWorkspaceTool(
+  adminClient: ReturnType<typeof getAdminClient>,
+  def: DbElevenLabsToolDefinition
+): Promise<string> {
+  const toolConfig: ToolConfig = {
+    name: def.name,
+    description: def.description,
+    endpoint: def.endpoint_path,
+    parameters: def.parameters_schema,
+  };
+
+  if (def.elevenlabs_tool_id) {
+    // Update existing workspace tool (pushes current URL/schema)
+    await updateWorkspaceTool(def.elevenlabs_tool_id, toolConfig);
+    return def.elevenlabs_tool_id;
+  }
+
+  // Create new workspace tool
+  const toolId = await createWorkspaceTool(toolConfig);
+
+  // Save the ElevenLabs tool ID back to DB
+  await adminClient
+    .from("elevenlabs_tool_definitions")
+    .update({ elevenlabs_tool_id: toolId })
+    .eq("id", def.id);
+
+  return toolId;
+}
 
 /**
  * POST /api/elevenlabs/agents/[id]/sync
@@ -88,41 +131,41 @@ export async function POST(req: Request, { params }: RouteParams) {
     .in("tool_key", toolKeys.length > 0 ? toolKeys : ["__none__"])
     .eq("is_active", true);
 
-  // Build tool configs
-  const tools: ToolConfig[] = (
-    (toolDefinitions || []) as DbElevenLabsToolDefinition[]
-  ).map((def) => ({
-    name: def.name,
-    description: def.description,
-    endpoint: def.endpoint_path,
-    parameters: def.parameters_schema,
-  }));
+  const defs = (toolDefinitions || []) as DbElevenLabsToolDefinition[];
 
   try {
+    // Step 1: Ensure each tool exists as a workspace-level tool in ElevenLabs
+    const toolIds: string[] = [];
+    for (const def of defs) {
+      const toolId = await ensureWorkspaceTool(adminClient, def);
+      toolIds.push(toolId);
+    }
+
+    console.log("[elevenlabs/agents/sync] Workspace tool IDs:", toolIds);
+
+    // Step 2: Create or update the agent with tool_ids
+    const agentConfig = {
+      name: agent.name,
+      systemPrompt: agent.system_prompt,
+      voiceId: agent.voice_id,
+      firstMessage: agent.first_message || undefined,
+      tools: [], // Not used for inline tools anymore
+      toolIds,
+    };
+
     if (agent.elevenlabs_agent_id) {
       // Update existing agent
-      await updateAgent(agent.elevenlabs_agent_id, {
-        name: agent.name,
-        systemPrompt: agent.system_prompt,
-        voiceId: agent.voice_id,
-        firstMessage: agent.first_message || undefined,
-        tools,
-      });
+      await updateAgent(agent.elevenlabs_agent_id, agentConfig);
 
       return NextResponse.json({
         success: true,
         action: "updated",
         elevenlabs_agent_id: agent.elevenlabs_agent_id,
+        tool_count: toolIds.length,
       });
     } else {
       // Create new agent
-      const result = await createAgent({
-        name: agent.name,
-        systemPrompt: agent.system_prompt,
-        voiceId: agent.voice_id,
-        firstMessage: agent.first_message || undefined,
-        tools,
-      });
+      const result = await createAgent(agentConfig);
 
       // Save the ElevenLabs agent ID
       await adminClient
@@ -134,6 +177,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         success: true,
         action: "created",
         elevenlabs_agent_id: result.agent_id,
+        tool_count: toolIds.length,
       });
     }
   } catch (error) {
