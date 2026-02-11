@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, MicOff, Phone, PhoneOff, Volume2, VolumeX } from "lucide-react";
+import { Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Transcript } from "./transcript";
-import type { Message, ConnectionStatus, VoiceAgentProps } from "./types";
+import type { Message, VoiceAgentProps } from "./types";
 
 export function VoiceAgent({
   agentId,
@@ -18,8 +18,6 @@ export function VoiceAgent({
   onStatusChange,
 }: VoiceAgentProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [status, setStatus] = useState<ConnectionStatus>("disconnected");
-  const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const addMessage = useCallback(
@@ -38,78 +36,88 @@ export function VoiceAgent({
 
   const conversation = useConversation({
     onConnect: () => {
-      setStatus("connected");
+      console.log("[VoiceAgent] ✅ Connected");
       setError(null);
       onStatusChange?.("connected");
     },
-    onDisconnect: () => {
-      setStatus("disconnected");
+    onDisconnect: (details) => {
+      // Log the full disconnect reason
+      console.log("[VoiceAgent] ❌ Disconnected:", JSON.stringify(details));
+      setError(
+        details && typeof details === "object"
+          ? `Disconnected: ${JSON.stringify(details)}`
+          : null
+      );
       onStatusChange?.("disconnected");
     },
-    onMessage: (message) => {
-      // Handle different message types from ElevenLabs
-      if (message.message) {
-        addMessage("agent", message.message);
+    onMessage: (msg) => {
+      console.log("[VoiceAgent] 💬 Message:", JSON.stringify(msg));
+      if (msg.message) {
+        addMessage(msg.role === "user" ? "user" : "agent", msg.message);
       }
     },
-    onError: (err) => {
-      console.error("[VoiceAgent] Error:", err);
-      setError(err.message || "Connection error");
-      setStatus("disconnected");
+    onError: (err, context) => {
+      console.error("[VoiceAgent] 🔴 Error:", err, context);
+      const message = typeof err === "string" ? err : "Connection error";
+      setError(message);
+    },
+    onStatusChange: ({ status }) => {
+      console.log("[VoiceAgent] 🔄 Status changed:", status);
     },
   });
 
   const startConversation = async () => {
-    setStatus("connecting");
     setError(null);
-    onStatusChange?.("connecting");
 
     try {
-      // Request microphone permission
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Step 1: Get signed URL from our server
+      console.log("[VoiceAgent] 🔑 Fetching signed URL...");
+      const response = await fetch(
+        `/api/elevenlabs/signed-url?agentId=${encodeURIComponent(agentId)}`
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to get conversation URL");
+      }
+      const { signedUrl } = await response.json();
+      console.log("[VoiceAgent] 🔑 Got signed URL");
 
-      // Start the conversation with user context
-      await conversation.startSession({
-        agentId,
+      // Step 2: Start session - SDK handles microphone internally
+      console.log("[VoiceAgent] 🚀 Starting session...");
+      const conversationId = await conversation.startSession({
+        signedUrl,
         dynamicVariables: {
           user_id: userId,
           team_id: teamId || "",
           user_name: userName || "",
         },
       });
+
+      console.log("[VoiceAgent] ✅ Session started:", conversationId);
     } catch (err) {
-      console.error("[VoiceAgent] Failed to start:", err);
+      console.error("[VoiceAgent] 🔴 Failed to start:", err);
       setError(
         err instanceof Error ? err.message : "Failed to start conversation"
       );
-      setStatus("disconnected");
-      onStatusChange?.("disconnected");
     }
   };
 
-  const endConversation = async () => {
-    try {
-      await conversation.endSession();
-    } catch (err) {
-      console.error("[VoiceAgent] Failed to end:", err);
-    }
-    setStatus("disconnected");
-    onStatusChange?.("disconnected");
-  };
+  const stopConversation = useCallback(async () => {
+    await conversation.endSession();
+  }, [conversation]);
 
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    // Note: Actual mute implementation depends on ElevenLabs SDK capabilities
-  };
+  // Keep a ref for unmount cleanup
+  const conversationRef = useRef(conversation);
+  conversationRef.current = conversation;
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (status === "connected") {
-        conversation.endSession().catch(console.error);
-      }
+      conversationRef.current.endSession().catch(() => {});
     };
-  }, [status, conversation]);
+  }, []);
+
+  const isConnected = conversation.status === "connected";
+  const isDisconnected = conversation.status === "disconnected";
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -123,21 +131,25 @@ export function VoiceAgent({
             <span
               className={cn(
                 "text-sm font-normal",
-                status === "connected" && "text-green-600",
-                status === "connecting" && "text-yellow-600",
-                status === "disconnected" && "text-muted-foreground"
+                isConnected && "text-green-600",
+                !isConnected && !isDisconnected && "text-yellow-600",
+                isDisconnected && "text-muted-foreground"
               )}
             >
-              {status === "connected" && "Connected"}
-              {status === "connecting" && "Connecting..."}
-              {status === "disconnected" && "Disconnected"}
+              {isConnected
+                ? conversation.isSpeaking
+                  ? "Agent is speaking"
+                  : "Agent is listening"
+                : isDisconnected
+                  ? "Disconnected"
+                  : "Connecting..."}
             </span>
             <div
               className={cn(
                 "h-2 w-2 rounded-full",
-                status === "connected" && "bg-green-500",
-                status === "connecting" && "bg-yellow-500 animate-pulse",
-                status === "disconnected" && "bg-gray-300"
+                isConnected && "bg-green-500",
+                !isConnected && !isDisconnected && "bg-yellow-500 animate-pulse",
+                isDisconnected && "bg-gray-300"
               )}
             />
           </div>
@@ -146,7 +158,7 @@ export function VoiceAgent({
 
       <CardContent className="space-y-4">
         {error && (
-          <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm">
+          <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm whitespace-pre-wrap break-all">
             {error}
           </div>
         )}
@@ -157,70 +169,30 @@ export function VoiceAgent({
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-center gap-4">
-          {status === "disconnected" ? (
-            <Button
-              size="lg"
-              onClick={startConversation}
-              className="rounded-full h-14 w-14"
-            >
-              <Phone className="h-6 w-6" />
-            </Button>
-          ) : (
-            <>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={toggleMute}
-                className={cn(
-                  "rounded-full h-12 w-12",
-                  isMuted && "bg-red-100"
-                )}
-                disabled={status !== "connected"}
-              >
-                {isMuted ? (
-                  <MicOff className="h-5 w-5 text-red-600" />
-                ) : (
-                  <Mic className="h-5 w-5" />
-                )}
-              </Button>
-
-              <Button
-                size="lg"
-                variant="destructive"
-                onClick={endConversation}
-                className="rounded-full h-14 w-14"
-                disabled={status === "connecting"}
-              >
-                <PhoneOff className="h-6 w-6" />
-              </Button>
-
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => setIsMuted(!isMuted)}
-                className="rounded-full h-12 w-12"
-                disabled={status !== "connected"}
-              >
-                {isMuted ? (
-                  <VolumeX className="h-5 w-5" />
-                ) : (
-                  <Volume2 className="h-5 w-5" />
-                )}
-              </Button>
-            </>
-          )}
+        <div className="flex flex-col gap-y-4 items-center">
+          <Button
+            variant="outline"
+            className="rounded-full"
+            size="lg"
+            disabled={!isDisconnected}
+            onClick={startConversation}
+          >
+            Start conversation
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded-full"
+            size="lg"
+            disabled={isDisconnected}
+            onClick={stopConversation}
+          >
+            End conversation
+          </Button>
         </div>
 
-        {status === "disconnected" && (
+        {isDisconnected && !error && (
           <p className="text-center text-sm text-muted-foreground">
-            Click the button above to start a voice conversation
-          </p>
-        )}
-
-        {status === "connected" && (
-          <p className="text-center text-sm text-muted-foreground">
-            Speak naturally. The agent is listening...
+            Click &quot;Start conversation&quot; to begin
           </p>
         )}
       </CardContent>

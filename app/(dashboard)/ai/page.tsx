@@ -1,44 +1,86 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AiChat } from "@/components/ai-chat";
+import { VoiceAgent } from "@/components/voice-agent";
+import { getEffectiveUserId } from "@/lib/get-effective-user-id";
+import { createClient } from "@/utils/supabase/client";
 import { Loader2 } from "lucide-react";
 
 const BUSINESS_OWNER_NAMES = ["business owner", "business owner chatbot"];
 
+type Agent = {
+  id: string;
+  name: string;
+  description: string | null;
+  elevenlabs_agent_id: string;
+};
+
 export default function AiPage() {
-  const [chatbotId, setChatbotId] = useState<string | null>(null);
-  const [chatbotName, setChatbotName] = useState<string>("");
+  const [agent, setAgent] = useState<Agent | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | undefined>();
+  const [userName, setUserName] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/chatbot-flow/public/chatbots")
-      .then((r) => r.json())
-      .then((data) => {
+
+    async function init() {
+      try {
+        // Fetch agents and user context in parallel
+        const [agentsRes, effectiveUserId] = await Promise.all([
+          fetch("/api/elevenlabs/agents/public").then((r) => r.json()),
+          getEffectiveUserId(),
+        ]);
+
         if (cancelled) return;
-        const list = Array.isArray(data?.chatbots) ? data.chatbots : [];
-        const active = list.filter(
-          (c: { is_active?: boolean }) => c.is_active !== false
+
+        // Select agent
+        const list: Agent[] = Array.isArray(agentsRes?.agents)
+          ? agentsRes.agents
+          : [];
+        const businessOwner = list.find((a) =>
+          BUSINESS_OWNER_NAMES.includes(a.name.toLowerCase().trim())
         );
-        const businessOwner = active.find((c: { name?: string }) =>
-          BUSINESS_OWNER_NAMES.includes((c.name ?? "").toLowerCase().trim())
-        );
-        const chosen = businessOwner ?? active[0];
-        if (chosen?.id) {
-          setChatbotId(chosen.id);
-          setChatbotName(chosen.name ?? "AI");
-        } else {
-          setError("No chatbots available. Add a chatbot in Admin → Chatbot Flow.");
+        const chosen = businessOwner ?? list[0];
+
+        if (!chosen) {
+          setError("No AI agents available. Contact your administrator.");
+          return;
         }
-      })
-      .catch(() => {
-        if (!cancelled) setError("Failed to load chatbots.");
-      })
-      .finally(() => {
+
+        setAgent(chosen);
+
+        if (!effectiveUserId) {
+          setError("Unable to identify user.");
+          return;
+        }
+
+        setUserId(effectiveUserId);
+
+        // Get user's business info for team_id and name
+        const supabase = createClient();
+        const { data: businessInfo } = await supabase
+          .from("business_info")
+          .select("team_id, full_name")
+          .eq("user_id", effectiveUserId)
+          .single();
+
+        if (cancelled) return;
+
+        if (businessInfo) {
+          setTeamId(businessInfo.team_id || undefined);
+          setUserName(businessInfo.full_name || undefined);
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load AI assistant.");
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    init();
     return () => {
       cancelled = true;
     };
@@ -48,30 +90,30 @@ export default function AiPage() {
     return (
       <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[400px] items-center justify-center gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading AI assistant...</p>
+        <p className="text-sm text-muted-foreground">
+          Loading AI assistant...
+        </p>
       </div>
     );
   }
 
-  if (error || !chatbotId) {
+  if (error || !agent || !userId) {
     return (
       <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[400px] items-center justify-center gap-4 px-4">
-        <p className="text-sm text-destructive text-center">{error ?? "No chatbot selected."}</p>
+        <p className="text-sm text-destructive text-center">
+          {error ?? "No agent selected."}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[400px] w-full">
-      <AiChat
-        chatbotId={chatbotId}
-        chatbotName={chatbotName}
-        greetingSubtitle="Ask about your business, priorities, or get quick insights."
-        quickActions={[
-          { label: "Today's priorities", prompt: "What are my top priorities today for my business?" },
-          { label: "Quick insights", prompt: "Give me a quick insight or recommendation for my business." },
-          { label: "What's new", prompt: "What's new or changed that I should know about?" },
-        ]}
+    <div className="flex h-[calc(100vh-8rem)] min-h-[400px] w-full items-center justify-center p-4">
+      <VoiceAgent
+        agentId={agent.elevenlabs_agent_id}
+        userId={userId}
+        teamId={teamId}
+        userName={userName}
       />
     </div>
   );

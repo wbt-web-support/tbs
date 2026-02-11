@@ -294,6 +294,7 @@ export async function createAgent(
           dynamic_variable_placeholders: {
             user_id: "test",
             team_id: "test",
+            user_name: "test",
           },
         },
       },
@@ -352,6 +353,7 @@ export async function updateAgent(
           dynamic_variable_placeholders: {
             user_id: "test",
             team_id: "test",
+            user_name: "test",
           },
         },
       },
