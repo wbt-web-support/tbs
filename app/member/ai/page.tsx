@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { AiChat } from "@/components/ai-chat";
 import { Loader2 } from "lucide-react";
 
-const MEMBER_CHATBOT_NAMES = ["engineer", "member", "team member"];
+/** UUID of the chatbot to use for the member/team view. Set in env as NEXT_PUBLIC_MEMBER_CHATBOT_ID. */
+const MEMBER_CHATBOT_ID = process.env.NEXT_PUBLIC_MEMBER_CHATBOT_ID ?? "";
 
 export default function MemberAiPage() {
   const [chatbotId, setChatbotId] = useState<string | null>(null);
@@ -13,30 +14,29 @@ export default function MemberAiPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!MEMBER_CHATBOT_ID?.trim()) {
+      setError("Member chatbot not configured. Set NEXT_PUBLIC_MEMBER_CHATBOT_ID to the chatbot UUID.");
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
-    fetch("/api/chatbot-flow/public/chatbots")
+    fetch(`/api/chatbot-flow/public/chatbots/${MEMBER_CHATBOT_ID.trim()}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
-        const list = Array.isArray(data?.chatbots) ? data.chatbots : [];
-        const active = list.filter(
-          (c: { is_active?: boolean }) => c.is_active !== false
-        );
-        const memberChatbot = active.find((c: { name?: string }) =>
-          MEMBER_CHATBOT_NAMES.some((n) =>
-            (c.name ?? "").toLowerCase().trim().includes(n)
-          )
-        );
-        const chosen = memberChatbot ?? active[0];
-        if (chosen?.id) {
-          setChatbotId(chosen.id);
-          setChatbotName(chosen.name ?? "AI");
+        if (data?.error) {
+          setError(data.error === "Chatbot not found" ? "Chatbot not found or inactive. Check NEXT_PUBLIC_MEMBER_CHATBOT_ID." : data.error);
+          return;
+        }
+        if (data?.id) {
+          setChatbotId(data.id);
+          setChatbotName(data.name ?? "AI");
         } else {
-          setError("No chatbots available. Add a chatbot in Admin → Chatbot Flow.");
+          setError("No chatbot data returned.");
         }
       })
       .catch(() => {
-        if (!cancelled) setError("Failed to load chatbots.");
+        if (!cancelled) setError("Failed to load chatbot.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

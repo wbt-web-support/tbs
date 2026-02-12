@@ -1206,8 +1206,8 @@ export default function BattlePlanPage() {
   // Plan view: main content (layout like growth machine: title then tabs below on left)
   const aiPanelOpen = (planViewTab === "structured" && aiAssistantOpen) || (planViewTab === "docs" && docAiOpen);
   return (
-    <div className={`flex flex-col min-h-0 overflow-hidden ${aiPanelOpen ? "lg:pr-[26rem]" : ""}`}>
-      <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-4 shrink-0">
+    <div className={`flex flex-col h-full overflow-hidden ${aiPanelOpen ? "lg:pr-[26rem]" : ""}`}>
+      <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-4 shrink-0 bg-white z-10">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h1 className="text-base sm:text-lg font-semibold text-gray-900">Business Plan</h1>
        
@@ -1226,7 +1226,7 @@ export default function BattlePlanPage() {
               value="docs"
               className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
             >
-              Details plan info
+              Detailed Business Plan
             </TabsTrigger>
           </TabsList>
           
@@ -1245,17 +1245,17 @@ export default function BattlePlanPage() {
         
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className={`flex-1 min-h-0 flex flex-col ${planViewTab === "docs" ? "overflow-hidden" : "overflow-auto"}`}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
           </div>
         ) : (
-          <div className="flex gap-8 w-full px-3 sm:px-6 pb-4 sm:pb-6">
-            <div className="flex-1 min-w-0 flex flex-col gap-6">
+          <div className="flex gap-8 w-full px-3 sm:px-6 pb-4 sm:pb-6 flex-1 min-h-0 h-full">
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-6 h-full">
           {planViewTab === "docs" && (
-            <Card className="overflow-hidden border-gray-200 flex flex-col">
-              <div className="px-6 py-4 bg-white border-b border-gray-200 flex flex-wrap items-start justify-between gap-2">
+            <Card className="overflow-hidden border-gray-200 flex flex-col flex-1 min-h-0 h-full">
+              <div className="px-6 py-4 bg-white border-b border-gray-200 flex flex-wrap items-start justify-between gap-2 shrink-0">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Business Plan Document</h2>
                   <p className="text-sm text-gray-600 mt-1">
@@ -1281,7 +1281,7 @@ export default function BattlePlanPage() {
                   </div>
                 )}
               </div>
-              <div className="bg-white relative">
+              <div className="bg-white relative flex-1 min-h-0 flex flex-col">
                 {docAiImproving && (
                   <div className="absolute inset-0 z-20 bg-white/60 flex items-center justify-center cursor-not-allowed">
                     <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-full border border-gray-200 shadow-sm">
@@ -1302,10 +1302,10 @@ export default function BattlePlanPage() {
                   showExportButton={false}
                   showToolbarAI={false}
                   compactToolbar={true}
-                  editorHeight="680px"
+                  editorHeight="100%"
                   autoSave={true}
                   autoSaveDelay={2000}
-                  className="border-0"
+                  className="border-0 flex-1 min-h-0"
                   editorClassName="prose prose-lg prose-slate max-w-none focus:outline-none min-h-[280px] px-6 py-8"
                   enableHistory={true}
                   historyId={battlePlanData?.id}
@@ -1313,6 +1313,7 @@ export default function BattlePlanPage() {
                   onLoadHistory={handleLoadHistory}
                   onRestoreHistory={handleRestoreHistory}
                   showHistoryButton={true}
+                  showOutlineSidebar={true}
                 />
               </div>
             </Card>

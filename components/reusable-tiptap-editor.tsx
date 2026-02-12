@@ -69,7 +69,8 @@ import {
   Download,
   History,
   RotateCcw,
-  Clock
+  Clock,
+  PanelLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCallback, useState, useEffect, useRef } from 'react';
@@ -104,6 +105,8 @@ export interface ReusableTiptapEditorProps {
   showHistoryButton?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  /** When true, show a toolbar button to toggle a Google Docs–style outline sidebar (headings). */
+  showOutlineSidebar?: boolean;
 }
 
 export default function ReusableTiptapEditor({ 
@@ -132,7 +135,8 @@ export default function ReusableTiptapEditor({
   onRestoreHistory,
   showHistoryButton = true,
   onFocus,
-  onBlur
+  onBlur,
+  showOutlineSidebar = false
 }: ReusableTiptapEditorProps) {
   // Compact toolbar sizing
   const btnSize = compactToolbar ? "h-7 w-7 p-0" : "h-9 w-9 p-0";
@@ -160,6 +164,8 @@ export default function ReusableTiptapEditor({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [savingHistory, setSavingHistory] = useState(false);
   const historyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const [outlineOpen, setOutlineOpen] = useState(true);
+  const [outlineItems, setOutlineItems] = useState<Array<{ level: number; text: string; pos: number }>>([]);
 
   // Menu commands for keyboard navigation
   const menuCommands = [
@@ -403,6 +409,60 @@ export default function ReusableTiptapEditor({
       editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
+
+  // Extract outline (headings) when content or editor changes (for outline sidebar)
+  useEffect(() => {
+    if (!editor || !showOutlineSidebar) {
+      setOutlineItems([]);
+      return;
+    }
+    const items: Array<{ level: number; text: string; pos: number }> = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'heading') {
+        const level = node.attrs.level ?? 1;
+        items.push({ level, text: node.textContent.trim() || '(Untitled)', pos });
+      }
+    });
+    setOutlineItems(items);
+  }, [editor, content, showOutlineSidebar]);
+
+  // Keep outline in sync on editor transactions (e.g. typing in a heading)
+  useEffect(() => {
+    if (!editor || !showOutlineSidebar) return;
+    const handler = () => {
+      const items: Array<{ level: number; text: string; pos: number }> = [];
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          const level = node.attrs.level ?? 1;
+          items.push({ level, text: node.textContent.trim() || '(Untitled)', pos });
+        }
+      });
+      setOutlineItems(items);
+    };
+    editor.on('transaction', handler);
+    return () => editor.off('transaction', handler);
+  }, [editor, showOutlineSidebar]);
+
+  const editorScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToOutlineHeading = useCallback((index: number, pos: number) => {
+    if (!editor) return;
+    const scrollContainer = editorScrollContainerRef.current;
+    if (!scrollContainer) return;
+    try {
+      const headings = Array.from(scrollContainer.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+      const heading = headings[index] as HTMLElement | undefined;
+      if (heading) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const headingRect = heading.getBoundingClientRect();
+        const relativeTop = headingRect.top - containerRect.top + scrollContainer.scrollTop;
+        scrollContainer.scrollTo({ top: Math.max(0, relativeTop - 16), behavior: 'smooth' });
+        requestAnimationFrame(() => editor.commands.focus(pos));
+      }
+    } catch {
+      // ignore
+    }
+  }, [editor]);
 
   // Focus/blur callbacks for parent (e.g. AI assistant focus tracking)
   useEffect(() => {
@@ -884,6 +944,35 @@ export default function ReusableTiptapEditor({
 
   return (
     <div className={cn("w-full flex flex-col bg-white", className)} style={{ height: editorHeight }}>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {showOutlineSidebar && outlineOpen && (
+          <aside className="w-[220px] shrink-0 border-r border-gray-200 bg-gray-50/50 flex flex-col h-full overflow-hidden">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide py-3 px-2 shrink-0 bg-gray-50/50 border-b border-gray-100">Sections</div>
+            <nav className="flex-1 min-h-0 overflow-y-auto py-2 px-2 space-y-0.5 overscroll-contain">
+              {outlineItems.length === 0 ? (
+                <p className="text-xs text-gray-500 px-2 py-1">Add headings to see sections</p>
+              ) : (
+                outlineItems.map((item, i) => (
+                  <button
+                    key={`${item.pos}-${i}`}
+                    type="button"
+                    onClick={() => scrollToOutlineHeading(i, item.pos)}
+                    className={cn(
+                      "w-full text-left text-sm py-1.5 px-2 rounded hover:bg-gray-200/80 transition-colors truncate",
+                      item.level === 1 && "font-medium text-gray-900",
+                      item.level === 2 && "pl-3 text-gray-700",
+                      item.level >= 3 && "pl-5 text-gray-600 text-xs"
+                    )}
+                    title={item.text}
+                  >
+                    {item.text || '(Untitled)'}
+                  </button>
+                ))
+              )}
+            </nav>
+          </aside>
+        )}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
       {/* Fixed Toolbar */}
       {showToolbar && (
         <div className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -905,6 +994,23 @@ export default function ReusableTiptapEditor({
               </div>
             </div>
             <div className={cn("flex flex-wrap items-center", compactToolbar ? "gap-0.5" : "gap-2")}>
+              {/* Outline sidebar toggle (Google Docs–style sections) */}
+              {showOutlineSidebar && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setOutlineOpen(!outlineOpen)}
+                    className={cn(compactToolbar ? "h-7 px-1.5" : "h-9 px-3", outlineOpen && "bg-blue-100 text-blue-700")}
+                    title={outlineOpen ? "Hide outline" : "Show document outline"}
+                  >
+                    <PanelLeft className={iconSize} />
+                    <span className="ml-1 text-xs">Outline</span>
+                  </Button>
+                  <div className={cn("w-px bg-gray-300", sepHeight)} />
+                </>
+              )}
+
               {/* Headings */}
               <div className="flex items-center gap-1">
                 <select
@@ -1286,8 +1392,8 @@ export default function ReusableTiptapEditor({
         </div>
       )}
 
-      {/* Editor Container */}
-      <div className="flex-1 overflow-y-auto bg-white relative">
+      {/* Editor Container - only this area scrolls */}
+      <div ref={editorScrollContainerRef} className="flex-1 overflow-y-auto bg-white relative min-h-0 scroll-smooth">
         <div className="max-w-5xl mx-auto relative">
           <EditorContent 
             editor={editor} 
@@ -1789,6 +1895,8 @@ export default function ReusableTiptapEditor({
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 } 

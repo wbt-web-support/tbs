@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { AiChat } from "@/components/ai-chat";
 import { Loader2 } from "lucide-react";
 
-const BUSINESS_OWNER_NAMES = ["business owner", "business owner chatbot"];
+/** UUID of the chatbot to use for the business owner dashboard. Set in env as NEXT_PUBLIC_BUSINESS_OWNER_CHATBOT_ID. */
+const BUSINESS_OWNER_CHATBOT_ID = process.env.NEXT_PUBLIC_BUSINESS_OWNER_CHATBOT_ID ?? "";
 
 export default function AiPage() {
   const [chatbotId, setChatbotId] = useState<string | null>(null);
@@ -13,28 +14,29 @@ export default function AiPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!BUSINESS_OWNER_CHATBOT_ID?.trim()) {
+      setError("Business owner chatbot not configured. Set NEXT_PUBLIC_BUSINESS_OWNER_CHATBOT_ID to the chatbot UUID.");
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
-    fetch("/api/chatbot-flow/public/chatbots")
+    fetch(`/api/chatbot-flow/public/chatbots/${BUSINESS_OWNER_CHATBOT_ID.trim()}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
-        const list = Array.isArray(data?.chatbots) ? data.chatbots : [];
-        const active = list.filter(
-          (c: { is_active?: boolean }) => c.is_active !== false
-        );
-        const businessOwner = active.find((c: { name?: string }) =>
-          BUSINESS_OWNER_NAMES.includes((c.name ?? "").toLowerCase().trim())
-        );
-        const chosen = businessOwner ?? active[0];
-        if (chosen?.id) {
-          setChatbotId(chosen.id);
-          setChatbotName(chosen.name ?? "AI");
+        if (data?.error) {
+          setError(data.error === "Chatbot not found" ? "Chatbot not found or inactive. Check NEXT_PUBLIC_BUSINESS_OWNER_CHATBOT_ID." : data.error);
+          return;
+        }
+        if (data?.id) {
+          setChatbotId(data.id);
+          setChatbotName(data.name ?? "AI");
         } else {
-          setError("No chatbots available. Add a chatbot in Admin → Chatbot Flow.");
+          setError("No chatbot data returned.");
         }
       })
       .catch(() => {
-        if (!cancelled) setError("Failed to load chatbots.");
+        if (!cancelled) setError("Failed to load chatbot.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
