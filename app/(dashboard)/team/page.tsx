@@ -12,6 +12,9 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { User } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+// Set to true to show Playbooks Owned column (hidden for now, enable later)
+const SHOW_PLAYBOOKS = false;
 import { deleteTeamMember } from "./actions";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -29,6 +32,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OrgChart } from "./org-chart";
 
 // --- New Type Definitions for Relational Data ---
 
@@ -155,6 +160,15 @@ export default function ChainOfCommandPage() {
     }
   };
 
+  /** Always return a single letter for avatar fallback (initial or ?) */
+  const getInitial = (fullName: string | undefined, jobTitle?: string) => {
+    const fromName = fullName?.trim()?.[0];
+    if (fromName) return fromName.toUpperCase();
+    const fromTitle = jobTitle?.trim()?.[0];
+    if (fromTitle) return fromTitle.toUpperCase();
+    return "?";
+  };
+
   const getDepartmentColor = (departmentName: string | undefined) => {
     if (!departmentName) return "bg-gray-200 text-gray-800";
   
@@ -221,7 +235,17 @@ export default function ChainOfCommandPage() {
           <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
             </div>
       ) : (
-        <Card className="overflow-hidden border border-gray-200 bg-white shadow-sm">
+        <Tabs defaultValue="table" className="w-full">
+          <TabsList className="mb-4 bg-gray-100 border border-gray-200 p-1">
+            <TabsTrigger value="table" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-gray-200">
+              Table
+            </TabsTrigger>
+            <TabsTrigger value="chart" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-gray-200">
+              Org Chart
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="table" className="mt-0">
+        <Card className="overflow-hidden border border-gray-200 bg-white">
           <div className="overflow-x-auto">
               <Table className="min-w-full">
                 <TableHeader>
@@ -230,7 +254,9 @@ export default function ChainOfCommandPage() {
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Job Title</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Team</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[20%] border-l">Critical Accountabilities</TableHead>
-                    <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Playbooks Owned</TableHead>
+                    {SHOW_PLAYBOOKS && (
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Playbooks Owned</TableHead>
+                    )}
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Direct Reports</TableHead>
                     <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Manager</TableHead>
                     <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-l">Actions</TableHead>
@@ -241,9 +267,11 @@ export default function ChainOfCommandPage() {
                     <TableRow key={member.id} className="border-b border-gray-100 hover:bg-gray-50/30">
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={member.profile_picture_url || ''} alt={member.full_name} />
-                            <AvatarFallback>{member.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            {member.profile_picture_url ? (
+                              <AvatarImage src={member.profile_picture_url} alt={member.full_name} />
+                            ) : null}
+                            <AvatarFallback>{getInitial(member.full_name, member.job_title)}</AvatarFallback>
                           </Avatar>
                           <span>{member.full_name}</span>
                         </div>
@@ -291,23 +319,27 @@ export default function ChainOfCommandPage() {
                            <span className="text-gray-400">—</span>
                          )}
                       </TableCell>
-                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
-                         <div className="flex flex-col gap-1.5">
-                          {member.playbooks_owned?.map((p) => (
-                            <Link href={`/playbook-planner?playbook=${p?.id}`} key={p?.id} className="text-blue-600 hover:underline flex items-center gap-2 group">
-                              <BookOpen className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
-                              <span className="truncate max-w-[150px]">{p?.playbookname}</span>
-                            </Link>
-                          ))}
-                         </div>
-                      </TableCell>
+                      {SHOW_PLAYBOOKS && (
+                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
+                          <div className="flex flex-col gap-1.5">
+                            {member.playbooks_owned?.map((p) => (
+                              <Link href={`/playbook-planner?playbook=${p?.id}`} key={p?.id} className="text-blue-600 hover:underline flex items-center gap-2 group">
+                                <BookOpen className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
+                                <span className="truncate max-w-[150px]">{p?.playbookname}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </TableCell>
+                      )}
                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
                          <div className="flex flex-col gap-1.5">
                           {member.direct_reports?.map((dr) => (
                             <Link href={`#${dr.id}`} key={dr.id} className="text-blue-600 hover:underline flex items-center gap-2">
-                              <Avatar className="h-7 w-7">
-                                <AvatarImage src={dr.profile_picture_url || ''} alt={dr.full_name} />
-                                <AvatarFallback>{dr.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                              <Avatar className="h-7 w-7 flex-shrink-0">
+                                {dr.profile_picture_url ? (
+                                  <AvatarImage src={dr.profile_picture_url} alt={dr.full_name} />
+                                ) : null}
+                                <AvatarFallback>{getInitial(dr.full_name, dr.job_title)}</AvatarFallback>
                               </Avatar>
                               {dr.full_name}
                             </Link>
@@ -317,9 +349,11 @@ export default function ChainOfCommandPage() {
                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm border-l">
                         {member.manager && (
                           <Link href={`#${member.manager.id}`} className="text-blue-600 hover:underline flex items-center gap-2">
-                            <Avatar className="h-7 w-7">
-                              <AvatarImage src={member.manager.profile_picture_url || ''} alt={member.manager.full_name} />
-                              <AvatarFallback>{member.manager.full_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                            <Avatar className="h-7 w-7 flex-shrink-0">
+                              {member.manager.profile_picture_url ? (
+                                <AvatarImage src={member.manager.profile_picture_url} alt={member.manager.full_name} />
+                              ) : null}
+                              <AvatarFallback>{getInitial(member.manager.full_name, member.manager.job_title)}</AvatarFallback>
                             </Avatar>
                             {member.manager.full_name}
                           </Link>
@@ -361,6 +395,13 @@ export default function ChainOfCommandPage() {
             </Table>
           </div>
       </Card>
+          </TabsContent>
+          <TabsContent value="chart" className="mt-0">
+            <Card className="overflow-hidden border border-gray-200 bg-white">
+              <OrgChart members={teamMembers} />
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
       
       <AddUserDialog 

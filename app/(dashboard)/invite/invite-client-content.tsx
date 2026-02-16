@@ -33,6 +33,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
+// Set to true to show Playbooks Owned section and Playbook permission (hidden for now, enable later)
+const SHOW_PLAYBOOKS = false;
+
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }).optional(),
@@ -72,7 +75,7 @@ const permissionOptions = [
   { id: 'business-plan', label: 'Business Plan' },
   { id: 'growth-machine', label: 'Growth Machine' },
   { id: 'fulfilment-machine', label: 'Fulfilment Machine' },
-  { id: 'playbook-planner', label: 'Playbook & Machine Planner' },
+  ...(SHOW_PLAYBOOKS ? [{ id: 'playbook-planner', label: 'Playbook & Machine Planner' }] : []),
   { id: 'meeting-rhythm-planner', label: 'Meeting Rhythm Planner' },
   { id: 'quarterly-sprint-canvas', label: 'Quarterly Sprint Canvas' },
 ]
@@ -96,7 +99,7 @@ export default function InviteClientContent() {
       department_id: '',
       critical_accountabilities: [],
       playbook_ids: [],
-      permissions: ['calendar', 'playbook-planner'],
+      permissions: SHOW_PLAYBOOKS ? ['calendar', 'playbook-planner'] : ['calendar'],
     },
   })
 
@@ -124,11 +127,11 @@ export default function InviteClientContent() {
       
       const teamId = adminBusinessInfo?.team_id || user.id;
 
-      // Fetch Departments, Team Members, and Playbooks first
+      // Fetch Departments, Team Members, and Playbooks first (playbooks only when SHOW_PLAYBOOKS)
       const [departmentsRes, teamMembersRes, playbooksRes] = await Promise.all([
         supabase.from('departments').select('id, name').or(`team_id.eq.${teamId},team_id.eq.00000000-0000-0000-0000-000000000000`),
         supabase.from('business_info').select('id, full_name').eq('team_id', teamId),
-        supabase.from('playbooks').select('id, playbookname').eq('user_id', user.id) // This might need to be scoped to team_id as well
+        ...(SHOW_PLAYBOOKS ? [supabase.from('playbooks').select('id, playbookname').eq('user_id', user.id)] : [Promise.resolve({ data: [], error: null })])
       ]);
       
       if (departmentsRes.error) console.error('Error fetching departments:', departmentsRes.error);
@@ -137,17 +140,17 @@ export default function InviteClientContent() {
       if (teamMembersRes.error) console.error('Error fetching team members:', teamMembersRes.error);
       else setTeamMembers(teamMembersRes.data.map((tm: { id: any; full_name: any }) => ({ id: tm.id, name: tm.full_name })) || []);
 
-      if (playbooksRes.error) console.error('Error fetching playbooks:', playbooksRes.error);
-      else setPlaybooks(playbooksRes.data.map((p: { id: any; playbookname: any }) => ({ id: p.id, name: p.playbookname })) || []);
+      if (SHOW_PLAYBOOKS && playbooksRes?.error) console.error('Error fetching playbooks:', playbooksRes.error);
+      else if (SHOW_PLAYBOOKS && playbooksRes?.data) setPlaybooks(playbooksRes.data.map((p: { id: any; playbookname: any }) => ({ id: p.id, name: p.playbookname })) || []);
 
       // Now, if editing, fetch the specific user's data and reset the form
       if (isEditing) {
+        const selectQuery = SHOW_PLAYBOOKS
+          ? `*, playbook_assignments(playbook_id)`
+          : `*`;
         const { data: userData, error } = await supabase
           .from('business_info')
-          .select(`
-            *,
-            playbook_assignments(playbook_id)
-          `)
+          .select(selectQuery)
           .eq('id', editUserId)
           .maybeSingle()
 
@@ -165,7 +168,7 @@ export default function InviteClientContent() {
           manager_id: userData.manager_id,
           department_id: userData.department_id,
           critical_accountabilities: userData.critical_accountabilities || [],
-          playbook_ids: userData.playbook_assignments?.map((pa: any) => pa.playbook_id) || [],
+          playbook_ids: SHOW_PLAYBOOKS ? (userData.playbook_assignments?.map((pa: any) => pa.playbook_id) || []) : [],
           permissions: userData.permissions?.pages || [],
         });
 
@@ -229,7 +232,7 @@ export default function InviteClientContent() {
   }
 
   return (
-    <div className="mx-auto">
+    <div className="mx-auto max-w-6xl">
       <div className="mb-10">
         <h1 className="text-3xl font-medium text-gray-900">
           {isEditing ? 'Edit User' : 'Invite User'}
@@ -370,7 +373,7 @@ export default function InviteClientContent() {
                     <FormItem>
                       <FormLabel className="text-gray-700 flex items-center gap-2">
                         <Users className="h-4 w-4 text-blue-600" />
-                        Manager
+                        Direct Reports
                       </FormLabel>
                       <FormControl>
                         <Select
@@ -378,10 +381,10 @@ export default function InviteClientContent() {
                           onValueChange={(value) => field.onChange(value === "null" ? null : value)}
                         >
                           <SelectTrigger className="border-gray-200 focus:border-gray-400 focus:ring-gray-400">
-                            <SelectValue placeholder="Select a manager" />
+                            <SelectValue placeholder="Select direct report" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="null">No Manager</SelectItem>
+                            <SelectItem value="null">No Direct Report</SelectItem>
                             {teamMembers.map((member) => (
                               <SelectItem key={member.id} value={member.id}>
                                 {member.name}
@@ -429,71 +432,73 @@ export default function InviteClientContent() {
 
               {/* Playbooks & Accountabilities (Full Width) */}
               <div className="mt-6 space-y-6">
-                <FormField
-                  control={form.control}
-                  name="playbook_ids"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel className="text-gray-700 flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-blue-600" />
-                        Playbooks Owned
-                      </FormLabel>
-                      <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
-                        {playbooks.length > 0 ? (
-                          playbooks.map((playbook) => (
-                            <FormField
-                              key={playbook.id}
-                              control={form.control}
-                              name="playbook_ids"
-                              render={({ field }) => {
-                                return (
-                                  <FormItem
-                                    key={playbook.id}
-                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(playbook.id)}
-                                        onCheckedChange={(checked) => {
-                                          return checked
-                                            ? field.onChange([...(field.value || []), playbook.id])
-                                            : field.onChange(
-                                                field.value?.filter(
-                                                  (value) => value !== playbook.id
+                {SHOW_PLAYBOOKS && (
+                  <FormField
+                    control={form.control}
+                    name="playbook_ids"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-blue-600" />
+                          Playbooks Owned
+                        </FormLabel>
+                        <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                          {playbooks.length > 0 ? (
+                            playbooks.map((playbook) => (
+                              <FormField
+                                key={playbook.id}
+                                control={form.control}
+                                name="playbook_ids"
+                                render={({ field }) => {
+                                  return (
+                                    <FormItem
+                                      key={playbook.id}
+                                      className="flex flex-row items-start space-x-3 space-y-0"
+                                    >
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(playbook.id)}
+                                          onCheckedChange={(checked) => {
+                                            return checked
+                                              ? field.onChange([...(field.value || []), playbook.id])
+                                              : field.onChange(
+                                                  field.value?.filter(
+                                                    (value) => value !== playbook.id
+                                                  )
                                                 )
-                                              )
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="text-sm font-normal">
-                                      {playbook.name}
-                                    </FormLabel>
-                                  </FormItem>
-                                )
-                              }}
-                            />
-                          ))
-                        ) : (
-                          <div className="text-center py-4">
-                            <BookOpen className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                            <p className="text-gray-500 text-sm mb-2">No playbooks available</p>
-                            <p className="text-gray-400 text-xs mb-3">Please create a playbook first to assign it to users</p>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => router.push('/playbook-planner')}
-                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                            >
-                              Create Playbook
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="text-sm font-normal">
+                                        {playbook.name}
+                                      </FormLabel>
+                                    </FormItem>
+                                  )
+                                }}
+                              />
+                            ))
+                          ) : (
+                            <div className="text-center py-4">
+                              <BookOpen className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                              <p className="text-gray-500 text-sm mb-2">No playbooks available</p>
+                              <p className="text-gray-400 text-xs mb-3">Please create a playbook first to assign it to users</p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push('/playbook-planner')}
+                                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                              >
+                                Create Playbook
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                   control={form.control}
                   name="critical_accountabilities"
@@ -557,7 +562,7 @@ export default function InviteClientContent() {
               </div>
 
               {/* Page Permissions Button */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mt-6 pt-6 border-t border-gray-200 hidden ">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-medium text-gray-900">Page Permissions</h3>
@@ -578,7 +583,8 @@ export default function InviteClientContent() {
                       <DialogHeader>
                         <DialogTitle>Page Permissions</DialogTitle>
                         <DialogDescription>
-                          Select which pages the user will be able to access. Default permissions include Calendar and Playbook access.
+                          Select which pages the user will be able to access. Default permissions include Calendar access.
+                          {SHOW_PLAYBOOKS && ' Playbook access can be enabled when configured.'}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
@@ -599,7 +605,7 @@ export default function InviteClientContent() {
                                     <p>User will have access to:</p>
                                     <ul className="list-disc list-inside mt-1">
                                       <li>Calendar</li>
-                                      <li>Playbook & Machine Planner</li>
+                                      {SHOW_PLAYBOOKS && <li>Playbook & Machine Planner</li>}
                                     </ul>
                                   </div>
                                 </div>

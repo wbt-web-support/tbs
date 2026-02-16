@@ -24,10 +24,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Loader2, User, Mail, Phone, Lock, Building2, Briefcase } from 'lucide-react'
+import { Loader2, User, Mail, Phone, Lock, Building2, Briefcase, Users } from 'lucide-react'
 import { inviteUser } from '../invite/actions'
 import UserAddedMessage from './user-added-message'
 import { DepartmentDropdown, type Department } from '@/components/ui/dropdown-helpers'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const basicUserSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -36,6 +37,7 @@ const basicUserSchema = z.object({
   phone_number: z.string().min(1, { message: 'Phone number is required.' }),
   job_title: z.string().optional(),
   department_id: z.string().optional(),
+  direct_report_ids: z.array(z.string()).optional(),
 })
 
 type BasicUserFormValues = z.infer<typeof basicUserSchema>
@@ -47,9 +49,13 @@ interface AddUserDialogProps {
   onEditUser: (userId: string) => void
 }
 
+type TeamMemberOption = { id: string; name: string }
+
 export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditUser }: AddUserDialogProps) {
   const [departments, setDepartments] = useState<Department[]>([])
   const [loadingDepartments, setLoadingDepartments] = useState(true)
+  const [teamMembers, setTeamMembers] = useState<TeamMemberOption[]>([])
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false)
   const [companyName, setCompanyName] = useState<string>('')
   const [loadingCompanyName, setLoadingCompanyName] = useState(false)
 
@@ -62,6 +68,7 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
       phone_number: '',
       job_title: '',
       department_id: '',
+      direct_report_ids: [],
     },
   })
 
@@ -175,6 +182,38 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
     }
   }, [open])
 
+  // Fetch team members for Direct Reports when dialog opens
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        setLoadingTeamMembers(true)
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data: adminBusinessInfo } = await supabase
+          .from('business_info')
+          .select('team_id')
+          .eq('user_id', user.id)
+          .single()
+        const teamId = adminBusinessInfo?.team_id || user.id
+        const { data, error } = await supabase
+          .from('business_info')
+          .select('id, full_name')
+          .eq('team_id', teamId)
+        if (!error && data) {
+          setTeamMembers(data.map((m: { id: string; full_name: string }) => ({ id: m.id, name: m.full_name || '—' })))
+        } else {
+          setTeamMembers([])
+        }
+      } catch {
+        setTeamMembers([])
+      } finally {
+        setLoadingTeamMembers(false)
+      }
+    }
+    if (open) fetchTeamMembers()
+  }, [open])
+
   async function onSubmit(values: BasicUserFormValues) {
     setIsSubmitting(true)
     try {
@@ -185,6 +224,7 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
         critical_accountabilities: [],
         playbook_ids: [],
         permissions: ['calendar', 'playbook-planner'], // Default permissions: Calendar and Playbook only
+        direct_report_ids: values.direct_report_ids || [],
       })
 
       if (result.success) {
@@ -336,6 +376,53 @@ export default function AddUserDialog({ open, onOpenChange, onUserAdded, onEditU
                       allowNone={true}
                       noneLabel="No Department"
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="direct_report_ids"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-700 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    Direct Reports <span className="text-gray-400 font-normal">(optional)</span>
+                  </FormLabel>
+                  <FormControl>
+                    <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-32 overflow-y-auto">
+                      {loadingTeamMembers ? (
+                        <p className="text-sm text-gray-500">Loading team members...</p>
+                      ) : teamMembers.length === 0 ? (
+                        <p className="text-sm text-gray-500">No other team members yet.</p>
+                      ) : (
+                        teamMembers.map((member) => (
+                          <FormField
+                            key={member.id}
+                            control={form.control}
+                            name="direct_report_ids"
+                            render={({ field: f }) => (
+                              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={f.value?.includes(member.id)}
+                                    onCheckedChange={(checked) => {
+                                      const next = checked
+                                        ? [...(f.value || []), member.id]
+                                        : (f.value || []).filter((id) => id !== member.id)
+                                      f.onChange(next)
+                                    }}
+                                  />
+                                </FormControl>
+                                <span className="text-sm">{member.name}</span>
+                              </FormItem>
+                            )}
+                          />
+                        ))
+                      )}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

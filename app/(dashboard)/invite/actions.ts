@@ -27,6 +27,7 @@ const inviteFormSchema = z.object({
   critical_accountabilities: z.array(z.object({ value: z.string() })).optional(),
   playbook_ids: z.array(z.string()).optional(),
   permissions: z.array(z.string()).optional(),
+  direct_report_ids: z.array(z.string()).optional(),
 })
 
 type InviteFormValues = z.infer<typeof inviteFormSchema>
@@ -219,7 +220,8 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
       department_id,
       critical_accountabilities,
       playbook_ids,
-      permissions 
+      permissions,
+      direct_report_ids,
     } = validatedData.data
 
     if (editUserId) {
@@ -326,6 +328,17 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
         
         // Handle playbook assignments
         await handlePlaybookAssignments(supabase, newBusinessInfo.id, playbook_ids || []);
+
+        // Set direct reports: update existing team members to report to this new user
+        if (direct_report_ids?.length) {
+          const { error: updateReportsError } = await supabase
+            .from('business_info')
+            .update({ manager_id: newBusinessInfo.id })
+            .in('id', direct_report_ids);
+          if (updateReportsError) {
+            console.error('Error setting direct reports:', updateReportsError);
+          }
+        }
 
         // Create onboarding record for invited user so they skip onboarding
         await createOnboardingRecord(supabase, newUser.id, adminBusinessInfo, full_name, email, phone_number);
