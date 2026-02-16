@@ -5,6 +5,7 @@ import { AttachmentsEditor } from "./AttachmentsEditor";
 import { DataAccessEditor } from "./DataAccessEditor";
 import { WebSearchEditor } from "./WebSearchEditor";
 import { VoiceEditor } from "./VoiceEditor";
+import { SttInputEditor } from "./SttInputEditor";
 
 export type NodeEditorProps = {
   nodeKey: string;
@@ -41,6 +42,10 @@ export function NodeEditor({ nodeKey, settings, onChange }: NodeEditorProps) {
 
   if (def.nodeType === "voice_interface") {
     return <VoiceEditor settings={settings} onChange={onChange} />;
+  }
+
+  if (def.nodeType === "stt_input") {
+    return <SttInputEditor settings={settings} onChange={onChange} />;
   }
 
   return (

@@ -21,6 +21,7 @@ import { businessInfoNode } from "./business-info";
 import { businessOwnerInstructionsNode } from "./business-owner-instructions";
 import { webSearchNode } from "./web-search";
 import { voiceInterfaceNode } from "./voice-interface";
+import { sttInputNode } from "./stt-input";
 
 const ALL_NODES: NodeDefinition[] = [
   attachmentsNode,
@@ -28,6 +29,7 @@ const ALL_NODES: NodeDefinition[] = [
   businessOwnerInstructionsNode,
   webSearchNode,
   voiceInterfaceNode,
+  sttInputNode,
   companyOnboardingNode,
   departmentsNode,
   financeAnalysisNode,

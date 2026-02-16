@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
         webSearchEnabled: !!result.webSearch,
         voiceEnabled: !!result.voice,
         voiceConfig: result.voice,
+        sttInputEnabled: !!result.sttInput,
       });
     }
 

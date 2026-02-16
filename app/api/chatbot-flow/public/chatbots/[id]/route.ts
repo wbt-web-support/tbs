@@ -44,8 +44,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const hasWebSearch = nodeKeys.includes("web_search");
     const hasAttachments = nodeKeys.includes("attachments");
     const hasVoice = nodeKeys.includes("voice_interface");
+    const hasSttInput = nodeKeys.includes("stt_input");
 
-    return NextResponse.json({ ...data, webSearchEnabled: !!hasWebSearch, attachmentsEnabled: !!hasAttachments, voiceEnabled: !!hasVoice });
+    return NextResponse.json({ ...data, webSearchEnabled: !!hasWebSearch, attachmentsEnabled: !!hasAttachments, voiceEnabled: !!hasVoice, sttInputEnabled: !!hasSttInput });
   } catch (err) {
     console.error("[chatbot-flow/public/chatbots/[id]] error:", err);
     return NextResponse.json(

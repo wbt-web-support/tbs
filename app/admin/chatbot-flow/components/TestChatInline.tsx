@@ -83,6 +83,7 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
   const [useWebSearch, setUseWebSearch] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [sttInputEnabled, setSttInputEnabled] = useState(false);
   const [voiceConfig, setVoiceConfig] = useState<{ tts_enabled: boolean; stt_enabled: boolean; voice_id: string; auto_play_responses: boolean } | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -127,6 +128,7 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
         setWebSearchEnabled(Boolean(data.webSearchEnabled));
         setVoiceEnabled(Boolean(data.voiceEnabled));
         setVoiceConfig(data.voiceConfig ?? null);
+        setSttInputEnabled(Boolean(data.sttInputEnabled));
       } else {
         setFullPrompt("");
         setBasePrompt("");
@@ -135,6 +137,7 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
         setWebSearchEnabled(false);
         setVoiceEnabled(false);
         setVoiceConfig(null);
+        setSttInputEnabled(false);
       }
     } catch {
       setFullPrompt("");
@@ -144,6 +147,7 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
       setWebSearchEnabled(false);
       setVoiceEnabled(false);
       setVoiceConfig(null);
+      setSttInputEnabled(false);
     } finally {
       setContextRefreshing(false);
     }
@@ -259,7 +263,10 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
             const formData = new FormData();
             formData.append("file", audioBlob, "recording.webm");
 
-            const response = await fetch("/api/ai-instructions/stt", {
+            const sttEndpoint = sttInputEnabled && !voiceConfig?.stt_enabled
+              ? "/api/chatbot-flow/transcribe"
+              : "/api/ai-instructions/stt";
+            const response = await fetch(sttEndpoint, {
               method: "POST",
               body: formData,
             });
@@ -665,7 +672,7 @@ export function TestChatInline({ chatbotId, chatbotName }: Props) {
               className="resize-none w-full min-w-0 rounded-lg border-border"
               disabled={isRecording || isTranscribing}
             />
-            {voiceConfig?.stt_enabled && (
+            {(voiceConfig?.stt_enabled || sttInputEnabled) && (
               <Button
                 variant={isRecording ? "destructive" : "outline"}
                 size="icon"

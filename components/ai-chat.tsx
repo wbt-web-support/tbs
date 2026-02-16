@@ -67,6 +67,7 @@ export function AiChat({
   >([]);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [sttInputEnabled, setSttInputEnabled] = useState(false);
   const [voiceConfig, setVoiceConfig] = useState<{ tts_enabled: boolean; stt_enabled: boolean; voice_id: string; auto_play_responses: boolean } | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -150,6 +151,7 @@ export function AiChat({
       if (data.attachmentsEnabled != null) setAttachmentsEnabled(Boolean(data.attachmentsEnabled));
       if (data.voiceEnabled != null) setVoiceEnabled(Boolean(data.voiceEnabled));
       if (data.voiceConfig) setVoiceConfig(data.voiceConfig);
+      if (data.sttInputEnabled != null) setSttInputEnabled(Boolean(data.sttInputEnabled));
     } catch (e) {
       setContextError(e instanceof Error ? e.message : "Failed to load context");
     } finally {
@@ -171,6 +173,7 @@ export function AiChat({
         setWebSearchEnabled(Boolean(data?.webSearchEnabled));
         setAttachmentsEnabled(Boolean(data?.attachmentsEnabled));
         setVoiceEnabled(Boolean(data?.voiceEnabled));
+        setSttInputEnabled(Boolean(data?.sttInputEnabled));
       })
       .catch(() => {})
       .finally(() => {
@@ -299,7 +302,10 @@ export function AiChat({
           try {
             const formData = new FormData();
             formData.append("file", audioBlob, "recording.webm");
-            const response = await fetch("/api/ai-instructions/stt", {
+            const sttEndpoint = sttInputEnabled && !voiceConfig?.stt_enabled
+              ? "/api/chatbot-flow/transcribe"
+              : "/api/ai-instructions/stt";
+            const response = await fetch(sttEndpoint, {
               method: "POST",
               body: formData,
             });
@@ -757,7 +763,7 @@ export function AiChat({
                 style={{ minHeight: MIN_TEXTAREA_HEIGHT, maxHeight: MAX_TEXTAREA_HEIGHT }}
                 className="w-full resize-none overflow-y-auto bg-transparent border-0 focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground disabled:opacity-50 px-4 pt-4 pb-3 pr-14"
               />
-              {voiceConfig?.stt_enabled && (
+              {(voiceConfig?.stt_enabled || sttInputEnabled) && (
                 <button
                   type="button"
                   onClick={toggleRecording}

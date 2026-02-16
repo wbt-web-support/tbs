@@ -251,6 +251,9 @@ function buildPromptFromNode(node: NodeRow, dataContext?: string): string {
     case "voice_interface": {
       return "[Voice Interface] Voice input (speech-to-text) and voice output (text-to-speech) are enabled. The user may speak their messages, and your responses can be played back as audio.";
     }
+    case "stt_input": {
+      return "[Voice Input] The user may speak their messages using a microphone. Speech is transcribed to text and placed in the chat input.";
+    }
     default:
       return "";
   }
@@ -324,6 +327,9 @@ export type WebSearchConfig = object;
 /** Present when the chatbot has an Attachments node; the client may send attachments with messages. */
 export type AttachmentsConfig = object;
 
+/** Present when the chatbot has an STT Input node; enables voice-to-text input via Gemini. */
+export type SttInputConfig = { enabled: boolean };
+
 /** Present when the chatbot has a Voice Interface node; enables voice input (STT) and output (TTS). */
 export type VoiceConfig = {
   tts_enabled: boolean;
@@ -344,7 +350,7 @@ export async function assemblePrompt(
   chatbotId: string,
   userContext?: UserContext,
   dataFetchClient?: SupabaseClient
-): Promise<{ prompt: string; chatbot: ChatbotRow | null; webSearch?: WebSearchConfig; attachments?: AttachmentsConfig; voice?: VoiceConfig }> {
+): Promise<{ prompt: string; chatbot: ChatbotRow | null; webSearch?: WebSearchConfig; attachments?: AttachmentsConfig; voice?: VoiceConfig; sttInput?: SttInputConfig }> {
   const configClient = dataFetchClient ?? supabase;
   const chatbot = await getChatbot(configClient, chatbotId);
   if (!chatbot) return { prompt: "", chatbot: null };
@@ -362,6 +368,7 @@ export async function assemblePrompt(
   let webSearch: WebSearchConfig | undefined;
   let attachments: AttachmentsConfig | undefined;
   let voice: VoiceConfig | undefined;
+  let sttInput: SttInputConfig | undefined;
 
   for (const node of nodes) {
     let dataContext: string | undefined;
@@ -392,12 +399,15 @@ export async function assemblePrompt(
         auto_play_responses: Boolean(settings.auto_play_responses ?? false),
       };
     }
+    if (node.node_type === "stt_input") {
+      sttInput = { enabled: true };
+    }
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
   }
 
   const prompt = parts.join("\n\n");
-  return { prompt, chatbot, webSearch, attachments, voice };
+  return { prompt, chatbot, webSearch, attachments, voice, sttInput };
 }
 
 export type InstructionBlock = { nodeName: string; content: string };
@@ -412,6 +422,7 @@ export type AssembledStructured = {
   webSearch?: WebSearchConfig;
   attachments?: AttachmentsConfig;
   voice?: VoiceConfig;
+  sttInput?: SttInputConfig;
 };
 
 /**
@@ -439,6 +450,7 @@ export async function assemblePromptStructured(
   let webSearch: WebSearchConfig | undefined;
   let attachments: AttachmentsConfig | undefined;
   let voice: VoiceConfig | undefined;
+  let sttInput: SttInputConfig | undefined;
   const basePrompt = (chatbot.base_prompts ?? [])
     .map((p) => (p.content ?? "").trim())
     .filter(Boolean)
@@ -500,6 +512,9 @@ export async function assemblePromptStructured(
         auto_play_responses: Boolean(settings.auto_play_responses ?? false),
       };
     }
+    if (node.node_type === "stt_input") {
+      sttInput = { enabled: true };
+    }
 
     const contribution = buildPromptFromNode(node, dataContext);
     if (contribution) parts.push(contribution);
@@ -515,5 +530,6 @@ export async function assemblePromptStructured(
     webSearch,
     attachments,
     voice,
+    sttInput,
   };
 }
