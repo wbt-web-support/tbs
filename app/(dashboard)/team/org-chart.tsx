@@ -43,7 +43,7 @@ function getDepartmentStyle(departmentName: string | undefined): { fill: string;
   return DEPARTMENT_PALETTE[Math.abs(hash) % 8];
 }
 
-function buildMermaidCode(members: TeamMemberForChart[]): string {
+function buildMermaidCodeHierarchy(members: TeamMemberForChart[]): string {
   const roots = members.filter((m) => !m.manager_id);
   if (roots.length === 0) return "";
 
@@ -83,6 +83,85 @@ ${lines.join("\n")}
 ${styleLines.join("\n")}`;
 }
 
+/** Safe id for Mermaid (no spaces/special chars) */
+function deptNodeId(name: string): string {
+  return "d_" + name.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 36);
+}
+
+function subgraphId(name: string): string {
+  return "sg_" + name.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 36);
+}
+
+function buildMermaidCodeByDepartment(
+  members: TeamMemberForChart[],
+  companyName: string
+): string {
+  if (members.length === 0) return "";
+
+  const byDept = new Map<string, TeamMemberForChart[]>();
+  for (const m of members) {
+    const deptName = m.department?.name?.trim() || "No Department";
+    if (!byDept.has(deptName)) byDept.set(deptName, []);
+    byDept.get(deptName)!.push(m);
+  }
+
+  const styleLines: string[] = [];
+  const deptNodeIds: string[] = [];
+  const deptDetails: { dId: string; deptLabel: string; memberList: TeamMemberForChart[] }[] = [];
+
+  byDept.forEach((memberList, deptName) => {
+    const dId = deptNodeId(deptName);
+    deptNodeIds.push(dId);
+    const deptLabel = escapeLabel(deptName);
+    deptDetails.push({ dId, deptLabel, memberList });
+  });
+
+  const lines: string[] = [];
+  const companyNodeId = "company_root";
+  const companyLabel = escapeLabel(companyName || "Organization");
+
+  // 1) Main company node at the top
+  lines.push(`  ${companyNodeId}["${companyLabel}"]`);
+  styleLines.push(`  style ${companyNodeId} fill:#1e293b,stroke:#0f172a,color:#fff`);
+
+  // 2) Each department in its own box (subgraph): dept node + members below (no subgraph title to avoid duplicate name)
+  deptDetails.forEach(({ dId, deptLabel, memberList }) => {
+    const sgId = subgraphId(deptLabel);
+    lines.push(`  subgraph ${sgId}[" "]`);
+    lines.push(`    ${dId}["${deptLabel}"]`);
+    styleLines.push(`  style ${dId} fill:#475569,stroke:#334155,color:#fff`);
+    memberList.forEach((member) => {
+      const id = mermaidId(member.id);
+      const label = escapeLabel(`${member.job_title || "Role"}: ${member.full_name}`);
+      lines.push(`    ${id}["${label}"]`);
+      lines.push(`    ${dId} --> ${id}`);
+      const { fill, stroke } = getDepartmentStyle(member.department?.name);
+      styleLines.push(`  style ${id} fill:${fill},stroke:${stroke},color:#1f2937`);
+    });
+    lines.push("  end");
+  });
+
+  // 3) Company connects to each department node
+  deptNodeIds.forEach((dId) => {
+    lines.push(`  ${companyNodeId} --> ${dId}`);
+  });
+
+  const themeVars = {
+    theme: "base",
+    themeVariables: {
+      lineColor: "#94a3b8",
+      background: "#f8fafc",
+      fontFamily: "system-ui, sans-serif",
+      fontSize: "14px",
+    },
+  };
+
+  return `%%{init: ${JSON.stringify(themeVars)}}%%
+flowchart TD
+${lines.join("\n")}
+${styleLines.join("\n")}`;
+}
+
 const DOTTED_BG_STYLE = {
   backgroundImage: `radial-gradient(circle, #cbd5e1 1.25px, transparent 1.25px)`,
   backgroundSize: "20px 20px",
@@ -93,7 +172,16 @@ const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.2;
 
-export function OrgChart({ members }: { members: TeamMemberForChart[] }) {
+export type ChartViewMode = "hierarchy" | "department";
+
+export function OrgChart({
+  members,
+  companyName,
+}: {
+  members: TeamMemberForChart[];
+  companyName?: string;
+}) {
+  const [viewMode, setViewMode] = useState<ChartViewMode>("hierarchy");
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
@@ -134,15 +222,23 @@ export function OrgChart({ members }: { members: TeamMemberForChart[] }) {
   }, []);
 
   useEffect(() => {
-    const roots = members.filter((m) => !m.manager_id);
-    if (roots.length === 0) {
-      setSvg(null);
-      setError(null);
-      return;
+    if (viewMode === "hierarchy") {
+      const roots = members.filter((m) => !m.manager_id);
+      if (roots.length === 0) {
+        setSvg(null);
+        setError(null);
+        return;
+      }
+      renderMermaid(buildMermaidCodeHierarchy(members));
+    } else {
+      if (members.length === 0) {
+        setSvg(null);
+        setError(null);
+        return;
+      }
+      renderMermaid(buildMermaidCodeByDepartment(members, companyName || "Organization"));
     }
-    const code = buildMermaidCode(members);
-    renderMermaid(code);
-  }, [members, renderMermaid]);
+  }, [members, viewMode, companyName, renderMermaid]);
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -184,11 +280,21 @@ export function OrgChart({ members }: { members: TeamMemberForChart[] }) {
   };
 
   const roots = members.filter((m) => !m.manager_id);
+  const hasHierarchy = roots.length > 0;
+  const hasMembers = members.length > 0;
 
-  if (roots.length === 0) {
+  if (viewMode === "hierarchy" && !hasHierarchy) {
     return (
       <div className="py-12 text-center text-gray-500">
-        No hierarchy found. Add manager relationships to see the org chart.
+        No hierarchy found. Add manager relationships to see the org chart, or switch to &quot;By Department&quot; view.
+      </div>
+    );
+  }
+
+  if (viewMode === "department" && !hasMembers) {
+    return (
+      <div className="py-12 text-center text-gray-500">
+        No team members to display.
       </div>
     );
   }
@@ -233,8 +339,29 @@ export function OrgChart({ members }: { members: TeamMemberForChart[] }) {
         </div>
       </div>
 
-      {/* Zoom controls - absolute top-right on canvas */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-md border border-gray-200 bg-white/95 px-1.5 py-1">
+      {/* View mode + Zoom controls - absolute top on canvas */}
+      <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between gap-2">
+        <div className="flex rounded-md border border-gray-200 bg-white/95 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("hierarchy")}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              viewMode === "hierarchy" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Hierarchy
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("department")}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              viewMode === "department" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            By Department
+          </button>
+        </div>
+        <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white/95 px-1.5 py-1">
         <Button
           type="button"
           variant="ghost"
@@ -270,6 +397,7 @@ export function OrgChart({ members }: { members: TeamMemberForChart[] }) {
         >
           <RotateCcw className="h-4 w-4" />
         </Button>
+        </div>
       </div>
 
       {/* Footer hint - absolute bottom-center on canvas */}

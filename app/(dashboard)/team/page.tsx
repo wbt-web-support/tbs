@@ -78,6 +78,7 @@ export default function ChainOfCommandPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>("");
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null);
@@ -87,6 +88,25 @@ export default function ChainOfCommandPage() {
   useEffect(() => {
     fetchTeamDirectoryData();
   }, []);
+
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      try {
+        const effectiveUserId = await getEffectiveUserId();
+        if (!effectiveUserId) return;
+        const { data } = await supabase
+          .from("company_onboarding")
+          .select("onboarding_data")
+          .eq("user_id", effectiveUserId)
+          .maybeSingle();
+        const name = (data?.onboarding_data as any)?.company_name_official_registered;
+        if (name) setCompanyName(name);
+      } catch {
+        // ignore
+      }
+    };
+    fetchCompanyName();
+  }, [supabase]);
 
   const fetchTeamDirectoryData = async () => {
     try {
@@ -398,7 +418,7 @@ export default function ChainOfCommandPage() {
           </TabsContent>
           <TabsContent value="chart" className="mt-0">
             <Card className="overflow-hidden border border-gray-200 bg-white">
-              <OrgChart members={teamMembers} />
+              <OrgChart members={teamMembers} companyName={companyName || undefined} />
             </Card>
           </TabsContent>
         </Tabs>
