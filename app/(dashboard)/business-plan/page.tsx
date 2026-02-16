@@ -186,6 +186,8 @@ export default function BattlePlanPage() {
   const [improvingField, setImprovingField] = useState<string | null>(null);
   const [uploadingPlanFile, setUploadingPlanFile] = useState(false);
   const businessPlanFileInputRef = useRef<HTMLInputElement>(null);
+  const structuredAiInputRef = useRef<HTMLTextAreaElement>(null);
+  const docAiInputRef = useRef<HTMLTextAreaElement>(null);
   const [focusedFieldId, setFocusedFieldId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(true);
   const [improveInstruction, setImproveInstruction] = useState<string>("improve_clarity");
@@ -243,6 +245,18 @@ export default function BattlePlanPage() {
       saveGeneratedDataToStorage(generatedData);
     }
   }, [generatedData]);
+
+  // Reset auto-resize textarea height when assistant inputs are cleared
+  useEffect(() => {
+    if (!customInstruction && structuredAiInputRef.current) {
+      structuredAiInputRef.current.style.height = "auto";
+    }
+  }, [customInstruction]);
+  useEffect(() => {
+    if (!docAiInstruction && docAiInputRef.current) {
+      docAiInputRef.current.style.height = "auto";
+    }
+  }, [docAiInstruction]);
 
   const fetchBattlePlanData = async () => {
     try {
@@ -1440,12 +1454,19 @@ export default function BattlePlanPage() {
                           </Button>
                         </div>
                         <div className="relative">
-                          <Input
+                          <Textarea
+                            ref={structuredAiInputRef}
                             value={customInstruction}
-                            onChange={(e) => setCustomInstruction(e.target.value)}
+                            onChange={(e) => {
+                              setCustomInstruction(e.target.value);
+                              const t = e.target;
+                              t.style.height = "auto";
+                              t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
+                            }}
                             placeholder="Type what you'd like to change or improve..."
-                            className="pr-10 border-gray-200"
-                            onKeyDown={(e) => { if (e.key === "Enter" && customInstruction.trim()) { e.preventDefault(); handleImproveWithAi(customInstruction.trim(), editableImprovedContent); setCustomInstruction(""); } }}
+                            className="pr-10 border-gray-200 min-h-[40px] max-h-[120px] resize-none py-2"
+                            rows={1}
+                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && customInstruction.trim()) { e.preventDefault(); handleImproveWithAi(customInstruction.trim(), editableImprovedContent); setCustomInstruction(""); } }}
                           />
                           <Button
                             size="sm"
@@ -1496,12 +1517,19 @@ export default function BattlePlanPage() {
                         ))}
                       </div>
                       <div className="relative bg-white rounded-xl border border-gray-200 focus-within:border-blue-300 transition-colors">
-                        <Input
+                        <Textarea
+                          ref={structuredAiInputRef}
                           value={customInstruction}
-                          onChange={(e) => setCustomInstruction(e.target.value)}
+                          onChange={(e) => {
+                            setCustomInstruction(e.target.value);
+                            const t = e.target;
+                            t.style.height = "auto";
+                            t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
+                          }}
                           placeholder="Tell me how to improve what you wrote..."
-                          className="pr-12 border-0 focus:ring-0 h-12 text-sm placeholder:text-gray-400 rounded-xl"
-                          onKeyDown={(e) => { if (e.key === "Enter" && customInstruction.trim()) { e.preventDefault(); handleImproveWithAi(customInstruction.trim()); setCustomInstruction(""); } }}
+                          className="pr-12 border-0 focus:ring-0 min-h-[48px] max-h-[120px] resize-none py-3 text-sm placeholder:text-gray-400 rounded-xl"
+                          rows={1}
+                          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && customInstruction.trim()) { e.preventDefault(); handleImproveWithAi(customInstruction.trim()); setCustomInstruction(""); } }}
                         />
                         <Button
                           size="sm"
@@ -1570,13 +1598,20 @@ export default function BattlePlanPage() {
                       ))}
                     </div>
                     <div className="relative bg-white rounded-xl border border-gray-200 focus-within:border-blue-300 transition-colors">
-                      <Input
+                      <Textarea
+                        ref={docAiInputRef}
                         value={docAiInstruction}
-                        onChange={(e) => setDocAiInstruction(e.target.value)}
-                        placeholder="e.g. Rewrite the marketing section to focus on digital..."
-                        className="pr-12 border-0 focus:ring-0 h-12 text-sm placeholder:text-gray-400 rounded-xl"
+                        onChange={(e) => {
+                          setDocAiInstruction(e.target.value);
+                          const t = e.target;
+                          t.style.height = "auto";
+                          t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
+                        }}
+                        placeholder="Tell me how to improve what you wrote..."
+                        className="pr-12 border-0 focus:ring-0 min-h-[48px] max-h-[120px] resize-none py-3 text-sm placeholder:text-gray-400 rounded-xl"
+                        rows={1}
                         disabled={docAiImproving}
-                        onKeyDown={(e) => { if (e.key === "Enter" && docAiInstruction.trim()) { e.preventDefault(); handleDocAiEdit(); } }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && docAiInstruction.trim()) { e.preventDefault(); handleDocAiEdit(); } }}
                       />
                       <Button
                         size="sm"
