@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Loader2, Sparkles, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain, Check, ExternalLink, Plus, X, Send, Download } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain, Check, ExternalLink, Plus, X, Send, Download, Bug, ChevronDown, ChevronUp } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { getEffectiveUserId } from '@/lib/get-effective-user-id';
@@ -143,6 +143,27 @@ function CoreValuesRepeater({ value, onChange }: { value: string; onChange: (v: 
   );
 }
 
+function DebugContextSection({ title, content }: { title: string; content: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-amber-200 rounded-lg overflow-hidden bg-white">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-3 py-2 text-left text-sm font-medium text-amber-900 hover:bg-amber-100/80"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {title}
+        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {open && (
+        <pre className="p-3 text-xs text-gray-800 bg-gray-50 border-t border-amber-200 overflow-auto max-h-64 whitespace-pre-wrap break-words">
+          {content}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 function getDefaultAnswers(): Record<string, string> {
   return {
     direction_focus: "",
@@ -208,6 +229,18 @@ export default function BattlePlanPage() {
   const [docAiImproving, setDocAiImproving] = useState(false);
   const [docAiActiveKey, setDocAiActiveKey] = useState<string | null>(null);
   const [exportingFullPlan, setExportingFullPlan] = useState(false);
+
+  // Debug: context sent to AI (for debugging)
+  const [debugContext, setDebugContext] = useState<{
+    companyContext: string;
+    userAnswersContext: string;
+    uploadedDocumentContext: string;
+    currentDateContext: string;
+    fullContext: string;
+    companyData: any;
+  } | null>(null);
+  const [loadingDebugContext, setLoadingDebugContext] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   useEffect(() => () => {
     if (structuredSavedTimeoutRef.current) clearTimeout(structuredSavedTimeoutRef.current);
@@ -648,7 +681,7 @@ export default function BattlePlanPage() {
       if (updateError) throw updateError;
 
       // Generate business plan with answers
-      const response = await fetch('/api/gemini/business-plan', {
+      const response = await fetch('/api/openrouter/business-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -667,7 +700,7 @@ export default function BattlePlanPage() {
 
       // Auto-save generated content to DB so it persists
       try {
-        await fetch('/api/gemini/business-plan', {
+        await fetch('/api/openrouter/business-plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'save', generatedData: result.data }),
@@ -718,7 +751,7 @@ export default function BattlePlanPage() {
     if (!generatedData) return;
     
     try {
-      const response = await fetch('/api/gemini/business-plan', {
+      const response = await fetch('/api/openrouter/business-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -942,6 +975,35 @@ export default function BattlePlanPage() {
       toast.error(err instanceof Error ? err.message : "Export failed");
     } finally {
       setExportingFullPlan(false);
+    }
+  };
+
+  // Debug: fetch and show exact context sent to the LLM
+  const fetchDebugContext = async () => {
+    setLoadingDebugContext(true);
+    setDebugContext(null);
+    try {
+      const userAnswers =
+        battlePlanData?.static_questions_answers?.answers ?? answers;
+      const questionsList =
+        battlePlanData?.static_questions_answers?.questions ?? questions;
+      const res = await fetch("/api/openrouter/business-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "getContext",
+          userAnswers,
+          questions: questionsList,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load context");
+      setDebugContext(data);
+      setShowDebugPanel(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load debug context");
+    } finally {
+      setLoadingDebugContext(false);
     }
   };
 
@@ -1255,9 +1317,57 @@ export default function BattlePlanPage() {
             {exportingFullPlan ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Download className="h-4 w-4 mr-1.5" />}
             Export DOCX
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => (showDebugPanel ? setShowDebugPanel(false) : fetchDebugContext())}
+            disabled={loadingDebugContext}
+            className="shrink-0 h-10 text-amber-700 border-amber-200 hover:bg-amber-50"
+          >
+            {loadingDebugContext ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+            ) : (
+              <Bug className="h-4 w-4 mr-1.5" />
+            )}
+            {showDebugPanel ? "Hide" : "Show"} context sent to AI
+          </Button>
           </div>
         
       </div>
+
+      {showDebugPanel && debugContext && (
+        <div className="px-3 sm:px-6 pb-4">
+          <Card className="border-amber-200 bg-amber-50/50 overflow-hidden">
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-amber-900 flex items-center gap-2">
+                <Bug className="h-4 w-4" />
+                Debug: context sent to AI
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-amber-800 hover:bg-amber-100"
+                onClick={() => setShowDebugPanel(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-4">
+              <DebugContextSection title="Company data (profile, onboarding, machines, etc.)" content={debugContext.companyContext} />
+              <DebugContextSection title="User answers (questions & pasted content)" content={debugContext.userAnswersContext} />
+              <DebugContextSection title="Uploaded document (extracted text)" content={debugContext.uploadedDocumentContext || "(none)"} />
+              <DebugContextSection title="Current date context" content={debugContext.currentDateContext} />
+              <DebugContextSection title="Full context (all above concatenated)" content={debugContext.fullContext} />
+              {debugContext.companyData && (
+                <DebugContextSection
+                  title="Raw company data (JSON)"
+                  content={JSON.stringify(debugContext.companyData, null, 2)}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className={`flex-1 min-h-0 flex flex-col ${planViewTab === "docs" ? "overflow-hidden" : "overflow-auto"}`}>
         {loading ? (

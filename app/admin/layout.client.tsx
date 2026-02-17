@@ -19,7 +19,6 @@ import {
   BarChart3,
   BookOpen,
   HelpCircle,
-  Brain,
   Package,
   AlertTriangle,
   UserIcon,
