@@ -99,6 +99,12 @@ async function getCompanyData(userId: string, teamId: string) {
     if (teamError) {
       console.error('Error fetching team members:', teamError);
     }
+    const { data: aiOnboardingRecord } = await supabase
+      .from('ai_onboarding_questions')
+      .select('questions_data, is_completed, completed_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+
     const dataPromises = [
       supabase.from('company_onboarding').select('*').eq('user_id', userId),
       supabase.from('machines').select('*').eq('user_id', teamId),
@@ -114,6 +120,7 @@ async function getCompanyData(userId: string, teamId: string) {
       businessInfo: businessInfo || null,
       teamMembers: teamMembers || [],
       companyOnboarding: results[0].data || [],
+      aiOnboardingQuestions: aiOnboardingRecord || null,
       machines: results[1].data || [],
       meetingRhythmPlanner: results[2].data || [],
       playbooks: results[3].data || [],
@@ -195,28 +202,97 @@ Use this context to align the business plan with how the business attracts and d
   if (companyData.companyOnboarding && companyData.companyOnboarding.length > 0) {
     parts.push(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## 🏢 COMPANY ONBOARDING
+## 🏢 COMPANY ONBOARDING (all fields from onboarding_data)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    const onboardingLabelMap: Record<string, string> = {
+      question_labels: "Question labels (id → label)",
+      success_in_1_year: "Success in 1 year",
+      business_founding_date_iso: "Business founding date",
+      primary_company_phone_number: "Primary company phone",
+      next_5_year_goal_for_business: "Next 5 year goal",
+      primary_company_email_address: "Primary company email",
+      company_name_official_registered: "Company name (official)",
+      company_name: "Company name",
+      current_profit_margin_percentage: "Current profit margin %",
+      documented_systems_or_sops_links: "Documented systems or SOPs links",
+      main_competitors_list_and_reasons: "Main competitors",
+      main_office_physical_address_full: "Main office address",
+      list_of_business_owners_full_names: "Business owners",
+      list_of_things_missing_in_business: "Things missing in business",
+      biggest_current_operational_headache: "Biggest operational headache",
+      last_full_year_annual_revenue_amount: "Last full year revenue",
+      list_of_things_confusing_in_business: "Things confusing in business",
+      plans_to_expand_services_or_locations: "Plans to expand",
+      list_of_things_going_right_in_business: "Things going right",
+      list_of_things_going_wrong_in_business: "Things going wrong",
+      software_and_tools_used_for_operations: "Software and tools",
+      business_overview_for_potential_investor: "Business overview",
+      most_exciting_aspect_of_bootcamp_for_you: "Most exciting about bootcamp",
+      additional_comments_or_items_for_attention: "Additional comments",
+      company_origin_story_and_founder_motivation: "Company origin story",
+      customer_experience_and_fulfillment_process: "Customer experience",
+      current_employees_and_roles_responsibilities: "Employees and roles",
+      focus_on_single_business_or_multiple_long_term: "Single business or multiple",
+      specific_expectations_or_requests_for_bootcamp: "Expectations for bootcamp",
+      team_structure_and_admin_sales_marketing_roles: "Team structure",
+      additional_income_streams_or_investments_needed: "Additional income streams",
+      regular_team_meetings_frequency_attendees_agenda: "Regular team meetings",
+      detailed_sales_process_from_first_contact_to_close: "Sales process",
+      kpi_scorecards_metrics_tracked_and_review_frequency: "KPI scorecards",
+      company_long_term_vision_statement: "Company vision",
+      description_of_target_customers_for_investor: "Target customers",
+    };
+    const formatOnboardingValue = (v: any, key: string): string => {
+      if (v == null) return "Not specified";
+      if (typeof v === "string") return v.trim() || "Not specified";
+      if (typeof v === "boolean") return v ? "Yes" : "No";
+      if (Array.isArray(v)) {
+        if (v.length === 0) return "(empty)";
+        return v
+          .map((i) => {
+            if (typeof i === "object" && i !== null) {
+              const entries = Object.entries(i)
+                .map(([k, val]) => {
+                  const str = val == null ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
+                  return `    ${k}: ${str.replace(/\n/g, " ")}`;
+                })
+                .join("\n");
+              return "\n  - {\n" + entries + "\n  }";
+            }
+            return "  - " + String(i);
+          })
+          .join("\n");
+      }
+      if (typeof v === "object") {
+        if (key === "question_labels") {
+          return Object.entries(v)
+            .map(([k, label]) => `  - ${k}: ${label}`)
+            .join("\n");
+        }
+        return Object.entries(v)
+          .map(([k, val]) => {
+            const str = val == null ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
+            return `  ${k}: ${str.replace(/\n/g, " ")}`;
+          })
+          .join("\n");
+      }
+      return String(v);
+    };
+    const keyToLabel = (key: string): string =>
+      onboardingLabelMap[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
     companyData.companyOnboarding.forEach((onboarding: any, index: number) => {
       const data = onboarding.onboarding_data || {};
-      if (onboarding.onboarding_data && typeof onboarding.onboarding_data === "object") {
-        parts.push(`
-📝 Onboarding #${index + 1} (full onboarding data):
-- Company Name: ${data.company_name_official_registered ?? data.company_name ?? "Not specified"}
-- Business Overview: ${data.business_overview_for_potential_investor ?? "Not specified"}
-- Target Customers: ${data.description_of_target_customers_for_investor ?? "Not specified"}
-- Location: ${data.main_office_physical_address_full ?? "Not specified"}
-- Founding Date: ${data.business_founding_date_iso ?? "Not specified"}
-- Company Origin Story: ${data.company_origin_story_and_founder_motivation ?? "Not specified"}
-- Revenue: ${data.last_full_year_annual_revenue_amount ?? onboarding.revenue ?? "Not specified"}
-- Profit Margin: ${data.current_profit_margin_percentage ?? "Not specified"}
-- Company Vision: ${data.company_long_term_vision_statement ?? "Not specified"}
-- Sales Process: ${data.detailed_sales_process_from_first_contact_to_close ?? "Not specified"}
-- Customer Experience: ${data.customer_experience_and_fulfillment_process ?? "Not specified"}
-- Team Structure: ${data.team_structure_and_admin_sales_marketing_roles ?? "Not specified"}
-- Regular Meetings: ${data.regular_team_meetings_frequency_attendees_agenda ?? "Not specified"}
-- KPI Metrics: ${data.kpi_scorecards_metrics_tracked_and_review_frequency ?? "Not specified"}
-- Biggest Operational Headache: ${data.biggest_current_operational_headache ?? "Not specified"}`);
+      if (onboarding.onboarding_data && typeof onboarding.onboarding_data === "object" && Object.keys(data).length > 0) {
+        parts.push(`\n📝 Onboarding #${index + 1}:`);
+        const keys = Object.keys(data).sort();
+        const dataKeys = keys.filter((k) => k !== "question_labels");
+        const questionLabelsKey = keys.includes("question_labels") ? ["question_labels"] : [];
+        [...dataKeys, ...questionLabelsKey].forEach((key) => {
+          const value = formatOnboardingValue(data[key], key);
+          const label = keyToLabel(key);
+          parts.push(`- ${label}:\n${value}`);
+        });
       } else {
         parts.push(`
 📝 Onboarding #${index + 1}:
@@ -227,6 +303,44 @@ Use this context to align the business plan with how the business attracts and d
 - Goals: ${onboarding.goals || "None"}`);
       }
     });
+  }
+  if (companyData.aiOnboardingQuestions?.questions_data) {
+    const aiRecord = companyData.aiOnboardingQuestions;
+    const qData = aiRecord.questions_data;
+    parts.push(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🤖 AI ONBOARDING QUESTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Completed: ${aiRecord.is_completed ? "Yes" : "No"}${aiRecord.completed_at ? ` (at ${aiRecord.completed_at})` : ""}`);
+    const questions = qData.questions;
+    if (Array.isArray(questions) && questions.length > 0) {
+      questions.forEach((q: any, index: number) => {
+        const questionText = q.question_text ?? q.question ?? q.text ?? "(no question text)";
+        const answer = q.user_answer ?? q.answer ?? "";
+        parts.push(`
+❓ Question ${index + 1}: ${questionText}
+   Answer: ${answer || "(not answered)"}`);
+        const extra = { ...q };
+        delete extra.question_text;
+        delete extra.question;
+        delete extra.text;
+        delete extra.user_answer;
+        delete extra.answer;
+        if (Object.keys(extra).length > 0) {
+          parts.push(`   Other: ${JSON.stringify(extra)}`);
+        }
+      });
+    }
+    if (qData.metadata && typeof qData.metadata === "object") {
+      parts.push(`\nMetadata: ${JSON.stringify(qData.metadata)}`);
+    }
+    const otherKeys = Object.keys(qData).filter((k) => !["questions", "metadata"].includes(k));
+    if (otherKeys.length > 0) {
+      otherKeys.forEach((key) => {
+        const val = qData[key];
+        parts.push(`\n${key}: ${typeof val === "object" ? JSON.stringify(val) : String(val)}`);
+      });
+    }
   }
   if (companyData.keyInitiatives && companyData.keyInitiatives.length > 0) {
     parts.push(`
@@ -545,13 +659,11 @@ export async function POST(req: Request) {
 
     if (action === "getContext") {
       const ctx = await buildBusinessPlanContext(userId, teamId, userAnswers ?? undefined, questions ?? undefined);
+      const fullContext = ctx.companyContext + ctx.userAnswersContext + ctx.uploadedDocumentContext + ctx.currentDateContext;
+      const dbPrompt = await getPromptBody("business_plan");
       return NextResponse.json({
-        companyContext: ctx.companyContext,
-        userAnswersContext: ctx.userAnswersContext,
-        uploadedDocumentContext: ctx.uploadedDocumentContext,
-        currentDateContext: ctx.currentDateContext,
-        fullContext: ctx.companyContext + ctx.userAnswersContext + ctx.uploadedDocumentContext + ctx.currentDateContext,
-        companyData: ctx.companyData,
+        fullContext,
+        rawData: { companyData: ctx.companyData, dbPrompt: dbPrompt ?? null },
       });
     }
 

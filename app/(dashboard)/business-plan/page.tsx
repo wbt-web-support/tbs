@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Loader2, Sparkles, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain, Check, ExternalLink, Plus, X, Send, Download, Bug, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight, Target, Building, Users, TrendingUp, Zap, Brain, Check, ExternalLink, Plus, X, Send, Download, Bug } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getTeamId } from "@/utils/supabase/teams";
 import { getEffectiveUserId } from '@/lib/get-effective-user-id';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -143,27 +144,6 @@ function CoreValuesRepeater({ value, onChange }: { value: string; onChange: (v: 
   );
 }
 
-function DebugContextSection({ title, content }: { title: string; content: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border border-amber-200 rounded-lg overflow-hidden bg-white">
-      <button
-        type="button"
-        className="w-full flex items-center justify-between px-3 py-2 text-left text-sm font-medium text-amber-900 hover:bg-amber-100/80"
-        onClick={() => setOpen((o) => !o)}
-      >
-        {title}
-        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      {open && (
-        <pre className="p-3 text-xs text-gray-800 bg-gray-50 border-t border-amber-200 overflow-auto max-h-64 whitespace-pre-wrap break-words">
-          {content}
-        </pre>
-      )}
-    </div>
-  );
-}
-
 function getDefaultAnswers(): Record<string, string> {
   return {
     direction_focus: "",
@@ -232,12 +212,8 @@ export default function BattlePlanPage() {
 
   // Debug: context sent to AI (for debugging)
   const [debugContext, setDebugContext] = useState<{
-    companyContext: string;
-    userAnswersContext: string;
-    uploadedDocumentContext: string;
-    currentDateContext: string;
     fullContext: string;
-    companyData: any;
+    rawData: { companyData: any; dbPrompt: string | null };
   } | null>(null);
   const [loadingDebugContext, setLoadingDebugContext] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -1335,39 +1311,55 @@ export default function BattlePlanPage() {
         
       </div>
 
-      {showDebugPanel && debugContext && (
-        <div className="px-3 sm:px-6 pb-4">
-          <Card className="border-amber-200 bg-amber-50/50 overflow-hidden">
-            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-amber-900 flex items-center gap-2">
-                <Bug className="h-4 w-4" />
-                Debug: context sent to AI
-              </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-amber-800 hover:bg-amber-100"
-                onClick={() => setShowDebugPanel(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 space-y-4">
-              <DebugContextSection title="Company data (profile, onboarding, machines, etc.)" content={debugContext.companyContext} />
-              <DebugContextSection title="User answers (questions & pasted content)" content={debugContext.userAnswersContext} />
-              <DebugContextSection title="Uploaded document (extracted text)" content={debugContext.uploadedDocumentContext || "(none)"} />
-              <DebugContextSection title="Current date context" content={debugContext.currentDateContext} />
-              <DebugContextSection title="Full context (all above concatenated)" content={debugContext.fullContext} />
-              {debugContext.companyData && (
-                <DebugContextSection
-                  title="Raw company data (JSON)"
-                  content={JSON.stringify(debugContext.companyData, null, 2)}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <Dialog open={showDebugPanel && !!debugContext} onOpenChange={(open) => !open && setShowDebugPanel(false)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden border-amber-200 bg-white">
+          <DialogHeader className="px-6 pr-12 pt-6 pb-2 shrink-0 border-b border-gray-200">
+            <DialogTitle className="flex items-center gap-2 text-amber-900">
+              <Bug className="h-5 w-5" />
+              Context sent to AI
+            </DialogTitle>
+            <DialogDescription className="text-left text-gray-500 text-xs mt-1">
+              Normal: context + DB prompt. Raw: full JSON. Multiple entries in <code className="bg-gray-100 px-1 rounded">companyData.machines</code> are expected — they are all Growth/Fulfillment engines for your team.
+            </DialogDescription>
+          </DialogHeader>
+          {debugContext && (
+            <div className="px-6 pb-6 pt-4 flex flex-col min-h-0 overflow-hidden">
+              <Tabs defaultValue="normal" className="flex flex-col min-h-0">
+                <TabsList className="w-full max-w-[240px] grid grid-cols-2 shrink-0 mb-3 bg-gray-100 p-1 rounded-lg">
+                  <TabsTrigger value="normal" className="rounded-md data-[state=active]:bg-white data-[state=active]:text-amber-800">
+                    Normal
+                  </TabsTrigger>
+                  <TabsTrigger value="raw" className="rounded-md data-[state=active]:bg-white data-[state=active]:text-amber-800">
+                    Raw
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="normal" className="mt-0 focus-visible:outline-none focus-visible:ring-0 min-h-0 flex-1">
+                  <div className="max-h-[65vh] overflow-auto rounded-lg border border-gray-200 bg-gray-50">
+                    <pre className="p-4 text-sm text-gray-800 whitespace-pre-wrap break-words font-sans">
+                      {[
+                        debugContext.fullContext,
+                        "",
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                        "## DB PROMPT (template from prompts table)",
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                        "",
+                        debugContext.rawData?.dbPrompt ?? "(no prompt found)",
+                      ].join("\n")}
+                    </pre>
+                  </div>
+                </TabsContent>
+                <TabsContent value="raw" className="mt-0 focus-visible:outline-none focus-visible:ring-0 min-h-0 flex-1">
+                  <div className="max-h-[65vh] overflow-auto rounded-lg border border-gray-200 bg-gray-50">
+                    <pre className="p-4 text-sm text-gray-800 whitespace-pre-wrap break-words font-mono">
+                      {JSON.stringify(debugContext.rawData, null, 2)}
+                    </pre>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className={`flex-1 min-h-0 flex flex-col ${planViewTab === "docs" ? "overflow-hidden" : "overflow-auto"}`}>
         {loading ? (
