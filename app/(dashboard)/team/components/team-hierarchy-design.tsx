@@ -56,37 +56,47 @@ export default function TeamHierarchyDesign() {
     }
   }, [data]);
 
+  /** Fetch existing row or create one. Returns row or null (e.g. first time, or insert failed). No toast on failure. */
+  const fetchOrCreateDesignRow = async (): Promise<HierarchyDesignData | null> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const teamId = await getTeamId(supabase, user.id);
+    if (!teamId) return null;
+
+    const { data: row, error } = await supabase
+      .from("team_hierarchy_design")
+      .select("id, team_id, image_url, figma_link, figma_embed")
+      .eq("team_id", teamId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching team hierarchy design:", error);
+      return null;
+    }
+
+    if (row) return row;
+
+    const { data: newRow, error: insertError } = await supabase
+      .from("team_hierarchy_design")
+      .insert({ team_id: teamId })
+      .select("id, team_id, image_url, figma_link, figma_embed")
+      .single();
+
+    if (insertError) {
+      console.error("Error creating team hierarchy design:", insertError);
+      return null;
+    }
+    return newRow;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
-
-      const teamId = await getTeamId(supabase, user.id);
-      if (!teamId) throw new Error("Team ID not found");
-
-      const { data: row, error } = await supabase
-        .from("team_hierarchy_design")
-        .select("id, team_id, image_url, figma_link, figma_embed")
-        .eq("team_id", teamId)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (row) {
-        setData(row);
-      } else {
-        const { data: newRow, error: insertError } = await supabase
-          .from("team_hierarchy_design")
-          .insert({ team_id: teamId })
-          .select("id, team_id, image_url, figma_link, figma_embed")
-          .single();
-        if (insertError) throw insertError;
-        setData(newRow);
-      }
+      const row = await fetchOrCreateDesignRow();
+      setData(row);
     } catch (err: unknown) {
-      console.error("Error fetching team hierarchy design:", err);
-      toast.error("Failed to load team hierarchy design");
+      console.error("Error loading team hierarchy design:", err);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -206,8 +216,58 @@ export default function TeamHierarchyDesign() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      <div className="flex flex-col h-full">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center h-full">
+          <div className="max-w-md">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-3">
+              No team hierarchy added yet
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Upload an image of your organisation chart or team hierarchy, or add a Figma design.
+            </p>
+            <div className="flex flex-col items-center space-y-4">
+              <Button
+                onClick={async () => {
+                  const row = await fetchOrCreateDesignRow();
+                  if (row) {
+                    setData(row);
+                    setIsEditing(true);
+                    setActiveDesignTab("image");
+                  } else {
+                    toast.error("Unable to create design. Please try again.");
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 mb-2"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Image
+              </Button>
+              <div className="flex items-center">
+                <div className="border-t border-gray-200 w-16" />
+                <span className="px-3 text-sm text-gray-500">or</span>
+                <div className="border-t border-gray-200 w-16" />
+              </div>
+              <Button
+                onClick={async () => {
+                  const row = await fetchOrCreateDesignRow();
+                  if (row) {
+                    setData(row);
+                    setIsEditing(true);
+                    setActiveDesignTab("figma");
+                    setFigmaMode("embed");
+                  } else {
+                    toast.error("Unable to create design. Please try again.");
+                  }
+                }}
+                variant="outline"
+                className="border-blue-200 text-blue-700"
+              >
+                <FileCode2 className="w-4 h-4 mr-2" />
+                Add Figma Design
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
