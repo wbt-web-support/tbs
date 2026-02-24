@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.team_hierarchy_design (
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   CONSTRAINT team_hierarchy_design_team_id_key UNIQUE (team_id)
 );
-
+ai_onboarding_questions
 CREATE INDEX IF NOT EXISTS idx_team_hierarchy_design_team_id ON public.team_hierarchy_design(team_id);
 
 COMMENT ON TABLE public.team_hierarchy_design IS 'Stores custom image or Figma design for team org chart / hierarchy (one per team).';

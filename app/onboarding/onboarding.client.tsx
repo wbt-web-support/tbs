@@ -4087,6 +4087,69 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
         console.log('ℹ️ No employees to create accounts for');
       }
 
+      // Sync employee responsibilities to business_info.critical_accountabilities
+      // This ensures the Teams page always shows up-to-date data from onboarding
+      try {
+        const employeesToSync = allFormValues.current_employees_and_roles_responsibilities;
+        if (Array.isArray(employeesToSync) && employeesToSync.length > 0) {
+          // Get admin's team_id so we scope name-based matches to this team only
+          const { data: adminBizInfo } = await supabase
+            .from('business_info')
+            .select('team_id')
+            .eq('user_id', user.id)
+            .single();
+          const teamId = adminBizInfo?.team_id || user.id;
+
+          for (const employee of employeesToSync) {
+            const responsibilities = employee.responsibilities?.trim() || '';
+            if (!responsibilities) continue;
+
+            const criticalAccountabilities = responsibilities
+              .split(/\n/)
+              .map((r: string) => r.trim())
+              .filter((r: string) => r.length > 0)
+              .map((r: string) => ({ value: r }));
+
+            if (criticalAccountabilities.length === 0) {
+              criticalAccountabilities.push({ value: responsibilities });
+            }
+
+            let synced = false;
+
+            // Primary: match by email (most precise)
+            if (employee.email?.trim()) {
+              const { error: emailSyncError } = await supabase
+                .from('business_info')
+                .update({ critical_accountabilities: criticalAccountabilities })
+                .eq('email', employee.email.trim());
+
+              if (!emailSyncError) {
+                synced = true;
+                console.log(`✅ Synced responsibilities by email for ${employee.name}`);
+              }
+            }
+
+            // Fallback: match by full_name within the same team
+            if (!synced && employee.name?.trim()) {
+              const { error: nameSyncError } = await supabase
+                .from('business_info')
+                .update({ critical_accountabilities: criticalAccountabilities })
+                .eq('team_id', teamId)
+                .ilike('full_name', employee.name.trim());
+
+              if (nameSyncError) {
+                console.error(`⚠️ Could not sync responsibilities for ${employee.name}:`, nameSyncError.message);
+              } else {
+                console.log(`✅ Synced responsibilities by name for ${employee.name}`);
+              }
+            }
+          }
+        }
+      } catch (syncError) {
+        console.error('⚠️ Non-critical error syncing responsibilities to business_info:', syncError);
+        // Don't block form submission
+      }
+
       // Mark employee accounts step as done
       setSubmissionSteps(steps => steps.map((step, i) =>
         i === 1 ? { ...step, done: true } : step

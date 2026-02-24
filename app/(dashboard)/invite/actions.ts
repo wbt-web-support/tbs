@@ -241,6 +241,64 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
 
       if (updateError) throw new Error(`Error updating user: ${updateError.message}`);
 
+      // Sync critical_accountabilities back to the admin's onboarding data (Main Responsibilities)
+      try {
+        const { data: userRecord } = await supabase
+          .from('business_info')
+          .select('email, full_name, team_id')
+          .eq('id', editUserId)
+          .single();
+
+        if (userRecord?.email && userRecord.team_id) {
+          const { data: onboardingRecord } = await supabase
+            .from('company_onboarding')
+            .select('onboarding_data')
+            .eq('user_id', userRecord.team_id)
+            .single();
+
+          if (onboardingRecord?.onboarding_data) {
+            const onboardingData = onboardingRecord.onboarding_data as any;
+            let employees = onboardingData.current_employees_and_roles_responsibilities;
+
+            const newResponsibilities = (critical_accountabilities || [])
+              .map((a: { value: string }) => a.value)
+              .join(', ');
+
+            if (Array.isArray(employees)) {
+              employees = employees.map((emp: any) => {
+                const emailMatch = emp.email && emp.email === userRecord.email;
+                const nameMatch = emp.name === userRecord.full_name;
+                if (emailMatch || nameMatch) {
+                  return { ...emp, responsibilities: newResponsibilities };
+                }
+                return emp;
+              });
+            } else if (typeof employees === 'string' && employees) {
+              const escapedName = userRecord.full_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = new RegExp(
+                `(${escapedName}\\s*\\([^)]*\\)\\s*-)\\s*[^,]+(?=,\\s*[A-Z]|$)`,
+                'i'
+              );
+              if (regex.test(employees)) {
+                employees = employees.replace(regex, `$1 ${newResponsibilities}`);
+              }
+            }
+
+            await supabase
+              .from('company_onboarding')
+              .update({
+                onboarding_data: {
+                  ...onboardingData,
+                  current_employees_and_roles_responsibilities: employees,
+                },
+              })
+              .eq('user_id', userRecord.team_id);
+          }
+        }
+      } catch (syncErr) {
+        console.error('Non-critical: could not sync accountabilities to onboarding:', syncErr);
+      }
+
       // Handle playbook assignments
       await handlePlaybookAssignments(supabase, editUserId, playbook_ids || []);
 

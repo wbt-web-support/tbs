@@ -16,11 +16,12 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { inviteUser } from './actions'
-import { Loader2, Plus, Trash2, Briefcase, Users, Building, ClipboardList, BookOpen, User, Mail, Phone, Lock } from 'lucide-react'
+import { Loader2, Briefcase, Users, Building, ClipboardList, BookOpen, User, Mail, Phone, Lock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from "@/components/ui/checkbox";
@@ -103,7 +104,7 @@ export default function InviteClientContent() {
     },
   })
 
-  const [newAccountability, setNewAccountability] = useState("");
+  const [accountabilitiesText, setAccountabilitiesText] = useState("");
   const [newPlaybook, setNewPlaybook] = useState("");
 
   const [departments, setDepartments] = useState<SelectOption[]>([]);
@@ -160,6 +161,36 @@ export default function InviteClientContent() {
           return
         }
         
+        let accountabilities: { value: string }[] = userData.critical_accountabilities || [];
+
+        // If no critical_accountabilities, try to pull responsibilities from the admin's onboarding data
+        if (accountabilities.length === 0) {
+          const { data: onboardingRecord } = await supabase
+            .from('company_onboarding')
+            .select('onboarding_data')
+            .eq('user_id', teamId)
+            .single();
+
+          const employees = onboardingRecord?.onboarding_data?.current_employees_and_roles_responsibilities;
+          if (Array.isArray(employees)) {
+            const match = employees.find((emp: any) => {
+              const emailMatch = emp.email && userData.email && emp.email.toLowerCase() === userData.email.toLowerCase();
+              const nameMatch = emp.name && userData.full_name && emp.name.toLowerCase() === userData.full_name.toLowerCase();
+              return emailMatch || nameMatch;
+            });
+            if (match?.responsibilities?.trim()) {
+              const responsibilities: string = match.responsibilities;
+              accountabilities = responsibilities
+                .split('\n')
+                .map((s: string) => s.trim())
+                .filter((s: string) => s.length > 0)
+                .map((s: string) => ({ value: s }));
+            }
+          }
+        }
+
+        setAccountabilitiesText(accountabilities.map((a: { value: string }) => a.value).join('\n'));
+
         form.reset({
           email: userData.email,
           full_name: userData.full_name,
@@ -167,7 +198,7 @@ export default function InviteClientContent() {
           job_title: userData.job_title || '',
           manager_id: userData.manager_id,
           department_id: userData.department_id,
-          critical_accountabilities: userData.critical_accountabilities || [],
+          critical_accountabilities: accountabilities,
           playbook_ids: SHOW_PLAYBOOKS ? (userData.playbook_assignments?.map((pa: any) => pa.playbook_id) || []) : [],
           permissions: userData.permissions?.pages || [],
         });
@@ -181,20 +212,6 @@ export default function InviteClientContent() {
 
     loadAllData();
   }, [isEditing, editUserId, supabase, form, router]);
-
-  const handleAddAccountability = () => {
-    if (!newAccountability.trim()) return;
-    const currentValues = form.getValues('critical_accountabilities') || [];
-    form.setValue('critical_accountabilities', [...currentValues, { value: newAccountability.trim() }]);
-    setNewAccountability("");
-  };
-
-  const handleRemoveAccountability = (index: number) => {
-    const currentValues = form.getValues('critical_accountabilities') || [];
-    const updated = [...currentValues];
-    updated.splice(index, 1);
-    form.setValue('critical_accountabilities', updated);
-  };
 
   const handleAddPlaybook = () => {
     if (!newPlaybook.trim()) return;
@@ -216,6 +233,13 @@ export default function InviteClientContent() {
     if (isEditingAdmin) {
       finalValues.permissions = originalPermissions;
     }
+
+    // Convert the plain textarea text to the array format expected by the database
+    finalValues.critical_accountabilities = accountabilitiesText
+      .split('\n')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .map((s) => ({ value: s }));
     
     if (!isEditing && (!finalValues.permissions || finalValues.permissions.length === 0)) {
       toast.error("Please select at least one page permission for the new user.");
@@ -499,66 +523,21 @@ export default function InviteClientContent() {
                     )}
                   />
                 )}
-                <FormField
-                  control={form.control}
-                  name="critical_accountabilities"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-700 flex items-center gap-2">
-                        <ClipboardList className="h-4 w-4 text-blue-600" />
-                        Critical Accountabilities
-                      </FormLabel>
-                      <FormControl>
-                        <div className="border rounded-md p-3 space-y-2">
-                          {field.value && field.value.length > 0 ? (
-                            <div className="space-y-2">
-                              {field.value.map((item, index) => (
-                                <div key={index} className="flex items-center">
-                                  <div className="flex-1 p-2 bg-gray-50 rounded text-sm">
-                                    {item.value}
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 ml-2"
-                                    onClick={() => handleRemoveAccountability(index)}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-gray-500 text-sm italic">No accountabilities added yet</div>
-                          )}
-                          <div className="flex mt-2">
-                            <Input
-                              value={newAccountability}
-                              onChange={(e) => setNewAccountability(e.target.value)}
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddAccountability();
-                                }
-                              }}
-                              placeholder="Add accountability..."
-                              className="flex-1 border-gray-200"
-                            />
-                            <Button
-                              type="button"
-                              className="ml-2 bg-blue-600 hover:bg-blue-700"
-                              onClick={handleAddAccountability}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormItem>
+                  <FormLabel className="text-gray-700 flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-blue-600" />
+                    Critical Accountabilities
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      value={accountabilitiesText}
+                      onChange={(e) => setAccountabilitiesText(e.target.value)}
+                      placeholder="Enter each responsibility on a new line, e.g.&#10;Managing daily operations&#10;Overseeing team performance&#10;Handling customer inquiries"
+                      className="min-h-[120px] resize-none"
+                    />
+                  </FormControl>
+                  <p className="text-xs text-gray-400">One responsibility per line. Synced with onboarding Main Responsibilities.</p>
+                </FormItem>
               </div>
 
               {/* Page Permissions Button */}
