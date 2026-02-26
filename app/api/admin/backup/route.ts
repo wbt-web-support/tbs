@@ -16,6 +16,7 @@ const BACKUP_BUCKET = "database-backups";
 const MACHINES_BUCKET = "machines";
 const AI_INSTRUCTIONS_BUCKET = "ai-instructions";
 const BUSINESS_PLAN_PREFIX = "business-plan";
+const PROFILES_BUCKET = "profiles";
 
 const TABLES_TO_BACKUP = [
   "machines",
@@ -26,6 +27,7 @@ const TABLES_TO_BACKUP = [
   "team_hierarchy_design",
   "departments",
   "company_onboarding",
+  "admin_page_permissions",
 ] as const;
 
 const MACHINE_STORAGE_PREFIXES = ["growth_machines", "fulfillment_machines", "team_hierarchy"];
@@ -56,9 +58,7 @@ function getAdminClient() {
 }
 
 /** Ensure database-backups bucket exists (create with service role if not). */
-async function ensureBackupBucket(
-  admin: ReturnType<typeof createServiceClient>
-): Promise<void> {
+async function ensureBackupBucket(admin: ReturnType<typeof getAdminClient>): Promise<void> {
   const { data, error: getError } = await admin.storage.getBucket(BACKUP_BUCKET);
   if (data) return; // bucket exists
 
@@ -78,7 +78,7 @@ async function ensureBackupBucket(
 
 /** List all file paths under a storage prefix recursively */
 async function listAllFiles(
-  admin: ReturnType<typeof createServiceClient>,
+  admin: ReturnType<typeof getAdminClient>,
   bucket: string,
   prefix: string
 ): Promise<string[]> {
@@ -190,9 +190,22 @@ export async function POST(request: NextRequest) {
         .select("*")
         .in("user_id", teamMemberIds.length ? teamMemberIds : [scope]);
       tablesPayload.company_onboarding = onboardingRows ?? [];
+
+      const businessInfoIds = (tablesPayload.business_info as { id: string }[]).map((r) => r.id);
+      if (businessInfoIds.length) {
+        const { data: permRows } = await admin
+          .from("admin_page_permissions")
+          .select("*")
+          .in("admin_user_id", businessInfoIds);
+        tablesPayload.admin_page_permissions = permRows ?? [];
+      } else {
+        tablesPayload.admin_page_permissions = [];
+      }
     }
 
     const storageManifest: { bucket: string; path: string; backupPath: string }[] = [];
+
+    // All backup content is stored in BACKUP_BUCKET at {backupPrefix}/data.json and {backupPrefix}/storage/{bucket}/{path}
 
     // Backup machines bucket (growth_machines, fulfillment_machines, team_hierarchy)
     let machineIdsFilter: Set<string> | null = null;
@@ -239,6 +252,23 @@ export async function POST(request: NextRequest) {
         .from(BACKUP_BUCKET)
         .upload(backupPath, fileData, { contentType: fileData.type || "application/octet-stream", upsert: true });
       if (!upError) storageManifest.push({ bucket: AI_INSTRUCTIONS_BUCKET, path, backupPath });
+    }
+
+    // Backup profiles bucket (team / user profile pictures; paths are {user_id}/{timestamp}.ext)
+    const profilePaths = await listAllFiles(admin, PROFILES_BUCKET, "");
+    const allowedProfileUserIds = scope === "all" ? null : new Set(teamMemberIds);
+    for (const path of profilePaths) {
+      const topDir = path.split("/")[0];
+      if (scope !== "all" && allowedProfileUserIds && !allowedProfileUserIds.has(topDir)) continue;
+      const { data: fileData, error: downError } = await admin.storage
+        .from(PROFILES_BUCKET)
+        .download(path);
+      if (downError || !fileData) continue;
+      const backupPath = `${backupPrefix}/storage/${PROFILES_BUCKET}/${path}`;
+      const { error: upError } = await admin.storage
+        .from(BACKUP_BUCKET)
+        .upload(backupPath, fileData, { contentType: fileData.type || "application/octet-stream", upsert: true });
+      if (!upError) storageManifest.push({ bucket: PROFILES_BUCKET, path, backupPath });
     }
 
     const payload = {
@@ -370,3 +400,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
+

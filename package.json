@@ -86,6 +86,7 @@
     "@uiw/react-md-editor": "^4.0.7",
     "@xyflow/react": "^12.10.0",
     "apify-client": "^2.12.5",
+    "archiver": "^7.0.1",
     "autoprefixer": "10.4.20",
     "axios": "^1.9.0",
     "class-variance-authority": "^0.7.1",
@@ -141,6 +142,7 @@
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/archiver": "^7.0.0",
     "@types/lodash": "^4.17.16",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "22.10.2",
