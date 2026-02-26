@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Settings2,
   Workflow,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -112,6 +113,11 @@ const navigationSections = [
         name: "Chatbot Flow",
         href: "/admin/chatbot-flow",
         icon: Workflow,
+      },
+      {
+        name: "Backup",
+        href: "/admin/backup",
+        icon: HardDrive,
       }
     ]
   },

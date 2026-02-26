@@ -1298,7 +1298,7 @@ export default function BattlePlanPage() {
             size="sm"
             onClick={() => (showDebugPanel ? setShowDebugPanel(false) : fetchDebugContext())}
             disabled={loadingDebugContext}
-            className="shrink-0 h-10 text-amber-700 border-amber-200 hover:bg-amber-50"
+            className="shrink-0 h-10 text-amber-700 border-amber-200 hover:bg-amber-50 hidden"
           >
             {loadingDebugContext ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />

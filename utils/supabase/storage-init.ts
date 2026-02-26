@@ -68,7 +68,20 @@ export async function initializeSupabaseStorage() {
         console.warn('Could not create business-plan-docs bucket:', createBpError.message);
       }
     }
-    
+
+    // Create database-backups bucket (private) for superadmin backups
+    const backupBucketName = 'database-backups';
+    const { error: backupBucketError } = await supabase.storage.getBucket(backupBucketName);
+    if (backupBucketError && backupBucketError.message.includes('The resource was not found')) {
+      const { error: createBackupError } = await supabase.storage.createBucket(backupBucketName, {
+        public: false,
+        fileSizeLimit: 524288000, // 500MB for backup bundles
+      });
+      if (createBackupError && process.env.NODE_ENV === 'development') {
+        console.warn('Could not create database-backups bucket:', createBackupError.message);
+      }
+    }
+
     return { success: true };
   } catch (error) {
     // Only log in development to avoid console spam in production
