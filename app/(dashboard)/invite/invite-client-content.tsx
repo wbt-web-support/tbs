@@ -180,8 +180,12 @@ export default function InviteClientContent() {
             });
             if (match?.responsibilities?.trim()) {
               const responsibilities: string = match.responsibilities;
-              accountabilities = responsibilities
-                .split('\n')
+              // Split by newline (preferred) or fall back to comma for legacy data
+              const hasNewlines = responsibilities.includes('\n');
+              const rawEntries = hasNewlines
+                ? responsibilities.split('\n')
+                : responsibilities.split(',');
+              accountabilities = rawEntries
                 .map((s: string) => s.trim())
                 .filter((s: string) => s.length > 0)
                 .map((s: string) => ({ value: s }));

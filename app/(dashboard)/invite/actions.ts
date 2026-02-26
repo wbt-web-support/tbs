@@ -260,27 +260,31 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
             const onboardingData = onboardingRecord.onboarding_data as any;
             let employees = onboardingData.current_employees_and_roles_responsibilities;
 
+            // Join with newline so the format round-trips correctly:
+            // onboarding splits by \n on next save, so we must preserve \n here
             const newResponsibilities = (critical_accountabilities || [])
               .map((a: { value: string }) => a.value)
-              .join(', ');
+              .join('\n');
 
             if (Array.isArray(employees)) {
               employees = employees.map((emp: any) => {
                 const emailMatch = emp.email && emp.email === userRecord.email;
-                const nameMatch = emp.name === userRecord.full_name;
+                const nameMatch = emp.name?.toLowerCase() === userRecord.full_name?.toLowerCase();
                 if (emailMatch || nameMatch) {
                   return { ...emp, responsibilities: newResponsibilities };
                 }
                 return emp;
               });
             } else if (typeof employees === 'string' && employees) {
+              // For legacy string format: find the employee section and replace their responsibilities.
+              // We use a dotAll flag so \n inside responsibilities are captured correctly.
               const escapedName = userRecord.full_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
               const regex = new RegExp(
-                `(${escapedName}\\s*\\([^)]*\\)\\s*-)\\s*[^,]+(?=,\\s*[A-Z]|$)`,
+                `(${escapedName}\\s*\\([^)]*\\)\\s*-\\s*)([\\s\\S]*?)(?=,\\s*\\S+\\s+\\(|$)`,
                 'i'
               );
               if (regex.test(employees)) {
-                employees = employees.replace(regex, `$1 ${newResponsibilities}`);
+                employees = employees.replace(regex, `$1${newResponsibilities}`);
               }
             }
 
@@ -430,4 +434,77 @@ export async function inviteUser(values: InviteFormValues, editUserId?: string) 
     console.error('Server Action Error:', error.message);
     return { success: false, error: error.message }
   }
-} 
+}
+
+/**
+ * Syncs onboarding employee responsibilities → business_info.critical_accountabilities.
+ * Uses the service role key so it bypasses RLS (the client session can only update
+ * the signed-in user's own record, not team members').
+ */
+export async function syncOnboardingResponsibilities(
+  employees: Array<{ name: string; email?: string | null; responsibilities: string }>,
+  teamId: string
+) {
+  try {
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    for (const employee of employees) {
+      const responsibilities = employee.responsibilities?.trim() || '';
+      if (!responsibilities) continue;
+
+      const hasNewlines = responsibilities.includes('\n');
+      const rawEntries = hasNewlines
+        ? responsibilities.split('\n')
+        : responsibilities.split(',');
+
+      const criticalAccountabilities = rawEntries
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0)
+        .map((r) => ({ value: r }));
+
+      if (criticalAccountabilities.length === 0) {
+        criticalAccountabilities.push({ value: responsibilities });
+      }
+
+      let synced = false;
+
+      // Primary: match by email
+      if (employee.email?.trim()) {
+        const { error } = await supabaseAdmin
+          .from('business_info')
+          .update({ critical_accountabilities: criticalAccountabilities })
+          .eq('email', employee.email.trim());
+
+        if (!error) {
+          synced = true;
+          console.log(`✅ [server] Synced by email: ${employee.name}`);
+        }
+      }
+
+      // Fallback: match by full_name within team (case-insensitive)
+      if (!synced && employee.name?.trim()) {
+        const { error } = await supabaseAdmin
+          .from('business_info')
+          .update({ critical_accountabilities: criticalAccountabilities })
+          .eq('team_id', teamId)
+          .ilike('full_name', employee.name.trim());
+
+        if (error) {
+          console.error(`⚠️ [server] Could not sync by name for ${employee.name}:`, error.message);
+        } else {
+          console.log(`✅ [server] Synced by name: ${employee.name}`);
+        }
+      }
+    }
+
+    revalidatePath('/team');
+    return { success: true };
+  } catch (err: any) {
+    console.error('syncOnboardingResponsibilities error:', err.message);
+    return { success: false, error: err.message };
+  }
+}

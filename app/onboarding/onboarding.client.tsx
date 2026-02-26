@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { SubmissionLoader } from "./components/submission-loader";
 import { CompetitorInfoModal } from "./components/CompetitorInfoModal";
 import { DepartmentDropdown } from "@/components/ui/dropdown-helpers";
-import { inviteUser } from "@/app/(dashboard)/invite/actions";
+import { inviteUser, syncOnboardingResponsibilities } from "@/app/(dashboard)/invite/actions";
 
 // Animated AI Blob Component
 function AnimatedAIBlob({ className = "w-5 h-5", isActive = false }: { className?: string; isActive?: boolean }) {
@@ -4087,12 +4087,12 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
         console.log('ℹ️ No employees to create accounts for');
       }
 
-      // Sync employee responsibilities to business_info.critical_accountabilities
-      // This ensures the Teams page always shows up-to-date data from onboarding
+      // Sync employee responsibilities → business_info.critical_accountabilities via server action.
+      // We use a server action (service role) because the client session's RLS only allows
+      // each user to update their own business_info row, not team members' rows.
       try {
         const employeesToSync = allFormValues.current_employees_and_roles_responsibilities;
         if (Array.isArray(employeesToSync) && employeesToSync.length > 0) {
-          // Get admin's team_id so we scope name-based matches to this team only
           const { data: adminBizInfo } = await supabase
             .from('business_info')
             .select('team_id')
@@ -4100,54 +4100,20 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
             .single();
           const teamId = adminBizInfo?.team_id || user.id;
 
-          for (const employee of employeesToSync) {
-            const responsibilities = employee.responsibilities?.trim() || '';
-            if (!responsibilities) continue;
+          const syncPayload = employeesToSync
+            .filter((e: any) => e.name?.trim() && e.responsibilities?.trim())
+            .map((e: any) => ({
+              name: e.name as string,
+              email: e.email as string | null | undefined,
+              responsibilities: e.responsibilities as string,
+            }));
 
-            const criticalAccountabilities = responsibilities
-              .split(/\n/)
-              .map((r: string) => r.trim())
-              .filter((r: string) => r.length > 0)
-              .map((r: string) => ({ value: r }));
-
-            if (criticalAccountabilities.length === 0) {
-              criticalAccountabilities.push({ value: responsibilities });
-            }
-
-            let synced = false;
-
-            // Primary: match by email (most precise)
-            if (employee.email?.trim()) {
-              const { error: emailSyncError } = await supabase
-                .from('business_info')
-                .update({ critical_accountabilities: criticalAccountabilities })
-                .eq('email', employee.email.trim());
-
-              if (!emailSyncError) {
-                synced = true;
-                console.log(`✅ Synced responsibilities by email for ${employee.name}`);
-              }
-            }
-
-            // Fallback: match by full_name within the same team
-            if (!synced && employee.name?.trim()) {
-              const { error: nameSyncError } = await supabase
-                .from('business_info')
-                .update({ critical_accountabilities: criticalAccountabilities })
-                .eq('team_id', teamId)
-                .ilike('full_name', employee.name.trim());
-
-              if (nameSyncError) {
-                console.error(`⚠️ Could not sync responsibilities for ${employee.name}:`, nameSyncError.message);
-              } else {
-                console.log(`✅ Synced responsibilities by name for ${employee.name}`);
-              }
-            }
+          if (syncPayload.length > 0) {
+            await syncOnboardingResponsibilities(syncPayload, teamId);
           }
         }
       } catch (syncError) {
         console.error('⚠️ Non-critical error syncing responsibilities to business_info:', syncError);
-        // Don't block form submission
       }
 
       // Mark employee accounts step as done
@@ -4262,6 +4228,33 @@ export default function OnboardingClient({ isEditMode = false }: { isEditMode?: 
             onboarding_data: dataToSaveWithLabels,
             completed: false,
           });
+      }
+
+      // Sync employee responsibilities → business_info.critical_accountabilities
+      try {
+        const employees = allFormValues.current_employees_and_roles_responsibilities;
+        if (Array.isArray(employees) && employees.length > 0) {
+          const { data: adminBizInfo } = await supabase
+            .from('business_info')
+            .select('team_id')
+            .eq('user_id', user.id)
+            .single();
+          const teamId = adminBizInfo?.team_id || user.id;
+
+          const syncPayload = employees
+            .filter((e: any) => e.name?.trim() && e.responsibilities?.trim())
+            .map((e: any) => ({
+              name: e.name as string,
+              email: e.email as string | null | undefined,
+              responsibilities: e.responsibilities as string,
+            }));
+
+          if (syncPayload.length > 0) {
+            await syncOnboardingResponsibilities(syncPayload, teamId);
+          }
+        }
+      } catch (syncError) {
+        console.error('⚠️ Non-critical error syncing responsibilities:', syncError);
       }
 
       toast({ 
