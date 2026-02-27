@@ -12,6 +12,10 @@ function getLinesFromList(listEl: HTMLUListElement): string[] {
   return items;
 }
 
+function normalizeLines(text: string): string[] {
+  return text.trim() ? text.split("\n").map((l) => l.trim()).filter(Boolean) : [];
+}
+
 function setListContent(listEl: HTMLUListElement, lines: string[]) {
   listEl.innerHTML = "";
   if (lines.length === 0) {
@@ -48,7 +52,9 @@ export default function BulletListEditor({
 }: BulletListEditorProps) {
   const ulRef = useRef<HTMLUListElement | null>(null);
   const [refReady, setRefReady] = useState(false);
-  const isInternalChange = useRef(false);
+  const lastEmittedRef = useRef<string>(value);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   const setRef = useCallback((el: HTMLUListElement | null) => {
     ulRef.current = el;
@@ -57,27 +63,38 @@ export default function BulletListEditor({
 
   useLayoutEffect(() => {
     const ul = ulRef.current;
-    if (!ul || isInternalChange.current) return;
-    const valueLines = value.trim() ? value.split("\n").map((l) => l.trim()).filter(Boolean) : [];
+    if (!ul) return;
+
+    const valueLines = normalizeLines(value);
     const currentLines = getLinesFromList(ul);
-    const same =
+
+    const domCorrect =
       currentLines.length === valueLines.length &&
       currentLines.every((l, i) => l === valueLines[i]);
-    if (currentLines.length === 0 || !same) {
-      setListContent(ul, valueLines.length ? valueLines : [""]);
-    }
+    if (domCorrect) return;
+
+    // Skip rewrite when the incoming value is a round-trip of what we
+    // emitted AND the user has typed content (preserves cursor position).
+    // On mount the DOM is empty so we must still populate it.
+    const emittedLines = normalizeLines(lastEmittedRef.current);
+    const isRoundTrip =
+      valueLines.length === emittedLines.length &&
+      valueLines.every((l, i) => l === emittedLines[i]);
+    const hasUserContent = currentLines.some((l) => l.length > 0);
+    if (isRoundTrip && hasUserContent) return;
+
+    setListContent(ul, valueLines.length ? valueLines : [""]);
+    lastEmittedRef.current = value;
   }, [value, refReady]);
 
   const emitChange = useCallback(() => {
     const ul = ulRef.current;
     if (!ul) return;
     const lines = getLinesFromList(ul).filter((l) => l.length > 0);
-    isInternalChange.current = true;
-    onChange(lines.join("\n"));
-    requestAnimationFrame(() => {
-      isInternalChange.current = false;
-    });
-  }, [onChange]);
+    const joined = lines.join("\n");
+    lastEmittedRef.current = joined;
+    onChangeRef.current(joined);
+  }, []);
 
   const handleInput = useCallback(() => {
     emitChange();

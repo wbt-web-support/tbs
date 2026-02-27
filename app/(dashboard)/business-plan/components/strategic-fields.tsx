@@ -68,29 +68,49 @@ export default function StrategicFields({
   onAppliedImprovementConsumed,
   focusedFieldId,
 }: StrategicFieldsProps) {
-  const initialTexts = {
+  const [texts, setTexts] = useState({
     core_values: arrayToText(coreValues),
     strategic_anchors: arrayToText(strategicAnchors),
     purpose_why: arrayToText(purposeWhy),
     one_year_targets: arrayToText(oneYearTarget),
     five_year_targets: arrayToText(fiveYearTarget),
-  };
-  const [texts, setTexts] = useState(initialTexts);
+  });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>("");
+  const lastEmittedRef = useRef({ ...texts });
+  const onAutoSaveRef = useRef(onAutoSave);
+  onAutoSaveRef.current = onAutoSave;
+  const onFieldsTextChangeRef = useRef(onFieldsTextChange);
+  onFieldsTextChangeRef.current = onFieldsTextChange;
 
+  // Only sync from props when the incoming arrays produce text that
+  // differs from what we last emitted — avoids overwriting user edits
+  // during the save round-trip.
   useEffect(() => {
-    setTexts({
+    const incoming = {
       core_values: arrayToText(coreValues),
       strategic_anchors: arrayToText(strategicAnchors),
       purpose_why: arrayToText(purposeWhy),
       one_year_targets: arrayToText(oneYearTarget),
       five_year_targets: arrayToText(fiveYearTarget),
-    });
+    };
+    let changed = false;
+    const next = { ...lastEmittedRef.current };
+    for (const key of FIELD_IDS) {
+      if (incoming[key] !== lastEmittedRef.current[key]) {
+        next[key] = incoming[key];
+        changed = true;
+      }
+    }
+    if (changed) {
+      lastEmittedRef.current = next;
+      setTexts(next);
+    }
   }, [coreValues, strategicAnchors, purposeWhy, fiveYearTarget, oneYearTarget]);
 
   useEffect(() => {
-    onFieldsTextChange?.(texts);
+    lastEmittedRef.current = { ...texts };
+    onFieldsTextChangeRef.current?.(texts);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
@@ -103,13 +123,11 @@ export default function StrategicFields({
       };
       const key = JSON.stringify(payload);
       if (key !== lastSavedRef.current && planId) {
-        const promise = onAutoSave?.(payload);
+        const promise = onAutoSaveRef.current?.(payload);
         if (promise && typeof promise.then === "function") {
           promise.then(() => {
             lastSavedRef.current = key;
-          }).catch(() => {
-            // Leave lastSavedRef unchanged so we retry on next change
-          });
+          }).catch(() => {});
         } else {
           lastSavedRef.current = key;
         }
@@ -118,7 +136,8 @@ export default function StrategicFields({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [texts, planId, onAutoSave, onFieldsTextChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [texts, planId]);
 
   useEffect(() => {
     if (!appliedImprovement?.fieldId || appliedImprovement.value == null || !onAppliedImprovementConsumed) return;

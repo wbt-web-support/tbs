@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
 
 type BattlePlanDetailsProps = {
@@ -31,14 +31,20 @@ export default function BattlePlanDetails({
 }: BattlePlanDetailsProps) {
   const [mission, setMission] = useState(missionStatement);
   const [vision, setVision] = useState(visionStatement);
+  const lastEmittedRef = useRef({ mission: missionStatement, vision: visionStatement });
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  // Sync with props when they change
+  // Only sync from props when the incoming value is genuinely new
+  // (i.e. not a round-trip of what we already emitted via onChange)
   useEffect(() => {
-    if (missionStatement !== mission) {
+    if (missionStatement !== lastEmittedRef.current.mission) {
       setMission(missionStatement);
+      lastEmittedRef.current.mission = missionStatement;
     }
-    if (visionStatement !== vision) {
+    if (visionStatement !== lastEmittedRef.current.vision) {
       setVision(visionStatement);
+      lastEmittedRef.current.vision = visionStatement;
     }
   }, [missionStatement, visionStatement]);
 
@@ -46,18 +52,28 @@ export default function BattlePlanDetails({
     if (generatedData) {
       if (generatedData.missionstatement && generatedData.missionstatement !== mission) {
         setMission(generatedData.missionstatement);
+        lastEmittedRef.current.mission = generatedData.missionstatement;
       }
       if (generatedData.visionstatement && generatedData.visionstatement !== vision) {
         setVision(generatedData.visionstatement);
+        lastEmittedRef.current.vision = generatedData.visionstatement;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedData]);
 
   useEffect(() => {
-    onChange({ mission, vision });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    lastEmittedRef.current = { mission, vision };
+    onChangeRef.current({ mission, vision });
   }, [mission, vision]);
+
+  const handleMissionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMission(e.target.value);
+  }, []);
+
+  const handleVisionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setVision(e.target.value);
+  }, []);
 
   const getTextareaClass = (fieldId: string) => {
     const isHighlighted = focusedFieldId === fieldId;
@@ -83,7 +99,7 @@ export default function BattlePlanDetails({
             {editMode ? (
               <Textarea
                 value={mission}
-                onChange={(e) => setMission(e.target.value)}
+                onChange={handleMissionChange}
                 onFocus={() => onFieldFocus?.("mission")}
                 onBlur={onFieldBlur}
                 placeholder="Enter your mission statement..."
@@ -106,7 +122,7 @@ export default function BattlePlanDetails({
             {editMode ? (
               <Textarea
                 value={vision}
-                onChange={(e) => setVision(e.target.value)}
+                onChange={handleVisionChange}
                 onFocus={() => onFieldFocus?.("vision")}
                 onBlur={onFieldBlur}
                 placeholder="Enter your vision statement..."

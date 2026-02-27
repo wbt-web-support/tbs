@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import BattlePlanDetails from "./components/battle-plan-details";
 import StrategicFields, { type StrategicFieldsData } from "./components/strategic-fields";
 import ReusableTiptapEditor from "@/components/reusable-tiptap-editor";
+import { BusinessPlanGenerationLoader, BUSINESS_PLAN_LOADING_STEPS, type BusinessPlanLoadingStep } from "./components/business-plan-generation-loader";
 import { toast } from "sonner";
 
 type StaticQuestionsAnswers = {
@@ -217,6 +218,10 @@ export default function BattlePlanPage() {
   } | null>(null);
   const [loadingDebugContext, setLoadingDebugContext] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  // Generation loading steps (shown during 1–2 min business plan generation)
+  const [businessPlanLoadingSteps, setBusinessPlanLoadingSteps] = useState<BusinessPlanLoadingStep[]>([]);
+  const generationProgressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => {
     if (structuredSavedTimeoutRef.current) clearTimeout(structuredSavedTimeoutRef.current);
@@ -421,6 +426,7 @@ export default function BattlePlanPage() {
   const handleBusinessPlanContentChange = useCallback((content: string) => {
     setBusinessPlanContent(content);
   }, []);
+  const noop = useCallback(() => {}, []);
 
   // Autosave mission/vision when detailsData changes (Structured tab)
   useEffect(() => {
@@ -628,8 +634,37 @@ export default function BattlePlanPage() {
       return;
     }
     try {
+      // Show loading screen with steps (simulated progress every ~14s over 1–2 min)
+      const initialSteps: BusinessPlanLoadingStep[] = BUSINESS_PLAN_LOADING_STEPS.map((title) => ({
+        title,
+        done: false,
+      }));
+      setBusinessPlanLoadingSteps(initialSteps);
       setGenerating(true);
-      
+
+      // Clear any existing interval
+      if (generationProgressIntervalRef.current) {
+        clearInterval(generationProgressIntervalRef.current);
+        generationProgressIntervalRef.current = null;
+      }
+
+      // Simulate step progress: 24 seconds per step (5 steps = 2 min total)
+      let stepIndex = 0;
+      const totalSteps = initialSteps.length;
+      generationProgressIntervalRef.current = setInterval(() => {
+        stepIndex += 1;
+        if (stepIndex >= totalSteps) {
+          if (generationProgressIntervalRef.current) {
+            clearInterval(generationProgressIntervalRef.current);
+            generationProgressIntervalRef.current = null;
+          }
+          return;
+        }
+        setBusinessPlanLoadingSteps((prev) =>
+          prev.map((s, i) => (i < stepIndex ? { ...s, done: true } : s))
+        );
+      }, 24000);
+
       // Save questions and answers to battle_plan (single JSON column, same structure as growth-machine)
       const { error: updateError } = await supabase
         .from("battle_plan")
@@ -686,12 +721,24 @@ export default function BattlePlanPage() {
       }
 
       await fetchBattlePlanData();
+
+      // Mark all steps done before switching to plan view
+      setBusinessPlanLoadingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
+      if (generationProgressIntervalRef.current) {
+        clearInterval(generationProgressIntervalRef.current);
+        generationProgressIntervalRef.current = null;
+      }
+
       setCurrentStep("plan");
       toast.success("Your business plan has been generated.");
     } catch (err: any) {
       console.error('Error generating content:', err);
       const errorMessage = err.message || 'Failed to generate business plan content';
       toast.error(errorMessage);
+      if (generationProgressIntervalRef.current) {
+        clearInterval(generationProgressIntervalRef.current);
+        generationProgressIntervalRef.current = null;
+      }
     } finally {
       setGenerating(false);
     }
@@ -990,6 +1037,11 @@ export default function BattlePlanPage() {
         <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
       </div>
     );
+  }
+
+  // Full-screen generation loader (1–2 min) with steps from the business plan
+  if (generating && businessPlanLoadingSteps.length > 0) {
+    return <BusinessPlanGenerationLoader loadingSteps={businessPlanLoadingSteps} />;
   }
 
   // Welcome screen (like growth-machine)
@@ -1458,7 +1510,7 @@ export default function BattlePlanPage() {
                     <BattlePlanDetails
                       missionStatement={detailsData?.mission ?? battlePlanData?.missionstatement ?? ""}
                       visionStatement={detailsData?.vision ?? battlePlanData?.visionstatement ?? ""}
-                      onUpdate={() => {}}
+                      onUpdate={noop}
                       planId={battlePlanData?.id}
                       generatedData={generatedData}
                       onGeneratedDataChange={setGeneratedData}
@@ -1466,7 +1518,7 @@ export default function BattlePlanPage() {
                       minimalStyle={true}
                       onChange={handleDetailsChange}
                       onFieldFocus={setFocusedFieldId}
-                      onFieldBlur={() => {}}
+                      onFieldBlur={noop}
                       focusedFieldId={focusedFieldId}
                     />
                   </section>
